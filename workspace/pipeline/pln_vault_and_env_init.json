@@ -1,0 +1,758 @@
+{
+	"name": "pln_vault_and_env_init",
+	"properties": {
+		"activities": [
+			{
+				"name": "Set key vault URL",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Key_Vault_Url",
+					"value": {
+						"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-dev-uks'), 'https://pinskvsynwodwdevuks.vault.azure.net/secrets/', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'https://pinskvsynwodwtestuks.vault.azure.net/secrets/', 'https://pinskvsynwodwproduks.vault.azure.net/secrets/'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set runId",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "runId",
+					"value": {
+						"value": "@pipeline().RunId",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set triggeredBy",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "triggeredBy",
+					"value": {
+						"value": "@coalesce(pipeline().TriggerName, pipeline().TriggerType, 'manual')\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get AppIns iKey",
+				"description": "Get the application insights ikey for logging",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get subscription",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get resource group",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get Webhook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set key vault URL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set AppIns iKey",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apps_insights_ikey",
+					"value": {
+						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set subscription",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "subscription_id",
+					"value": {
+						"value": "@activity('Get subscription').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set resource group",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "resource_group",
+					"value": {
+						"value": "@activity('Get resource group').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set webhook",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get Webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "webhook_url",
+					"value": {
+						"value": "@activity('Get Webhook').output.value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set triggeredBy",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set runId",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(\n    or(empty(variables('apps_insights_ikey')), empty(variables('subscription_id'))),\n    or(empty(variables('resource_group')), empty(variables('webhook_url')))\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail missing secret",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "One or more required secrets are missing from Key Vault. Check application-insights-connection-string, SubscriptionId, DBResourceGroup, TeamsWebhook",
+								"errorCode": "ODW_INIT_403_Secret_MISSING"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Assemble runContextJson",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "If_ServiceBus",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "If_Horizon",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "runContextJson",
+					"value": {
+						"value": "@string(\n  json(\n    concat(\n      '{',\n      '\"keyVaultUrl\":\"', variables('Key_Vault_Url'), '\",',\n      '\"appInsightsKey\":\"', variables('apps_insights_ikey'), '\",',\n      '\"subscriptionId\":\"', variables('subscription_id'), '\",',\n      '\"resourceGroup\":\"', variables('resource_group'), '\",',\n      '\"teamsWebhook\":\"', variables('webhook_url'), '\",',\n      '\"runId\":\"', variables('runId'), '\",',\n      '\"triggeredBy\":\"', variables('triggeredBy'), '\"',\n      '}'\n    )\n  )\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Return outputs",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Assemble runContextJson",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "runContextJson",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('runContextJson')"
+							}
+						},
+						{
+							"key": "sbEntities",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('service_bus_feed')"
+							}
+						},
+						{
+							"key": "hzEntities",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('horizon_feed')"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "If_ServiceBus",
+				"description": "Check if includeServiceBus is True or False",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.includeServiceBus\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Init Service Bus",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "service_bus_feed",
+								"value": {
+									"value": "@json('[]')",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Get Service Bus feed",
+							"description": "Get the enabled service bus feed from master pipeline config",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Service bus'\n  AND entity_name IS NOT NULL\n",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_main_config",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Set Service Bus feed",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Get Service Bus feed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "service_bus_feed",
+								"value": {
+									"value": "@if(\n  greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n  pipeline().parameters.sbEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get Service Bus feed').output.value)),\n      not(empty(activity('Get Service Bus feed').output.value[0].entities))\n    ),\n    split(activity('Get Service Bus feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_Horizon",
+				"description": "Check if includeHorizon is True or False",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.includeHorizon",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Init Horizon",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizon_feed",
+								"value": {
+									"value": "@json('[]')",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Get Horizon feed",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Horizon'\n  AND entity_name IS NOT NULL\n",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_main_config",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Set Horizon feed",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Get Horizon feed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "horizon_feed",
+								"value": {
+									"value": "@if(\n  greater(length(pipeline().parameters.hzEntitiesFilter), 0),\n  pipeline().parameters.hzEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get Horizon feed').output.value)),\n      not(empty(activity('Get Horizon feed').output.value[0].entities))\n    ),\n    split(activity('Get Horizon feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "pln_service_bus_ingest",
+				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Return outputs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_service_bus_ingest",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"runContextJson": {
+							"value": "@variables('runContextJson')",
+							"type": "Expression"
+						},
+						"sbEntities": {
+							"value": "@variables('service_bus_feed')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "pln_horizon_ingest",
+				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Return outputs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_horizon_ingest",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"runContextJson": {
+							"value": "@variables('runContextJson')",
+							"type": "Expression"
+						},
+						"hzEntities": {
+							"value": "@variables('horizon_feed')",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"sbEntitiesFilter": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"hzEntitiesFilter": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"includeServiceBus": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"includeHorizon": {
+				"type": "bool",
+				"defaultValue": true
+			}
+		},
+		"variables": {
+			"Key_Vault_Url": {
+				"type": "String"
+			},
+			"Key_Vault_API": {
+				"type": "String",
+				"defaultValue": "?api-version=7.0"
+			},
+			"apps_insights_ikey": {
+				"type": "String"
+			},
+			"subscription_id": {
+				"type": "String"
+			},
+			"resource_group": {
+				"type": "String"
+			},
+			"webhook_url": {
+				"type": "String"
+			},
+			"service_bus_feed": {
+				"type": "Array"
+			},
+			"horizon_feed": {
+				"type": "Array"
+			},
+			"start_time": {
+				"type": "String"
+			},
+			"runContextJson": {
+				"type": "String"
+			},
+			"runId": {
+				"type": "String"
+			},
+			"triggeredBy": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Init"
+		},
+		"annotations": []
+	}
+}

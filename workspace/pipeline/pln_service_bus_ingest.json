@@ -1,0 +1,1041 @@
+{
+	"name": "pln_service_bus_ingest",
+	"properties": {
+		"activities": [
+			{
+				"name": "Guard sbEntities empty",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(length(pipeline().parameters.sbEntities), 0)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Log no SB entities",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Warning",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"ErrorMessage": "No Service Bus entities to process",
+									"StatusMessage": "NoWork",
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set empty status json",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Log no SB entities",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "serviceBusStatusJson",
+								"value": {
+									"value": "@string(createArray('[]'))",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach Service Bus entities",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Guard sbEntities empty",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.sbEntities",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "Random wait",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": {
+									"value": "@rand(1,20)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If entity is service user",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Reset lastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item(),'service-user')\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Src to Raw non service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_trigger_function_app",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"function_name": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"Key_Vault_Url": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['keyVaultUrl'],\n    json(pipeline().parameters.runContextJson)?['Key_Vault_Url'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Set the messages count if false",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw non service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "messagesCount",
+											"value": {
+												"value": "@int(coalesce(activity('Src to Raw non service user').output.pipelineReturnValue.Messages,'0'))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "SetlastError non service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw non service user",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('Src to Raw non service user').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Log failure to AppInsights non service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "SetlastError non service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' RAW ingest failed')",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append Failed non service user",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log failure to AppInsights non service user",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "serviceBusStatus",
+											"value": {
+												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Mark Failure non service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed non service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Src to Raw service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_trigger_function_app",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"function_name": "service-user",
+												"Key_Vault_Url": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['keyVaultUrl'],\n    json(pipeline().parameters.runContextJson)?['Key_Vault_Url'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Src to Raw appeal service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_trigger_function_app",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"function_name": "appeal-service-user",
+												"Key_Vault_Url": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['keyVaultUrl'],\n    json(pipeline().parameters.runContextJson)?['Key_Vault_Url'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Set the messages count if true",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw appeal service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "messagesCount",
+											"value": {
+												"value": "@add(\n    int(coalesce(activity('Src to Raw service user').output.pipelineReturnValue.Messages,'0')),\n    int(coalesce(activity('Src to Raw appeal service user').output.pipelineReturnValue.Messages,'0'))\n)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Set lastError service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw service user",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('Src to Raw service user').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Log failure service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Set lastError service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' RAW ingest failed')",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append Failed service user",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log failure service user",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "serviceBusStatus",
+											"value": {
+												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Set lastError appeal service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Src to Raw appeal service user",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('Src to Raw appeal service user').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Log failure appeal service user",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Set lastError appeal service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' RAW ingest failed')",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append Failed appeal service user",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log failure appeal service user",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "serviceBusStatus",
+											"value": {
+												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"Failed\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Mark Failure Service User",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									},
+									{
+										"name": "Mark Failure appeal service user",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Append Failed appeal service user",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "If new messages",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If entity is service user",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@greater(variables('messagesCount'), 0)\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Log zero messages",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Warning",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@concat(item(), ': Zero messages found on service bus subscription')",
+													"type": "Expression"
+												},
+												"StatusMessage": "Warning",
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append serviceBusStatus",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Log zero messages",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "serviceBusStatus",
+											"value": {
+												"value": "@json(\n  concat(\n    '{',\n      '\"entity\":\"', string(item()), '\",',\n      '\"status\":\"NoData\",',\n      '\"recordsIngested\":0,',\n      '\"durationSeconds\":0,',\n      '\"manifestPath\":\"\",',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}'\n  )\n)\n",
+												"type": "Expression"
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Write manifest and update watermarks",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 2,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_sb_write_manifest_and_watermark",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": {
+														"value": "@item()",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"runContextJson": {
+													"value": {
+														"value": "@pipeline().parameters.runContextJson",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"recordsIngested": {
+													"value": {
+														"value": "@variables('messagesCount')",
+														"type": "Expression"
+													},
+													"type": "int"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "pinssynspodw34",
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"driverSize": "Small",
+											"numExecutors": null,
+											"authentication": {
+												"type": "MSI"
+											}
+										}
+									},
+									{
+										"name": "pln_log_to_appins",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Write manifest and update watermarks",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Completion",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"Inserts": {
+													"value": "@variables('messagesCount')",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' RAW ingest completed')",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Append to ServiceBusStatus",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "pln_log_to_appins",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "serviceBusStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('messagesCount')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"manifestPath\":\"',\n      if(\n        equals(activity('Write manifest and update watermarks').status,'Succeeded'),\n        string( json(activity('Write manifest and update watermarks').output.status.Output.result.exitValue).manifestPath ),\n        ''\n      ),\n    '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Log Start",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Random wait",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Start",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ' RAW ingest starting')",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set loop start",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Log Start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "loopStartTicks",
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Reset lastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set loop start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": {
+									"value": "@string('')\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Output JSON",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEach Service Bus entities",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "serviceBusStatusJson",
+					"value": {
+						"value": "@string(variables('serviceBusStatus'))\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Return result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Output JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n  '\"results\":', string(variables('serviceBusStatus')),\n  '}'\n)\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"runContextJson": {
+				"type": "string"
+			},
+			"sbEntities": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"retryCount": {
+				"type": "int",
+				"defaultValue": 2
+			}
+		},
+		"variables": {
+			"serviceBusStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"serviceBusStatusJson": {
+				"type": "String",
+				"defaultValue": "'[]'"
+			},
+			"messagesCount": {
+				"type": "Integer",
+				"defaultValue": 0
+			},
+			"lastErrorMessage": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"loopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "utils/Ingest"
+		},
+		"annotations": []
+	}
+}
