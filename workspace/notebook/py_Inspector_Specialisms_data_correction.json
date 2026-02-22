@@ -1,0 +1,543 @@
+{
+	"name": "py_Inspector_Specialisms_data_correction",
+	"properties": {
+		"folder": {
+			"name": "Releases/29.0.0"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "46ec5377-bb35-449c-b929-78fbc365a32b"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to correct data by using delta table from the Standardised layer and populate the Harmonised Layer delta table.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12-Feb-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This template is designed to reset the data processing for Inspector Specialism. It will correct the data by using delta table from the Standardised layer and populate the Harmonised Layer delta table."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Import libraries \n",
+					"import json\n",
+					"import sys\n",
+					"import re\n",
+					"from datetime import datetime, date\n",
+					"from pyspark.sql.functions import regexp_replace,lit, current_timestamp, trim,col,coalesce, to_date, when\n",
+					"\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"# Ignore FutureWarning messages \n",
+					"import warnings\n",
+					"warnings.filterwarnings(\"ignore\", message=\"iteritems is deprecated\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# "
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Enable Apps Insight Logging"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Define all storage paths and file locations"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"#Initialise all Apps Insight variables\n",
+					"start_exec_time = datetime.now()\n",
+					"end_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = ''\n",
+					"\n",
+					"# Define database names, table names, and file paths\n",
+					"standardised_database = \"odw_standardised_db\"\n",
+					"harmonised_database = \"odw_harmonised_db\"\n",
+					"\n",
+					"# Target table names\n",
+					"standardised_table = f\"{standardised_database}.inspector_specialisms_monthly\"\n",
+					"harmonised_table = f\"{harmonised_database}.sap_hr_inspector_Specialisms\"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare a data frame to drop exact duplicates from the standardised layer"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Create a unique records data frame and a temporary view\n",
+					"df_src_std_specialism = spark.sql(f\"SELECT * FROM {standardised_table}\")\n",
+					"\n",
+					"df_src_std_specialism = df_src_std_specialism.dropDuplicates()\n",
+					"\n",
+					"df_src_std_specialism.createOrReplaceTempView(\"vw_inspector_specialisms_monthly\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare Transform Table for the Harmonised layer Ingestion"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        logInfo(\"Starting inspector specialisms data processing\")\n",
+					"\n",
+					"        create_view_latest_specialisms_sql = \"\"\"\n",
+					"            CREATE OR REPLACE TEMP VIEW vw_latest_inspector_specialisms AS\n",
+					"            SELECT ROW_NUMBER() OVER (PARTITION BY a.staffnumber,a.QualificationName ORDER BY a.validFrom Desc) Rnk,  \n",
+					"                a.StaffNumber,\n",
+					"                a.Firstname,\n",
+					"                a.Lastname,\n",
+					"                a.QualificationName,\n",
+					"                a.Proficien,\n",
+					"                a.ValidFrom,\n",
+					"                a.ValidTo\n",
+					"            FROM vw_inspector_specialisms_monthly a\n",
+					"            \"\"\"\n",
+					"        spark.sql(create_view_latest_specialisms_sql)\n",
+					"\n",
+					"        # Step 1: Delete all records from the transform table\n",
+					"        logInfo(\"Step 1: Deleting records from transform_inspector_Specialisms\")\n",
+					"        spark.sql(\"\"\"\n",
+					"        DELETE FROM odw_harmonised_db.transform_inspector_Specialisms\n",
+					"        \"\"\")\n",
+					"        logInfo(\"Records deleted from transform table\")\n",
+					"\n",
+					"        # Step 2: Insert new records into the transform table\n",
+					"        logInfo(\"Step 2: Inserting records into transform_inspector_Specialisms\")\n",
+					"        spark.sql(\"\"\"\n",
+					"        INSERT INTO odw_harmonised_db.transform_inspector_Specialisms (\n",
+					"            StaffNumber,\n",
+					"            Firstname,\n",
+					"            Lastname,\n",
+					"            QualificationName,\n",
+					"            Proficien,\n",
+					"            SourceSystemID,\n",
+					"            IngestionDate,\n",
+					"            ValidFrom,\n",
+					"            ValidTo,\n",
+					"            RowID,\n",
+					"            IsActive\n",
+					"        )\n",
+					"        SELECT \n",
+					"            -- Format StaffNumber based on length and prefix\n",
+					"            CASE \n",
+					"                WHEN LENGTH(StaffNumber) = 6 THEN\n",
+					"                    CASE \n",
+					"                        WHEN StaffNumber LIKE '50%' THEN CONCAT('00', StaffNumber)\n",
+					"                        WHEN StaffNumber LIKE '42%' THEN CONCAT('50', StaffNumber)\n",
+					"                        ELSE StaffNumber\n",
+					"                    END\n",
+					"                WHEN LENGTH(StaffNumber) = 8 THEN StaffNumber\n",
+					"                ELSE StaffNumber\n",
+					"            END AS StaffNumber,\n",
+					"            Firstname,\n",
+					"            Lastname,\n",
+					"            QualificationName,\n",
+					"            Proficien,\n",
+					"            'saphr' AS SourceSystemID,\n",
+					"            CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"            cast(to_date(ValidFrom, \"d/M/yyyy\") as timestamp) AS ValidFrom,\n",
+					"            CASE \n",
+					"            WHEN Rnk = 1 \n",
+					"            THEN           \n",
+					"                cast(to_date(ValidTo, \"d/M/yyyy\") as timestamp) \n",
+					"            ELSE\n",
+					"                cast(DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY) as timestamp)\n",
+					"            END AS ValidTo,\n",
+					"            -- Generate RowID during insert instead of separate update\n",
+					"            md5(concat_ws('|', \n",
+					"                coalesce(cast(\n",
+					"                    CASE \n",
+					"                        WHEN LENGTH(StaffNumber) = 6 THEN\n",
+					"                            CASE \n",
+					"                                WHEN StaffNumber LIKE '50%' THEN CONCAT('00', StaffNumber)\n",
+					"                                WHEN StaffNumber LIKE '42%' THEN CONCAT('50', StaffNumber)\n",
+					"                                ELSE StaffNumber\n",
+					"                            END\n",
+					"                        WHEN LENGTH(StaffNumber) = 8 THEN StaffNumber\n",
+					"                        ELSE StaffNumber\n",
+					"                    END as string), ''), \n",
+					"                coalesce(cast(Firstname as string), ''), \n",
+					"                coalesce(cast(Lastname as string), ''), \n",
+					"                coalesce(cast(QualificationName as string), ''), \n",
+					"                coalesce(cast(Proficien as string), '')\n",
+					"            )) AS RowID,\n",
+					"            CASE\n",
+					"            WHEN Rnk = 1 \n",
+					"            THEN           \n",
+					"                'Y'\n",
+					"            ELSE\n",
+					"                'N'\n",
+					"            END AS IsActive \n",
+					"        FROM vw_latest_inspector_specialisms t1\n",
+					"        WHERE StaffNumber IS NOT NULL\n",
+					"        AND QualificationName IS NOT NULL\n",
+					"        \"\"\")\n",
+					"\n",
+					"        # Get count of inserted records\n",
+					"        transformed_record_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms\").collect()[0]['record_count']\n",
+					"        logInfo(f\"Inserted {transformed_record_count} records into transform_inspector_Specialisms\")\n",
+					"\n",
+					"        logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
+					"        # Ensure logs are flushed\n",
+					"        flushLogging()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting data from odw_harmonised_db.transform_inspector_Specialisms: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(str(e))\n",
+					"        # Ensure logs are flushed\n",
+					"        flushLogging()\n",
+					"        "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Follow the data correction steps for saphr_inspector_Specialisms"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message and transformed_record_count > 0:\n",
+					"    try:\n",
+					"\n",
+					"        logInfo(\"Starting inspector specialisms data correction\")\n",
+					"        update_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0\").collect()[0]['record_count']\n",
+					"        logInfo(f\"{update_count} records before updating sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"        # Step 1: Update all records from the sap_hr_inspector_Specialisms table\n",
+					"        logInfo(\"Step 1: Updating existing records into odw_harmonised_db.sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"        spark.sql(\"\"\" UPDATE odw_harmonised_db.sap_hr_inspector_Specialisms\n",
+					"                        SET Current = 0,\n",
+					"                            ValidTo = DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY),\n",
+					"                            IsActive = 'N',\n",
+					"                            IngestionDate = CURRENT_TIMESTAMP()\n",
+					"                    \"\"\")\n",
+					"        \n",
+					"        logInfo(\"UPDATE operation completed successfully\")\n",
+					"        # Get count of inserted records\n",
+					"        update_count = spark.sql(\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.sap_hr_inspector_Specialisms WHERE Current = 0 AND ValidTo = DATE_TRUNC('day', CURRENT_DATE() - INTERVAL 1 DAY)\").collect()[0]['record_count']\n",
+					"        logInfo(f\"Updated {update_count} records into sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"        logInfo(\"Inserting New inspector specialisms for data correction\")\n",
+					"\n",
+					"        spark.sql(\"\"\"\n",
+					"            INSERT INTO odw_harmonised_db.sap_hr_inspector_Specialisms (\n",
+					"                StaffNumber, \n",
+					"                Firstname, \n",
+					"                Lastname, \n",
+					"                QualificationName, \n",
+					"                Proficien, \n",
+					"                SourceSystemID, \n",
+					"                IngestionDate, \n",
+					"                ValidFrom, \n",
+					"                ValidTo, \n",
+					"                Current, \n",
+					"                RowID, \n",
+					"                IsActive, \n",
+					"                LastUpdated\n",
+					"            )\n",
+					"            SELECT \n",
+					"                souSpe.StaffNumber, \n",
+					"                souSpe.Firstname, \n",
+					"                souSpe.Lastname, \n",
+					"                souSpe.QualificationName, \n",
+					"                souSpe.Proficien, \n",
+					"                'saphr', \n",
+					"                current_timestamp(), \n",
+					"                souSpe.ValidFrom, \n",
+					"                souSpe.ValidTo, \n",
+					"                CASE \n",
+					"                WHEN IsActive = 'Y'\n",
+					"                THEN           \n",
+					"                    1\n",
+					"                ELSE\n",
+					"                    0\n",
+					"                END AS Current, \n",
+					"                souSpe.RowID, \n",
+					"                souSpe.IsActive, \n",
+					"                current_timestamp()\n",
+					"            FROM odw_harmonised_db.transform_inspector_Specialisms souSpe            \n",
+					"            \"\"\")\n",
+					"            \n",
+					"        logInfo(\"INSERT operation completed successfully\")\n",
+					"        # Get count of inserted records\n",
+					"        insert_count = spark.sql(\"\"\"SELECT COUNT(*) as record_count FROM odw_harmonised_db.transform_inspector_Specialisms souSpe\"\"\").collect()[0]['record_count']\n",
+					"        logInfo(f\"Inserted {insert_count} records into sap_hr_inspector_Specialisms\")\n",
+					"\n",
+					"        logInfo(\"Inspector specialisms data processing completed successfully\")\n",
+					"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
+					"        # Ensure logs are flushed\n",
+					"        flushLogging()\n",
+					"    \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting data from odw_harmonised_db.saphr_inspector_Specialisms: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(str(e))\n",
+					"        # Ensure logs are flushed\n",
+					"        flushLogging()\n",
+					"\n",
+					"else:\n",
+					"    logInfo(\"Couldn't load odw_harmonised_db.sap_hr_inspector_Specialisms. Either error occurred or odw_standarised_db.inspector_Specialisms_monthly has got zero records\")\n",
+					"    "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Drop Temporary views"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Clean up temporary views\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_latest_inspector_specialisms\")\n",
+					"spark.sql(\"DROP VIEW IF EXISTS vw_inspector_specialisms_monthly\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Record into Apps Insight for logging and tracking"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# STEP 6: Final Statistics and Telemetry\n",
+					"\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Ingested {insert_count} corrected records into {harmonised_table} and updated {update_count}.\"\n",
+					"    if not error_message \n",
+					"    else f\"Data correction failed for {harmonised_table}\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"400\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    harmonised_table,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					},
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"storage_account=mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"delta_table_path = f\"abfss://odw-harmonised@{storage_account}saphr/sap_hr_inspector_specialisms\"\n",
+					"\n",
+					"print(delta_table_path)\n",
+					"\n",
+					"target_sap_hr_specialism_df = spark.read.option(\"header\",\"true\").option(\"inferSchema\", \"true\").csv(\"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/StaticTables/2026-02-17/Inspector_specialism_load_oneoff.csv\")\n",
+					"\n",
+					"target_sap_hr_specialism_df = target_sap_hr_specialism_df.select(\n",
+					"    *[col(c) for c in target_sap_hr_specialism_df.columns if c not in [\"Current\"]], # Convert other columns to STRING\n",
+					"    col(\"Current\").cast(\"string\").alias(\"Current\")\n",
+					")\n",
+					"\n",
+					"display(target_sap_hr_specialism_df.count())\n",
+					"\n",
+					"target_sap_hr_specialism_df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"\n",
+					"#df_cleaned.write.format(\"delta\").mode(\"overwrite\").save(\"abfss://your-container@your-storage.dfs.core.windows.net/delta/my_table\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
