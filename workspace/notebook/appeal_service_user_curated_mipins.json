@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2a3f240f-c9a0-4d87-81f9-15776368cc42"
+				"spark.autotune.trackingId": "e02da78e-bf53-40e1-abe3-94db591869df"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -61,7 +61,7 @@
 				},
 				"source": [
 					"%%sql\n",
-					"CREATE OR REPLACE  VIEW vw_Appeal_Service_User_curated_mipins \n",
+					"CREATE OR REPLACE  VIEW odw_curated_db.vw_Appeal_Service_User_curated_mipins \n",
 					"AS\n",
 					"SELECT\n",
 					"    id\n",
@@ -131,7 +131,40 @@
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Appeal_Service_User_curated_mipins\")"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import DateType, TimestampType\n",
+					"\n",
+					"def apply_ancient_datetime_filter(df, cutoff=\"1900-01-01\"):\n",
+					"    datetime_cols = [\n",
+					"        f.name for f in df.schema.fields\n",
+					"        if isinstance(f.dataType, (TimestampType, DateType))\n",
+					"    ]\n",
+					"\n",
+					"    if not datetime_cols:\n",
+					"        return df\n",
+					"\n",
+					"    filter_expr = \" AND \".join([\n",
+					"        f\"({c} IS NULL OR {c} >= '{cutoff}')\"\n",
+					"        for c in datetime_cols\n",
+					"    ])\n",
+					"\n",
+					"    return df.filter(filter_expr)\n",
+					"\n",
+					"# Apply before timezone conversion\n",
+					"filtered_df = apply_ancient_datetime_filter(view_df)"
+				],
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -149,59 +182,14 @@
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.appeal_service_user_curated_mipins;\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"   SELECT\n",
-					"    id\n",
-					"    ,caseReference\n",
-					"    ,salutation\n",
-					"    ,FirstName\n",
-					"    ,lastName\n",
-					"    ,addressLine1\n",
-					"    ,addressLine2\n",
-					"    ,addressTown\n",
-					"    ,addressCounty\n",
-					"    ,postcode\n",
-					"    ,addressCountry\n",
-					"    ,organisation\n",
-					"    ,organisationType\n",
-					"    ,role\n",
-					"    ,telephoneNumber\n",
-					"    ,otherPhoneNumber\n",
-					"    ,faxNumber\n",
-					"    ,emailAddress\n",
-					"    ,webAddress\n",
-					"    ,serviceUserType\n",
-					"    ,sourceSystem\n",
-					"    ,sourceSUID\n",
-					"    ,ODTSourceSystem\n",
-					"    ,ingestionDate\n",
-					"    ,ValidTo\n",
-					"    ,RowID\n",
-					"    ,IsActive\n",
-					"    \n",
-					"FROM \n",
-					"    vw_Appeal_Service_User_curated_mipins\n",
-					"    \"\"\")\n",
-					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user_curated_mipins\")"
+					"filtered_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user_curated_mipins\")"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -218,10 +206,10 @@
 					"collapsed": false
 				},
 				"source": [
-					"#%%sql\r\n",
+					"#%%sql\n",
 					"#select * from odw_curated_db.appeal_service_user_curated_mipins WHERE caseReference='TR0510063' AND ISACTIVE='Y'"
 				],
-				"execution_count": null
+				"execution_count": 6
 			}
 		]
 	}
