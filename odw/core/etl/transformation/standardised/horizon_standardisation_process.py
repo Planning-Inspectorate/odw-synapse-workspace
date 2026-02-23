@@ -5,6 +5,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
+from odw.core.anonymisation import AnonymisationEngine, load_config
 from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import re
 import json
+import os
 from copy import deepcopy
 
 
@@ -34,6 +36,56 @@ class HorizonStandardisationProcess(StandardisationProcess):
     HorizonStandardisationProcess(spark).run(**params)
     ```
     """
+
+    def __init__(self, spark: SparkSession):
+        super().__init__(spark)
+        self.anonymisation_engine = None
+        self._init_anonymisation()
+
+    def _init_anonymisation(self):
+        """Initialize anonymisation engine if enabled via environment variables."""
+        enable_anon = os.environ.get("ODW_ENABLE_ANONYMISATION", "false").lower() == "true"
+        if enable_anon:
+            try:
+                config_path = os.environ.get("ODW_ANONYMISATION_CONFIG_PATH")
+                if config_path:
+                    config = load_config(config_path)
+                    self.anonymisation_engine = AnonymisationEngine(config)
+                else:
+                    self.anonymisation_engine = AnonymisationEngine()
+                LoggingUtil().log_info("[HorizonStandardisationProcess] Anonymisation engine initialized")
+            except Exception as e:
+                LoggingUtil().log_error(f"[HorizonStandardisationProcess] Failed to initialize anonymisation: {e}")
+                self.anonymisation_engine = None
+        else:
+            LoggingUtil().log_info("[HorizonStandardisationProcess] Anonymisation disabled")
+
+    def apply_anonymisation(self, df: DataFrame, entity_name: str, source_folder: str) -> DataFrame:
+        """
+        Apply anonymisation if the engine is initialized.
+
+        Args:
+            df: The DataFrame to anonymise
+            entity_name: The entity name for Purview lookup
+            source_folder: The source folder (e.g., 'Horizon')
+
+        Returns:
+            Anonymised DataFrame if enabled, otherwise returns the original DataFrame
+        """
+        if self.anonymisation_engine is None:
+            return df
+
+        try:
+            anonymised_df = self.anonymisation_engine.apply_from_purview(
+                df=df,
+                entity_name=entity_name,
+                source_folder=source_folder
+            )
+            LoggingUtil().log_info(f"[HorizonStandardisationProcess] Anonymisation applied for {entity_name}")
+            return anonymised_df
+        except Exception as e:
+            LoggingUtil().log_error(f"[HorizonStandardisationProcess] Anonymisation failed: {e}")
+            return df
 
     @classmethod
     def get_name(cls):
@@ -210,6 +262,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
                     if table_field is not None and field.dataType != table_field.dataType:
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
+
+                # Apply anonymisation if enabled
+                data = self.apply_anonymisation(data, entity_name=definition["Source_Filename_Start"], source_folder="Horizon")
 
                 table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
                 write_mode = "append" if table_exists else "overwrite"

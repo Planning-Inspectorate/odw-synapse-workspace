@@ -4,6 +4,7 @@ from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
+from odw.core.anonymisation import AnonymisationEngine, load_config
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
@@ -12,12 +13,78 @@ from pyspark.sql import SparkSession
 from datetime import datetime
 from typing import Dict
 import re
+import os
 
 
 class ServiceBusStandardisationProcess(StandardisationProcess):
     """
     ETL process for standardising the raw data from the Service Bus
+    with integrated anonymisation support (DEV/TEST only)
     """
+    
+    def __init__(self, spark: SparkSession, debug: bool = False):
+        super().__init__(spark, debug)
+        self.enable_anonymisation = os.getenv("ODW_ENABLE_ANONYMISATION", "true").lower() == "true"
+        self.anonymisation_engine = None
+        if self.enable_anonymisation:
+            self._init_anonymisation()
+    
+    def _init_anonymisation(self):
+        """Initialize the anonymisation engine with optional config."""
+        try:
+            config_path = os.getenv("ODW_ANONYMISATION_CONFIG_PATH")
+            config = None
+            
+            if config_path:
+                try:
+                    config = load_config(path=config_path)
+                    LoggingUtil().log_info(f"Loaded anonymisation config from {config_path}")
+                except Exception as e:
+                    LoggingUtil().log_warning(f"Failed to load anonymisation config: {e}. Using defaults.")
+            
+            self.anonymisation_engine = AnonymisationEngine(config=config)
+            LoggingUtil().log_info("Anonymisation engine initialized for standardisation (DEV/TEST)")
+        except Exception as e:
+            LoggingUtil().log_error(f"Failed to initialize anonymisation engine: {e}")
+            self.enable_anonymisation = False
+    
+    def apply_anonymisation(self, df: DataFrame, entity_name: str) -> DataFrame:
+        """
+        Apply anonymisation to standardised DataFrame using Purview classifications.
+        
+        Args:
+            df: Input DataFrame (standardised raw messages)
+            entity_name: Entity name for Purview lookup
+        
+        Returns:
+            Anonymised DataFrame
+        """
+        if not self.enable_anonymisation or self.anonymisation_engine is None:
+            LoggingUtil().log_info("Anonymisation is disabled, skipping")
+            return df
+        
+        try:
+            LoggingUtil().log_info(
+                f"Applying anonymisation to standardised data for entity '{entity_name}' (DEV/TEST)"
+            )
+            
+            # Use the simplified Purview API for Service Bus
+            anonymised_df = self.anonymisation_engine.apply_from_purview(
+                df=df,
+                entity_name=entity_name,
+                source_folder="ServiceBus"
+            )
+            
+            LoggingUtil().log_info("Anonymisation completed successfully")
+            return anonymised_df
+            
+        except Exception as e:
+            # Log but don't fail the pipeline if anonymisation fails
+            LoggingUtil().log_error(
+                f"Anonymisation failed for '{entity_name}': {str(e)}. Continuing without anonymisation."
+            )
+            return df
+    
     @classmethod
     def get_name(cls):
         return "Service Bus Standardisation"
@@ -167,6 +234,10 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
             raise ValueError()
         table_row_count = table_df.count()
         new_raw_messages = self.remove_data_duplicates(new_raw_messages)
+        
+        # Apply anonymisation BEFORE writing to standardised layer (DEV/TEST)
+        new_raw_messages = self.apply_anonymisation(new_raw_messages, entity_name)
+        
         insert_count = new_raw_messages.count()
         LoggingUtil().log_info(f"Rows to append: {insert_count}")
         expected_new_count = table_row_count + insert_count
