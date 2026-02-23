@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6ba10b8b-a8f3-4172-bf31-93b45fa5f28d"
+				"spark.autotune.trackingId": "67a30a59-cb87-4b44-b09c-d42eb29e9d2c"
 			}
 		},
 		"metadata": {
@@ -320,11 +320,44 @@
 					"    .filter(F.col(\"Value\").isNotNull())\n",
 					")\n",
 					"\n",
+					"# Stable key to group by (like Notebook 3)\n",
+					"dfv_nonnull = dfv_nonnull.withColumn(\n",
+					"    \"EntityID\",\n",
+					"    F.coalesce(\n",
+					"        F.col(\"ID\").cast(\"string\"),          # best if exists\n",
+					"        F.col(\"KeyID\").cast(\"string\"),\n",
+					"        F.col(\"ParentKeyID\").cast(\"string\")\n",
+					"    )\n",
+					")\n",
+					"\n",
 					"print(\"Rows with Value:\", dfv_nonnull.count())\n",
-					"dfv_nonnull.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"Value\").show(10, truncate=False)\n",
-					""
+					"dfv_nonnull.select(\"DefID\",\"AttrID\",\"KeyID\",\"EntryNum\",\"ParentKeyID\",\"EntityID\",\"Value\").show(10, truncate=False)"
 				],
 				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Keep the latest version of each attribute per entity\n",
+					"w = (\n",
+					"    Window\n",
+					"    .partitionBy(\"DefID\", \"EntityID\", \"AttrID\")\n",
+					"    .orderBy(F.col(\"VerNum\").cast(\"int\").desc())\n",
+					")\n",
+					"\n",
+					"dfv_latest = (\n",
+					"    dfv_nonnull\n",
+					"    .withColumn(\"rn\", F.row_number().over(w))\n",
+					"    .filter(F.col(\"rn\") == 1)\n",
+					"    .drop(\"rn\")\n",
+					")\n",
+					"\n",
+					"print(\"Rows after latest-VerNum dedupe:\", dfv_latest.count())"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -443,7 +476,7 @@
 					"pivot_index = [\"DefID\",\"KeyID\",\"ParentKeyID\",\"EntryNum\",\"CustomID\"]\n",
 					"\n",
 					"for d in sorted(defids):\n",
-					"    df_d = dfv_nonnull.filter(F.col(\"DefID\") == F.lit(d))\n",
+					"    df_d = dfv_latest.filter(F.col(\"DefID\") == F.lit(d))\n",
 					"    if df_d.rdd.isEmpty():\n",
 					"        continue\n",
 					"\n",
