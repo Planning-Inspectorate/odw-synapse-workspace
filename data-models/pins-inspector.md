@@ -134,7 +134,8 @@ classDiagram
             sapId: string
             firstName: string
             lastName: string
-            specialism: array
+            email: string
+            specialisms: array
             address: struct
         }
 
@@ -154,7 +155,8 @@ classDiagram
             sapId: string
             firstName: string
             lastName: string
-            specialism: array
+            email: string
+            specialisms: array
             address: struct
         }
     }
