@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "39baf5e4-d734-4bd8-ab3d-03dfd0b7e6e6"
+				"spark.autotune.trackingId": "765355ff-41f9-4335-800b-83b85eaaa541"
 			}
 		},
 		"metadata": {
@@ -54,20 +54,24 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Cell 1: Update typing_extensions\n",
+					"#Cell 1 \n",
 					"import subprocess\n",
 					"import sys\n",
 					"\n",
-					"# Upgrade typing_extensions to fix Sentinel import issue\n",
-					"subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"--upgrade\", \"typing_extensions\"])"
+					"# Uninstall and reinstall typing_extensions\n",
+					"subprocess.check_call([sys.executable, \"-m\", \"pip\", \"uninstall\", \"-y\", \"typing_extensions\"])\n",
+					"subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"--no-cache-dir\", \"typing_extensions>=4.8.0\"])\n",
+					"\n",
+					"print(\"typing_extensions upgraded. Please RESTART THE KERNEL before continuing.\")\n",
+					"print(\"In Synapse: Stop the session and start a new one, or restart the notebook.\")"
 				],
-				"execution_count": 22
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Cell 2: Import and test\n",
-					"from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess\n",
+					"#Cell 3\n",
+					"\n",
 					"from pyspark.sql import SparkSession\n",
 					"import os\n",
 					"\n",
@@ -76,22 +80,45 @@
 					"\n",
 					"spark = SparkSession.builder.getOrCreate()\n",
 					"\n",
-					"# Test the process\n",
+					"# Test with sample data\n",
+					"test_data = [\n",
+					"    {\"id\": \"1\", \"name\": \"John Doe\", \"email\": \"john.doe@example.com\"},\n",
+					"    {\"id\": \"2\", \"name\": \"Jane Smith\", \"email\": \"jane.smith@example.com\"}\n",
+					"]\n",
+					"df = spark.createDataFrame(test_data)\n",
+					"\n",
+					"print(\"Testing ServiceBusStandardisationProcess initialization:\")\n",
 					"process = ServiceBusStandardisationProcess(spark, debug=True)\n",
-					"print(\"Anonymisation engine initialized:\", process.anonymisation_engine is not None)"
+					"print(f\"Anonymisation enabled: {process.enable_anonymisation}\")\n",
+					"print(f\"Anonymisation engine: {process.anonymisation_engine}\")\n",
+					"\n",
+					"# Test anonymisation directly\n",
+					"if process.anonymisation_engine:\n",
+					"    cols = [\n",
+					"        {\"column_name\": \"name\", \"classifications\": [\"MICROSOFT.PERSONAL.NAME\"]},\n",
+					"        {\"column_name\": \"email\", \"classifications\": [\"MICROSOFT.PERSONAL.EMAIL\"]}\n",
+					"    ]\n",
+					"    anonymised = process.anonymisation_engine.apply(df, cols)\n",
+					"    \n",
+					"    print(\"\\nOriginal:\")\n",
+					"    df.show(truncate=False)\n",
+					"    \n",
+					"    print(\"\\nAnonymised:\")\n",
+					"    anonymised.show(truncate=False)"
 				],
-				"execution_count": 25
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"### Module odw.core.util.util\n",
+					"### Cell 2 Module odw.core.util.util\n",
 					"\n",
 					"from notebookutils import mssparkutils\n",
 					"from notebookutils import visualization\n",
 					"from pyspark.sql import DataFrame\n",
 					"import re\n",
 					"import os\n",
+					"\n",
 					"\n",
 					"class Util:\n",
 					"    \"\"\"\n",
@@ -2683,7 +2710,7 @@
 					"            )\n",
 					"        return etl_process_map[etl_process_name]"
 				],
-				"execution_count": 24
+				"execution_count": 3
 			}
 		]
 	}
