@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "20f66887-33be-4411-b71f-9bb4ee5495c0"
+				"spark.autotune.trackingId": "0279a671-9618-4009-9547-017ffaeb8103"
 			}
 		},
 		"metadata": {
@@ -53,19 +53,35 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": 53
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
 				"source": [
 					"from pyspark.sql import functions as F\n",
-					"from notebookutils import mssparkutils\n",
 					"\n",
-					"BASE = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net\"\n",
-					"EXTRACT = f\"{BASE}/MPESC-EXTRACT\"\n",
-					"OUT = f\"{BASE}/TRANSFORM-CASE\"\n",
-					"\n",
-					"CASE_REF_FILE = f\"{EXTRACT}/Horizon_CaseReference.csv\"\n",
-					"LLATTR_CASE_GLOB = f\"{EXTRACT}/LLAttr/Case_*/part*.csv\"\n",
+					"CASE_REF_FILE = f\"{mpesc_base_path}/MPESC-EXTRACT/Horizon_CaseReference.csv\"\n",
+					"LLATTR_CASE_GLOB = f\"{mpesc_base_path}/TRANSFORM-CASE/LLAttr/Case_*/part*.csv\"\n",
 					"\n",
 					"case_ref = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(CASE_REF_FILE)\n",
 					"\n",
@@ -73,7 +89,7 @@
 					"print(\"case_ref rows:\", case_ref.count())\n",
 					""
 				],
-				"execution_count": 109
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +123,7 @@
 					"print(\"filtered cases:\", filtered_cases.count())\n",
 					""
 				],
-				"execution_count": 110
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -115,87 +131,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"PREFIXES = [\"COM/\", \"ENV/\", \"MCA/\", \"PUR/\", \"ROW/\"]\n",
-					"\n",
-					"prefix_filter = None\n",
-					"for p in PREFIXES:\n",
-					"    cond = F.col(\"CaseReference\").startswith(p)\n",
-					"    prefix_filter = cond if prefix_filter is None else (prefix_filter | cond)\n",
-					"\n",
-					"filtered_cases = (\n",
-					"    case_ref\n",
-					"    .filter(prefix_filter)\n",
-					"    .select(\n",
-					"        F.col(\"CaseUniqueId\").alias(\"caseReference\"),\n",
-					"        F.col(\"CaseReference\").alias(\"hznReference\"),\n",
-					"        F.col(\"CaseTypeId\").alias(\"caseTypeId\"),\n",
-					"        F.col(\"CaseNodeId\").alias(\"caseNodeId\"),\n",
-					"        F.col(\"CaseCreateDate\").alias(\"caseCreateDate\"),\n",
-					"        F.col(\"CaseCloseDate\").alias(\"caseCloseDate\"),\n",
-					"        F.col(\"CaseCloseStatus\").alias(\"caseCloseStatus\"),\n",
-					"        F.col(\"CaseOwnerId\").alias(\"caseOwnerId\")\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"display(filtered_cases.limit(10))\n",
-					"print(\"filtered cases:\", filtered_cases.count())\n",
-					""
-				],
-				"execution_count": 111
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"from pyspark.sql import functions as F\n",
-					"\n",
-					"BASE = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net\"\n",
-					"EXTRACT = f\"{BASE}/MPESC-EXTRACT\"\n",
-					"OUT = f\"{BASE}/TRANSFORM-CASE\"\n",
-					"\n",
-					"CASE_REF_FILE = f\"{EXTRACT}/Horizon_CaseReference.csv\"\n",
-					"\n",
-					"# prefixes\n",
-					"PREFIXES = [\"COM/\", \"ENV/\", \"MCA/\", \"PUR/\", \"ROW/\"]\n",
-					"\n",
-					"case_ref = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(CASE_REF_FILE)\n",
-					"\n",
-					"prefix_filter = None\n",
-					"for p in PREFIXES:\n",
-					"    cond = F.col(\"CaseReference\").startswith(p)\n",
-					"    prefix_filter = cond if prefix_filter is None else (prefix_filter | cond)\n",
-					"\n",
-					"filtered_cases = (\n",
-					"    case_ref\n",
-					"    .filter(prefix_filter)\n",
-					"    .select(\n",
-					"        F.col(\"CaseUniqueId\").alias(\"caseReference\"),\n",
-					"        F.col(\"CaseReference\").alias(\"hznReference\"),\n",
-					"        F.col(\"CaseTypeId\").alias(\"caseTypeId\"),\n",
-					"        F.col(\"CaseNodeId\").alias(\"caseNodeId\"),\n",
-					"        F.col(\"CaseCreateDate\").alias(\"caseCreateDate\"),\n",
-					"        F.col(\"CaseCloseDate\").alias(\"caseCloseDate\"),\n",
-					"        F.col(\"CaseCloseStatus\").alias(\"caseCloseStatus\"),\n",
-					"        F.col(\"CaseOwnerId\").alias(\"caseOwnerId\")\n",
-					"    )\n",
-					"    .dropDuplicates([\"caseReference\"])\n",
-					")\n",
-					"\n",
-					"display(filtered_cases.limit(10))\n",
-					"print(\"filtered cases:\", filtered_cases.count())\n",
-					""
-				],
-				"execution_count": 112
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"LLATTR_CASE_GLOB = f\"{EXTRACT}/LLAttr/Case_*/part*.csv\"\n",
+					"LLATTR_CASE_GLOB = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_*/part*.csv\"\n",
 					"\n",
 					"ll_case = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(LLATTR_CASE_GLOB)\n",
 					"\n",
@@ -212,7 +148,7 @@
 					"display(attrs_filtered.limit(5))\n",
 					""
 				],
-				"execution_count": 113
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -225,7 +161,7 @@
 					"print(\"Remaining attr cols:\", len(attrs_clean.columns))\n",
 					""
 				],
-				"execution_count": 114
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -250,7 +186,7 @@
 					"print(\"cases_joined rows:\", cases_joined.count())\n",
 					""
 				],
-				"execution_count": 115
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -258,7 +194,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"TYPE_OF_CASE_FILE = f\"{EXTRACT}/Horizon_TypeOfCase.csv\"\n",
+					"TYPE_OF_CASE_FILE = f\"{mpesc_base_path}/MPESC-EXTRACT/Horizon_TypeOfCase.csv\"\n",
 					"type_of_case = spark.read.option(\"header\", True).option(\"inferSchema\", True).csv(TYPE_OF_CASE_FILE)\n",
 					"\n",
 					"final_df = (\n",
@@ -270,7 +206,7 @@
 					"display(final_df.limit(10))\n",
 					""
 				],
-				"execution_count": 116
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -331,7 +267,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 117
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -345,7 +281,7 @@
 					"final_df_named = df\n",
 					""
 				],
-				"execution_count": 118
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -357,7 +293,7 @@
 					"display(final_df_named)\n",
 					""
 				],
-				"execution_count": 119
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -365,12 +301,11 @@
 					"df = final_df_named.cache()\n",
 					"df.count()"
 				],
-				"execution_count": 120
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
 					"\n",
 					"case_type_map = {\n",
 					"    \"2\":  \"call-ins\",\n",
@@ -384,7 +319,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 121
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -401,7 +336,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 122
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -411,7 +346,7 @@
 					"    .orderBy(F.col(\"caseTypeId\").cast(\"int\")) \\\n",
 					"    .show(truncate=False)"
 				],
-				"execution_count": 123
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -421,22 +356,20 @@
 				"source": [
 					"display(df_mapped.limit(10))"
 				],
-				"execution_count": 124
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
 					"\n",
 					"df.groupBy(\"applicationSubtype\").count().show(100, truncate=False)\n",
 					""
 				],
-				"execution_count": 125
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
 					"\n",
 					"application_subtype_map = {\n",
 					"    # Rights of Way\n",
@@ -476,7 +409,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 126
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -487,12 +420,12 @@
 					").distinct().orderBy(\"applicationSubtype\").show(truncate=False)\n",
 					""
 				],
-				"execution_count": 127
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
+					"\n",
 					"df_mapped = df_mapped.withColumn(\"caseOfficerId\", F.lit(\"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"))\n",
 					"\n",
 					"df_mapped = df_mapped.withColumn(\n",
@@ -503,7 +436,7 @@
 					"df_mapped = df_mapped.withColumn(\"name\", F.col(\"hznReference\"))\n",
 					""
 				],
-				"execution_count": 128
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -511,12 +444,11 @@
 					"df_mapped.select(\"caseOfficerId\").show(10, truncate=False)\n",
 					""
 				],
-				"execution_count": 129
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Get SQL password securely from Key Vault\n",
 					"akv_name = \"pinskvsynwodwdevuks\"      #  Key Vault name\n",
 					"secret_name = \"mpesc-sql-password\"   # the secret storing the SQL password\n",
 					"\n",
@@ -528,7 +460,7 @@
 					"url = f\"jdbc:sqlserver://{server}:1433;database={database};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;\"\n",
 					""
 				],
-				"execution_count": 130
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -552,7 +484,7 @@
 					"    .dropDuplicates([\"legacyCaseId\"])\n",
 					")"
 				],
-				"execution_count": 131
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
@@ -574,7 +506,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 132
+				"execution_count": 75
 			},
 			{
 				"cell_type": "code",
@@ -596,7 +528,7 @@
 					"\n",
 					"display(df_mapped.select(\"band\", \"band_id\").distinct())"
 				],
-				"execution_count": 133
+				"execution_count": 76
 			},
 			{
 				"cell_type": "code",
@@ -633,7 +565,7 @@
 					"    .orderBy(\"processingStateAttr\")\n",
 					")"
 				],
-				"execution_count": 134
+				"execution_count": 77
 			},
 			{
 				"cell_type": "code",
@@ -650,7 +582,7 @@
 					"     .otherwise(F.lit(\"low\"))   # fallback safety\n",
 					")"
 				],
-				"execution_count": 135
+				"execution_count": 78
 			},
 			{
 				"cell_type": "code",
@@ -660,7 +592,7 @@
 				"source": [
 					"from pyspark.sql.functions import col, trim, when, expr\n",
 					"\n",
-					"cases_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
 					"cases_df = (\n",
 					"    spark.read.format(\"csv\")\n",
@@ -677,7 +609,7 @@
 					"display(cases_df)\n",
 					""
 				],
-				"execution_count": 136
+				"execution_count": 79
 			},
 			{
 				"cell_type": "code",
@@ -698,7 +630,7 @@
 					"case_ids\n",
 					""
 				],
-				"execution_count": 137
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -733,8 +665,8 @@
 					"display(cases_df2)\n",
 					"\n",
 					"# --- Write back to Cases.csv idempotently ---\n",
-					"tmp_folder = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/_tmp_cases_with_guids/\"\n",
-					"final_folder = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/\"\n",
+					"tmp_folder = f\"{mpesc_base_path}/config/Cases/_tmp_cases_with_guids/\"\n",
+					"final_folder = f\"{mpesc_base_path}/config/Cases/\"\n",
 					"final_file = final_folder + \"Cases.csv\"\n",
 					"\n",
 					"# write a single part file\n",
@@ -770,7 +702,7 @@
 					"print(\"Updated Cases.csv with GUIDs (without overwriting existing GUIDs):\", final_file)\n",
 					""
 				],
-				"execution_count": 138
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -778,31 +710,38 @@
 					"collapsed": false
 				},
 				"source": [
-					"# Build a small mapping DF: Case ID -> GUID\n",
+					"# Case ID -> GUID map (rename GUID to avoid collisions)\n",
 					"case_guid_map = (\n",
 					"    cases_df2\n",
 					"    .select(\n",
-					"        F.col(\"Case ID\").alias(\"caseNodeId_str\"),\n",
-					"        F.col(\"GUID\").alias(\"id\")   \n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\"),\n",
+					"        F.col(\"GUID\").alias(\"caseGuid\")\n",
 					"    )\n",
 					"    .dropDuplicates([\"caseNodeId_str\"])\n",
 					")\n",
 					"\n",
-					"# Join onto df_mapped (your transformed case dataset)\n",
-					"df_mapped = (\n",
+					"# Join, bring in caseGuid\n",
+					"df_mapped2 = (\n",
 					"    df_mapped\n",
 					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
 					"    .join(case_guid_map, on=\"caseNodeId_str\", how=\"left\")\n",
 					"    .drop(\"caseNodeId_str\")\n",
 					")\n",
 					"\n",
-					"# Sanity check: any rows missing an id (should be 0 if cases are filtered correctly)\n",
-					"display(df_mapped.filter(F.col(\"id\").isNull()).select(\"caseNodeId\").distinct())\n",
+					"# Sanity check (no ambiguity now)\n",
+					"display(df_mapped2.filter(F.col(\"caseGuid\").isNull()).select(\"caseNodeId\").distinct())\n",
 					"\n",
-					"# Recommended: ensure only valid cases go forward\n",
-					"df_mapped = df_mapped.filter(F.col(\"id\").isNotNull())"
+					"# Keep only valid cases\n",
+					"df_mapped2 = df_mapped2.filter(F.col(\"caseGuid\").isNotNull())\n",
+					"\n",
+					"# If the Case table expects the GUID in column `id`, set it explicitly:\n",
+					"df_mapped2 = (\n",
+					"    df_mapped2\n",
+					"    .drop(\"id\")  # only if df_mapped already has an id you DON'T want\n",
+					"    .withColumnRenamed(\"caseGuid\", \"id\")\n",
+					")"
 				],
-				"execution_count": 139
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -810,7 +749,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql import functions as F\n",
 					"\n",
 					"# Build a small mapping DF: Case ID -> GUID\n",
 					"case_guid_map = (\n",
@@ -839,7 +777,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 140
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -848,7 +786,7 @@
 				},
 				"source": [
 					"\n",
-					"mod_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Modification_15809003/\"\n",
+					"mod_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Modification_15809003/\"\n",
 					"\n",
 					"# 1) Load modifications (CSV-style extract)\n",
 					"mods_raw = (\n",
@@ -913,7 +851,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 141
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -948,7 +886,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 142
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -976,7 +914,7 @@
 					"\n",
 					"#  😎"
 				],
-				"execution_count": 143
+				"execution_count": 86
 			}
 		]
 	}
