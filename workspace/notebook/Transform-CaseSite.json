@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "110e6c8c-e2b5-4945-9048-324e55d8a168"
+				"spark.autotune.trackingId": "5198b995-f89e-4f6e-915d-2e56bc11e861"
 			}
 		},
 		"metadata": {
@@ -54,17 +54,38 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F"
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
 				],
 				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Site_95502/\"\n",
-					""
+					"from pyspark.sql import functions as F"
 				],
 				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Site_95502/\"\n",
+					""
+				],
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -77,7 +98,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -88,7 +109,7 @@
 					"df.printSchema()\n",
 					"display(df.limit(20))"
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -134,12 +155,11 @@
 					"display(df_named.limit(20))\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# --- JDBC config (no hardcoded password) ---\n",
 					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
 					"database = \"pins-sqldb-peas-dev\"\n",
 					"\n",
@@ -159,7 +179,7 @@
 					"password = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"mpesc-sql-password\")\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -167,28 +187,35 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql import functions as F\n",
 					"\n",
-					"case_ids = [\n",
-					"    \"15889032\",\n",
-					"    \"16681521\",\n",
-					"    \"17301742\",\n",
-					"    \"17333294\",\n",
-					"    \"17504850\"\n",
-					"]\n",
+					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
-					"df_filtered = df_named.filter(F.col(\"case_id\").isin(case_ids))\n",
+					"cases_df = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(cases_path)\n",
+					")\n",
+					"\n",
+					"# Rename column to match df_named\n",
+					"cases_df = cases_df.select(\n",
+					"    F.col(\"Case ID\").cast(\"string\").alias(\"case_id\")\n",
+					")\n",
+					"\n",
+					"df_filtered = df_named.join(\n",
+					"    cases_df,\n",
+					"    on=\"case_id\",\n",
+					"    how=\"inner\"\n",
+					")\n",
 					"\n",
 					"display(df_filtered)\n",
-					"\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"output_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/case_site_95502_sample/\"\n",
+					"output_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/case_site_95502_sample/\"\n",
 					"\n",
 					"(\n",
 					"    df_filtered\n",
@@ -200,7 +227,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -213,7 +240,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 12
 			}
 		]
 	}
