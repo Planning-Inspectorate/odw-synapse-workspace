@@ -1,3 +1,7 @@
+### ANONYMISATION MODULE START ###
+
+### Module: odw.core.anonymisation.base ###
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -238,6 +242,10 @@ def default_strategies() -> List[BaseStrategy]:
         AgeStrategy(),
         SalaryStrategy(),
     ]
+
+
+### Module: odw.core.anonymisation.config ###
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -279,6 +287,10 @@ def _load_yaml_file(path: str) -> dict:
 
 def _yaml_safe_load(stream) -> dict:
     return yaml.safe_load(stream)
+
+
+### Module: odw.core.anonymisation.engine ###
+
 from __future__ import annotations
 
 import os
@@ -292,11 +304,8 @@ from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
 from azure.identity import DefaultAzureCredential  # type: ignore
 
-from .base import (
-    BaseStrategy,
-    default_strategies,
-)
-from .config import AnonymisationConfig
+# REMOVED relative import: from .base import (BaseStrategy, default_strategies)
+# REMOVED relative import: from .config import AnonymisationConfig
 
 # Prefer core util logging if available; fallback to module logger
 logger = logging.getLogger(__name__)
@@ -870,6 +879,10 @@ class AnonymisationEngine:
             api_version=kwargs.get("api_version", "2023-09-01"),
             classification_allowlist=kwargs.get("classification_allowlist"),
         )
+
+
+### ANONYMISATION MODULE END ###
+
 ### Module odw.core.etl.etl_result
 
 from pydantic import BaseModel, Field
