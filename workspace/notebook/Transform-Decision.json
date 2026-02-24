@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f172859e-f281-40e5-ae7f-db534907f264"
+				"spark.autotune.trackingId": "98762691-0672-41b1-a9ce-9046f2d9efd9"
 			}
 		},
 		"metadata": {
@@ -54,37 +54,250 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
-					"from pyspark.sql import types as T\n",
-					"import uuid"
+					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 1
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"llattr_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_95498/*.csv\"\n",
+					"decision_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_95498/*.csv\"\n",
 					"\n",
-					"llattr_raw = (\n",
+					"decision_raw = (\n",
 					"    spark.read.format(\"csv\")\n",
 					"    .option(\"header\", \"true\")\n",
 					"    .option(\"multiLine\", \"true\")\n",
 					"    .option(\"escape\", \"\\\"\")\n",
-					"    .load(llattr_path)\n",
+					"    .load(decision_path)\n",
 					")\n",
 					"\n",
-					"print(\"LLAttr rows:\", llattr_raw.count())\n",
-					"display(llattr_raw.limit(10))\n",
-					""
+					"print(\"Decision rows loaded:\", decision_raw.count())\n",
+					"print(\"Decision columns:\", decision_raw.columns)\n",
+					"display(decision_raw.limit(10))"
 				],
-				"execution_count": null
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_ready = (\n",
+					"    decision_raw\n",
+					"    .select(\n",
+					"        F.col(\"ID\").cast(\"string\").alias(\"legacyCaseId\"),  # CaseNodeId\n",
+					"        F.col(\"1\").alias(\"attr1\"),\n",
+					"        F.col(\"46\").alias(\"decisionIssue\"),\n",
+					"        F.col(\"52\").alias(\"casePublishFlag\"),\n",
+					"        F.col(\"74\").alias(\"decisionType\"),\n",
+					"        F.col(\"79\").alias(\"decisionBranch\"),\n",
+					"    )\n",
+					"    # trim + nullify blanks/\"undefined\"\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"legacyCaseId\")).alias(\"legacyCaseId\"),\n",
+					"        F.when((F.col(\"attr1\").isNull()) | (F.trim(F.col(\"attr1\")) == \"\") | (F.lower(F.trim(F.col(\"attr1\"))) == \"undefined\"), None)\n",
+					"         .otherwise(F.trim(F.col(\"attr1\"))).alias(\"attr1\"),\n",
+					"        F.when((F.col(\"decisionIssue\").isNull()) | (F.trim(F.col(\"decisionIssue\")) == \"\") | (F.lower(F.trim(F.col(\"decisionIssue\"))) == \"undefined\"), None)\n",
+					"         .otherwise(F.trim(F.col(\"decisionIssue\"))).alias(\"decisionIssue\"),\n",
+					"        F.when((F.col(\"casePublishFlag\").isNull()) | (F.trim(F.col(\"casePublishFlag\")) == \"\") | (F.lower(F.trim(F.col(\"casePublishFlag\"))) == \"undefined\"), None)\n",
+					"         .otherwise(F.trim(F.col(\"casePublishFlag\"))).alias(\"casePublishFlag\"),\n",
+					"        F.when((F.col(\"decisionType\").isNull()) | (F.trim(F.col(\"decisionType\")) == \"\") | (F.lower(F.trim(F.col(\"decisionType\"))) == \"undefined\"), None)\n",
+					"         .otherwise(F.trim(F.col(\"decisionType\"))).alias(\"decisionType\"),\n",
+					"        F.when((F.col(\"decisionBranch\").isNull()) | (F.trim(F.col(\"decisionBranch\")) == \"\") | (F.lower(F.trim(F.col(\"decisionBranch\"))) == \"undefined\"), None)\n",
+					"         .otherwise(F.trim(F.col(\"decisionBranch\"))).alias(\"decisionBranch\"),\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Decision rows (selected):\", decision_ready.count())\n",
+					"display(decision_ready.limit(50))"
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"cases_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .load(cases_path)\n",
+					")\n",
+					"\n",
+					"print(\"Cases rows loaded:\", cases_raw.count())\n",
+					"print(\"Cases columns:\", cases_raw.columns)   # should be ['Case ID', 'GUID']\n",
+					"display(cases_raw.limit(20))"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"cases_key = (\n",
+					"    cases_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"Case ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.trim(F.col(\"GUID\")).alias(\"caseId\")   # new Case GUID\n",
+					"    )\n",
+					"    .filter(F.col(\"legacyCaseId\").isNotNull() & F.col(\"caseId\").isNotNull())\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"cases_key rows:\", cases_key.count())\n",
+					"display(cases_key.limit(20))"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_with_guid = (\n",
+					"    decision_ready\n",
+					"    .join(cases_key, on=\"legacyCaseId\", how=\"inner\")\n",
+					"    .drop(\"legacyCaseId\")   # keep only GUID for loading\n",
+					")\n",
+					"\n",
+					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
+					"display(decision_with_guid.limit(50))"
+				],
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"# any decision rows that didn't match a case guid?\n",
+					"unmatched = decision_ready.join(cases_key, on=\"legacyCaseId\", how=\"left_anti\").count()\n",
+					"print(\"Unmatched decision rows (no case guid):\", unmatched)\n",
+					"\n",
+					"# duplicates by caseId (should usually be 1 row per case)\n",
+					"dupes = decision_with_guid.groupBy(\"caseId\").count().filter(F.col(\"count\") > 1).count()\n",
+					"print(\"Duplicate caseId rows:\", dupes)\n",
+					"\n",
+					"# how many actually have a decisionType?\n",
+					"print(\"Rows with decisionType:\", decision_with_guid.filter(F.col(\"decisionType\").isNotNull()).count())"
 				],
-				"execution_count": null
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_final = (\n",
+					"    decision_with_guid\n",
+					"    .withColumn(\"dtypeId\", F.lit(\"decision\"))\n",
+					")\n",
+					"\n",
+					"display(decision_final.limit(50))\n",
+					"print(\"Final row count:\", decision_final.count())"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Normalise decisionType for matching\n",
+					"dt_norm = F.lower(F.trim(F.col(\"decisionType\")))\n",
+					"\n",
+					"decision_mapped = (\n",
+					"    decision_final\n",
+					"    .withColumn(\n",
+					"        \"outcomeId\",\n",
+					"        F.when(dt_norm.isNull(), F.lit(None))\n",
+					"\n",
+					"        # --- Rights of Way (Horizon_TypeOfDecision \"Name\") ---\n",
+					"        .when(dt_norm == \"allow\", F.lit(\"allow\"))\n",
+					"        .when(dt_norm == \"confirmed\", F.lit(\"confirmed\"))\n",
+					"        .when(dt_norm == \"directed\", F.lit(\"directed\"))\n",
+					"        .when(dt_norm == \"not allowed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm == \"not confirmed\", F.lit(\"not-confirmed\"))\n",
+					"        .when(dt_norm == \"not directed\", F.lit(\"not-directed\"))\n",
+					"        .when(dt_norm == \"partially allow\", F.lit(\"partially-allow\"))\n",
+					"        .when(dt_norm == \"modified (adv)\", F.lit(\"modified-adv\"))\n",
+					"        .when(dt_norm == \"modified (not adv)\", F.lit(\"modified-not-adv\"))\n",
+					"\n",
+					"        # --- common spelling/spacing variants ---\n",
+					"        .when(dt_norm == \"partially-allow\", F.lit(\"partially-allow\"))\n",
+					"        .when(dt_norm == \"not-confirmed\", F.lit(\"not-confirmed\"))\n",
+					"        .when(dt_norm == \"not-allowed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm == \"not-directed\", F.lit(\"not-directed\"))\n",
+					"        .when(dt_norm == \"modified adv\", F.lit(\"modified-adv\"))\n",
+					"        .when(dt_norm == \"modified not adv\", F.lit(\"modified-not-adv\"))\n",
+					"\n",
+					"        # --- if you also see these in other datasets (optional safety) ---\n",
+					"        .when(dt_norm == \"allowed\", F.lit(\"allow\"))\n",
+					"        .when(dt_norm == \"refused\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm == \"dismissed\", F.lit(\"not-allowed\"))\n",
+					"\n",
+					"        # default: unknown -> NULL\n",
+					"        .otherwise(F.lit(None))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(decision_mapped.select(\"decisionType\", \"outcomeId\").dropDuplicates().orderBy(\"decisionType\"))"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"unmapped = (\n",
+					"    decision_mapped\n",
+					"    .filter(F.col(\"decisionType\").isNotNull() & F.col(\"outcomeId\").isNull())\n",
+					"    .groupBy(\"decisionType\")\n",
+					"    .count()\n",
+					"    .orderBy(F.desc(\"count\"))\n",
+					")\n",
+					"\n",
+					"display(unmapped)\n",
+					"print(\"Unmapped distinct decisionType values:\", unmapped.count())"
+				],
+				"execution_count": 28
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_for_load = decision_mapped.select(\n",
+					"    \"dtypeId\",\n",
+					"    \"caseId\",\n",
+					"    \"outcomeId\",\n",
+					"    \"decisionIssue\",\n",
+					"    \"casePublishFlag\",\n",
+					"    \"decisionBranch\"\n",
+					"    # keep decisionType too if you want (debugging)\n",
+					"    # ,\"decisionType\"\n",
+					")\n",
+					"\n",
+					"display(decision_for_load.limit(50))"
+				],
+				"execution_count": 29
 			}
 		]
 	}
