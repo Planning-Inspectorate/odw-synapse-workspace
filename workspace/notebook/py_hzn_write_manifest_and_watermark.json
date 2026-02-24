@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0f48fd95-4158-4b9f-a571-b8c3a7c76a6d"
+				"spark.autotune.trackingId": "55346d86-750d-4ea7-919e-02114748d09d"
 			}
 		},
 		"metadata": {
@@ -52,12 +52,51 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# py_hzn_write_manifest_and_watermark\n",
+					"\n",
+					"## Purpose\n",
+					"Writes a manifest for a Horizon ingest run and upserts a watermark into `odw_meta_db.watermarks`\n",
+					"\n",
+					"## Inputs (injected by pipeline)\n",
+					"- `entity_name` (string) - required\n",
+					"- `runContextJson` (string JSON) - run context (runId, environment, ingestDate, rawBasePath, horizonManifestRoot, etc..)\n",
+					"- `recordsIngested` (int)\n",
+					"- `fileNameHint` (string) - optional, e.g., \"DocumentMetaData.csv\"\n",
+					"- `status` (string) - default \"Succeeded\"\n",
+					"\n",
+					"## Outputs\n",
+					"- notebook exit JSON containing:\n",
+					"  - `manifestPath`\n",
+					"  - `records`\n",
+					"  - `filesWritten`\n",
+					"  - `status`"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parameters"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
-					"from notebookutils import mssparkutils\n",
-					"from pyspark.sql import Row\n",
-					"import json, datetime, uuid, os\n",
-					"\n",
 					"# Parameters injected by pipeline\n",
 					"try:\n",
 					"    entity_name\n",
@@ -85,9 +124,48 @@
 					"    status = \"Succeeded\"\n",
 					"\n",
 					"entity_name = (entity_name or \"\").strip()\n",
-					"assert entity_name, \"Missing required param: entity_name\"\n",
-					"\n",
-					"# Helpers\n",
+					"assert entity_name, \"Missing required param: entity_name\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import Row\n",
+					"import json, datetime, uuid, os"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Helpers"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"def _to_dict(x):\n",
 					"    if isinstance(x, dict):\n",
 					"        return x\n",
@@ -100,8 +178,26 @@
 					"\n",
 					"def _strip_ext(fname: str) -> str:\n",
 					"    base, _ = os.path.splitext(fname or \"\")\n",
-					"    return base\n",
-					"\n",
+					"    return base"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parse context + Derive run IDs + paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"ctx = _to_dict(runContextJson)\n",
 					"\n",
 					"run_id    = ctx.get(\"runId\", str(uuid.uuid4()))\n",
@@ -132,8 +228,26 @@
 					"    f\"{entity_name}/\"\n",
 					"    f\"runs/ingest_date={ing_date}/run_id={run_id}\"\n",
 					")\n",
-					"manifest_path = f\"{manifest_run_dir}/manifest.json\"\n",
-					"\n",
+					"manifest_path = f\"{manifest_run_dir}/manifest.json\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Build Manifest and Write"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Build manifest\n",
 					"manifest = {\n",
 					"    \"entity\": entity_name,\n",
@@ -171,8 +285,26 @@
 					"\n",
 					"# Write manifest.json in Horizon_Manifests\n",
 					"mssparkutils.fs.put(manifest_path, json.dumps(manifest), True)\n",
-					"print(f\"manifest written: {manifest_path} (records={recordsIngested}, files={count})\")\n",
-					"\n",
+					"print(f\"manifest written: {manifest_path} (records={recordsIngested}, files={count})\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Watermark table + MERGE"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Watermark upsert\n",
 					"spark.sql(\"CREATE DATABASE IF NOT EXISTS odw_meta_db\")\n",
 					"spark.sql(\"USE odw_meta_db\")\n",
@@ -237,16 +369,33 @@
 					"WHEN NOT MATCHED THEN INSERT *\n",
 					"\"\"\")\n",
 					"\n",
-					"print(f\"watermark upserted for {entity_name} / {ing_date}\")\n",
-					"\n",
+					"print(f\"watermark upserted for {entity_name} / {ing_date}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Exit / Return Value"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Return values to pipeline\n",
 					"mssparkutils.notebook.exit(json.dumps({\n",
 					"    \"manifestPath\": manifest_path,\n",
 					"    \"records\": int(recordsIngested),\n",
 					"    \"filesWritten\": int(count),\n",
 					"    \"status\": str(status)\n",
-					"}))\n",
-					""
+					"}))"
 				],
 				"execution_count": null
 			}
