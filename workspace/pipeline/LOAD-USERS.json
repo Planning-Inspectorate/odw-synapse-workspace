@@ -137,8 +137,101 @@
 						"referenceName": "User_Mpesc",
 						"type": "NotebookReference"
 					},
-					"snapshot": true
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
+			},
+			{
+				"name": "Load Users",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Users-Merged",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/decision",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "caseId"
+								},
+								"sink": {
+									"name": "caseId"
+								}
+							},
+							{
+								"source": {
+									"name": "dtypeId"
+								},
+								"sink": {
+									"name": "decisionTypeId"
+								}
+							},
+							{
+								"source": {
+									"name": "outcomeId"
+								},
+								"sink": {
+									"name": "outcomeId"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "decision",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "mpesc_decision",
+						"type": "DatasetReference"
+					}
+				]
 			}
 		],
 		"folder": {
