@@ -8,6 +8,22 @@ import argparse
 import re
 
 
+"""
+This is a utility script to flatten the contents of the ODW package into a single script, so that it can be copy/pasted
+into a notebook in Synapse. This allows you to bypass needing to reupload the package to the pool, which is a slow process.
+
+This works by building a direct acyclic graph (DAG) of the package, and forms the combined file using the topological order of the
+files. All relative imports within the package are commented out, since the dependencies are already included nearer the top of the
+combined file
+
+# Example usage
+python3 odw/flatten_package_into_notebook.py  # Flattens everything in the package. This is usually not needed
+python3 odw/flatten_package_into_notebook.py -r "odw/core/etl/etl_process_factory.py"  # Flattens just the ETL code (and its dependencies)
+
+This will produce a file called odw/flatten_package_into_notebook__output.py , which you can copy into Synapse
+"""
+
+
 class AttributeNotFoundException(Exception):
     pass
 
@@ -30,7 +46,7 @@ class JsonPropertyIterator:
         self.attribute_collection: Union[Dict[str, Any], List[Any]] = dictionary
         self.attribute_split = [x for x in attribute.split(".") if x]
         if not self.attribute_split:
-            raise ValueError(f"There is no attribute to evaluate")
+            raise ValueError("There is no attribute to evaluate")
         self.last_evaluated_attribute = None
 
     def __iter__(self):
