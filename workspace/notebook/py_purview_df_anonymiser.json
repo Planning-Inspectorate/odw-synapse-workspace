@@ -51,7 +51,30 @@
 			{
 				"cell_type": "markdown",
 				"source": [
-					"# py_purview_apiInteracts with Azure Purview to resolve assets, retrieve classifications and apply anonymisation rules to Spark DataFrames.Sections: Imports, Parameters, Preview, Purview lookup, Anonymisation, Display."
+					"# py_purview_df_anonymiser\n",
+					"\n",
+					"Interactive notebook for testing data anonymisation with Azure Purview integration.\n",
+					"\n",
+					"## Purpose\n",
+					"This notebook demonstrates how to:\n",
+					"- Load a DataFrame from a standardised table\n",
+					"- Retrieve sensitive column classifications from Azure Purview\n",
+					"- Apply anonymisation rules based on those classifications\n",
+					"- Compare original vs anonymised data\n",
+					"\n",
+					"## Sections\n",
+					"1. Imports and setup\n",
+					"2. Parameters configuration\n",
+					"3. Load test data\n",
+					"4. Purview integration\n",
+					"5. Apply anonymisation\n",
+					"6. Display results"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 1. Imports and Setup"
 				]
 			},
 			{
@@ -93,11 +116,14 @@
 					}
 				},
 				"source": [
-					"## Parameters\n",
+					"## 2. Parameters\n",
 					"\n",
-					"- entity_name: Service Bus entity name (e.g. 'service-user').\n",
-					"- file_name: Source filename when not using Service Bus schema.\n",
-					"- is_servicebus_schema: Set True when reading from Service Bus paths."
+					"Configure the entity and source folder to test anonymisation.\n",
+					"\n",
+					"**Parameters:**\n",
+					"- `entity_name`: Entity name (e.g., 'service-user', 'appeal-has')\n",
+					"- `file_name`: Source filename for Horizon data\n",
+					"- `source_folder`: Source system - 'ServiceBus', 'Horizon', or 'entraid'"
 				]
 			},
 			{
@@ -119,7 +145,9 @@
 					}
 				},
 				"source": [
-					"Test import of a Dataframe"
+					"## 3. Load Test Data\n",
+					"\n",
+					"Load a standardised table to test anonymisation on."
 				]
 			},
 			{
@@ -141,7 +169,17 @@
 					}
 				},
 				"source": [
-					"Load Info from Purview"
+					"## 4. Purview Integration\n",
+					"\n",
+					"Configure environment variables and retrieve classifications from Azure Purview."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### 4.1 Set Up Environment Variables\n",
+					"\n",
+					"Retrieve Key Vault name and storage account, then set required environment variables."
 				]
 			},
 			{
@@ -160,6 +198,14 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"source": [
+					"### 4.2 Build Purview Asset Path\n",
+					"\n",
+					"Construct the qualified name (path pattern) for the Purview asset based on the source folder."
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"if source_folder == 'ServiceBus':\n",
@@ -174,6 +220,14 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"source": [
+					"### 4.3 Configure Purview Connection\n",
+					"\n",
+					"Set up Purview account details and asset configuration."
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"source_path"
@@ -183,7 +237,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Old Config\n",
+					"# Purview Configuration\n",
 					"\n",
 					"TENANT_ID       = \"5878df98-6f88-48ab-9322-998ce557088d\"\n",
 					"CLIENT_ID       = \"5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0\"\n",
@@ -200,6 +254,14 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"source": [
+					"### 4.4 Retrieve Client Secret\n",
+					"\n",
+					"Get the service principal secret from Key Vault for Purview authentication."
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"VAULT_NAME = spark.sparkContext.environment.get('keyVaultName')\n",
@@ -209,6 +271,26 @@
 					"CLIENT_SECRET = mssparkutils.credentials.getSecret(VAULT_NAME, SECRET_NAME)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 5. Apply Anonymisation\n",
+					"\n",
+					"Use the AnonymisationEngine to automatically retrieve classifications from Purview and apply masking."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### 5.1 Apply Anonymisation from Purview\n",
+					"\n",
+					"The `apply_from_purview()` method automatically:\n",
+					"1. Fetches the Purview asset by qualified name\n",
+					"2. Retrieves classified columns\n",
+					"3. Applies appropriate anonymisation strategies\n",
+					"4. Returns the anonymised DataFrame"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -225,6 +307,14 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"source": [
+					"## 6. Display Results\n",
+					"\n",
+					"View the anonymised DataFrame to verify masking was applied correctly."
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
@@ -233,6 +323,24 @@
 					"display(out)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"---\n",
+					"\n",
+					"## Advanced Usage\n",
+					"\n",
+					"The cells below demonstrate lower-level API functions for debugging and testing."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### Debug: Fetch Classifications Directly\n",
+					"\n",
+					"Use the lower-level API to retrieve raw classification data from Purview."
+				]
 			},
 			{
 				"cell_type": "code",
@@ -247,6 +355,14 @@
 					"print(raw_cols[:10])"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### Debug: Extract Classified Columns\n",
+					"\n",
+					"Use internal helper functions to inspect the classified columns structure."
+				]
 			},
 			{
 				"cell_type": "code",
@@ -295,20 +411,14 @@
 					}
 				},
 				"source": [
-					"Execute Anonymisation"
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"## Anonymisation Rules"
+					"---\n",
+					"\n",
+					"## Legacy: Manual Anonymisation Rules\n",
+					"\n",
+					"**Note:** The code below shows the old manual approach to anonymisation.\n",
+					"This is now handled automatically by the `AnonymisationEngine` class.\n",
+					"\n",
+					"Kept here for reference and debugging purposes only."
 				]
 			},
 			{
@@ -418,7 +528,7 @@
 					}
 				},
 				"source": [
-					"### Test"
+					"### Legacy: Test Manual Rules"
 				]
 			},
 			{
@@ -440,6 +550,12 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"source": [
+					"### Compare Original vs Anonymised"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
@@ -458,6 +574,14 @@
 					"display(anonym_table_df)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"### Legacy: Create Classification DataFrame\n",
+					"\n",
+					"Old code for creating a structured DataFrame of classifications (not used anymore)."
+				]
 			},
 			{
 				"cell_type": "code",
