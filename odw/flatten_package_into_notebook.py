@@ -276,8 +276,10 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
         while relations_to_explore:
             next_relation = relations_to_explore.pop()
             seen_dependencies.add(next_relation)
-            new_relation_candidates = [x for x in dag[next_relation] if x not in seen_dependencies]
-            relations_to_explore += new_relation_candidates
+            # Only process if the relation exists in the dag (it's an actual file, not just a package)
+            if next_relation in dag:
+                new_relation_candidates = [x for x in dag[next_relation] if x not in seen_dependencies]
+                relations_to_explore += new_relation_candidates
         dag = {k: v for k, v in dag.items() if k in seen_dependencies}
     return dag
 
@@ -298,7 +300,9 @@ def construct_combined_notebook(root: str = None):
     module_imports_sorted = topological_sort(dag)
     combined_content = ""
     for module in module_imports_sorted:
-        combined_content += f"### Module {module}\n\n{module_content[module]}\n\n"
+        # Only include modules that actually exist in module_content (skip package imports)
+        if module in module_content:
+            combined_content += f"### Module {module}\n\n{module_content[module]}\n\n"
     combined_content = combined_content.strip()
     cleaned_content = remove_odw_imports(combined_content)
     with open("odw/flatten_package_into_notebook__output.py", "w") as f:
