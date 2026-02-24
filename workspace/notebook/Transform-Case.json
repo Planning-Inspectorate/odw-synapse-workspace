@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0279a671-9618-4009-9547-017ffaeb8103"
+				"spark.autotune.trackingId": "dc0078f4-b948-4381-b235-7ba39b2306f5"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 53
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -89,7 +89,7 @@
 					"print(\"case_ref rows:\", case_ref.count())\n",
 					""
 				],
-				"execution_count": 54
+				"execution_count": 102
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"print(\"filtered cases:\", filtered_cases.count())\n",
 					""
 				],
-				"execution_count": 55
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -148,7 +148,7 @@
 					"display(attrs_filtered.limit(5))\n",
 					""
 				],
-				"execution_count": 56
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"print(\"Remaining attr cols:\", len(attrs_clean.columns))\n",
 					""
 				],
-				"execution_count": 57
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -186,7 +186,7 @@
 					"print(\"cases_joined rows:\", cases_joined.count())\n",
 					""
 				],
-				"execution_count": 58
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 					"display(final_df.limit(10))\n",
 					""
 				],
-				"execution_count": 59
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -267,7 +267,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 60
+				"execution_count": 108
 			},
 			{
 				"cell_type": "code",
@@ -281,7 +281,7 @@
 					"final_df_named = df\n",
 					""
 				],
-				"execution_count": 61
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -293,7 +293,7 @@
 					"display(final_df_named)\n",
 					""
 				],
-				"execution_count": 62
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -301,7 +301,7 @@
 					"df = final_df_named.cache()\n",
 					"df.count()"
 				],
-				"execution_count": 63
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
@@ -319,7 +319,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 64
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
@@ -336,7 +336,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 113
 			},
 			{
 				"cell_type": "code",
@@ -346,7 +346,7 @@
 					"    .orderBy(F.col(\"caseTypeId\").cast(\"int\")) \\\n",
 					"    .show(truncate=False)"
 				],
-				"execution_count": 66
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
@@ -356,7 +356,7 @@
 				"source": [
 					"display(df_mapped.limit(10))"
 				],
-				"execution_count": 67
+				"execution_count": 115
 			},
 			{
 				"cell_type": "code",
@@ -365,7 +365,7 @@
 					"df.groupBy(\"applicationSubtype\").count().show(100, truncate=False)\n",
 					""
 				],
-				"execution_count": 68
+				"execution_count": 116
 			},
 			{
 				"cell_type": "code",
@@ -409,7 +409,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 69
+				"execution_count": 117
 			},
 			{
 				"cell_type": "code",
@@ -420,14 +420,68 @@
 					").distinct().orderBy(\"applicationSubtype\").show(truncate=False)\n",
 					""
 				],
-				"execution_count": 70
+				"execution_count": 118
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"database = \"pins-sqldb-peas-dev\"\n",
 					"\n",
-					"df_mapped = df_mapped.withColumn(\"caseOfficerId\", F.lit(\"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"))\n",
+					"url = (\n",
+					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
+					"    f\"database={database};\"\n",
+					"    \"encrypt=true;\"\n",
+					"    \"trustServerCertificate=false;\"\n",
+					"    \"hostNameInCertificate=*.database.windows.net;\"\n",
+					"    \"loginTimeout=30;\"\n",
+					")\n",
 					"\n",
+					"user = \"peas_app_ZXzkE0vP\"\n",
+					"\n",
+					"password = mssparkutils.credentials.getSecret(\n",
+					"    \"pinskvsynwodwdevuks\",\n",
+					"    \"mpesc-sql-password\"\n",
+					")"
+				],
+				"execution_count": 119
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"DEFAULT_ID = \"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"\n",
+					"\n",
+					"# Clean user table once\n",
+					"user_clean = (\n",
+					"    user_df\n",
+					"    .filter(\n",
+					"        (F.col(\"legacyId\").isNotNull()) &\n",
+					"        (F.col(\"legacyId\") != \"undefined\")\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"legacyId\").cast(\"string\").alias(\"caseOwnerId_str\"),\n",
+					"        F.col(\"idpUserId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"df_mapped = (\n",
+					"    df_mapped\n",
+					"    .withColumn(\"caseOwnerId_str\", F.col(\"caseOwnerId\").cast(\"string\"))\n",
+					"    .join(user_clean, on=\"caseOwnerId_str\", how=\"left\")\n",
+					"    .withColumn(\n",
+					"        \"caseOfficerId\",\n",
+					"        F.coalesce(F.col(\"idpUserId\"), F.lit(DEFAULT_ID))\n",
+					"    )\n",
+					"    .drop(\"caseOwnerId_str\", \"idpUserId\")\n",
+					")"
+				],
+				"execution_count": 120
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"df_mapped = df_mapped.withColumn(\n",
 					"    \"receivedDate\",\n",
 					"    F.coalesce(F.col(\"caseCreateDate\"), F.current_timestamp())\n",
@@ -436,7 +490,7 @@
 					"df_mapped = df_mapped.withColumn(\"name\", F.col(\"hznReference\"))\n",
 					""
 				],
-				"execution_count": 71
+				"execution_count": 121
 			},
 			{
 				"cell_type": "code",
@@ -444,7 +498,7 @@
 					"df_mapped.select(\"caseOfficerId\").show(10, truncate=False)\n",
 					""
 				],
-				"execution_count": 72
+				"execution_count": 122
 			},
 			{
 				"cell_type": "code",
@@ -460,7 +514,7 @@
 					"url = f\"jdbc:sqlserver://{server}:1433;database={database};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;\"\n",
 					""
 				],
-				"execution_count": 73
+				"execution_count": 123
 			},
 			{
 				"cell_type": "code",
@@ -484,7 +538,7 @@
 					"    .dropDuplicates([\"legacyCaseId\"])\n",
 					")"
 				],
-				"execution_count": 74
+				"execution_count": 124
 			},
 			{
 				"cell_type": "code",
@@ -506,7 +560,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 75
+				"execution_count": 125
 			},
 			{
 				"cell_type": "code",
@@ -528,7 +582,7 @@
 					"\n",
 					"display(df_mapped.select(\"band\", \"band_id\").distinct())"
 				],
-				"execution_count": 76
+				"execution_count": 126
 			},
 			{
 				"cell_type": "code",
@@ -565,7 +619,7 @@
 					"    .orderBy(\"processingStateAttr\")\n",
 					")"
 				],
-				"execution_count": 77
+				"execution_count": 127
 			},
 			{
 				"cell_type": "code",
@@ -582,7 +636,7 @@
 					"     .otherwise(F.lit(\"low\"))   # fallback safety\n",
 					")"
 				],
-				"execution_count": 78
+				"execution_count": 128
 			},
 			{
 				"cell_type": "code",
@@ -609,7 +663,7 @@
 					"display(cases_df)\n",
 					""
 				],
-				"execution_count": 79
+				"execution_count": 129
 			},
 			{
 				"cell_type": "code",
@@ -630,7 +684,7 @@
 					"case_ids\n",
 					""
 				],
-				"execution_count": 80
+				"execution_count": 130
 			},
 			{
 				"cell_type": "code",
@@ -702,7 +756,7 @@
 					"print(\"Updated Cases.csv with GUIDs (without overwriting existing GUIDs):\", final_file)\n",
 					""
 				],
-				"execution_count": 81
+				"execution_count": 131
 			},
 			{
 				"cell_type": "code",
@@ -741,7 +795,7 @@
 					"    .withColumnRenamed(\"caseGuid\", \"id\")\n",
 					")"
 				],
-				"execution_count": 82
+				"execution_count": 132
 			},
 			{
 				"cell_type": "code",
@@ -777,7 +831,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 83
+				"execution_count": 133
 			},
 			{
 				"cell_type": "code",
@@ -851,7 +905,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 84
+				"execution_count": 134
 			},
 			{
 				"cell_type": "code",
@@ -886,7 +940,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 85
+				"execution_count": 135
 			},
 			{
 				"cell_type": "code",
@@ -914,7 +968,7 @@
 					"\n",
 					"#  😎"
 				],
-				"execution_count": 86
+				"execution_count": 136
 			}
 		]
 	}
