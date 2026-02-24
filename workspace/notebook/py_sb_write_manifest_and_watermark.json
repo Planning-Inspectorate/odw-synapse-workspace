@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a342519d-14f3-4b75-bdf7-138a9ec06dfe"
+				"spark.autotune.trackingId": "873d67b5-5c34-4e00-9fd2-345617527aa5"
 			}
 		},
 		"metadata": {
@@ -52,13 +52,48 @@
 		},
 		"cells": [
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Write Service Bus manifest + watermark\n",
+					"\n",
+					"This notebook is called by Synapse pipelines after a Service Bus ingest step\n",
+					"\n",
+					"It:\n",
+					"1) Builds and writes a `manifest.json` under the entity run folder (`.../runs/ingest_date=.../run_id=...`)\n",
+					"2) Upserts a watermark row into `odw_meta_db.watermarks`\n",
+					"3) Returns `{ manifestPath, records, filesWritten, status }` via `mssparkutils.notebook.exit()`\n",
+					"\n",
+					"## Parameters (injected by pipeline)\n",
+					"- `entity_name` (required)\n",
+					"- `runContextJson` (JSON string/dict used for runId/environment/rawBasePath/ingestDate)\n",
+					"- `recordsIngested` (int)\n",
+					"- `status` (string, default `Succeeded`)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parameters\n",
+					" Parameters injected by pipeline (with safe defaults for interactive runs)"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
-					"from notebookutils import mssparkutils\n",
-					"from pyspark.sql import Row\n",
-					"import json, datetime, uuid\n",
-					"\n",
-					"# parameters injected by pipeline (keep your try/except defaults)\n",
 					"try:\n",
 					"    entity_name\n",
 					"except NameError:\n",
@@ -80,10 +115,57 @@
 					"    status = \"Succeeded\"\n",
 					"\n",
 					"entity_name = (entity_name or \"\").strip()\n",
-					"assert entity_name, \"Missing required param: entity_name\"\n",
-					"\n",
-					"# Parse run context (tolerate dict/JSON/double-escaped)\n",
+					"assert entity_name, \"Missing required param: entity_name\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import Row\n",
+					"import json\n",
+					"import datetime\n",
+					"import uuid"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Helpers"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"def _to_dict(x):\n",
+					"    \"\"\"\n",
+					"    Parse runContextJson tolerating:\n",
+					"    - dict\n",
+					"    - JSON string\n",
+					"    - double escaped JSON string\n",
+					"    \"\"\"\n",
 					"    if isinstance(x, dict):\n",
 					"        return x\n",
 					"    if not x:\n",
@@ -93,40 +175,82 @@
 					"    except Exception:\n",
 					"        return json.loads(bytes(x, \"utf-8\").decode(\"unicode_escape\"))\n",
 					"\n",
+					"\n",
+					"def _utc_now_iso():\n",
+					"    return datetime.datetime.utcnow().strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n",
+					"\n",
+					"\n",
+					"def _utc_now_ts():\n",
+					"    return datetime.datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Config / Context"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"ctx = _to_dict(runContextJson)\n",
 					"\n",
-					"run_id  = ctx.get(\"runId\", str(uuid.uuid4()))\n",
+					"run_id = ctx.get(\"runId\", str(uuid.uuid4()))\n",
 					"env_name = ctx.get(\"environment\", \"\")\n",
 					"\n",
-					"# derive RAW base if not provided\n",
+					"# Derive RAW base if not provided\n",
 					"raw_base_root = (ctx.get(\"rawBasePath\") or \"\").rstrip(\"/\")\n",
 					"\n",
 					"if not raw_base_root:\n",
 					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or \"\"\n",
-					"    storage_account = storage_account.strip()\n",
-					"    storage_account = storage_account.replace(\"https://\", \"\").replace(\"http://\", \"\").strip(\"/\")\n",
+					"    storage_account = storage_account.strip().replace(\"https://\", \"\").replace(\"http://\", \"\").strip(\"/\")\n",
 					"    raw_base_root = f\"abfss://odw-raw@{storage_account}/ServiceBus\"\n",
 					"\n",
-					"# compose paths (use a runs/ subtree to avoid mixing with raw JSON)\n",
-					"source       = \"service-bus\"\n",
-					"ingest_date  = ctx.get(\"ingestDate\") or datetime.datetime.utcnow().strftime(\"%Y-%m-%d\")\n",
-					"entity_root  = f\"{raw_base_root}/{entity_name}\"\n",
-					"run_dir      = f\"{entity_root}/runs/ingest_date={ingest_date}/run_id={run_id}\"\n",
-					"manifest_path = f\"{run_dir}/manifest.json\"\n",
+					"source = \"service-bus\"\n",
+					"ingest_date = ctx.get(\"ingestDate\") or datetime.datetime.utcnow().strftime(\"%Y-%m-%d\")\n",
 					"\n",
+					"entity_root = f\"{raw_base_root}/{entity_name}\"\n",
+					"run_dir = f\"{entity_root}/runs/ingest_date={ingest_date}/run_id={run_id}\"\n",
+					"manifest_path = f\"{run_dir}/manifest.json\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Core Logic (Write Manifest)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"manifest = {\n",
 					"    \"entity\": entity_name,\n",
 					"    \"source\": source,\n",
 					"    \"runId\": run_id,\n",
 					"    \"engEnvironment\": env_name,\n",
 					"    \"ingestDate\": ingest_date,\n",
-					"    \"writtenAt\": datetime.datetime.utcnow().strftime(\"%Y-%m-%dT%H:%M:%SZ\"),\n",
+					"    \"writtenAt\": _utc_now_iso(),\n",
 					"    \"recordsIngested\": int(recordsIngested),\n",
-					"    \"filesWritten\": 0,   # filled below\n",
-					"    \"status\": status\n",
+					"    \"filesWritten\": 0,  # filled below\n",
+					"    \"status\": status,\n",
 					"}\n",
 					"\n",
-					"# Ensure directory exists and write manifest\n",
 					"mssparkutils.fs.mkdirs(run_dir)\n",
 					"\n",
 					"# Count parquet files created by upstream ingestion (if any)\n",
@@ -136,13 +260,29 @@
 					"except Exception:\n",
 					"    files_written = 0\n",
 					"\n",
-					"manifest[\"filesWritten\"] = files_written\n",
+					"manifest[\"filesWritten\"] = int(files_written)\n",
 					"mssparkutils.fs.put(manifest_path, json.dumps(manifest), True)\n",
 					"\n",
-					"print(f\"manifest written: {manifest_path} (records={recordsIngested}, files={files_written})\")\n",
-					"\n",
-					"# 3) Upsert watermark (Delta table in Spark catalog)\n",
-					"# spark.sql(\"CREATE DATABASE IF NOT EXISTS odw_meta_db\")\n",
+					"print(f\"manifest written: {manifest_path} (records={recordsIngested}, files={files_written})\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Core Logic (Watermark Upsert)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"spark.sql(\"USE odw_meta_db\")\n",
 					"\n",
 					"spark.sql(\"\"\"\n",
@@ -161,7 +301,7 @@
 					"PARTITIONED BY (entity, ingest_date)\n",
 					"\"\"\")\n",
 					"\n",
-					"now_ts = datetime.datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S\")\n",
+					"now_ts = _utc_now_ts()\n",
 					"\n",
 					"wm_df = spark.createDataFrame([\n",
 					"    Row(\n",
@@ -205,16 +345,32 @@
 					"WHEN NOT MATCHED THEN INSERT *\n",
 					"\"\"\")\n",
 					"\n",
-					"print(f\"watermark upserted for {entity_name} / {ingest_date}\")\n",
-					"\n",
-					"# Return values back to the pipeline (runOutput)\n",
+					"print(f\"watermark upserted for {entity_name} / {ingest_date}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Exit / Return Value"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"mssparkutils.notebook.exit(json.dumps({\n",
 					"    \"manifestPath\": manifest_path,\n",
 					"    \"records\": int(recordsIngested),\n",
 					"    \"filesWritten\": int(files_written),\n",
 					"    \"status\": status\n",
-					"}))\n",
-					""
+					"}))"
 				],
 				"execution_count": null
 			}
