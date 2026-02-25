@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "89f51926-594a-4236-9b4c-4ad931fde8cd"
+				"spark.autotune.trackingId": "57c7192f-4232-48b5-8c70-46983afc45ee"
 			}
 		},
 		"metadata": {
@@ -54,6 +54,27 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"from pyspark.sql import functions as F, types as T\n",
 					"import uuid"
 				],
@@ -62,7 +83,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Users.csv\"\n",
+					"path = f\"{mpesc_base_path}/MPESC-EXTRACT/Users.csv\"\n",
 					"\n",
 					"users_raw = (\n",
 					"    spark.read.format(\"csv\")\n",
@@ -127,7 +148,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"transform_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/User/\"\n",
+					"transform_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/User/\"\n",
 					"\n",
 					"(users_ready\n",
 					"    .coalesce(1)  # optional – single file\n",
