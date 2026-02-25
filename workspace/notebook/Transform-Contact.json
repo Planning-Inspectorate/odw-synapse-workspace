@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "hbtPool",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "197eca0e-467b-4acf-9f22-248267104e13"
+				"spark.autotune.trackingId": "119c642e-79d7-4f2f-b921-b11bccecf762"
 			}
 		},
 		"metadata": {
@@ -34,16 +34,16 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
-				"name": "hbtPool",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.5",
-				"nodeCount": 10,
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
 				"automaticScaleJobs": false
@@ -51,6 +51,27 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": 1
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -67,27 +88,27 @@
 					"            .load(path))\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Cases mapping file (your existing)\n",
-					"cases_map_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/config/Cases/Cases.csv\"\n",
+					"cases_map_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
 					"# Pivoted involvement folder\n",
-					"involv_folder = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
+					"involv_folder = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
 					"\n",
 					"# Contacts extracts\n",
-					"person_path = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Person.csv\"\n",
-					"org_path    = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-EXTRACT/Contacts_Organisation.csv\"\n",
+					"person_path = f\"{mpesc_base_path}/MPESC-EXTRACT/Contacts_Person.csv\"\n",
+					"org_path    = f\"{mpesc_base_path}/MPESC-EXTRACT/Contacts_Organisation.csv\"\n",
 					"\n",
 					"# Outputs\n",
-					"out_involv_contacts = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
-					"out_addresses       = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
+					"out_involv_contacts = f\"{mpesc_base_path}/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
+					"out_addresses       = f\"{mpesc_base_path}/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -107,7 +128,7 @@
 					"display(cases_map.limit(10))\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -122,7 +143,7 @@
 					"display(involv_raw.limit(10))\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +187,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +244,7 @@
 					"display(contacts_dim.limit(20))\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -252,7 +273,7 @@
 					"display(contacts_dim.select(\"legacyContactId\",\"addressKey\",\"postcode\").limit(20))\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -342,7 +363,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 8
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -365,7 +386,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -470,7 +491,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -510,7 +531,7 @@
 					"print(\"Wrote CaseInvolvement_Contacts.csv:\", out_involv_contacts)\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -527,7 +548,7 @@
 					"        .limit(50))\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -539,9 +560,9 @@
 					"import uuid\n",
 					"\n",
 					"# output paths\n",
-					"out_applicant = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Applicant/Applicant.csv\"\n",
-					"out_authority = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Authority/Authority.csv\"\n",
-					"out_inspector = \"abfss://horizon-migration-poc@pinsstodwdevuks9h80mb.dfs.core.windows.net/MPESC-TRANSFORM/Inspector/Inspector.csv\"\n",
+					"out_applicant = f\"{mpesc_base_path}/MPESC-TRANSFORM/Applicant/Applicant.csv\"\n",
+					"out_authority = f\"{mpesc_base_path}/MPESC-TRANSFORM/Authority/Authority.csv\"\n",
+					"out_inspector = f\"{mpesc_base_path}/MPESC-TRANSFORM/Inspector/Inspector.csv\"\n",
 					"\n",
 					"# deterministic ids for name-based tables\n",
 					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
@@ -667,7 +688,7 @@
 					"print(\"Wrote Inspector.csv (staging):\", out_inspector)\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 15
 			}
 		]
 	}
