@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "da319c80-6f0b-4456-98fc-929b2fa52a6b"
+				"spark.autotune.trackingId": "d7871300-a50b-4877-a550-e9591476ea95"
 			}
 		},
 		"metadata": {
@@ -78,7 +78,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"# Step 1: Read the already-pivoted extract and inspect it\n",
 					"\n",
 					"SRC_PATH = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Dates_95499/\"\n",
 					"\n",
@@ -105,7 +104,6 @@
 				"source": [
 					"from pyspark.sql import functions as F\n",
 					"\n",
-					"# --- rename map (no attr_ prefix) ---\n",
 					"rename_map = {\n",
 					"  \"ID\": \"legacyCaseId\",\n",
 					"  \"1\":  \"legacyIdField\",\n",
@@ -169,8 +167,7 @@
 					"date_cols = [c for c in df2.columns if c not in [\"legacyCaseId\", \"legacyIdField\"]]\n",
 					"\n",
 					"def to_ts(c):\n",
-					"    # Most of your values look like: 2014-01-21 00:00:00\n",
-					"    # Use explicit format first (fast + reliable), then fallback.\n",
+					"\n",
 					"    return F.coalesce(\n",
 					"        F.to_timestamp(F.col(c), \"yyyy-MM-dd HH:mm:ss\"),\n",
 					"        F.to_timestamp(F.col(c), \"yyyy-MM-dd\"),\n",
@@ -196,11 +193,11 @@
 					"case_dates_target = (\n",
 					"    df3.select(\n",
 					"        F.col(\"legacyCaseId\"),\n",
-					"        # Target model fields we can map now:\n",
+					"        \n",
 					"        F.col(\"startDate\").alias(\"startDate\"),\n",
 					"        F.coalesce(F.col(\"bespokeTargetDate\"), F.col(\"targetDate\")).alias(\"targetDecisionDate\"),\n",
 					"        \n",
-					"        # Fields not mapped yet (leave null for now)\n",
+					"        \n",
 					"        F.lit(None).cast(\"timestamp\").alias(\"expectedSubmissionDate\"),\n",
 					"        F.lit(None).cast(\"timestamp\").alias(\"consentDeadlineDate\"),\n",
 					"        F.lit(None).cast(\"timestamp\").alias(\"ogdDueDate\"),\n",
@@ -243,8 +240,7 @@
 					"\n",
 					"joined = case_dates_target.join(cases_map, on=\"legacyCaseId\", how=\"left\")\n",
 					"\n",
-					"# deterministic \"guid-like\" id derived from caseId (stable on reruns)\n",
-					"# md5 -> 32 hex chars, format as 8-4-4-4-12\n",
+					"\n",
 					"joined = joined.withColumn(\"id_hex\", F.md5(F.lower(F.col(\"caseId\"))))\n",
 					"joined = joined.withColumn(\n",
 					"    \"id\",\n",
