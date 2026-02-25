@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1c8684b4-c20e-4b76-8108-6257c6f3b4cf"
+				"spark.autotune.trackingId": "c8d591e7-9a2c-4349-849c-09009a489a11"
 			}
 		},
 		"metadata": {
@@ -51,6 +51,47 @@
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# nb_write_orchestrator_manifest\n",
+					"\n",
+					"## Purpose\n",
+					"Writes an orchestrator run manifest JSON file to odw-raw and upserts a watermark record into `odw_meta_db.watermarks`\n",
+					"\n",
+					"## Inputs (injected by pipeline)\n",
+					"- `runSummaryJson` (string JSON): run summary output from `pln_orchestrator`\n",
+					"- `runContextJson` (string JSON): environment/run context (runId, environment, ingestDate, etc..)\n",
+					"- `manifestPath` (string): relative path for the manifest location in ADLS\n",
+					"- `status` (string): overall orchestrator status\n",
+					"\n",
+					"## Outputs\n",
+					"Returns a JSON payload via `mssparkutils.notebook.exit()` with:\n",
+					"- `manifestPath`\n",
+					"- `fullManifestPath`\n",
+					"- `status`"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parameters"
+				]
+			},
 			{
 				"cell_type": "code",
 				"metadata": {
@@ -86,13 +127,43 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql import Row\n",
-					"import json, datetime, uuid\n",
-					"\n",
-					"# Helpers\n",
+					"import json, datetime, uuid"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Helpers"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"def _to_dict(x):\n",
 					"    if isinstance(x, dict):\n",
 					"        return x\n",
@@ -112,8 +183,26 @@
 					"        return [_clean_strings(v) for v in obj]\n",
 					"    if isinstance(obj, str):\n",
 					"        return obj.replace(\"\\r\", \" \").replace(\"\\n\", \" \").replace(\"\\t\", \" \").strip()\n",
-					"    return obj\n",
-					"\n",
+					"    return obj"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parse Context + Build Paths"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"ctx = _clean_strings(_to_dict(runContextJson))\n",
 					"\n",
 					"run_id   = ctx.get(\"runId\", str(uuid.uuid4()))\n",
@@ -133,9 +222,26 @@
 					"assert manifest_rel, \"Missing required param: manifestPath\"\n",
 					"\n",
 					"manifest_full = f\"abfss://{FILE_SYSTEM}@{storage_account}/{manifest_rel}\"\n",
-					"manifest_dir  = manifest_full.rsplit(\"/\", 1)[0]\n",
-					"\n",
-					"\n",
+					"manifest_dir  = manifest_full.rsplit(\"/\", 1)[0]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Write Manifest"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Ensure directory exists\n",
 					"mssparkutils.fs.mkdirs(manifest_dir)\n",
 					"\n",
@@ -155,8 +261,26 @@
 					"    json.dumps(summary_obj, indent=2, ensure_ascii=False),\n",
 					"    True\n",
 					")\n",
-					"print(f\"orchestrator manifest written: {manifest_full}\")\n",
-					"\n",
+					"print(f\"orchestrator manifest written: {manifest_full}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Watermark table + MERGE"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Watermark upsert\n",
 					"\n",
 					"spark.sql(\"CREATE DATABASE IF NOT EXISTS odw_meta_db\")\n",
@@ -223,15 +347,32 @@
 					"WHEN NOT MATCHED THEN INSERT *\n",
 					"\"\"\")\n",
 					"\n",
-					"print(f\"orchestrator watermark upserted for {ing_date} / {run_id}\")\n",
-					"\n",
+					"print(f\"orchestrator watermark upserted for {ing_date} / {run_id}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Exit / Return Value"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"# Return values to pipeline\n",
 					"mssparkutils.notebook.exit(json.dumps({\n",
 					"    \"manifestPath\": manifest_rel,\n",
 					"    \"fullManifestPath\": manifest_full,\n",
 					"    \"status\": str(status)\n",
-					"}))\n",
-					""
+					"}))"
 				],
 				"execution_count": null
 			}

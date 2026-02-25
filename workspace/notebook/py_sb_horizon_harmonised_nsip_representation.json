@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9ef78e03-fd61-4e7a-9b7f-b85348573770"
+				"spark.autotune.trackingId": "0cffea56-d05a-4644-8f9c-8640b8630237"
 			}
 		},
 		"metadata": {
@@ -88,8 +88,9 @@
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
-					"from pyspark.sql.functions import *\r\n",
-					"from datetime import date,datetime"
+					"import pyspark.sql.functions as F\r\n",
+					"from datetime import date,datetime\r\n",
+					"from pyspark.sql.window import Window"
 				],
 				"execution_count": null
 			},
@@ -273,7 +274,8 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -374,7 +376,8 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in source Horizon SQL query {horizon_table}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -393,13 +396,20 @@
 					"collapsed": false
 				},
 				"source": [
-					"#Establish aggregated view of attachmentId\r\n",
-					"horizon_region = horizon_data.groupBy(\"representationId\").agg(collect_list(\"attachmentIds\").alias(\"attachmentIds\"))\r\n",
-					"horizon_data = horizon_data.drop(\"attachmentIds\")\r\n",
-					"horizon_data = horizon_data.join(horizon_region, on=\"representationId\", how=\"inner\")\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        # Establish aggregated view of attachmentId\r\n",
+					"        horizon_region = horizon_data.groupBy(\"representationId\").agg(F.collect_list(\"attachmentIds\").alias(\"attachmentIds\"))\r\n",
+					"        horizon_data = horizon_data.drop(\"attachmentIds\")\r\n",
+					"        horizon_data = horizon_data.join(horizon_region, on=\"representationId\", how=\"inner\")\r\n",
 					"\r\n",
-					"#sort columns into same order as service bus\r\n",
-					"horizon_data = horizon_data.select(service_bus_data.columns)"
+					"        # Sort columns into same order as service bus\r\n",
+					"        horizon_data = horizon_data.select(service_bus_data.columns)\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while aggregating attachmentIds and aligning Horizon columns to Service Bus schema: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -417,7 +427,14 @@
 					}
 				},
 				"source": [
-					"results = service_bus_data.union(horizon_data)"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        results = service_bus_data.union(horizon_data)\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while merging Service Bus and Horizon datasets using union: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -457,7 +474,8 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -486,30 +504,36 @@
 							"deleting": false
 						}
 					},
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\r\n",
-					"CREATE OR REPLACE TEMPORARY VIEW vw_nsip_relevant_representation_calculations_base\r\n",
-					"AS\r\n",
-					"SELECT  \r\n",
-					"    row_number() OVER(PARTITION BY representationId ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\r\n",
-					"    ,row_number() OVER(ORDER BY IngestionDate ASC, representationId ASC) AS NSIPRepresentaionID\r\n",
-					"    ,representationId\r\n",
-					"    ,IngestionDate\r\n",
-					"    ,ValidTo\r\n",
-					"    ,'0' AS Migrated\r\n",
-					"    ,CASE row_number() OVER(PARTITION BY representationId ORDER BY IngestionDate DESC)\r\n",
-					"        WHEN 1 THEN\r\n",
-					"            'Y'\r\n",
-					"        ELSE\r\n",
-					"            'N'\r\n",
-					"    END AS IsActive       \r\n",
-					"FROM\r\n",
-					"    odw_harmonised_db.nsip_representation"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        df = spark.table(\"odw_harmonised_db.nsip_representation\")\r\n",
+					"\r\n",
+					"        w_reverse_per_representation = Window.partitionBy(\"representationId\").orderBy(F.col(\"IngestionDate\").desc())\r\n",
+					"        w_internal_id = Window.orderBy(F.col(\"IngestionDate\").asc(), F.col(\"representationId\").asc())\r\n",
+					"\r\n",
+					"        out_df = (\r\n",
+					"            df.select(\r\n",
+					"                F.row_number().over(w_reverse_per_representation).alias(\"ReverseOrderProcessed\"),\r\n",
+					"                F.row_number().over(w_internal_id).alias(\"NSIPRepresentaionID\"),\r\n",
+					"                F.col(\"representationId\"),\r\n",
+					"                F.col(\"IngestionDate\"),\r\n",
+					"                F.col(\"ValidTo\"),\r\n",
+					"                F.lit(\"0\").alias(\"Migrated\"),\r\n",
+					"                F.when(F.row_number().over(w_reverse_per_representation) == 1, F.lit(\"Y\"))\r\n",
+					"                .otherwise(F.lit(\"N\"))\r\n",
+					"                .alias(\"IsActive\"),\r\n",
+					"            )\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        out_df.createOrReplaceTempView(\"vw_nsip_relevant_representation_calculations_base\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while creating view vw_nsip_relevant_representation_calculations_base from odw_harmonised_db.nsip_representation: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -549,27 +573,35 @@
 					}
 				},
 				"source": [
-					"df_calcs = spark.sql(\"\"\"\r\n",
-					"                        SELECT\r\n",
-					"                            CurrentRow.NSIPRepresentaionID \r\n",
-					"                            ,CurrentRow.representationId\r\n",
-					"                            ,CurrentRow.IngestionDate\r\n",
-					"                            ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\r\n",
-					"                            ,CASE\r\n",
-					"                                WHEN raw.representationId IS NOT NULL THEN \r\n",
-					"                                    \"1\"\r\n",
-					"                                ELSE \r\n",
-					"                                    \"0\"\r\n",
-					"                            END AS Migrated\r\n",
-					"                            ,CurrentRow.IsActive\r\n",
-					"                        FROM\r\n",
-					"                            vw_nsip_relevant_representation_calculations_base AS CurrentRow\r\n",
-					"                            LEFT OUTER JOIN vw_nsip_relevant_representation_calculations_base AS NextRow\r\n",
-					"                                ON CurrentRow.representationId = NextRow.representationId\r\n",
-					"                                AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\r\n",
-					"                            LEFT OUTER JOIN (SELECT DISTINCT representationId FROM odw_harmonised_db.sb_nsip_representation) AS Raw\r\n",
-					"                                ON CurrentRow.representationId = Raw.representationId \r\n",
-					"                                ORDER BY currentRow.ReverseOrderProcessed\"\"\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        df_calcs = spark.sql(\"\"\"\r\n",
+					"                                SELECT\r\n",
+					"                                    CurrentRow.NSIPRepresentaionID \r\n",
+					"                                    ,CurrentRow.representationId\r\n",
+					"                                    ,CurrentRow.IngestionDate\r\n",
+					"                                    ,COALESCE(NULLIF(CurrentRow.ValidTo,''), NextRow.IngestionDate) AS ValidTo\r\n",
+					"                                    ,CASE\r\n",
+					"                                        WHEN Raw.representationId IS NOT NULL THEN \r\n",
+					"                                            \"1\"\r\n",
+					"                                        ELSE \r\n",
+					"                                            \"0\"\r\n",
+					"                                    END AS Migrated\r\n",
+					"                                    ,CurrentRow.IsActive\r\n",
+					"                                FROM\r\n",
+					"                                    vw_nsip_relevant_representation_calculations_base AS CurrentRow\r\n",
+					"                                    LEFT OUTER JOIN vw_nsip_relevant_representation_calculations_base AS NextRow\r\n",
+					"                                        ON CurrentRow.representationId = NextRow.representationId\r\n",
+					"                                        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\r\n",
+					"                                    LEFT OUTER JOIN (SELECT DISTINCT representationId FROM odw_harmonised_db.sb_nsip_representation) AS Raw\r\n",
+					"                                        ON CurrentRow.representationId = Raw.representationId \r\n",
+					"                                    ORDER BY CurrentRow.ReverseOrderProcessed\r\n",
+					"                            \"\"\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while calculating NSIP representation ValidTo and Migrated flags: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -597,7 +629,15 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"df_calcs =df_calcs.withColumnRenamed(\"representationId\", \"temp_representationId\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        df_calcs =df_calcs.withColumnRenamed(\"representationId\", \"temp_representationId\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while renaming columns in df_calcs for NSIP representation processing: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)\r\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -749,7 +789,8 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in preparing results dataframe for {spark_table_final}: {str(e)[:800]}\"\r\n",
-					"        end_exec_time = datetime.now()"
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -767,8 +808,15 @@
 					}
 				},
 				"source": [
-					"columns = results.columns\r\n",
-					"results = results.drop(\"NSIPRepresentaionID\", \"ValidTo\", \"Migrated\", \"IsActive\")"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        columns = results.columns\r\n",
+					"        results = results.drop(\"NSIPRepresentaionID\", \"ValidTo\", \"Migrated\", \"IsActive\")\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while dropping calculation columns from results dataset: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -786,10 +834,17 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Merging final {spark_table_final}\")\r\n",
-					"final_df = results.join(df_calcs, (df_calcs[\"temp_representationId\"] == results[\"representationId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\r\n",
-					"logInfo(f\"Dropping dupes from {spark_table_final}\")\r\n",
-					"final_df = final_df.drop_duplicates()"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        logInfo(f\"Merging final {spark_table_final}\")\r\n",
+					"        final_df = results.join(df_calcs, (df_calcs[\"temp_representationId\"] == results[\"representationId\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\r\n",
+					"        logInfo(f\"Dropping dupes from {spark_table_final}\")\r\n",
+					"        final_df = final_df.drop_duplicates()\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error while joining calculation results and removing duplicates for {spark_table_final}: {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
@@ -823,7 +878,7 @@
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\r\n",
 					"        end_exec_time = datetime.now()\r\n",
-					""
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},

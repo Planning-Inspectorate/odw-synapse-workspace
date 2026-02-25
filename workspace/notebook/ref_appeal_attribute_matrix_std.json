@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0bf0a4a8-0732-4f5b-9d8d-72495ee18f3d"
+				"spark.autotune.trackingId": "8259eea4-7678-47db-9942-63165e49160b"
 			}
 		},
 		"metadata": {
@@ -134,7 +134,7 @@
 					"ingestion_date = max(date_dirs)\n",
 					"print(f\"Using latest ingestion_date: {ingestion_date}\")\n",
 					"\n",
-					"file_path = f\"{base_dir}{ingestion_date}/appeals-attribute-matrix.csv\"\n",
+					"file_path = f\"{base_dir}{ingestion_date}/appeal-attribute-matrix.csv\"\n",
 					"target_path = f\"abfss://odw-standardised@{storage_account}AppealAttributeMatrix/appeal_attribute_matrix\"\n",
 					"\n",
 					"df = (\n",
@@ -159,7 +159,10 @@
 					"    new_name = to_camel_case(colname)\n",
 					"    df = df.withColumnRenamed(colname, new_name)\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").save(target_path)\n",
+					"if \"s78\" in df.columns:\n",
+					"    df = df.withColumn(\"s78\", col(\"s78\").cast(\"string\"))\n",
+					"\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\",\"true\").save(target_path)\n",
 					"table_name = \"odw_standardised_db.appeal_attribute_matrix\"\n",
 					"\n",
 					"if not spark.catalog.tableExists(table_name):\n",
@@ -167,7 +170,7 @@
 					"else:\n",
 					"    print(f\"Table '{table_name}' already exists. If new schema changes have been added, the table has been updated.\")\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").option(\"overwriteSchema\",\"true\").saveAsTable(table_name)\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\",\"true\").saveAsTable(table_name)\n",
 					"\n",
 					"display(df)"
 				],

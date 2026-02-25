@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d304d4c1-21c5-48ec-80ec-2de39b06af22"
+				"spark.autotune.trackingId": "1726fdb4-ac65-485e-8df7-94c9d5f1fa9c"
 			}
 		},
 		"metadata": {
@@ -232,7 +232,7 @@
 					"            left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
 					"            left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
 					"            left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
-					"            left join odw_harmonised_db.pins_inspector i on UPPER(ent_ins.userPrincipalName) = UPPER(i.email) and i.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.horizon_pins_inspector i on UPPER(ent_ins.userPrincipalName) = UPPER(i.email) and i.isActive = 'Y'\r\n",
 					"    WHERE\r\n",
 					"        h.IsActive = 'Y'\r\n",
 					"        and\r\n",
@@ -303,7 +303,7 @@
 					"            left join odw_harmonised_db.sb_appeal_event e on h.caseReference = e.caseReference and e.isActive = 'Y'\r\n",
 					"            left join odw_harmonised_db.entraid ent_ins on h.inspectorId = ent_ins.id and ent_ins.isActive = 'Y'\r\n",
 					"            left join odw_harmonised_db.entraid ent_co on h.caseOfficerId = ent_co.id and ent_co.isActive = 'Y'\r\n",
-					"            left join odw_harmonised_db.pins_inspector i on UPPER(ent_ins.userPrincipalName) = UPPER(i.email) and i.isActive = 'Y'\r\n",
+					"            left join odw_harmonised_db.horizon_pins_inspector i on UPPER(ent_ins.userPrincipalName) = UPPER(i.email) and i.isActive = 'Y'\r\n",
 					"    WHERE\r\n",
 					"        h.IsActive = 'Y'\r\n",
 					"        and\r\n",
@@ -360,7 +360,7 @@
 					"# Physically cluster by caseReference at write time to enable Parquet stats-based pruning.\r\n",
 					"# This avoids a post-write OPTIMIZE/Z-ORDER full-table scan.\r\n",
 					"spark.conf.set(\"spark.sql.shuffle.partitions\", \"128\")\r\n",
-					"df = df.repartitionByRange(\"caseReference\", \"applicationReference\").sortWithinPartitions(\"caseReference\")"
+					"df = df.repartitionByRange(\"applicationReference\").sortWithinPartitions(\"caseReference\")"
 				],
 				"execution_count": null
 			},
@@ -417,9 +417,8 @@
 					"        print(insert_count)\r\n",
 					"\r\n",
 					"        df.write.mode(\"overwrite\") \\\r\n",
-					"            .partitionBy(\"caseReference\", \"applicationReference\") \\\r\n",
 					"            .option(\"overwriteSchema\", \"true\") \\\r\n",
-					"            .format(\"delta\") \\\r\n",
+					"            .format(\"parquet\") \\\r\n",
 					"            .saveAsTable(table_name)\r\n",
 					"\r\n",
 					"        print(f\"Written to {table_name}\")\r\n",

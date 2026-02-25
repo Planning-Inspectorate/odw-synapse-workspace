@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c1c4a833-2f40-4d93-b85c-a12a9875d69a"
+				"spark.autotune.trackingId": "78066ee1-70f6-4fdc-a130-8fb5562d76ac"
 			}
 		},
 		"metadata": {
@@ -125,6 +125,24 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"params = {\n",
+					"  \"PipelineName\"                        : PipelineName,\n",
+					"  \"PipelineRunID\"                       : PipelineRunID,\n",
+					"  \"PipelineTriggerID\"                   : PipelineTriggerID,\n",
+					"  \"PipelineTriggerName\"                 : PipelineTriggerName,\n",
+					"  \"PipelineTriggerType\"                 : PipelineTriggerType,\n",
+					"  \"PipelineTriggeredbyPipelineName\"     : PipelineTriggeredbyPipelineName,\n",
+					"  \"PipelineTriggeredbyPipelineRunID\"    : PipelineTriggeredbyPipelineRunID,\n",
+					"  \"db_name\"                             : \"odw_curated_db\", \n",
+					"  \"entity_name\"                         : \"nsip-meeting\"\n",
+					"}\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -150,6 +168,161 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"def get_table_metadata(db_name: str, table_name: str) -> str:\n",
+					"    \"\"\"\n",
+					"    Extracts table_location and table_type given a database and table name.\n",
+					"    Replaces the hardcoded storage account in table_location with the correct one.\n",
+					"    \"\"\"\n",
+					"\n",
+					"    error_message = None  \n",
+					"\n",
+					"    try:\n",
+					"        storage_account: str = mssparkutils.notebook.run(\n",
+					"            '/utils/py_utils_get_storage_account'\n",
+					"        )\n",
+					"\n",
+					"        metadata_path: str = (\n",
+					"            f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"        )\n",
+					"\n",
+					"        if not mssparkutils.fs.exists(metadata_path):\n",
+					"            raise FileNotFoundError(\n",
+					"                f\"Metadata file not found at {metadata_path}\"\n",
+					"            )\n",
+					"\n",
+					"        df = spark.read.json(metadata_path, multiLine=True)\n",
+					"\n",
+					"        # force evaluation\n",
+					"        df.limit(1).count()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Failed to load existing tables metadata: {str(e)[:800]}\"\n",
+					"        raise RuntimeError(error_message)  # fail fast\n",
+					"\n",
+					"    # Continue only if metadata load succeeded \n",
+					"\n",
+					"    curated_df = df.select(\n",
+					"        explode(col(\"curated_metadata\")).alias(\"metadata\")\n",
+					"    )\n",
+					"\n",
+					"    df_exploded = curated_df.selectExpr(\"metadata.*\")\n",
+					"    df_exploded.cache()\n",
+					"\n",
+					"    filtered_df = (\n",
+					"        df_exploded\n",
+					"        .filter(\n",
+					"            (col(\"database_name\") == db_name) &\n",
+					"            (col(\"table_name\") == table_name)\n",
+					"        )\n",
+					"        .select(\"table_location\", \"table_type\", \"table_format\")\n",
+					"    )\n",
+					"\n",
+					"    if filtered_df.isEmpty():\n",
+					"        raise ValueError(\n",
+					"            f\"get_table_metadata failed for table '{table_name}' \"\n",
+					"            f\"in database '{db_name}'\"\n",
+					"        )\n",
+					"\n",
+					"    result = filtered_df.collect()[0]\n",
+					"\n",
+					"    original_location = result[\"table_location\"]\n",
+					"    table_type = result[\"table_type\"]\n",
+					"    table_format = result[\"table_format\"]\n",
+					"\n",
+					"    # Replace storage account if required\n",
+					"    if original_location.startswith(\"abfss://\") and \"@\" in original_location:\n",
+					"        container = original_location.split(\"abfss://\")[1].split(\"@\")[0]\n",
+					"        path = original_location.split(\"@\")[1].split(\"/\", 1)[1]\n",
+					"        corrected_location = (\n",
+					"            f\"abfss://{container}@{storage_account}{path}\"\n",
+					"        )\n",
+					"    else:\n",
+					"        corrected_location = original_location\n",
+					"\n",
+					"    return corrected_location\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Get the table location from existing metadata for creating external table**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"table_location =  get_table_metadata(db_name, table_name)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### create **nsip_meeting** in odw_curated_db if it is not already created."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not spark.catalog.tableExists(full_table_name):\n",
+					"    print(f\"Table {full_table_name} does not exist. Creating table...\")\n",
+					"    mssparkutils.notebook.run(\n",
+					"        \"create_table_from_schema\",\n",
+					"        600,\n",
+					"        params\n",
+					"    )\n",
+					"    print(f\"created table {full_table_name} successfully  ...\")\n",
+					"else:\n",
+					"    print(f\"Table {full_table_name} already exists. Skipping table creation.\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
+					"    full_table = f\"{db}.{table}\"\n",
+					"    if not spark.catalog.tableExists(full_table):\n",
+					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
+					"        return\n",
+					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
+					"    if column.lower() in current_cols:\n",
+					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
+					"        return\n",
+					"    try:\n",
+					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
+					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
+					"    except AnalysisException as e:\n",
+					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
+					"    except Exception as e:\n",
+					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
+					"\n",
+					"# Ensure estimatedPrelimMeetingDate is availiable in nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
+					"ensure_column(\"odw_curated_db\", \"nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -169,9 +342,30 @@
 				},
 				"source": [
 					"\n",
+					"from datetime import datetime\n",
+					"\n",
 					"try:\n",
 					"    df_nsip_meeting = spark.sql(\"\"\"\n",
-					"        SELECT DISTINCT \n",
+					"        WITH deduped AS (\n",
+					"            SELECT\n",
+					"                caseId,\n",
+					"                caseReference,\n",
+					"                meetingAgenda,\n",
+					"                planningInspectorateRole,\n",
+					"                meetingId,\n",
+					"                meetingDate,\n",
+					"                meetingType,\n",
+					"                estimatedPrelimMeetingDate,\n",
+					"                IsActive,\n",
+					"                ROW_NUMBER() OVER (\n",
+					"                    PARTITION BY meetingId\n",
+					"                    ORDER BY meetingDate DESC\n",
+					"                ) AS rn\n",
+					"            FROM odw_harmonised_db.sb_nsip_meeting\n",
+					"            WHERE IsActive = 'Y'\n",
+					"              AND meetingId IS NOT NULL\n",
+					"        )\n",
+					"        SELECT\n",
 					"            caseId,\n",
 					"            caseReference,\n",
 					"            meetingAgenda,\n",
@@ -179,13 +373,15 @@
 					"            meetingId,\n",
 					"            meetingDate,\n",
 					"            meetingType,\n",
+					"            estimatedPrelimMeetingDate,\n",
 					"            IsActive\n",
-					"        FROM odw_harmonised_db.sb_nsip_meeting\n",
-					"        WHERE IsActive = 'Y' and meetingId is not null\n",
+					"        FROM deduped\n",
+					"        WHERE rn = 1\n",
 					"    \"\"\")\n",
 					"except Exception as e:\n",
 					"    error_message = f\"Error in SQL query for table odw_harmonised_db.sb_nsip_meeting : {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()"
+					"    end_exec_time = datetime.now()\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -221,7 +417,7 @@
 					"        insert_count = df_nsip_meeting.count()\n",
 					"        print(insert_count)\n",
 					"\n",
-					"        df_nsip_meeting.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(full_table_name)\n",
+					"        df_nsip_meeting.write.mode(\"overwrite\").option(\"path\", table_location).format(\"parquet\").saveAsTable(full_table_name)\n",
 					"        print(f\"Written to {full_table_name}\")\n",
 					"\n",
 					"        end_exec_time = datetime.now()\n",

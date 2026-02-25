@@ -6,12 +6,13 @@ class SynapseDataIO(DataIO):
     """
     Manages data io to/from a storage location that is linked to Synapse
     """
+
     def _format_to_adls_path(self, container_name: str, blob_path: str, storage_name: str = None, storage_endpoint: str = None) -> str:
         """
         Return a datalake path from the given arguments.
 
         **Note this function exists so that the filepath can be mocked during testing**
-        
+
         :param str container_name: The storage container the blob exists in
         :param str blob_path: The path to the blob in the container
         :param str storage_name: The name of the storage account
@@ -19,9 +20,9 @@ class SynapseDataIO(DataIO):
         :return str: A string with the format `abfss://{container_name}@{storage_name}.dfs.core.windows.net/{blob_path}`
         """
         if not (storage_name or storage_endpoint):
-            raise ValueError(f"SynapseDataIO._format_to_adls_path expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError("SynapseDataIO._format_to_adls_path expected one of 'storage_name' or 'storage_endpoint' to be provided")
         if storage_name and storage_endpoint:
-            raise ValueError(f"SynapseDataIO._format_to_adls_path expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError("SynapseDataIO._format_to_adls_path expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if storage_name:
             storage_endpoint = f"{storage_name}.dfs.core.windows.net/"
         storage_endpoint_split = storage_endpoint.split(".")
@@ -42,15 +43,15 @@ class SynapseDataIO(DataIO):
         :param str container_name: The container to read from
         :param str blob_path: The path to the blob (in the container) to read
         :param SparkSession spark: The spark session
-        
-        :return DataFrame: The data 
+
+        :return DataFrame: The data
         """
         pass
-    
+
     def write(self, data: DataFrame, **kwargs):
         """
         Write the data to the given storage location
-        
+
         :param DataFrame data: The data to write
         :param str storage_name: The name of the storage account to write to
         :param str container_name: The container to write to
