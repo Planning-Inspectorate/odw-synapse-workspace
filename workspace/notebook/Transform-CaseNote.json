@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "22ab6841-0d59-4a42-98ed-0dce34255ba1"
+				"spark.autotune.trackingId": "b8260e8f-2b78-4418-81c7-6f459233e938"
 			}
 		},
 		"metadata": {
@@ -341,6 +341,51 @@
 					""
 				],
 				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"DEFAULT_AUTHOR = \"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"\n",
+					"\n",
+					"# Build new CaseNote rows from importantInformation\n",
+					"important_notes = (\n",
+					"    filtered_df\n",
+					"    .select(\n",
+					"        F.col(\"caseNodeId\").cast(\"string\").alias(\"CaseId\"),     # legacy case id\n",
+					"        F.col(\"caseCreateDate\").alias(\"noteDate\"),\n",
+					"        F.lit(DEFAULT_AUTHOR).alias(\"authorId\"),\n",
+					"        F.col(\"importantInformation\").alias(\"noteText\"),\n",
+					"        F.lit(\"importantInformation\").alias(\"noteSource\"),\n",
+					"        F.lit(\"legacyNote\").alias(\"noteType\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.trim(F.col(\"noteText\")).isNotNull() &\n",
+					"        (F.trim(F.col(\"noteText\")) != \"\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"# Append as new rows\n",
+					"case_notes_filtered = (\n",
+					"    case_notes_filtered\n",
+					"    .unionByName(important_notes, allowMissingColumns=True)\n",
+					")\n",
+					"\n",
+					"# Optional de-duplication\n",
+					"case_notes_filtered = case_notes_filtered.dropDuplicates(\n",
+					"    [\"CaseId\", \"noteText\", \"noteSource\"]\n",
+					")"
+				],
+				"execution_count": 89
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(case_notes_filtered)"
+				],
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
