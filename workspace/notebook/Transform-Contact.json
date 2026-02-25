@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "119c642e-79d7-4f2f-b921-b11bccecf762"
+				"spark.autotune.trackingId": "6ce87fe9-1265-4a7a-bc22-b6b675ff094d"
 			}
 		},
 		"metadata": {
@@ -93,17 +93,17 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Cases mapping file (your existing)\n",
+					"\n",
 					"cases_map_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
-					"# Pivoted involvement folder\n",
+					"\n",
 					"involv_folder = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
 					"\n",
-					"# Contacts extracts\n",
+					"\n",
 					"person_path = f\"{mpesc_base_path}/MPESC-EXTRACT/Contacts_Person.csv\"\n",
 					"org_path    = f\"{mpesc_base_path}/MPESC-EXTRACT/Contacts_Organisation.csv\"\n",
 					"\n",
-					"# Outputs\n",
+					"\n",
 					"out_involv_contacts = f\"{mpesc_base_path}/MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv\"\n",
 					"out_addresses       = f\"{mpesc_base_path}/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
 					""
@@ -165,7 +165,7 @@
 					"    .withColumn(\"contactDetails\", F.col(\"19\").cast(\"string\"))\n",
 					")\n",
 					"\n",
-					"# Clean \"undefined\" strings -> null (but do not remove legacyContactId values like P_0 here)\n",
+					"\n",
 					"involv = (involv\n",
 					"    .withColumn(\"legacyContactId\", nullify_undefined(F.col(\"legacyContactId\")))\n",
 					"    .withColumn(\"typeOfInvolvement\", nullify_undefined(F.col(\"typeOfInvolvement\")))\n",
@@ -180,7 +180,7 @@
 					"    )\n",
 					")\n",
 					"\n",
-					"# Filter to only mapped cases (do NOT filter legacyContactId here)\n",
+					"\n",
 					"involv_filtered = involv.join(cases_map, on=\"legacyCaseId\", how=\"inner\")\n",
 					"\n",
 					"print(\"involv_filtered:\", involv_filtered.count())\n",
@@ -281,7 +281,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"# Recreate involv_with_contacts (left join keeps all filtered involvement rows)\n",
 					"\n",
 					"involv_with_contacts = (\n",
 					"    involv_filtered\n",
@@ -371,7 +370,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"# Build a contact -> addressId lookup (uses contacts_dim which DOES have addressKey)\n",
+					"\n",
 					"contact_addr_lkp = (\n",
 					"    contacts_dim\n",
 					"      .select(\"legacyContactId\", \"addressKey\")\n",
@@ -379,7 +378,7 @@
 					"      .select(\"legacyContactId\", \"addressId\")\n",
 					")\n",
 					"\n",
-					"# Attach addressId back to involvements using legacyContactId (present on left)\n",
+					"\n",
 					"involv_final = involv_with_contacts.join(contact_addr_lkp, on=\"legacyContactId\", how=\"left\")\n",
 					"\n",
 					"display(involv_final.limit(50))\n",
@@ -394,7 +393,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"# keep original \"typeOfInvolvement\" and add a mapped \"contactTypeId\"\n",
+					"\n",
 					"involv_final = involv_final.withColumn(\"toi_norm\", F.lower(F.trim(F.col(\"typeOfInvolvement\"))))\n",
 					"\n",
 					"involv_final = involv_final.withColumn(\n",
@@ -588,9 +587,7 @@
 					"# normalised type for filters\n",
 					"df = out.withColumn(\"toi_norm\", F.lower(F.trim(F.col(\"typeOfInvolvement\"))))\n",
 					"\n",
-					"# -------------------------\n",
-					"# 1) Applicant table export\n",
-					"# -------------------------\n",
+					"\n",
 					"applicant_df = (df\n",
 					"    .filter(F.col(\"toi_norm\") == \"applicant\")\n",
 					"    .withColumn(\"name\", contact_display_name(df))\n",
@@ -616,9 +613,7 @@
 					" .csv(out_applicant))\n",
 					"print(\"Wrote Applicant.csv:\", out_applicant)\n",
 					"\n",
-					"# -------------------------\n",
-					"# 2) Authority export (WITH caseId)\n",
-					"# -------------------------\n",
+					"\n",
 					"AUTHORITY_TYPES = [\"lpa\", \"order making authority\"]\n",
 					"\n",
 					"authority_df = (df\n",
@@ -647,9 +642,7 @@
 					" .csv(out_authority))\n",
 					"print(\"Wrote Authority.csv:\", out_authority)\n",
 					"\n",
-					"# -------------------------\n",
-					"# 3) Inspector staging export\n",
-					"# -------------------------\n",
+					"\n",
 					"INSPECTOR_TYPES = [\n",
 					"    \"assessor inspector\",\n",
 					"    \"assistant inspector\",\n",
