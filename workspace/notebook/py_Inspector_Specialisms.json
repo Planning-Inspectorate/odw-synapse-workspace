@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1dff043e-0619-45dd-818c-09cb35b5e765"
+				"spark.autotune.trackingId": "1faad15d-999f-4181-b9e2-c565912b7ac0"
 			}
 		},
 		"metadata": {
@@ -211,7 +211,15 @@
 					"\n",
 					"    create_view_latest_specialisms_sql = \"\"\"\n",
 					"        CREATE OR REPLACE TEMP VIEW vw_latest_inspector_specialisms AS\n",
-					"        SELECT ROW_NUMBER() OVER (PARTITION BY a.staffnumber,a.QualificationName ORDER BY a.validFrom Desc) Rnk,  \n",
+					"        SELECT ROW_NUMBER() OVER (PARTITION BY a.staffnumber,a.QualificationName ORDER BY CASE \n",
+					"        WHEN a.Proficien = 'Trained'\n",
+					"        THEN 3\n",
+					"        WHEN a.Proficien = 'In Training'\n",
+					"        THEN 2\n",
+					"        WHEN a.Proficien = 'Not Started'\n",
+					"        THEN 1\n",
+					"        ELSE 0\n",
+					"        END Desc,a.validFrom Desc) Rnk,  \n",
 					"            a.StaffNumber,\n",
 					"            a.Firstname,\n",
 					"            a.Lastname,\n",
@@ -223,6 +231,7 @@
 					"        \"\"\"\n",
 					"    spark.sql(create_view_latest_specialisms_sql)\n",
 					"\n",
+					"    \n",
 					"    # Step 1: Delete all records from the transform table\n",
 					"    logInfo(\"Step 1: Deleting records from transform_inspector_Specialisms\")\n",
 					"    spark.sql(\"\"\"\n",
