@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "hbtPool",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e1e2401f-b3c3-4e50-98fe-e2d52a5a7156"
+				"spark.autotune.trackingId": "53d8b294-c6fa-4924-a7cd-1dbdc13e1e4d"
 			}
 		},
 		"metadata": {
@@ -34,16 +34,16 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/hbtPool",
-				"name": "hbtPool",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/hbtPool",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.5",
-				"nodeCount": 10,
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
 				"automaticScaleJobs": false
@@ -85,7 +85,7 @@
 					"print(\"Output:\", output_base)\n",
 					""
 				],
-				"execution_count": 7
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -93,14 +93,17 @@
 					"df = (\n",
 					"    spark.read\n",
 					"         .option(\"header\", True)\n",
-					"         .option(\"sep\", \"|\") \n",
+					"         .option(\"sep\", \"|\")\n",
+					"         .option(\"quote\", \"\\\"\")\n",
+					"         .option(\"escape\", \"\\\"\")\n",
+					"         .option(\"multiLine\", True)\n",
 					"         .csv(llattrdata_path)\n",
 					")\n",
 					"\n",
-					"df.printSchema()\n",
-					""
+					"print(df.columns)\n",
+					"print(\"Column count:\", len(df.columns))"
 				],
-				"execution_count": 8
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -129,7 +132,7 @@
 					"dfv.show(5, truncate=False)\n",
 					""
 				],
-				"execution_count": 9
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +148,7 @@
 					"print(\"Rows kept:\", dfv_good.count())\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -332,7 +335,12 @@
 					"    # Write out\n",
 					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
 					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
-					"    wide.write.mode(\"overwrite\").option(\"header\", True).csv(out_dir)\n",
+					"    wide.write.mode(\"overwrite\") \\\n",
+					"    .option(\"header\", True) \\\n",
+					"    .option(\"sep\", \"|\") \\\n",
+					"    .option(\"quote\", \"\\\"\") \\\n",
+					"    .option(\"escape\", \"\\\"\") \\\n",
+					"    .csv(out_dir)\n",
 					"\n",
 					"    print(f\"Wrote DefID {defid} -> {out_dir}\")\n",
 					""
