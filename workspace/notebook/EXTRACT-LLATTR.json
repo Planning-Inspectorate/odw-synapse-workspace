@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "53d8b294-c6fa-4924-a7cd-1dbdc13e1e4d"
+				"spark.autotune.trackingId": "5769024c-4deb-4acc-8f6e-3c8ae171b95f"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -85,7 +85,7 @@
 					"print(\"Output:\", output_base)\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -103,7 +103,7 @@
 					"print(df.columns)\n",
 					"print(\"Column count:\", len(df.columns))"
 				],
-				"execution_count": 3
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -132,7 +132,7 @@
 					"dfv.show(5, truncate=False)\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -148,7 +148,7 @@
 					"print(\"Rows kept:\", dfv_good.count())\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"print(\"First 20:\", sorted(defids)[:20])\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -305,7 +305,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -332,10 +332,18 @@
 					"        .agg(F.first(\"Value\"))\n",
 					"    )\n",
 					"\n",
+					"    wide_clean = wide\n",
+					"    for c in wide_clean.columns:\n",
+					"        wide_clean = wide_clean.withColumn(\n",
+					"            c,\n",
+					"            F.when(F.col(c).isNull(), None)\n",
+					"             .otherwise(F.regexp_replace(F.col(c).cast(\"string\"), r\"[\\r\\n]+\", \" \"))\n",
+					"        )\n",
+					"\n",
 					"    # Write out\n",
 					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
 					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
-					"    wide.write.mode(\"overwrite\") \\\n",
+					"    wide_clean.write.mode(\"overwrite\") \\\n",
 					"    .option(\"header\", True) \\\n",
 					"    .option(\"sep\", \"|\") \\\n",
 					"    .option(\"quote\", \"\\\"\") \\\n",
@@ -345,7 +353,7 @@
 					"    print(f\"Wrote DefID {defid} -> {out_dir}\")\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -353,7 +361,7 @@
 					"extract_one_defid(95498)   # Case\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -362,7 +370,7 @@
 					"    extract_one_defid(d)\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 21
 			}
 		]
 	}
