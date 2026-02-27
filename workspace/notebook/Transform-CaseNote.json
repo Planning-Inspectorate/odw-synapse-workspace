@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d5d31d36-5a80-4abf-8058-68378405dddb"
+				"spark.autotune.trackingId": "40a55a03-0193-423a-bb66-a4f86c6eebbc"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 7
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +78,7 @@
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql import types as T"
 				],
-				"execution_count": 8
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -86,14 +86,14 @@
 					"\n",
 					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\""
 				],
-				"execution_count": 9
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
 				],
-				"execution_count": 10
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -106,19 +106,39 @@
 					"case_notes = (\n",
 					"    spark.read.format(\"csv\")\n",
 					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")                 \n",
-					"    .option(\"multiLine\", \"true\")        \n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
 					"    .option(\"quote\", \"\\\"\")\n",
-					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\\\")  # ✅ BACKSLASH escape for \\\" sequences\n",
 					"    .option(\"mode\", \"PERMISSIVE\")\n",
 					"    .option(\"columnNameOfCorruptRecord\", \"_corrupt_record\")\n",
-					"    .option(\"unescapedQuoteHandling\", \"BACK_TO_DELIMITER\")\n",
 					"    .load(path)\n",
 					")\n",
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": 11
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"string_cols = [c for c, t in case_notes.dtypes if t == \"string\"]\n",
+					"\n",
+					"case_notes_clean = case_notes\n",
+					"\n",
+					"for c in string_cols:\n",
+					"    case_notes_clean = case_notes_clean.withColumn(\n",
+					"        c,\n",
+					"        F.when(F.col(c).isNull(), None)\n",
+					"         .otherwise(F.regexp_replace(F.col(c), r\"[\\r\\n]+\", \" \"))\n",
+					"    )\n",
+					"\n",
+					"display(case_notes_clean)"
+				],
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -169,7 +189,7 @@
 					"display(important_info_notes)\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
