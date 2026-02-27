@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1b01ea19-e517-4e77-8f4c-241b23ebcb14"
+				"spark.autotune.trackingId": "85a6dd34-f605-40bc-ab2e-ad6a1e85a1a0"
 			}
 		},
 		"metadata": {
@@ -438,14 +438,30 @@
 					"    print(item.name)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"from notebookutils import mssparkutils\n",
 					"\n",
-					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
-					"database = \"pins-sqldb-peas-dev\"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    server = \"pins-sql-peas-primary-training.database.windows.net\"\n",
+					"    database = \"pins-sqldb-peas-training\"\n",
+					"    akv_name = \"pinskvsynwodwproduks\"\n",
+					"    \n",
+					"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"    database = \"pins-sqldb-peas-dev\"\n",
+					"    akv_name = \"pinskvsynwodwdevuks\"\n",
+					"    \n",
+					"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
 					"\n",
 					"url = (\n",
 					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
@@ -459,7 +475,7 @@
 					"user = \"peas_app_ZXzkE0vP\"\n",
 					"\n",
 					"password = mssparkutils.credentials.getSecret(\n",
-					"    \"pinskvsynwodwdevuks\",\n",
+					"    akv_name,\n",
 					"    \"mpesc-sql-password\"\n",
 					")\n",
 					"\n",
@@ -502,22 +518,26 @@
 					"    .drop(\"createdBy_str\", \"idpUserId\")\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"OUTPUT_PATH = f\"{mpesc_base_path}/MPESC-TRANSFORM/Horizon_CaseNotes\"\n",
+					"\n",
 					"(\n",
 					"    case_notes_filtered\n",
-					"    .coalesce(1)  # optional: 1 file instead of many\n",
+					"    .coalesce(1)\n",
 					"    .write\n",
 					"    .mode(\"overwrite\")\n",
 					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")          \n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\\\")      \n",
 					"    .csv(OUTPUT_PATH)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -530,7 +550,7 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 54
 			}
 		]
 	}
