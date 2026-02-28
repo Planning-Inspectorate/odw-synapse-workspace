@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dbdfe53b-f162-44e0-a2df-796ac8901a07"
+				"spark.autotune.trackingId": "d8f5d02d-1adf-4d31-a4c8-99a28344b43b"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 108
+				"execution_count": 154
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,7 @@
 					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\"\n",
 					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
 				],
-				"execution_count": 109
+				"execution_count": 155
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": 110
+				"execution_count": 156
 			},
 			{
 				"cell_type": "code",
@@ -116,7 +116,6 @@
 					"string_cols = [c for c, t in case_notes.dtypes if t == \"string\"]\n",
 					"\n",
 					"case_notes_clean = case_notes\n",
-					"\n",
 					"for c in string_cols:\n",
 					"    case_notes_clean = case_notes_clean.withColumn(\n",
 					"        c,\n",
@@ -126,39 +125,13 @@
 					"\n",
 					"display(case_notes_clean)"
 				],
-				"execution_count": 111
+				"execution_count": 157
 			},
 			{
 				"cell_type": "code",
-				"source": [
-					"from pyspark.sql.functions import lit\n",
-					"\n",
-					"\n",
-					"def drop_case_insensitive_duplicates(df):\n",
-					"    seen = set()\n",
-					"    keep = []\n",
-					"    for c in df.columns:\n",
-					"        lc = c.lower()\n",
-					"        if lc not in seen:\n",
-					"            seen.add(lc)\n",
-					"            keep.append(c)\n",
-					"    return df.select(*keep)\n",
-					"\n",
-					"def normalize_cols_lower(df):\n",
-					"    for c in df.columns:\n",
-					"        df = df.withColumnRenamed(c, c.lower())\n",
-					"    return df\n",
-					"\n",
-					"def add_missing_cols(df, cols):\n",
-					"    for c in cols:\n",
-					"        if c not in df.columns:\n",
-					"            df = df.withColumn(c, lit(None).cast(\"string\"))\n",
-					"    return df.select(*cols)"
-				],
-				"execution_count": 112
-			},
-			{
-				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"case_notes_mapped = (\n",
 					"    case_notes_clean\n",
@@ -172,9 +145,11 @@
 					"    )\n",
 					"    .drop(\"Title_trim\", \"Desc_trim\")\n",
 					"    .withColumn(\"noteSource\", F.lit(\"sticky-note\"))\n",
-					")"
+					")\n",
+					"\n",
+					"display(case_notes_mapped)"
 				],
-				"execution_count": 113
+				"execution_count": 158
 			},
 			{
 				"cell_type": "code",
@@ -189,10 +164,10 @@
 					"case_df = (\n",
 					"    spark.read.format(\"csv\")\n",
 					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")                \n",
-					"    .option(\"multiLine\", \"true\")      \n",
-					"    .option(\"quote\", \"\\\"\")             \n",
-					"    .option(\"escape\", \"\\\\\")            \n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\\\")\n",
 					"    .option(\"mode\", \"PERMISSIVE\")\n",
 					"    .option(\"columnNameOfCorruptRecord\", \"_corrupt_record\")\n",
 					"    .load(case_path)\n",
@@ -205,7 +180,7 @@
 					"        \"caseReference\",\n",
 					"        \"caseCreateDate\",\n",
 					"        \"CaseCloseDate\",\n",
-					"        \"caseOwnerId\"   # <-- ADD THIS\n",
+					"        \"caseOwnerId\"\n",
 					"    )\n",
 					"    .filter(\n",
 					"        trim(col(\"importantInformation\")).isNotNull() &\n",
@@ -215,7 +190,7 @@
 					"\n",
 					"display(filtered_df)"
 				],
-				"execution_count": 114
+				"execution_count": 159
 			},
 			{
 				"cell_type": "code",
@@ -223,44 +198,101 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql.functions import lit\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
 					"\n",
-					"display(filtered_df)\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    server = \"pins-sql-peas-primary-training.database.windows.net\"\n",
+					"    database = \"pins-sqldb-peas-training\"\n",
+					"    akv_name = \"pinskvsynwodwproduks\"\n",
 					"\n",
-					"# -------------------------------------------------\n",
-					"# Map caseOwnerId (legacy) -> idpUserId (authorId)\n",
-					"# -------------------------------------------------\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"    database = \"pins-sqldb-peas-dev\"\n",
+					"    akv_name = \"pinskvsynwodwdevuks\"\n",
 					"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"url = (\n",
+					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
+					"    f\"database={database};\"\n",
+					"    \"encrypt=true;\"\n",
+					"    \"trustServerCertificate=false;\"\n",
+					"    \"hostNameInCertificate=*.database.windows.net;\"\n",
+					"    \"loginTimeout=30;\"\n",
+					")\n",
+					"\n",
+					"user = \"peas_app_ZXzkE0vP\"\n",
+					"\n",
+					"password = mssparkutils.credentials.getSecret(\n",
+					"    akv_name,\n",
+					"    \"mpesc-sql-password\"\n",
+					")\n",
+					"\n",
+					"user_df = (\n",
+					"    spark.read\n",
+					"    .format(\"jdbc\")\n",
+					"    .option(\"url\", url)\n",
+					"    .option(\"dbtable\", \"dbo.[User]\")\n",
+					"    .option(\"user\", user)\n",
+					"    .option(\"password\", password)\n",
+					"    .load()\n",
+					"    .select(\"legacyId\", \"idpUserId\")\n",
+					")\n",
+					"\n",
+					"user_clean = (\n",
+					"    user_df\n",
+					"    .filter(\n",
+					"        (F.col(\"legacyId\").isNotNull()) &\n",
+					"        (F.col(\"legacyId\") != \"undefined\")\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"legacyId\").cast(\"string\").alias(\"legacyId_str\"),\n",
+					"        F.col(\"idpUserId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(user_clean.limit(20))"
+				],
+				"execution_count": 160
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
 					"important_owner_map = (\n",
 					"    user_clean\n",
-					"        .select(\n",
-					"            F.col(\"createdBy_str\").alias(\"caseOwnerId_str\"),\n",
-					"            F.col(\"idpUserId\").alias(\"authorId\")\n",
-					"        )\n",
-					"        .dropDuplicates([\"caseOwnerId_str\"])\n",
+					"    .select(\n",
+					"        F.col(\"legacyId_str\").alias(\"caseOwnerId_str\"),\n",
+					"        F.col(\"idpUserId\").alias(\"authorId\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"caseOwnerId_str\"])\n",
 					")\n",
 					"\n",
 					"important_notes = (\n",
 					"    filtered_df\n",
-					"        .withColumn(\"caseOwnerId_str\", F.col(\"caseOwnerId\").cast(\"string\"))\n",
-					"        .join(important_owner_map, on=\"caseOwnerId_str\", how=\"left\")\n",
-					"        .select(\n",
-					"            F.col(\"caseNodeId\").cast(\"string\").alias(\"CaseId\"),\n",
-					"            F.coalesce(F.col(\"CaseCloseDate\"), F.col(\"caseCreateDate\")).alias(\"noteDate\"),\n",
-					"            F.col(\"authorId\"),  # <-- no fallback, will be null if not matched\n",
-					"            F.col(\"importantInformation\").alias(\"noteText\"),\n",
-					"            F.lit(\"important-info\").alias(\"noteSource\"),\n",
-					"            F.lit(\"legacyNote\").alias(\"noteType\")\n",
-					"        )\n",
-					"        .filter(\n",
-					"            F.trim(F.col(\"noteText\")).isNotNull() &\n",
-					"            (F.trim(F.col(\"noteText\")) != \"\")\n",
-					"        )\n",
+					"    .withColumn(\"caseOwnerId_str\", F.col(\"caseOwnerId\").cast(\"string\"))\n",
+					"    .join(important_owner_map, on=\"caseOwnerId_str\", how=\"left\")\n",
+					"    .select(\n",
+					"        F.col(\"caseNodeId\").cast(\"string\").alias(\"CaseId\"),\n",
+					"        F.coalesce(F.col(\"CaseCloseDate\"), F.col(\"caseCreateDate\")).alias(\"noteDate\"),\n",
+					"        F.col(\"authorId\"),  # stays null if not matched\n",
+					"        F.col(\"importantInformation\").alias(\"noteText\"),\n",
+					"        F.lit(\"important-info\").alias(\"noteSource\"),\n",
+					"        F.lit(\"legacyNote\").alias(\"noteType\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.trim(F.col(\"noteText\")).isNotNull() &\n",
+					"        (F.trim(F.col(\"noteText\")) != \"\")\n",
+					"    )\n",
 					")\n",
 					"\n",
+					"display(important_notes)\n",
 					""
 				],
-				"execution_count": 115
+				"execution_count": 161
 			},
 			{
 				"cell_type": "code",
@@ -285,34 +317,33 @@
 					"print(\"Event columns:\", len(event_raw.columns))\n",
 					"print(event_raw.columns)\n",
 					"\n",
-					"# Safety check so you don't get index errors\n",
 					"if len(event_raw.columns) <= 13:\n",
 					"    raise ValueError(f\"Event_95506 has only {len(event_raw.columns)} columns, can't select [0],[7],[13].\")\n",
 					"\n",
 					"event_sel = event_raw.select(\n",
 					"    event_raw.columns[0],   # case id (legacy)\n",
-					"    event_raw.columns[7],   # allocation note (per your instruction)\n",
-					"    event_raw.columns[13]   # start date (per your instruction)\n",
+					"    event_raw.columns[7],   # case allocation note\n",
+					"    event_raw.columns[13]   # start date\n",
 					")\n",
 					"\n",
 					"display(event_sel)\n",
 					"\n",
 					"event_notes = (\n",
 					"    event_sel\n",
-					"        .select(\n",
-					"            F.col(event_sel.columns[0]).cast(\"string\").alias(\"CaseId\"),\n",
-					"            F.col(event_sel.columns[2]).alias(\"noteDate\"),          # <-- start date (3rd selected col)\n",
-					"            F.col(event_sel.columns[1]).cast(\"string\").alias(\"noteText\"),  # <-- allocation note (2nd selected col)\n",
-					"            F.lit(\"case-note\").alias(\"noteSource\"),\n",
-					"            F.lit(\"case-note\").alias(\"noteType\")\n",
-					"        )\n",
-					"        .filter(F.trim(F.col(\"noteText\")).isNotNull() & (F.trim(F.col(\"noteText\")) != \"\"))\n",
+					"    .select(\n",
+					"        F.col(event_sel.columns[0]).cast(\"string\").alias(\"CaseId\"),\n",
+					"        F.col(event_sel.columns[2]).alias(\"noteDate\"),\n",
+					"        F.col(event_sel.columns[1]).cast(\"string\").alias(\"noteText\"),\n",
+					"        F.lit(\"case-note\").alias(\"noteSource\"),\n",
+					"        F.lit(\"case-note\").alias(\"noteType\")\n",
+					"    )\n",
+					"    .filter(F.trim(F.col(\"noteText\")).isNotNull() & (F.trim(F.col(\"noteText\")) != \"\"))\n",
 					")\n",
 					"\n",
 					"display(event_notes)\n",
 					"print(\"event_notes rows:\", event_notes.count())"
 				],
-				"execution_count": 116
+				"execution_count": 162
 			},
 			{
 				"cell_type": "code",
@@ -322,8 +353,8 @@
 				"source": [
 					"case_notes_combined = (\n",
 					"    case_notes_mapped\n",
-					"        .unionByName(important_notes, allowMissingColumns=True)\n",
-					"        .unionByName(event_notes, allowMissingColumns=True)\n",
+					"    .unionByName(important_notes, allowMissingColumns=True)\n",
+					"    .unionByName(event_notes, allowMissingColumns=True)\n",
 					")\n",
 					"\n",
 					"case_notes_combined = case_notes_combined.dropDuplicates(\n",
@@ -332,10 +363,13 @@
 					"\n",
 					"display(case_notes_combined)"
 				],
-				"execution_count": 117
+				"execution_count": 163
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
@@ -350,27 +384,19 @@
 					"\n",
 					"case_ids = (\n",
 					"    cases_df\n",
-					"        .select(F.col(\"Case ID\").cast(\"string\"))\n",
-					"        .dropna()\n",
-					"        .distinct()\n",
-					"        .rdd.flatMap(lambda x: x)\n",
-					"        .collect()\n",
-					")"
-				],
-				"execution_count": 118
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
+					"    .select(F.col(\"Case ID\").cast(\"string\"))\n",
+					"    .dropna()\n",
+					"    .distinct()\n",
+					"    .rdd.flatMap(lambda x: x)\n",
+					"    .collect()\n",
+					")\n",
+					"\n",
 					"case_notes_filtered = case_notes_combined.filter(F.col(\"CaseId\").isin(case_ids))\n",
 					"\n",
 					"display(case_notes_filtered)\n",
 					"print(\"rows after filter:\", case_notes_filtered.count())"
 				],
-				"execution_count": 119
+				"execution_count": 164
 			},
 			{
 				"cell_type": "code",
@@ -380,103 +406,54 @@
 				"source": [
 					"case_notes_filtered = (\n",
 					"    case_notes_filtered\n",
-					"        .withColumn(\"caseNodeId_str\", F.col(\"CaseId\").cast(\"string\"))\n",
-					"        .join(\n",
-					"            cases_df\n",
-					"                .select(\n",
-					"                    F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\"),\n",
-					"                    F.col(\"GUID\").alias(\"caseIdGuid\")\n",
-					"                )\n",
-					"                .dropDuplicates([\"caseNodeId_str\"]),\n",
-					"            on=\"caseNodeId_str\",\n",
-					"            how=\"left\"\n",
+					"    .withColumn(\"CaseId_str\", F.col(\"CaseId\").cast(\"string\"))\n",
+					"    .join(\n",
+					"        cases_df\n",
+					"        .select(\n",
+					"            F.col(\"Case ID\").cast(\"string\").alias(\"CaseId_str\"),\n",
+					"            F.col(\"GUID\").alias(\"caseIdGuid\")\n",
 					"        )\n",
-					"        .drop(\"caseNodeId_str\")\n",
+					"        .dropDuplicates([\"CaseId_str\"]),\n",
+					"        on=\"CaseId_str\",\n",
+					"        how=\"left\"\n",
+					"    )\n",
+					"    .drop(\"CaseId_str\")\n",
 					")\n",
-					"\n",
-					"# Optional safety\n",
-					"case_notes_filtered = case_notes_filtered.filter(F.col(\"caseId\").isNotNull())\n",
 					"\n",
 					"display(case_notes_filtered)"
 				],
-				"execution_count": 120
+				"execution_count": 165
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"from notebookutils import mssparkutils\n",
-					"\n",
-					"workspace = mssparkutils.env.getWorkspaceName()\n",
-					"\n",
-					"if workspace == \"pins-synw-odw-prod-uks\":\n",
-					"    server = \"pins-sql-peas-primary-training.database.windows.net\"\n",
-					"    database = \"pins-sqldb-peas-training\"\n",
-					"    akv_name = \"pinskvsynwodwproduks\"\n",
-					"    \n",
-					"\n",
-					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
-					"    server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
-					"    database = \"pins-sqldb-peas-dev\"\n",
-					"    akv_name = \"pinskvsynwodwdevuks\"\n",
-					"    \n",
-					"\n",
-					"else:\n",
-					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
-					"\n",
-					"\n",
-					"url = (\n",
-					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
-					"    f\"database={database};\"\n",
-					"    \"encrypt=true;\"\n",
-					"    \"trustServerCertificate=false;\"\n",
-					"    \"hostNameInCertificate=*.database.windows.net;\"\n",
-					"    \"loginTimeout=30;\"\n",
-					")\n",
-					"\n",
-					"user = \"peas_app_ZXzkE0vP\"\n",
-					"\n",
-					"password = mssparkutils.credentials.getSecret(\n",
-					"    akv_name,\n",
-					"    \"mpesc-sql-password\"\n",
-					")\n",
-					"\n",
-					"\n",
-					"user_df = (\n",
-					"    spark.read\n",
-					"    .format(\"jdbc\")\n",
-					"    .option(\"url\", url)\n",
-					"    .option(\"dbtable\", \"dbo.[User]\")\n",
-					"    .option(\"user\", user)\n",
-					"    .option(\"password\", password)\n",
-					"    .load()\n",
-					"    .select(\"legacyId\", \"idpUserId\")\n",
-					")\n",
-					"\n",
-					"\n",
-					"user_clean = (\n",
-					"    user_df\n",
-					"    .filter(\n",
-					"        (F.col(\"legacyId\").isNotNull()) &\n",
-					"        (F.col(\"legacyId\") != \"undefined\")\n",
-					"    )\n",
+					"# Map createdBy -> idpUserId for sticky notes (and anything else with createdBy)\n",
+					"created_by_map = (\n",
+					"    user_clean\n",
 					"    .select(\n",
-					"        F.col(\"legacyId\").cast(\"string\").alias(\"createdBy_str\"),\n",
+					"        F.col(\"legacyId_str\").alias(\"createdBy_str\"),\n",
 					"        F.col(\"idpUserId\")\n",
 					"    )\n",
+					"    .dropDuplicates([\"createdBy_str\"])\n",
 					")\n",
 					"\n",
 					"case_notes_filtered = (\n",
 					"    case_notes_filtered\n",
-					"        .withColumn(\"createdBy_str\", F.col(\"createdBy\").cast(\"string\"))\n",
-					"        .join(user_clean, on=\"createdBy_str\", how=\"left\")\n",
-					"        .withColumn(\n",
-					"            \"authorId\",\n",
-					"            F.col(\"idpUserId\")   # <-- no fallback, stays null if not matched\n",
-					"        )\n",
-					"        .drop(\"createdBy_str\", \"idpUserId\")\n",
-					")"
+					"    .withColumn(\"createdBy_str\", F.col(\"CreatedBy\").cast(\"string\"))  # adjust if your column is 'createdBy'\n",
+					"    .join(created_by_map, on=\"createdBy_str\", how=\"left\")\n",
+					"    .withColumn(\n",
+					"        \"authorId\",\n",
+					"        F.coalesce(F.col(\"authorId\"), F.col(\"idpUserId\"))  # keeps important-info authorId if already set\n",
+					"    )\n",
+					"    .drop(\"createdBy_str\", \"idpUserId\")\n",
+					")\n",
+					"\n",
+					"display(case_notes_filtered)"
 				],
-				"execution_count": 121
+				"execution_count": 166
 			},
 			{
 				"cell_type": "code",
@@ -489,13 +466,13 @@
 					"    .write\n",
 					"    .mode(\"overwrite\")\n",
 					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")          \n",
+					"    .option(\"sep\", \"|\")\n",
 					"    .option(\"quote\", \"\\\"\")\n",
-					"    .option(\"escape\", \"\\\\\")      \n",
+					"    .option(\"escape\", \"\\\\\")\n",
 					"    .csv(OUTPUT_PATH)\n",
 					")"
 				],
-				"execution_count": 122
+				"execution_count": 167
 			}
 		]
 	}
