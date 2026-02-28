@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7540e7d4-0fda-454c-b584-9da7e76811b4"
+				"spark.autotune.trackingId": "dbdfe53b-f162-44e0-a2df-796ac8901a07"
 			}
 		},
 		"metadata": {
@@ -70,30 +70,18 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": 108
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import functions as F\n",
-					"from pyspark.sql import types as T"
-				],
-				"execution_count": 2
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"from pyspark.sql import types as T\n",
 					"\n",
-					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\""
-				],
-				"execution_count": 3
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\"\n",
 					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
 				],
-				"execution_count": 4
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -117,7 +105,7 @@
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": 5
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -138,65 +126,10 @@
 					"\n",
 					"display(case_notes_clean)"
 				],
-				"execution_count": 6
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"from pyspark.sql.functions import col, trim\n",
-					"\n",
-					"case_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/case-merged-sample-row/\"\n",
-					"\n",
-					"case_df = (\n",
-					"    spark.read.format(\"csv\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")                \n",
-					"    .option(\"multiLine\", \"true\")       \n",
-					"    .option(\"quote\", \"\\\"\")             \n",
-					"    .option(\"escape\", \"\\\\\")            \n",
-					"    .option(\"mode\", \"PERMISSIVE\")\n",
-					"    .option(\"columnNameOfCorruptRecord\", \"_corrupt_record\")\n",
-					"    .load(case_path)\n",
-					")\n",
-					"\n",
-					"\n",
-					"filtered_df = (\n",
-					"    case_df.select(\n",
-					"        \"importantInformation\",\n",
-					"        \"caseNodeId\",\n",
-					"        \"caseReference\",\n",
-					"        \"caseCreateDate\"\n",
-					"    )\n",
-					"    \n",
-					"    .filter(\n",
-					"        trim(col(\"importantInformation\")).isNotNull() &\n",
-					"        (trim(col(\"importantInformation\")) != \"\")\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"\n",
-					"\n",
-					"important_info_notes = (\n",
-					"    filtered_df.select(\n",
-					"        col(\"caseNodeId\").alias(\"caseId\"),\n",
-					"        col(\"importantInformation\").alias(\"description\"),\n",
-					"        col(\"caseCreateDate\").alias(\"createdDate\"),\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"display(important_info_notes)\n",
-					""
-				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
 				"source": [
 					"from pyspark.sql.functions import lit\n",
 					"\n",
@@ -220,106 +153,28 @@
 					"    for c in cols:\n",
 					"        if c not in df.columns:\n",
 					"            df = df.withColumn(c, lit(None).cast(\"string\"))\n",
-					"    return df.select(*cols)\n",
-					"\n",
-					"\n",
-					"case_notes_clean = normalize_cols_lower(drop_case_insensitive_duplicates(case_notes))\n",
-					"important_info_clean = normalize_cols_lower(drop_case_insensitive_duplicates(important_info_notes))\n",
-					"\n",
-					"\n",
-					"all_cols = sorted(set(case_notes_clean.columns) | set(important_info_clean.columns))\n",
-					"\n",
-					"case_notes_aligned = add_missing_cols(case_notes_clean, all_cols)\n",
-					"important_info_aligned = add_missing_cols(important_info_clean, all_cols)\n",
-					"\n",
-					"\n",
-					"case_notes_combined = case_notes_aligned.unionByName(important_info_aligned)\n",
-					"\n",
-					"display(case_notes_combined)\n",
-					""
+					"    return df.select(*cols)"
 				],
-				"execution_count": 8
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"case_notes_mapped = case_notes_combined.withColumn(\n",
-					"    \"noteText\",\n",
-					"    F.concat_ws(\" - \", F.col(\"Title\"), F.col(\"Description\"))\n",
+					"case_notes_mapped = (\n",
+					"    case_notes_clean\n",
+					"    .withColumn(\"Title_trim\", F.trim(F.col(\"Title\")))\n",
+					"    .withColumn(\"Desc_trim\", F.trim(F.col(\"Description\")))\n",
+					"    .withColumn(\n",
+					"        \"noteText\",\n",
+					"        F.when(F.col(\"Desc_trim\").isNull() | (F.col(\"Desc_trim\") == \"\"), F.col(\"Title_trim\"))\n",
+					"         .when(F.col(\"Title_trim\").isNull() | (F.col(\"Title_trim\") == \"\"), F.col(\"Desc_trim\"))\n",
+					"         .otherwise(F.concat_ws(\" - \", F.col(\"Title_trim\"), F.col(\"Desc_trim\")))\n",
+					"    )\n",
+					"    .drop(\"Title_trim\", \"Desc_trim\")\n",
+					"    .withColumn(\"noteSource\", F.lit(\"sticky-note\"))\n",
 					")"
 				],
-				"execution_count": 9
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"case_notes_mapped = case_notes_mapped.withColumn(\"noteSource\", F.lit(\"sticky-note\"))"
-				],
-				"execution_count": 10
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
-					"\n",
-					"cases_df = (\n",
-					"    spark.read\n",
-					"        .format(\"csv\")\n",
-					"        .option(\"header\", \"true\")\n",
-					"        .option(\"multiLine\", \"true\")\n",
-					"        .option(\"escape\", \"\\\"\")\n",
-					"        .load(cases_path)\n",
-					")\n",
-					"\n",
-					"case_ids = (\n",
-					"    cases_df\n",
-					"        .select(F.col(\"Case ID\").cast(\"string\"))\n",
-					"        .dropna()\n",
-					"        .distinct()\n",
-					"        .rdd.flatMap(lambda x: x)\n",
-					"        .collect()\n",
-					")\n",
-					""
-				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"case_notes_filtered = case_notes_mapped.filter(F.col(\"CaseId\").isin(case_ids))\n",
-					"\n",
-					"display(case_notes_filtered)\n",
-					"print(\"rows after filter:\", case_notes_filtered.count())"
-				],
-				"execution_count": 12
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"\n",
-					"case_notes_filtered = (\n",
-					"    case_notes_filtered\n",
-					"        .withColumn(\"caseNodeId_str\", F.col(\"CaseId\").cast(\"string\"))\n",
-					"        .join(\n",
-					"            cases_df\n",
-					"                .select(\n",
-					"                    F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\"),\n",
-					"                    F.col(\"GUID\").alias(\"caseIdGuid\")\n",
-					"                )\n",
-					"                .dropDuplicates([\"caseNodeId_str\"]),\n",
-					"            on=\"caseNodeId_str\",\n",
-					"            how=\"left\"\n",
-					"        )\n",
-					"        .drop(\"caseNodeId_str\")\n",
-					")\n",
-					"\n",
-					"# Optional safety\n",
-					"case_notes_filtered = case_notes_filtered.filter(F.col(\"caseId\").isNotNull())"
-				],
-				"execution_count": 13
+				"execution_count": 113
 			},
 			{
 				"cell_type": "code",
@@ -343,31 +198,24 @@
 					"    .load(case_path)\n",
 					")\n",
 					"\n",
-					"\n",
-					"\n",
 					"filtered_df = (\n",
 					"    case_df.select(\n",
 					"        \"importantInformation\",\n",
 					"        \"caseNodeId\",\n",
 					"        \"caseReference\",\n",
 					"        \"caseCreateDate\",\n",
-					"        \"CaseCloseDate\"\n",
+					"        \"CaseCloseDate\",\n",
+					"        \"caseOwnerId\"   # <-- ADD THIS\n",
 					"    )\n",
-					"    \n",
 					"    .filter(\n",
 					"        trim(col(\"importantInformation\")).isNotNull() &\n",
 					"        (trim(col(\"importantInformation\")) != \"\")\n",
 					"    )\n",
 					")\n",
 					"\n",
-					"\n",
-					"\n",
-					"display(filtered_df)\n",
-					"\n",
-					"\n",
-					""
+					"display(filtered_df)"
 				],
-				"execution_count": 15
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
@@ -377,49 +225,42 @@
 				"source": [
 					"from pyspark.sql.functions import lit\n",
 					"\n",
-					"filtered_df = filtered_df.withColumn(\n",
-					"    \"noteSource\",\n",
-					"    lit(\"important-info\")\n",
+					"display(filtered_df)\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# Map caseOwnerId (legacy) -> idpUserId (authorId)\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"important_owner_map = (\n",
+					"    user_clean\n",
+					"        .select(\n",
+					"            F.col(\"createdBy_str\").alias(\"caseOwnerId_str\"),\n",
+					"            F.col(\"idpUserId\").alias(\"authorId\")\n",
+					"        )\n",
+					"        .dropDuplicates([\"caseOwnerId_str\"])\n",
 					")\n",
-					"\n",
-					"display(filtered_df)"
-				],
-				"execution_count": 16
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"DEFAULT_AUTHOR = \"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"\n",
-					"\n",
 					"\n",
 					"important_notes = (\n",
 					"    filtered_df\n",
-					"    .select(\n",
-					"        F.col(\"caseNodeId\").cast(\"string\").alias(\"CaseId\"),     # legacy case id\n",
-					"        F.col(\"caseCreateDate\").alias(\"noteDate\"),\n",
-					"        F.lit(DEFAULT_AUTHOR).alias(\"authorId\"),\n",
-					"        F.col(\"importantInformation\").alias(\"noteText\"),\n",
-					"        F.lit(\"important-info\").alias(\"noteSource\"),\n",
-					"        F.lit(\"legacyNote\").alias(\"noteType\")\n",
-					"    )\n",
-					"    .filter(\n",
-					"        F.trim(F.col(\"noteText\")).isNotNull() &\n",
-					"        (F.trim(F.col(\"noteText\")) != \"\")\n",
-					"    )\n",
+					"        .withColumn(\"caseOwnerId_str\", F.col(\"caseOwnerId\").cast(\"string\"))\n",
+					"        .join(important_owner_map, on=\"caseOwnerId_str\", how=\"left\")\n",
+					"        .select(\n",
+					"            F.col(\"caseNodeId\").cast(\"string\").alias(\"CaseId\"),\n",
+					"            F.coalesce(F.col(\"CaseCloseDate\"), F.col(\"caseCreateDate\")).alias(\"noteDate\"),\n",
+					"            F.col(\"authorId\"),  # <-- no fallback, will be null if not matched\n",
+					"            F.col(\"importantInformation\").alias(\"noteText\"),\n",
+					"            F.lit(\"important-info\").alias(\"noteSource\"),\n",
+					"            F.lit(\"legacyNote\").alias(\"noteType\")\n",
+					"        )\n",
+					"        .filter(\n",
+					"            F.trim(F.col(\"noteText\")).isNotNull() &\n",
+					"            (F.trim(F.col(\"noteText\")) != \"\")\n",
+					"        )\n",
 					")\n",
 					"\n",
-					"\n",
-					"case_notes_filtered = (\n",
-					"    case_notes_filtered\n",
-					"    .unionByName(important_notes, allowMissingColumns=True)\n",
-					")\n",
-					"\n",
-					"\n",
-					"case_notes_filtered = case_notes_filtered.dropDuplicates(\n",
-					"    [\"CaseId\", \"noteText\", \"noteSource\"]\n",
-					")"
+					""
 				],
-				"execution_count": 17
+				"execution_count": 115
 			},
 			{
 				"cell_type": "code",
@@ -427,19 +268,138 @@
 					"collapsed": false
 				},
 				"source": [
-					"display(case_notes_filtered)"
+					"csv_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Event_95506\"\n",
+					"\n",
+					"event_raw = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"multiLine\", \"true\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .option(\"inferSchema\", \"true\")\n",
+					"        .load(csv_path)\n",
+					")\n",
+					"\n",
+					"display(event_raw)\n",
+					"print(\"Event columns:\", len(event_raw.columns))\n",
+					"print(event_raw.columns)\n",
+					"\n",
+					"# Safety check so you don't get index errors\n",
+					"if len(event_raw.columns) <= 13:\n",
+					"    raise ValueError(f\"Event_95506 has only {len(event_raw.columns)} columns, can't select [0],[7],[13].\")\n",
+					"\n",
+					"event_sel = event_raw.select(\n",
+					"    event_raw.columns[0],   # case id (legacy)\n",
+					"    event_raw.columns[7],   # allocation note (per your instruction)\n",
+					"    event_raw.columns[13]   # start date (per your instruction)\n",
+					")\n",
+					"\n",
+					"display(event_sel)\n",
+					"\n",
+					"event_notes = (\n",
+					"    event_sel\n",
+					"        .select(\n",
+					"            F.col(event_sel.columns[0]).cast(\"string\").alias(\"CaseId\"),\n",
+					"            F.col(event_sel.columns[2]).alias(\"noteDate\"),          # <-- start date (3rd selected col)\n",
+					"            F.col(event_sel.columns[1]).cast(\"string\").alias(\"noteText\"),  # <-- allocation note (2nd selected col)\n",
+					"            F.lit(\"case-note\").alias(\"noteSource\"),\n",
+					"            F.lit(\"case-note\").alias(\"noteType\")\n",
+					"        )\n",
+					"        .filter(F.trim(F.col(\"noteText\")).isNotNull() & (F.trim(F.col(\"noteText\")) != \"\"))\n",
+					")\n",
+					"\n",
+					"display(event_notes)\n",
+					"print(\"event_notes rows:\", event_notes.count())"
 				],
-				"execution_count": 18
+				"execution_count": 116
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_notes_combined = (\n",
+					"    case_notes_mapped\n",
+					"        .unionByName(important_notes, allowMissingColumns=True)\n",
+					"        .unionByName(event_notes, allowMissingColumns=True)\n",
+					")\n",
+					"\n",
+					"case_notes_combined = case_notes_combined.dropDuplicates(\n",
+					"    [\"CaseId\", \"noteText\", \"noteSource\"]\n",
+					")\n",
+					"\n",
+					"display(case_notes_combined)"
+				],
+				"execution_count": 117
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"base_path = f\"{mpesc_base_path}\"\n",
-					"for item in mssparkutils.fs.ls(base_path):\n",
-					"    print(item.name)\n",
-					""
+					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_df = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"multiLine\", \"true\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .load(cases_path)\n",
+					")\n",
+					"\n",
+					"case_ids = (\n",
+					"    cases_df\n",
+					"        .select(F.col(\"Case ID\").cast(\"string\"))\n",
+					"        .dropna()\n",
+					"        .distinct()\n",
+					"        .rdd.flatMap(lambda x: x)\n",
+					"        .collect()\n",
+					")"
 				],
-				"execution_count": 19
+				"execution_count": 118
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_notes_filtered = case_notes_combined.filter(F.col(\"CaseId\").isin(case_ids))\n",
+					"\n",
+					"display(case_notes_filtered)\n",
+					"print(\"rows after filter:\", case_notes_filtered.count())"
+				],
+				"execution_count": 119
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_notes_filtered = (\n",
+					"    case_notes_filtered\n",
+					"        .withColumn(\"caseNodeId_str\", F.col(\"CaseId\").cast(\"string\"))\n",
+					"        .join(\n",
+					"            cases_df\n",
+					"                .select(\n",
+					"                    F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\"),\n",
+					"                    F.col(\"GUID\").alias(\"caseIdGuid\")\n",
+					"                )\n",
+					"                .dropDuplicates([\"caseNodeId_str\"]),\n",
+					"            on=\"caseNodeId_str\",\n",
+					"            how=\"left\"\n",
+					"        )\n",
+					"        .drop(\"caseNodeId_str\")\n",
+					")\n",
+					"\n",
+					"# Optional safety\n",
+					"case_notes_filtered = case_notes_filtered.filter(F.col(\"caseId\").isNotNull())\n",
+					"\n",
+					"display(case_notes_filtered)"
+				],
+				"execution_count": 120
 			},
 			{
 				"cell_type": "code",
@@ -505,21 +465,18 @@
 					"    )\n",
 					")\n",
 					"\n",
-					"\n",
-					"DEFAULT_ID = \"D02A7E74-C3FD-4C4D-9C9C-6E21C33282DF\"\n",
-					"\n",
 					"case_notes_filtered = (\n",
 					"    case_notes_filtered\n",
-					"    .withColumn(\"createdBy_str\", F.col(\"createdBy\").cast(\"string\"))\n",
-					"    .join(user_clean, on=\"createdBy_str\", how=\"left\")\n",
-					"    .withColumn(\n",
-					"        \"authorId\",\n",
-					"        F.coalesce(F.col(\"idpUserId\"), F.lit(DEFAULT_ID))\n",
-					"    )\n",
-					"    .drop(\"createdBy_str\", \"idpUserId\")\n",
+					"        .withColumn(\"createdBy_str\", F.col(\"createdBy\").cast(\"string\"))\n",
+					"        .join(user_clean, on=\"createdBy_str\", how=\"left\")\n",
+					"        .withColumn(\n",
+					"            \"authorId\",\n",
+					"            F.col(\"idpUserId\")   # <-- no fallback, stays null if not matched\n",
+					"        )\n",
+					"        .drop(\"createdBy_str\", \"idpUserId\")\n",
 					")"
 				],
-				"execution_count": 20
+				"execution_count": 121
 			},
 			{
 				"cell_type": "code",
@@ -538,7 +495,7 @@
 					"    .csv(OUTPUT_PATH)\n",
 					")"
 				],
-				"execution_count": 21
+				"execution_count": 122
 			}
 		]
 	}
