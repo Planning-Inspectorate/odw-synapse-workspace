@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7a580636-2693-4beb-a988-7cca49c385ba"
+				"spark.autotune.trackingId": "e3e2a863-b35e-43ca-b732-99302fdedb6a"
 			}
 		},
 		"metadata": {
@@ -70,14 +70,14 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 2
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -85,21 +85,27 @@
 					"collapsed": false
 				},
 				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
 					"decision_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_95498/*.csv\"\n",
 					"\n",
 					"decision_raw = (\n",
-					"    spark.read.format(\"csv\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"multiLine\", \"true\")\n",
-					"    .option(\"escape\", \"\\\"\")\n",
-					"    .load(decision_path)\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")              # IMPORTANT: Horizon extracts are pipe-delimited\n",
+					"        .option(\"quote\", \"\\\"\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .option(\"multiLine\", \"false\")    # safer unless you KNOW values span lines\n",
+					"        .load(decision_path)\n",
 					")\n",
 					"\n",
 					"print(\"Decision rows loaded:\", decision_raw.count())\n",
 					"print(\"Decision columns:\", decision_raw.columns)\n",
+					"\n",
 					"display(decision_raw.limit(10))"
 				],
-				"execution_count": 3
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +142,7 @@
 					"print(\"Decision rows (selected):\", decision_ready.count())\n",
 					"display(decision_ready.limit(50))"
 				],
-				"execution_count": 4
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -158,7 +164,7 @@
 					"print(\"Cases columns:\", cases_raw.columns)   # should be ['Case ID', 'GUID']\n",
 					"display(cases_raw.limit(20))"
 				],
-				"execution_count": 5
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +185,7 @@
 					"print(\"cases_key rows:\", cases_key.count())\n",
 					"display(cases_key.limit(20))"
 				],
-				"execution_count": 6
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -196,7 +202,7 @@
 					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
 					"display(decision_with_guid.limit(50))"
 				],
-				"execution_count": 7
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -212,7 +218,7 @@
 					"# how many actually have a decisionType?\n",
 					"print(\"Rows with decisionType:\", decision_with_guid.filter(F.col(\"decisionType\").isNotNull()).count())"
 				],
-				"execution_count": 8
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -228,7 +234,7 @@
 					"display(decision_final.limit(50))\n",
 					"print(\"Final row count:\", decision_final.count())"
 				],
-				"execution_count": 9
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +284,7 @@
 					"\n",
 					"display(decision_mapped.select(\"decisionType\", \"outcomeId\").dropDuplicates().orderBy(\"decisionType\"))"
 				],
-				"execution_count": 10
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -297,7 +303,7 @@
 					"display(unmapped)\n",
 					"print(\"Unmapped distinct decisionType values:\", unmapped.count())"
 				],
-				"execution_count": 11
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -311,14 +317,13 @@
 					"    \"outcomeId\",\n",
 					"    \"decisionIssue\",\n",
 					"    \"casePublishFlag\",\n",
-					"    \"decisionBranch\"\n",
-					"    # keep decisionType too if you want (debugging)\n",
-					"    # ,\"decisionType\"\n",
+					"    \"decisionBranch\",\n",
+					"    \"decisionType\"\n",
 					")\n",
 					"\n",
 					"display(decision_for_load.limit(50))"
 				],
-				"execution_count": 12
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -335,7 +340,7 @@
 					"\n",
 					"print(\"Decision CSV written to:\", output_path)"
 				],
-				"execution_count": 13
+				"execution_count": 17
 			}
 		]
 	}
