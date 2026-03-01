@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e3e2a863-b35e-43ca-b732-99302fdedb6a"
+				"spark.autotune.trackingId": "266a38ed-6cb2-496b-b866-21dcc09e28b1"
 			}
 		},
 		"metadata": {
@@ -70,14 +70,14 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 5
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 6
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(decision_raw.limit(10))"
 				],
-				"execution_count": 7
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +142,141 @@
 					"print(\"Decision rows (selected):\", decision_ready.count())\n",
 					"display(decision_ready.limit(50))"
 				],
-				"execution_count": 8
+				"execution_count": 51
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# LOAD SECRETARY OF STATE DECISIONS\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"sos_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Secretary_Of_State_Decision_19674254/*.csv\"\n",
+					"\n",
+					"sos_raw = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"quote\", \"\\\"\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .option(\"multiLine\", \"false\")\n",
+					"        .load(sos_path)\n",
+					")\n",
+					"\n",
+					"def clean(c):\n",
+					"    return (\n",
+					"        F.when(\n",
+					"            (c.isNull()) |\n",
+					"            (F.trim(c) == \"\") |\n",
+					"            (F.lower(F.trim(c)) == \"undefined\"),\n",
+					"            None\n",
+					"        ).otherwise(F.trim(c))\n",
+					"    )\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# SELECT + BASIC CLEAN\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"sos_ready = (\n",
+					"    sos_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.lit(None).cast(\"string\").alias(\"attr1\"),\n",
+					"        F.to_timestamp(F.col(\"13\")).alias(\"decisionIssue\"),\n",
+					"        clean(F.col(\"15\").cast(\"string\")).alias(\"casePublishFlag\"),\n",
+					"        clean(F.col(\"14\").cast(\"string\")).alias(\"decisionType\"),\n",
+					"        clean(F.col(\"1\").cast(\"string\")).alias(\"decisionBranch\"),\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# NORMALISE decisionType (FIX THE 54 TYPES ISSUE)\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"dt = F.lower(F.trim(F.col(\"decisionType\")))\n",
+					"\n",
+					"sos_ready = (\n",
+					"    sos_ready\n",
+					"    # Fix obvious typos\n",
+					"    .withColumn(\n",
+					"        \"decisionType_norm\",\n",
+					"        F.when(dt.isin(\"dimissed\", \"dismiss\"), \"dismissed\")\n",
+					"         .otherwise(dt)\n",
+					"    )\n",
+					"    # Collapse free text / narrative values\n",
+					"    .withColumn(\n",
+					"        \"decisionType\",\n",
+					"        F.when(F.col(\"decisionType_norm\").contains(\"allow\"), \"Allowed\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"dismiss\"), \"Dismissed\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"refus\"), \"Refused\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"confirm\") & F.col(\"decisionType_norm\").contains(\"modification\"), \"Confirmed with modifications\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"confirm\"), \"Confirmed\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"grant\") & F.col(\"decisionType_norm\").contains(\"condition\"), \"Granted with conditions\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"grant\"), \"Granted\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"order not made\"), \"Order not made\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"not made\"), \"Not made\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"made\") & F.col(\"decisionType_norm\").contains(\"modification\"), \"Order made with modifications\")\n",
+					"         .when(F.col(\"decisionType_norm\").contains(\"made\"), \"Order made\")\n",
+					"         .otherwise(None)  # drop narrative junk\n",
+					"    )\n",
+					"    .drop(\"decisionType_norm\")\n",
+					")\n",
+					"\n",
+					"# Optional: quick validation\n",
+					"display(\n",
+					"    sos_ready.groupBy(\"decisionType\")\n",
+					"        .count()\n",
+					"        .orderBy(F.desc(\"count\"))\n",
+					")\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# UNION INTO EXISTING DECISIONS\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"decision_ready = decision_ready.unionByName(\n",
+					"    sos_ready,\n",
+					"    allowMissingColumns=True\n",
+					")\n",
+					"\n",
+					"print(\"Secretary of State rows added:\", sos_ready.count())\n",
+					"print(\"Decision rows (combined):\", decision_ready.count())\n",
+					"display(sos_ready.limit(100))"
+				],
+				"execution_count": 52
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# --------------------------------------------\n",
+					"# DECISION TYPE SUMMARY (SOS ONLY)\n",
+					"# --------------------------------------------\n",
+					"\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"sos_summary = (\n",
+					"    sos_ready\n",
+					"        .groupBy(\"decisionType\")\n",
+					"        .agg(F.count(\"*\").alias(\"row_count\"))\n",
+					"        .orderBy(F.desc(\"row_count\"))\n",
+					")\n",
+					"\n",
+					"print(\"Distinct decision types:\", sos_summary.count())\n",
+					"display(sos_summary)\n",
+					"\n",
+					"# Null check\n",
+					"null_count = sos_ready.filter(F.col(\"decisionType\").isNull()).count()\n",
+					"print(\"Null decisionType rows:\", null_count)"
+				],
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -164,7 +298,7 @@
 					"print(\"Cases columns:\", cases_raw.columns)   # should be ['Case ID', 'GUID']\n",
 					"display(cases_raw.limit(20))"
 				],
-				"execution_count": 9
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -185,7 +319,7 @@
 					"print(\"cases_key rows:\", cases_key.count())\n",
 					"display(cases_key.limit(20))"
 				],
-				"execution_count": 10
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -202,7 +336,7 @@
 					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
 					"display(decision_with_guid.limit(50))"
 				],
-				"execution_count": 11
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -218,7 +352,7 @@
 					"# how many actually have a decisionType?\n",
 					"print(\"Rows with decisionType:\", decision_with_guid.filter(F.col(\"decisionType\").isNotNull()).count())"
 				],
-				"execution_count": 12
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -234,7 +368,7 @@
 					"display(decision_final.limit(50))\n",
 					"print(\"Final row count:\", decision_final.count())"
 				],
-				"execution_count": 13
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -253,38 +387,78 @@
 					"        \"outcomeId\",\n",
 					"        F.when(dt_norm.isNull(), F.lit(None))\n",
 					"\n",
-					"        # --- Rights of Way (Horizon_TypeOfDecision \"Name\") ---\n",
+					"        # -----------------------------\n",
+					"        # Rights of Way (exact names)\n",
+					"        # -----------------------------\n",
 					"        .when(dt_norm == \"allow\", F.lit(\"allow\"))\n",
 					"        .when(dt_norm == \"confirmed\", F.lit(\"confirmed\"))\n",
+					"        .when(dt_norm == \"confirmed with modifications\", F.lit(\"confirmed-with-modifications\"))\n",
 					"        .when(dt_norm == \"directed\", F.lit(\"directed\"))\n",
 					"        .when(dt_norm == \"not allowed\", F.lit(\"not-allowed\"))\n",
 					"        .when(dt_norm == \"not confirmed\", F.lit(\"not-confirmed\"))\n",
 					"        .when(dt_norm == \"not directed\", F.lit(\"not-directed\"))\n",
+					"        .when(dt_norm == \"not granted\", F.lit(\"not-granted\"))\n",
 					"        .when(dt_norm == \"partially allow\", F.lit(\"partially-allow\"))\n",
+					"        .when(dt_norm == \"propose not to confirm\", F.lit(\"propose-not-to-confirm\"))\n",
+					"        .when(dt_norm == \"propose to confirm\", F.lit(\"propose-to-confirm\"))\n",
 					"        .when(dt_norm == \"modified (adv)\", F.lit(\"modified-adv\"))\n",
 					"        .when(dt_norm == \"modified (not adv)\", F.lit(\"modified-not-adv\"))\n",
 					"\n",
-					"        # --- common spelling/spacing variants ---\n",
+					"        # -----------------------------\n",
+					"        # Common spelling / formatting variants\n",
+					"        # -----------------------------\n",
 					"        .when(dt_norm == \"partially-allow\", F.lit(\"partially-allow\"))\n",
 					"        .when(dt_norm == \"not-confirmed\", F.lit(\"not-confirmed\"))\n",
 					"        .when(dt_norm == \"not-allowed\", F.lit(\"not-allowed\"))\n",
 					"        .when(dt_norm == \"not-directed\", F.lit(\"not-directed\"))\n",
+					"        .when(dt_norm == \"not-granted\", F.lit(\"not-granted\"))\n",
+					"        .when(dt_norm == \"propose-not-to-confirm\", F.lit(\"propose-not-to-confirm\"))\n",
+					"        .when(dt_norm == \"propose-to-confirm\", F.lit(\"propose-to-confirm\"))\n",
 					"        .when(dt_norm == \"modified adv\", F.lit(\"modified-adv\"))\n",
 					"        .when(dt_norm == \"modified not adv\", F.lit(\"modified-not-adv\"))\n",
+					"        .when(dt_norm == \"confirmed-with-modifications\", F.lit(\"confirmed-with-modifications\"))\n",
 					"\n",
-					"        # --- if you also see these in other datasets (optional safety) ---\n",
+					"        # -----------------------------\n",
+					"        # SOS / planning-style decisions\n",
+					"        # (works best if you run the SOS normaliser earlier)\n",
+					"        # -----------------------------\n",
 					"        .when(dt_norm == \"allowed\", F.lit(\"allow\"))\n",
-					"        .when(dt_norm == \"refused\", F.lit(\"not-allowed\"))\n",
-					"        .when(dt_norm == \"dismissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm.startswith(\"allowed\"), F.lit(\"allow\"))  # allowed with conditions / subject to conditions\n",
+					"        .when(dt_norm == \"appeal allowed\", F.lit(\"allow\"))\n",
 					"\n",
-					"        # default: unknown -> NULL\n",
-					"        .otherwise(F.lit(None))\n",
+					"        .when(dt_norm == \"dismissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm.contains(\"dismiss\"), F.lit(\"not-allowed\"))\n",
+					"\n",
+					"        .when(dt_norm == \"refused\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt_norm.contains(\"refus\"), F.lit(\"not-allowed\"))\n",
+					"\n",
+					"        # granted outcomes\n",
+					"        .when(dt_norm.contains(\"granted\") & dt_norm.contains(\"condition\"), F.lit(\"granted-with-conditions\"))\n",
+					"        .when(dt_norm.contains(\"granted\"), F.lit(\"granted-without-conditions\"))\n",
+					"        .when(dt_norm.contains(\"permission granted\"), F.lit(\"granted-without-conditions\"))\n",
+					"        .when(dt_norm.contains(\"planning permission granted\"), F.lit(\"granted-without-conditions\"))\n",
+					"        .when(dt_norm.contains(\"approval granted\"), F.lit(\"granted-without-conditions\"))\n",
+					"\n",
+					"        # order outcomes\n",
+					"        .when(dt_norm == \"order made with modifications\", F.lit(\"order-made-with-modifications\"))\n",
+					"        .when(dt_norm.contains(\"made\") & dt_norm.contains(\"modification\"), F.lit(\"order-made-with-modifications\"))\n",
+					"        .when(dt_norm == \"order made\", F.lit(\"order-made\"))\n",
+					"        .when(dt_norm.contains(\"order made\"), F.lit(\"order-made\"))\n",
+					"        .when(dt_norm == \"order not made\", F.lit(\"order-not-made\"))\n",
+					"        .when(dt_norm == \"not made\", F.lit(\"order-not-made\"))\n",
+					"        .when(dt_norm.contains(\"not made\"), F.lit(\"order-not-made\"))\n",
+					"\n",
+					"        # -----------------------------\n",
+					"        # Default: if decisionType is present but unknown -> other\n",
+					"        # (prevents dropping rows silently)\n",
+					"        # -----------------------------\n",
+					"        .otherwise(F.when(F.col(\"decisionType\").isNotNull(), F.lit(\"other\")).otherwise(F.lit(None)))\n",
 					"    )\n",
 					")\n",
 					"\n",
 					"display(decision_mapped.select(\"decisionType\", \"outcomeId\").dropDuplicates().orderBy(\"decisionType\"))"
 				],
-				"execution_count": 14
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -303,7 +477,7 @@
 					"display(unmapped)\n",
 					"print(\"Unmapped distinct decisionType values:\", unmapped.count())"
 				],
-				"execution_count": 15
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -323,24 +497,26 @@
 					"\n",
 					"display(decision_for_load.limit(50))"
 				],
-				"execution_count": 16
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"output_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/decision/\"\n",
+					"output_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/Decision\"\n",
 					"\n",
 					"(\n",
-					"    decision_for_load   # or decision_mapped / decision_final — whichever is your final df\n",
-					"    .write\n",
-					"    .mode(\"overwrite\")      # change to \"append\" if needed\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .csv(output_path)\n",
+					"    decision_for_load   # use your final dataframe here\n",
+					"        .coalesce(1)            # single CSV file like your other transforms\n",
+					"        .write\n",
+					"        .mode(\"overwrite\")      # switch to \"append\" only if intentionally adding\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")     # keep consistent with Horizon pipe format\n",
+					"        .csv(output_path)\n",
 					")\n",
 					"\n",
 					"print(\"Decision CSV written to:\", output_path)"
 				],
-				"execution_count": 17
+				"execution_count": 62
 			}
 		]
 	}
