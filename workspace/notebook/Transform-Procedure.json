@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9eca478e-2182-401d-a0e5-1f291d1406e3"
+				"spark.autotune.trackingId": "e2a35fea-130a-4343-94b2-ac878b8210cc"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 40
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +95,7 @@
 					"print(\"Columns:\", events_raw.columns)\n",
 					"display(events_raw.limit(10))"
 				],
-				"execution_count": 41
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 					"\n",
 					"display(joined.select(*preview_cols).limit(30))"
 				],
-				"execution_count": 42
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -276,7 +276,7 @@
 					"\n",
 					"display(events_clean.limit(100))"
 				],
-				"execution_count": 43
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -369,7 +369,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 44
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -489,7 +489,7 @@
 					"    ).limit(20)\n",
 					")"
 				],
-				"execution_count": 45
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -536,7 +536,7 @@
 					")\n",
 					"display(events_mapped)"
 				],
-				"execution_count": 46
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -636,7 +636,7 @@
 					"    ).limit(20)\n",
 					")"
 				],
-				"execution_count": 47
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -644,33 +644,109 @@
 					"collapsed": false
 				},
 				"source": [
-					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql import functions as F, types as T\n",
 					"\n",
-					"# If your dataframe is called events_mapped (it is in your earlier steps)\n",
+					"# ---- helpers ----\n",
+					"def nullify_str(col):\n",
+					"    s = F.trim(col.cast(\"string\"))\n",
+					"    return (\n",
+					"        F.when(col.isNull(), None)\n",
+					"         .when(F.lower(s).isin(\"undefined\", \"null\", \"none\", \"\"), None)\n",
+					"         .otherwise(s)\n",
+					"    )\n",
+					"\n",
+					"def to_decimal_days(col):\n",
+					"    \"\"\"\n",
+					"    Converts messy numeric strings like '.25', '1.', '00.00' to Decimal(10,2).\n",
+					"    Returns NULL for non-numeric things like '2 hours', '456', etc.\n",
+					"    \"\"\"\n",
+					"    s = nullify_str(col)\n",
+					"    s = F.regexp_replace(s, r\"^(\\.)\", \"0.\")       # .25 -> 0.25\n",
+					"    s = F.regexp_replace(s, r\"(\\.)$\", \"\")         # 1. -> 1\n",
+					"    is_num = s.rlike(r\"^[0-9]+(\\.[0-9]+)?$\")      # allow integers/decimals\n",
+					"    return F.when(is_num, s.cast(\"decimal(10,2)\")).otherwise(F.lit(None).cast(\"decimal(10,2)\"))\n",
+					"\n",
+					"# shorthand\n",
+					"ptype = F.col(\"procedureTypeId\")\n",
+					"start = F.col(\"confirmedStartDateTime\").cast(\"timestamp\")\n",
+					"end   = F.col(\"endDate_ts\").cast(\"timestamp\")\n",
+					"venue = F.col(\"venueId\").cast(\"string\")\n",
+					"\n",
 					"procedure_ready = (\n",
 					"    events_mapped\n",
 					"    .select(\n",
+					"        # required keys\n",
 					"        F.col(\"caseId\").cast(\"string\").alias(\"caseId\"),\n",
+					"        F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"        F.col(\"eventId\").cast(\"string\").alias(\"legacyEventId\"),\n",
+					"\n",
+					"        # procedure core\n",
 					"        F.col(\"procedureTypeId\").cast(\"string\").alias(\"procedureTypeId\"),\n",
 					"        F.col(\"procedureStatusId\").cast(\"string\").alias(\"procedureStatusId\"),\n",
 					"        F.col(\"procedureArrangementId\").cast(\"string\").alias(\"procedureArrangementId\"),\n",
-					"        F.col(\"confirmedStartDateTime\").cast(\"timestamp\").alias(\"confirmedStartDateTime\"),\n",
-					"        F.col(\"endDate_ts\").cast(\"timestamp\").alias(\"endDateTime\"),\n",
-					"        # choose one venue column for now; you can split hearing/inquiry later\n",
-					"        F.col(\"venueId\").cast(\"string\").alias(\"venueAddressId\"),\n",
-					"        F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
-					"        F.col(\"eventId\").cast(\"string\").alias(\"legacyEventId\"),\n",
-					"        F.col(\"typeOfEvent_raw\").cast(\"string\").alias(\"typeOfEvent_raw\"),\n",
-					"        F.col(\"chartStatus_raw\").cast(\"string\").alias(\"chartStatus_raw\"),\n",
+					"\n",
+					"        # -------------------------\n",
+					"        # Dates (mapped from start/end)\n",
+					"        # -------------------------\n",
+					"        # Site visit\n",
+					"        F.when(ptype == \"site-visit\", start).otherwise(None).alias(\"siteVisitDate\"),\n",
+					"\n",
+					"        # Hearing timeline\n",
+					"        F.when(ptype == \"hearing\", start).otherwise(None).alias(\"confirmedHearingDate\"),\n",
+					"        F.when(ptype == \"hearing\", end).otherwise(None).alias(\"hearingClosedDate\"),\n",
+					"\n",
+					"        # Inquiry timeline\n",
+					"        F.when(ptype == \"inquiry\", start).otherwise(None).alias(\"confirmedInquiryDate\"),\n",
+					"        F.when(ptype == \"inquiry\", end).otherwise(None).alias(\"inquiryClosedDate\"),\n",
+					"\n",
+					"        # Pre-inquiry meeting (if you mapped pre-inquiry -> inquiry type, then this will be NULL)\n",
+					"        # If you want pre-inquiry preserved, we need a flag from typeOfEvent_raw; see note below.\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"preInquiryMeetingDate\"),\n",
+					"\n",
+					"        # Admin in-house\n",
+					"        F.when(ptype == \"admin-in-house\", start).otherwise(None).alias(\"inHouseDate\"),\n",
+					"\n",
+					"        # Written reps offer date\n",
+					"        F.when(ptype == \"written-reps\", start).otherwise(None).alias(\"offerForWrittenRepresentationsDate\"),\n",
+					"\n",
+					"        # -------------------------\n",
+					"        # Durations (43/44/45/48)\n",
+					"        # -------------------------\n",
+					"        # Hearing duration fields\n",
+					"        F.when(ptype == \"hearing\", to_decimal_days(F.col(\"actualDuration_raw\"))).otherwise(None).alias(\"lengthOfHearingEvent\"),\n",
+					"        F.when(ptype == \"hearing\", to_decimal_days(F.col(\"estPrepTime_raw\"))).otherwise(None).alias(\"hearingPreparationTimeDays\"),\n",
+					"        F.when(ptype == \"hearing\", to_decimal_days(F.col(\"estSitTime_raw\"))).otherwise(None).alias(\"hearingSittingTimeDays\"),\n",
+					"        F.when(ptype == \"hearing\", to_decimal_days(F.col(\"estRepTime_raw\"))).otherwise(None).alias(\"hearingReportingTimeDays\"),\n",
+					"        F.lit(None).cast(\"decimal(10,2)\").alias(\"hearingTravelTimeDays\"),   # no confirmed source column yet\n",
+					"        F.lit(None).cast(\"boolean\").alias(\"hearingInTarget\"),              # no confirmed source column yet\n",
+					"\n",
+					"        # Inquiry duration fields\n",
+					"        F.when(ptype == \"inquiry\", to_decimal_days(F.col(\"actualDuration_raw\"))).otherwise(None).alias(\"lengthOfInquiryEvent\"),\n",
+					"        F.when(ptype == \"inquiry\", to_decimal_days(F.col(\"estPrepTime_raw\"))).otherwise(None).alias(\"inquiryPreparationTimeDays\"),\n",
+					"        F.when(ptype == \"inquiry\", to_decimal_days(F.col(\"estSitTime_raw\"))).otherwise(None).alias(\"inquirySittingTimeDays\"),\n",
+					"        F.when(ptype == \"inquiry\", to_decimal_days(F.col(\"estRepTime_raw\"))).otherwise(None).alias(\"inquiryReportingTimeDays\"),\n",
+					"        F.lit(None).cast(\"decimal(10,2)\").alias(\"inquiryTravelTimeDays\"),   # no confirmed source column yet\n",
+					"        F.lit(None).cast(\"boolean\").alias(\"inquiryInTarget\"),              # no confirmed source column yet\n",
+					"\n",
+					"        # -------------------------\n",
+					"        # Venues (use Address table you already build)\n",
+					"        # -------------------------\n",
+					"        F.when(ptype == \"hearing\", venue).otherwise(None).alias(\"hearingVenueId\"),\n",
+					"        F.when(ptype == \"inquiry\", venue).otherwise(None).alias(\"inquiryVenueId\"),\n",
+					"\n",
+					"        # Step (if you already set this elsewhere keep it; otherwise default ProcedureOne)\n",
+					"        F.lit(\"ProcedureOne\").alias(\"step\"),\n",
+					"\n",
+					"        # debug\n",
+					"        F.col(\"typeOfEvent_raw\"),\n",
+					"        F.col(\"chartStatus_raw\"),\n",
 					"    )\n",
 					")\n",
 					"\n",
-					"\n",
-					"print(\"procedure_ready rows:\", procedure_ready.count())\n",
-					"print(\"procedure_ready_final rows:\", procedure_ready_final.count())\n",
-					"display(procedure_ready_final.limit(20))"
+					"# recommended filter\n",
+					"procedure_ready_final = procedure_ready.filter(F.col(\"procedureTypeId\").isNotNull())"
 				],
-				"execution_count": 48
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -695,7 +771,7 @@
 					"print(\"Wrote Address to:\", out_address_dir)\n",
 					"print(\"Wrote Procedure to:\", out_procedure_dir)"
 				],
-				"execution_count": 49
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
