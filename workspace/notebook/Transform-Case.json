@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2734f3a3-6879-42a8-ba18-a94d99978f9a"
+				"spark.autotune.trackingId": "0c29eb16-7c94-40a7-995c-28fadb7ccd39"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 37
+				"execution_count": 223
 			},
 			{
 				"cell_type": "code",
@@ -85,17 +85,21 @@
 					"\n",
 					"case_ref = (\n",
 					"    spark.read\n",
+					"        .format(\"csv\")\n",
 					"        .option(\"header\", True)\n",
 					"        .option(\"sep\", \"|\")\n",
-					"        .option(\"inferSchema\", True)\n",
-					"        .csv(CASE_REF_FILE)\n",
+					"        .option(\"multiLine\", True)          # 🔥 CRITICAL FIX\n",
+					"        .option(\"quote\", '\"')               # handle quoted fields\n",
+					"        .option(\"escape\", '\"')              # handle escaped quotes\n",
+					"        .option(\"mode\", \"PERMISSIVE\")       # don’t fail on bad rows\n",
+					"        .option(\"inferSchema\", False)       # safer for messy exports\n",
+					"        .load(CASE_REF_FILE)\n",
 					")\n",
 					"\n",
 					"display(case_ref.limit(10))\n",
-					"print(\"case_ref rows:\", case_ref.count())\n",
-					""
+					"print(\"case_ref rows:\", case_ref.count())"
 				],
-				"execution_count": 38
+				"execution_count": 224
 			},
 			{
 				"cell_type": "code",
@@ -129,7 +133,7 @@
 					"print(\"filtered cases:\", filtered_cases.count())\n",
 					""
 				],
-				"execution_count": 39
+				"execution_count": 225
 			},
 			{
 				"cell_type": "code",
@@ -137,15 +141,22 @@
 					"collapsed": false
 				},
 				"source": [
-					"LLATTR_CASE_GLOB = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_*/part*.csv\"\n",
+					"LLATTR_CASE_GLOB = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_95498/part*.csv\"\n",
 					"\n",
 					"ll_case = (\n",
 					"    spark.read\n",
+					"        .format(\"csv\")\n",
 					"        .option(\"header\", True)\n",
-					"        .option(\"sep\", \"|\")          \n",
-					"        .option(\"inferSchema\", True)\n",
-					"        .csv(LLATTR_CASE_GLOB)\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"multiLine\", True)          # 🔥 CRITICAL for LLAttr text\n",
+					"        .option(\"quote\", '\"')\n",
+					"        .option(\"escape\", '\"')\n",
+					"        .option(\"mode\", \"PERMISSIVE\")\n",
+					"        .option(\"columnNameOfCorruptRecord\", \"_corrupt_record\")\n",
+					"        .option(\"inferSchema\", False)       # 🔥 DO NOT infer types on LLAttr\n",
+					"        .load(LLATTR_CASE_GLOB)\n",
 					")\n",
+					"\n",
 					"\n",
 					"cases_keys = filtered_cases.select(F.col(\"caseNodeId\").cast(\"string\").alias(\"caseNodeIdKey\")).dropDuplicates()\n",
 					"\n",
@@ -160,7 +171,7 @@
 					"display(attrs_filtered.limit(5))\n",
 					""
 				],
-				"execution_count": 40
+				"execution_count": 226
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +184,7 @@
 					"print(\"Remaining attr cols:\", len(attrs_clean.columns))\n",
 					""
 				],
-				"execution_count": 41
+				"execution_count": 227
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +209,7 @@
 					"print(\"cases_joined rows:\", cases_joined.count())\n",
 					""
 				],
-				"execution_count": 42
+				"execution_count": 228
 			},
 			{
 				"cell_type": "code",
@@ -225,7 +236,7 @@
 					"display(final_df.limit(10))\n",
 					""
 				],
-				"execution_count": 43
+				"execution_count": 229
 			},
 			{
 				"cell_type": "code",
@@ -286,7 +297,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 44
+				"execution_count": 230
 			},
 			{
 				"cell_type": "code",
@@ -300,7 +311,7 @@
 					"final_df_named = df\n",
 					""
 				],
-				"execution_count": 45
+				"execution_count": 231
 			},
 			{
 				"cell_type": "code",
@@ -312,7 +323,7 @@
 					"display(final_df_named)\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": 232
 			},
 			{
 				"cell_type": "code",
@@ -320,7 +331,7 @@
 					"df = final_df_named.cache()\n",
 					"df.count()"
 				],
-				"execution_count": 47
+				"execution_count": 233
 			},
 			{
 				"cell_type": "code",
@@ -338,7 +349,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 48
+				"execution_count": 234
 			},
 			{
 				"cell_type": "code",
@@ -355,7 +366,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 49
+				"execution_count": 235
 			},
 			{
 				"cell_type": "code",
@@ -365,7 +376,7 @@
 					"    .orderBy(F.col(\"caseTypeId\").cast(\"int\")) \\\n",
 					"    .show(truncate=False)"
 				],
-				"execution_count": 50
+				"execution_count": 236
 			},
 			{
 				"cell_type": "code",
@@ -375,7 +386,7 @@
 				"source": [
 					"display(df_mapped.limit(10))"
 				],
-				"execution_count": 51
+				"execution_count": 237
 			},
 			{
 				"cell_type": "code",
@@ -384,7 +395,7 @@
 					"df.groupBy(\"applicationSubtype\").count().show(100, truncate=False)\n",
 					""
 				],
-				"execution_count": 52
+				"execution_count": 238
 			},
 			{
 				"cell_type": "code",
@@ -429,7 +440,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 53
+				"execution_count": 239
 			},
 			{
 				"cell_type": "code",
@@ -440,7 +451,7 @@
 					").distinct().orderBy(\"applicationSubtype\").show(truncate=False)\n",
 					""
 				],
-				"execution_count": 54
+				"execution_count": 240
 			},
 			{
 				"cell_type": "code",
@@ -556,7 +567,7 @@
 					"display(user_clean.limit(20))\n",
 					"print(\"User rows:\", user_clean.count())"
 				],
-				"execution_count": 55
+				"execution_count": 241
 			},
 			{
 				"cell_type": "code",
@@ -589,7 +600,7 @@
 					"    .drop(\"caseOwnerId_str\", \"idpUserId\")\n",
 					")"
 				],
-				"execution_count": 56
+				"execution_count": 242
 			},
 			{
 				"cell_type": "code",
@@ -602,7 +613,7 @@
 					"df_mapped = df_mapped.withColumn(\"name\", F.col(\"hznReference\"))\n",
 					""
 				],
-				"execution_count": 57
+				"execution_count": 243
 			},
 			{
 				"cell_type": "code",
@@ -610,7 +621,7 @@
 					"df_mapped.select(\"caseOfficerId\").show(10, truncate=False)\n",
 					""
 				],
-				"execution_count": 58
+				"execution_count": 244
 			},
 			{
 				"cell_type": "code",
@@ -693,7 +704,7 @@
 					"display(address_lookup.limit(20))\n",
 					"print(\"address_lookup rows:\", address_lookup.count())"
 				],
-				"execution_count": 59
+				"execution_count": 245
 			},
 			{
 				"cell_type": "code",
@@ -715,7 +726,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 60
+				"execution_count": 246
 			},
 			{
 				"cell_type": "code",
@@ -737,7 +748,7 @@
 					"\n",
 					"display(df_mapped.select(\"band\", \"band_id\").distinct())"
 				],
-				"execution_count": 61
+				"execution_count": 247
 			},
 			{
 				"cell_type": "code",
@@ -774,7 +785,7 @@
 					"    .orderBy(\"processingStateAttr\")\n",
 					")"
 				],
-				"execution_count": 62
+				"execution_count": 248
 			},
 			{
 				"cell_type": "code",
@@ -791,7 +802,7 @@
 					"     .otherwise(F.lit(None))\n",
 					")"
 				],
-				"execution_count": 63
+				"execution_count": 249
 			},
 			{
 				"cell_type": "code",
@@ -818,7 +829,7 @@
 					"display(cases_df)\n",
 					""
 				],
-				"execution_count": 64
+				"execution_count": 250
 			},
 			{
 				"cell_type": "code",
@@ -839,7 +850,7 @@
 					"case_ids\n",
 					""
 				],
-				"execution_count": 65
+				"execution_count": 251
 			},
 			{
 				"cell_type": "code",
@@ -910,7 +921,7 @@
 					"print(\"Updated Cases.csv with GUIDs (without overwriting existing GUIDs):\", final_file)\n",
 					""
 				],
-				"execution_count": 66
+				"execution_count": 252
 			},
 			{
 				"cell_type": "code",
@@ -918,73 +929,59 @@
 					"collapsed": false
 				},
 				"source": [
+					"from pyspark.sql import functions as F\n",
 					"\n",
+					"# 1) Normalise Cases.csv keys + GUIDs\n",
 					"case_guid_map = (\n",
 					"    cases_df2\n",
 					"    .select(\n",
-					"        F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\"),\n",
-					"        F.col(\"GUID\").alias(\"caseGuid\")\n",
+					"        F.trim(F.col(\"Case ID\").cast(\"string\")).alias(\"caseNodeId_str\"),\n",
+					"        F.trim(F.col(\"GUID\").cast(\"string\")).alias(\"caseGuid\"),\n",
 					"    )\n",
+					"    # treat empty string GUID as null\n",
+					"    .withColumn(\"caseGuid\", F.when(F.col(\"caseGuid\") == \"\", None).otherwise(F.col(\"caseGuid\")))\n",
+					"    # keep only rows that can actually map\n",
+					"    .filter(F.col(\"caseNodeId_str\").isNotNull())\n",
 					"    .dropDuplicates([\"caseNodeId_str\"])\n",
 					")\n",
 					"\n",
-					"\n",
+					"# 2) Normalise df_mapped join key\n",
 					"df_mapped2 = (\n",
 					"    df_mapped\n",
-					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
+					"    .withColumn(\"caseNodeId_str\", F.trim(F.col(\"caseNodeId\").cast(\"string\")))\n",
 					"    .join(case_guid_map, on=\"caseNodeId_str\", how=\"left\")\n",
-					"    .drop(\"caseNodeId_str\")\n",
 					")\n",
 					"\n",
-					"\n",
-					"display(df_mapped2.filter(F.col(\"caseGuid\").isNull()).select(\"caseNodeId\").distinct())\n",
-					"\n",
-					"\n",
-					"df_mapped2 = df_mapped2.filter(F.col(\"caseGuid\").isNotNull())\n",
-					"\n",
-					"\n",
-					"df_mapped2 = (\n",
+					"# 3) DEBUG: prove whether they’re missing from Cases.csv or just not joining\n",
+					"missing_from_cases_csv = (\n",
 					"    df_mapped2\n",
-					"    .drop(\"id\")  \n",
-					"    .withColumnRenamed(\"caseGuid\", \"id\")\n",
-					")"
-				],
-				"execution_count": 67
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"\n",
-					"case_guid_map = (\n",
-					"    cases_df2\n",
-					"    .select(\n",
-					"        F.col(\"Case ID\").alias(\"caseNodeId_str\"),\n",
-					"        F.col(\"GUID\").alias(\"caseGuid\")\n",
-					"    )\n",
-					"    .dropDuplicates([\"caseNodeId_str\"])\n",
-					")\n",
-					"\n",
-					"\n",
-					"df_mapped = (\n",
-					"    df_mapped\n",
-					"    .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId\").cast(\"string\"))\n",
-					"    .join(case_guid_map, on=\"caseNodeId_str\", how=\"left\")\n",
-					"    .drop(\"caseNodeId_str\")\n",
-					")\n",
-					"\n",
-					"\n",
-					"display(\n",
-					"    df_mapped\n",
 					"    .filter(F.col(\"caseGuid\").isNull())\n",
-					"    .select(\"caseNodeId\")\n",
+					"    .select(\"caseNodeId_str\")\n",
 					"    .distinct()\n",
 					")\n",
+					"\n",
+					"display(missing_from_cases_csv)\n",
+					"\n",
+					"print(\"df_mapped rows:\", df_mapped.count())\n",
+					"print(\"mapped rows:\", df_mapped2.filter(F.col(\"caseGuid\").isNotNull()).count())\n",
+					"print(\"missing rows:\", df_mapped2.filter(F.col(\"caseGuid\").isNull()).count())\n",
+					"\n",
+					"# 4) If you truly want to DROP unmapped rows:\n",
+					"df_mapped = df_mapped2.filter(F.col(\"caseGuid\").isNotNull())\n",
 					""
 				],
-				"execution_count": 68
+				"execution_count": 253
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					""
+				],
+				"execution_count": 254
 			},
 			{
 				"cell_type": "code",
@@ -1054,7 +1051,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 69
+				"execution_count": 255
 			},
 			{
 				"cell_type": "code",
@@ -1089,7 +1086,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 70
+				"execution_count": 256
 			},
 			{
 				"cell_type": "code",
@@ -1161,7 +1158,163 @@
 					"print(\"Rows after join:\", df_mapped.count())\n",
 					"display(df_mapped.select(\"caseNodeId_str\", \"caseReceiptDate\", \"advertisedModificationId\").limit(50))"
 				],
-				"execution_count": 74
+				"execution_count": 257
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# CONFIG: where to persist the running case references\n",
+					"# ------------------------------------------------------------\n",
+					"CASE_REF_DIR = f\"{mpesc_base_path}/config/CaseRef\"\n",
+					"CASE_REF_OUT = f\"{CASE_REF_DIR}/CaseRef.csv\"   # Spark will create a folder; we'll write + keep it stable\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# 1) Identify the \"type\" column and filter ROW cases\n",
+					"# ------------------------------------------------------------\n",
+					"TYPE_COL = \"caseworkType\" if \"caseworkType\" in df_mapped.columns else (\"caseTypeAttr\" if \"caseTypeAttr\" in df_mapped.columns else None)\n",
+					"if TYPE_COL is None:\n",
+					"    raise ValueError(f\"Couldn't find a type column. df_mapped has: {df_mapped.columns}\")\n",
+					"\n",
+					"row_cases = (\n",
+					"    df_mapped\n",
+					"    .select(\n",
+					"        F.col(\"caseNodeId_str\"),\n",
+					"        F.col(\"caseCreateDate\").cast(\"timestamp\").alias(\"caseCreateDate\"),\n",
+					"        F.col(TYPE_COL).cast(\"string\").alias(\"caseTypeText\"),\n",
+					"    )\n",
+					"    .withColumn(\"caseTypeText_norm\", F.lower(F.trim(F.col(\"caseTypeText\"))))\n",
+					"    .filter(F.col(\"caseNodeId_str\").isNotNull())\n",
+					"    .filter(F.col(\"caseCreateDate\").isNotNull())\n",
+					"    .filter(F.col(\"caseTypeText_norm\").contains(\"rights-of-way\") | F.col(\"caseTypeText_norm\").contains(\"rights of way\") | F.col(\"caseTypeText_norm\").contains(\"row\"))\n",
+					"    .withColumn(\"refPrefix\", F.lit(\"ROW\"))\n",
+					"    .withColumn(\"refYear\", F.year(F.col(\"caseCreateDate\")).cast(\"int\"))\n",
+					"    .drop(\"caseTypeText_norm\")\n",
+					")\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# 2) Load existing CaseRef mapping if it exists (else empty)\n",
+					"#    and compute current max sequence per year\n",
+					"# ------------------------------------------------------------\n",
+					"def path_exists(path: str) -> bool:\n",
+					"    try:\n",
+					"        mssparkutils.fs.ls(path)\n",
+					"        return True\n",
+					"    except Exception:\n",
+					"        return False\n",
+					"\n",
+					"if path_exists(CASE_REF_DIR):\n",
+					"    try:\n",
+					"        existing_refs = (\n",
+					"            spark.read.format(\"csv\")\n",
+					"                .option(\"header\", \"true\")\n",
+					"                .load(CASE_REF_DIR)  # read whole folder\n",
+					"        )\n",
+					"    except Exception:\n",
+					"        existing_refs = spark.createDataFrame([], \"caseNodeId_str string, caseReferenceNew string, refPrefix string, refYear int, refSeq int\")\n",
+					"else:\n",
+					"    existing_refs = spark.createDataFrame([], \"caseNodeId_str string, caseReferenceNew string, refPrefix string, refYear int, refSeq int\")\n",
+					"\n",
+					"# If existing file has just caseReferenceNew, parse year/seq from it\n",
+					"if \"refYear\" not in existing_refs.columns or \"refSeq\" not in existing_refs.columns:\n",
+					"    existing_refs = (\n",
+					"        existing_refs\n",
+					"        .withColumn(\"caseReferenceNew\", F.col(\"caseReferenceNew\").cast(\"string\"))\n",
+					"        .withColumn(\"refPrefix\", F.split(F.col(\"caseReferenceNew\"), \"/\").getItem(0))\n",
+					"        .withColumn(\"refYear\", F.split(F.col(\"caseReferenceNew\"), \"/\").getItem(1).cast(\"int\"))\n",
+					"        .withColumn(\"refSeq\", F.split(F.col(\"caseReferenceNew\"), \"/\").getItem(2).cast(\"int\"))\n",
+					"    )\n",
+					"\n",
+					"existing_max_by_year = (\n",
+					"    existing_refs\n",
+					"    .filter(F.col(\"refPrefix\") == \"ROW\")\n",
+					"    .groupBy(\"refYear\")\n",
+					"    .agg(F.max(\"refSeq\").alias(\"maxSeq\"))\n",
+					")\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# 3) Only generate refs for cases not already in config\n",
+					"#    and allocate sequences starting at 1001 (or max+1)\n",
+					"# ------------------------------------------------------------\n",
+					"row_cases_new = row_cases.join(\n",
+					"    existing_refs.select(\"caseNodeId_str\").dropDuplicates(),\n",
+					"    on=\"caseNodeId_str\",\n",
+					"    how=\"left_anti\"\n",
+					")\n",
+					"\n",
+					"w = Window.partitionBy(\"refYear\").orderBy(F.col(\"caseCreateDate\").asc(), F.col(\"caseNodeId_str\").asc())\n",
+					"\n",
+					"row_cases_new = (\n",
+					"    row_cases_new\n",
+					"    .withColumn(\"rn\", F.row_number().over(w))\n",
+					"    .join(existing_max_by_year, on=\"refYear\", how=\"left\")\n",
+					"    .withColumn(\"startBase\", F.when(F.col(\"maxSeq\").isNull(), F.lit(1000)).otherwise(F.col(\"maxSeq\")))\n",
+					"    .withColumn(\"refSeq\", (F.col(\"startBase\") + F.col(\"rn\")).cast(\"int\"))\n",
+					"    .withColumn(\"caseReferenceNew\", F.concat_ws(\"/\", F.col(\"refPrefix\"), F.col(\"refYear\").cast(\"string\"), F.col(\"refSeq\").cast(\"string\")))\n",
+					"    .drop(\"rn\", \"maxSeq\", \"startBase\")\n",
+					")\n",
+					"\n",
+					"# Combine existing + new (so we keep a full mapping)\n",
+					"case_ref_all = (\n",
+					"    existing_refs.select(\"caseNodeId_str\", \"caseReferenceNew\", \"refPrefix\", \"refYear\", \"refSeq\")\n",
+					"    .unionByName(row_cases_new.select(\"caseNodeId_str\", \"caseReferenceNew\", \"refPrefix\", \"refYear\", \"refSeq\"), allowMissingColumns=True)\n",
+					"    .dropDuplicates([\"caseNodeId_str\"])\n",
+					")\n",
+					"\n",
+					"print(\"ROW cases needing new refs:\", row_cases_new.count())\n",
+					"display(row_cases_new.orderBy(\"refYear\", \"refSeq\").limit(50))\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# 4) Write back to config (overwrite the folder each run)\n",
+					"# ------------------------------------------------------------\n",
+					"mssparkutils.fs.mkdirs(CASE_REF_DIR)\n",
+					"\n",
+					"(\n",
+					"    case_ref_all\n",
+					"    .orderBy(\"refYear\", \"refSeq\")\n",
+					"    .coalesce(1)\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .csv(CASE_REF_DIR)\n",
+					")\n",
+					"\n",
+					"print(\"CaseRef mapping written to:\", CASE_REF_DIR)\n",
+					"\n",
+					"# ✅ ADD THIS RIGHT HERE (after overwrite, before join)\n",
+					"spark.catalog.clearCache()\n",
+					"\n",
+					"case_ref_all = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", True)\n",
+					"        .load(CASE_REF_DIR)\n",
+					")\n",
+					"\n",
+					"# ------------------------------------------------------------\n",
+					"# 5) (Optional) join back onto df_mapped for immediate use\n",
+					"# ------------------------------------------------------------\n",
+					"df_mapped = df_mapped.join(\n",
+					"    case_ref_all.select(\"caseNodeId_str\", \"caseReferenceNew\"),\n",
+					"    on=\"caseNodeId_str\",\n",
+					"    how=\"left\"\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    df_mapped\n",
+					"        .select(\"caseNodeId_str\", \"caseCreateDate\", TYPE_COL, \"caseReferenceNew\")\n",
+					"        .orderBy(\"caseCreateDate\")\n",
+					"        .limit(50)\n",
+					")"
+				],
+				"execution_count": 258
 			},
 			{
 				"cell_type": "code",
@@ -1191,7 +1344,7 @@
 					"\n",
 					"#  😎"
 				],
-				"execution_count": 75
+				"execution_count": 259
 			}
 		]
 	}
