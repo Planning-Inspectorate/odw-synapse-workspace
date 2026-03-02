@@ -148,7 +148,7 @@ if __name__ == "__main__":
     service_bus_resource_group = names["service_bus_resource_group"]
     devops_agent_pool_resource_group_name = names["devops_agent_pool_resource_group_name"]
     mpesc_resource_group = names["mpesc_resource_group"]
-    mpesc_storage_account_name  = names["mpesc_storage_account_name"]
+    mpesc_storage_account_name  = names["mpesc_storage_name"]
 
     # Extract relevant Azure resources
     main_datalake = get_resource("Blob Storage", data_lake_resource_group, data_lake_name)
