@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "81759cb9-531b-40c3-bae2-a78be553de22"
+				"spark.autotune.trackingId": "b6d4273f-d903-43ec-abdd-dbc8120a91f0"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -524,10 +524,41 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"cases_csv_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_df = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .load(cases_csv_path)\n",
+					"        .select(F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"))\n",
+					"        .distinct()\n",
+					")\n",
+					"\n",
+					"\n",
+					"docs_filtered = (\n",
+					"    docs_with_folder_guid\n",
+					"        .withColumn(\"legacyCaseId\", F.col(\"legacyCaseId\").cast(\"string\"))\n",
+					")\n",
+					"\n",
+					"\n",
+					"docs_filtered = (\n",
+					"    docs_filtered\n",
+					"        .join(cases_df, on=\"legacyCaseId\", how=\"inner\")\n",
+					")\n",
+					"\n",
+					"print(\"Row count after Cases.csv filter:\", docs_filtered.count())\n",
+					"display(docs_filtered.limit(10))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"OUTPUT_PATH = f\"{mpesc_base_path}/MPESC-TRANSFORM/Document\"\n",
 					"\n",
 					"(\n",
-					"    docs_with_folder_guid\n",
+					"    docs_filtered\n",
 					"    .coalesce(1)\n",
 					"    .write\n",
 					"    .mode(\"overwrite\")   \n",
