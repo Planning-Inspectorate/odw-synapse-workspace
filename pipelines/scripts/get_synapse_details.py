@@ -24,11 +24,8 @@ class NameFactory():
                     "data_lake_name_backup": f"pinsstodw{env}uks",
                     "service_bus_resource_group": f"pins-rg-ingestion-odw-{env}-ukw",
                     "devops_agent_pool_resource_group_name": f"pins-rg-devops-odw-{env}-ukw",
-                    "mpesc_resource_group": f"pins-rg-mpesc-{env}-uks",
-                    "mpesc_storage_account_name": {
-                    "dev": "pinsstmpescdevuksw49hqz",
-                    "prod": "pinsstmpescproduksqz8bvk",
-                }.get(env)
+                    "mpesc_resource_group": f"pins-rg-odw-{env}-uks",
+                    "mpesc_storage_name": f"pinsstmpesc{env}uks"
                 }
             }
         return {
@@ -40,11 +37,8 @@ class NameFactory():
                 "data_lake_name_backup": f"pinsstodw{env}ukw",
                 "service_bus_resource_group": f"pins-rg-ingestion-odw-{env}-uks",
                 "devops_agent_pool_resource_group_name": f"pins-rg-devops-odw-{env}-uks",
-                "mpesc_resource_group": f"pins-rg-mpesc-{env}-uks",
-                "mpesc_storage_account_name": {
-                "dev": "pinsstmpescdevuksw49hqz",
-                "prod": "pinsstmpescproduksqz8bvk",
-            }.get(env)
+                "mpesc_resource_group": f"pins-rg-odw-{env}-uks",
+                "mpesc_storage_name": f"pinsstmpesc{env}uks"
             }
         }
 
@@ -163,7 +157,10 @@ if __name__ == "__main__":
     service_bus = get_resource("Service Bus", service_bus_resource_group, f"pins-sb-odw-{env}")
     synapse_workspace = get_resource("Synapse Workspace", data_lake_resource_group, f"pins-synw-odw-{env}")
     service_bus_primary_connection_string = get_service_bus_connection_string(service_bus_resource_group, service_bus["name"])
-    mpesc_datalake = get_resource("Blob Storage", mpesc_resource_group, mpesc_storage_account_name)
+    try:
+        mpesc_datalake = get_resource("Blob Storage", mpesc_resource_group, mpesc_storage_account_name)
+    except ValueError:
+        mpesc_datalake = {"id": ""}
     
     # Save variables to Azure Pipeline
     variables = {
@@ -182,7 +179,7 @@ if __name__ == "__main__":
         "synapse_ssql_endpoint": synapse_workspace["connectivityEndpoints"]["sqlOnDemand"],
         "synapse_workspace_id": synapse_workspace["id"],
         "synapse_workspace_name": synapse_workspace["name"],
-        "mpesc_storage_blob_endpoint": mpesc_datalake["primaryEndpoints"]["blob"],
+        "mpesc_storage_endpoint": mpesc_datalake["primaryEndpoints"]["blob"],
     }
     print("Setting the following variables")
     print(json.dumps(variables, indent=4))
