@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "222c3b22-0f35-4a2e-a27a-d8497a46ffb5"
+				"spark.autotune.trackingId": "bd3e21a7-fe4f-4355-a44d-fd7ac79ac987"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 9
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +95,7 @@
 					"print(\"Columns:\", events_raw.columns)\n",
 					"display(events_raw.limit(10))"
 				],
-				"execution_count": 10
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 					"\n",
 					"display(joined.select(*preview_cols).limit(30))"
 				],
-				"execution_count": 11
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -269,6 +269,10 @@
 					"        clean_str(F.col(\"47\")).alias(\"dateEventRequested_raw\"),\n",
 					"        clean_str(F.col(\"48\")).alias(\"actualDuration_raw\"),\n",
 					"    )\n",
+					"        .withColumn(\n",
+					"        \"venueGuid\",\n",
+					"        F.sha2(F.col(\"eventId\"), 256)\n",
+					"    )\n",
 					")\n",
 					"\n",
 					"print(\"events_clean rows:\", events_clean.count())\n",
@@ -276,7 +280,7 @@
 					"\n",
 					"display(events_clean.limit(100))"
 				],
-				"execution_count": 12
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -369,7 +373,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 13
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -449,15 +453,14 @@
 					"        | F.col(\"line2_n\").isNotNull() | F.col(\"county_n\").isNotNull()\n",
 					"    )\n",
 					"    .withColumn(\"venueId\", F.when(F.col(\"hasVenue\"), uuid5_from_text(F.col(\"addrKey\"))))\n",
+					"    \n",
 					")\n",
 					"\n",
-					"# Address rows to load (deduped)\n",
 					"venue_address_ready = (\n",
 					"    events_with_addrkey\n",
 					"    .filter(F.col(\"venueId\").isNotNull())\n",
 					"    .select(\n",
 					"        F.col(\"venueId\").alias(\"id\"),\n",
-					"        # Use original (non-normalised) fields for output, but trim and clean\n",
 					"        F.col(line1_col).cast(\"string\").alias(\"line1\"),\n",
 					"        F.col(line2_col).cast(\"string\").alias(\"line2\"),\n",
 					"        F.col(town_col).cast(\"string\").alias(\"townCity\"),\n",
@@ -487,9 +490,10 @@
 					"        F.col(town_col).alias(\"venueTown\"),\n",
 					"        F.col(pc_col).alias(\"venuePostcode\")\n",
 					"    ).limit(20)\n",
-					")"
+					")\n",
+					""
 				],
-				"execution_count": 14
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -536,7 +540,7 @@
 					")\n",
 					"display(events_mapped)"
 				],
-				"execution_count": 15
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -636,7 +640,7 @@
 					"    ).limit(20)\n",
 					")"
 				],
-				"execution_count": 16
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -746,7 +750,7 @@
 					"# recommended filter\n",
 					"procedure_ready_final = procedure_ready.filter(F.col(\"procedureTypeId\").isNotNull())"
 				],
-				"execution_count": 17
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -771,7 +775,7 @@
 					"print(\"Wrote Address to:\", out_address_dir)\n",
 					"print(\"Wrote Procedure to:\", out_procedure_dir)"
 				],
-				"execution_count": 18
+				"execution_count": 43
 			}
 		]
 	}
