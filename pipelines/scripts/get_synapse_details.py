@@ -160,7 +160,7 @@ if __name__ == "__main__":
     try:
         mpesc_datalake = get_resource("Blob Storage", mpesc_resource_group, mpesc_storage_account_name)
     except ValueError:
-        mpesc_datalake = {"id": ""}
+        mpesc_datalake = None
     
     # Save variables to Azure Pipeline
     variables = {
@@ -179,7 +179,9 @@ if __name__ == "__main__":
         "synapse_ssql_endpoint": synapse_workspace["connectivityEndpoints"]["sqlOnDemand"],
         "synapse_workspace_id": synapse_workspace["id"],
         "synapse_workspace_name": synapse_workspace["name"],
-        "mpesc_storage_endpoint": mpesc_datalake["primaryEndpoints"]["blob"],
+        "mpesc_storage_endpoint": (mpesc_datalake["primaryEndpoints"]["blob"]
+                                    if mpesc_datalake
+                                    else ""),
     }
     print("Setting the following variables")
     print(json.dumps(variables, indent=4))
