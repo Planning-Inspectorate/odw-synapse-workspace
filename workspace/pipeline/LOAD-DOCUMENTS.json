@@ -1,10 +1,9 @@
 {
-	"name": "Horizon-Migration-POC",
+	"name": "LOAD-DOCUMENTS",
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy horizon Files",
-				"description": "Copies data from Horizon to odw-raw",
+				"name": "LOAD-DOCS",
 				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
@@ -17,10 +16,20 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "SqlServerSource",
-						"queryTimeout": "02:00:00",
-						"isolationLevel": "ReadCommitted",
-						"partitionOption": "None"
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureFileStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "ODW/AIE/MPESC migrations - extracts",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
 					},
 					"sink": {
 						"type": "DelimitedTextSink",
@@ -30,7 +39,7 @@
 						"formatSettings": {
 							"type": "DelimitedTextWriteSettings",
 							"quoteAllText": true,
-							"fileExtension": ".txt"
+							"fileExtension": ".csv"
 						}
 					},
 					"enableStaging": false,
@@ -45,32 +54,20 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "ds_Horizon_Source_table",
-						"type": "DatasetReference",
-						"parameters": {
-							"table_name": {
-								"value": "@item().Horizon_Table_Name",
-								"type": "Expression"
-							}
-						}
+						"referenceName": "MPESC_DATALABS",
+						"type": "DatasetReference"
 					}
 				],
 				"outputs": [
 					{
-						"referenceName": "ds_Horizon_odw_raw",
-						"type": "DatasetReference",
-						"parameters": {
-							"FileName": {
-								"value": "@item().Source_Filename_Format",
-								"type": "Expression"
-							}
-						}
+						"referenceName": "MPESC_DOCUMENTS",
+						"type": "DatasetReference"
 					}
 				]
 			}
 		],
 		"folder": {
-			"name": "Horizon Migration"
+			"name": "Horizon Migration/MPESC-EXTRACT"
 		},
 		"annotations": []
 	}
