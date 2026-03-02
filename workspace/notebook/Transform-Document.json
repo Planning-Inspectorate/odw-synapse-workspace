@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b6d4273f-d903-43ec-abdd-dbc8120a91f0"
+				"spark.autotune.trackingId": "a9efe9c2-cd78-4585-870f-1a2d689360c1"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -523,28 +523,29 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"cases_csv_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
 					"\n",
+					"# 1) Read Cases.csv + normalise the \"Case ID\" column name\n",
 					"cases_df = (\n",
 					"    spark.read\n",
 					"        .format(\"csv\")\n",
 					"        .option(\"header\", \"true\")\n",
 					"        .load(cases_csv_path)\n",
-					"        .select(F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"))\n",
+					"        .select(\n",
+					"            F.col(\"Case ID\").cast(\"string\").alias(\"caseNodeId_str\")\n",
+					"        )\n",
 					"        .distinct()\n",
 					")\n",
 					"\n",
-					"\n",
+					"# 2) Normalise docs key (assumes docs_with_folder_guid has caseNodeId_str)\n",
 					"docs_filtered = (\n",
 					"    docs_with_folder_guid\n",
-					"        .withColumn(\"legacyCaseId\", F.col(\"legacyCaseId\").cast(\"string\"))\n",
-					")\n",
-					"\n",
-					"\n",
-					"docs_filtered = (\n",
-					"    docs_filtered\n",
-					"        .join(cases_df, on=\"legacyCaseId\", how=\"inner\")\n",
+					"        .withColumn(\"caseNodeId_str\", F.col(\"caseNodeId_str\").cast(\"string\"))\n",
+					"        .join(cases_df, on=\"caseNodeId_str\", how=\"inner\")\n",
 					")\n",
 					"\n",
 					"print(\"Row count after Cases.csv filter:\", docs_filtered.count())\n",
