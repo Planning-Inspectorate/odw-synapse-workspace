@@ -5,6 +5,101 @@
 			{
 				"name": "Load Decision",
 				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Load Outcome",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/decision",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "dtypeId"
+								},
+								"sink": {
+									"name": "decisionTypeId"
+								}
+							},
+							{
+								"source": {
+									"name": "outcomeId"
+								},
+								"sink": {
+									"name": "outcomeId"
+								}
+							},
+							{
+								"source": {
+									"name": "decisionMakerType"
+								},
+								"sink": {
+									"name": "decisionMakerTypeId"
+								}
+							},
+							{
+								"source": {
+									"name": "outcomeGuid"
+								},
+								"sink": {
+									"name": "caseOutcomeId"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "decision_MPESC",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "mpesc_decision",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Load Outcome",
+				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -47,26 +142,10 @@
 							},
 							{
 								"source": {
-									"name": "dtypeId"
+									"name": "outcomeGuid"
 								},
 								"sink": {
-									"name": "decisionTypeId"
-								}
-							},
-							{
-								"source": {
-									"name": "outcomeId"
-								},
-								"sink": {
-									"name": "outcomeId"
-								}
-							},
-							{
-								"source": {
-									"name": "decisionMakerType"
-								},
-								"sink": {
-									"name": "decisionMakerTypeId"
+									"name": "id"
 								}
 							}
 						],
@@ -85,7 +164,7 @@
 				],
 				"outputs": [
 					{
-						"referenceName": "mpesc_decision",
+						"referenceName": "MPESC_outcome",
 						"type": "DatasetReference"
 					}
 				]
