@@ -24,7 +24,7 @@ class NameFactory():
                     "data_lake_name_backup": f"pinsstodw{env}uks",
                     "service_bus_resource_group": f"pins-rg-ingestion-odw-{env}-ukw",
                     "devops_agent_pool_resource_group_name": f"pins-rg-devops-odw-{env}-ukw",
-                    "mpesc_resource_group": f"pins-rg-odw-{env}-uks",
+                    "mpesc_resource_group": f"pins-rg-data-odw-{env}-uks",
                     "mpesc_storage_name": f"pinsstmpesc{env}uks"
                 }
             }
@@ -37,7 +37,7 @@ class NameFactory():
                 "data_lake_name_backup": f"pinsstodw{env}ukw",
                 "service_bus_resource_group": f"pins-rg-ingestion-odw-{env}-uks",
                 "devops_agent_pool_resource_group_name": f"pins-rg-devops-odw-{env}-uks",
-                "mpesc_resource_group": f"pins-rg-odw-{env}-uks",
+                "mpesc_resource_group": f"pins-rg-data-odw-{env}-uks",
                 "mpesc_storage_name": f"pinsstmpesc{env}uks"
             }
         }
