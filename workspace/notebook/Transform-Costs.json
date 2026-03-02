@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "07f0f96d-8255-4775-a868-ef26b68f781b"
+				"spark.autotune.trackingId": "913a95d6-18b3-431e-966c-3806ccdb4f70"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 10
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -79,7 +79,7 @@
 					"import uuid\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -87,14 +87,14 @@
 					"recharge_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Recharge_15809441/\"\n",
 					"cases_map_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\""
 				],
-				"execution_count": 12
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"out_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/CaseCosts/recharge/\""
 				],
-				"execution_count": 13
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -102,7 +102,7 @@
 					"existing_casecosts_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/CaseCosts/CaseCosts.csv\"\n",
 					"merged_out_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/CaseCosts/CaseCosts_merged/\""
 				],
-				"execution_count": 14
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,7 @@
 					"display(cases_map.limit(5))\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -160,11 +160,17 @@
 				},
 				"source": [
 					"recharge_raw = (\n",
-					"    spark.read.format(\"csv\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"multiLine\", \"true\")\n",
-					"    .option(\"escape\", \"\\\"\")\n",
-					"    .load(recharge_path)\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")                \n",
+					"        .option(\"multiLine\", \"true\")\n",
+					"        .option(\"quote\", \"\\\"\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .option(\"ignoreLeadingWhiteSpace\", \"true\")\n",
+					"        .option(\"ignoreTrailingWhiteSpace\", \"true\")\n",
+					"        .option(\"mode\", \"PERMISSIVE\")\n",
+					"        .load(recharge_path)\n",
 					")\n",
 					"\n",
 					"print(\"Recharge columns:\", recharge_raw.columns)\n",
@@ -179,14 +185,14 @@
 					")\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"print(recharge_raw.columns)"
 				],
-				"execution_count": 18
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -209,7 +215,7 @@
 					"display(mapped.limit(20))\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -231,23 +237,27 @@
 					"\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"(\n",
 					"    case_costs_from_recharge\n",
-					"    .coalesce(1)\n",
-					"    .write.mode(\"overwrite\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .csv(out_path)\n",
+					"        .coalesce(1)\n",
+					"        .write\n",
+					"        .mode(\"overwrite\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")          #  pipe delimiter (important)\n",
+					"        .option(\"quote\", \"\\\"\")       # preserve text safely\n",
+					"        .option(\"escape\", \"\\\\\")      # safe escaping\n",
+					"        .csv(out_path)\n",
 					")\n",
 					"\n",
 					"print(\"Wrote recharge CaseCosts to:\", out_path)\n",
 					""
 				],
-				"execution_count": 21
+				"execution_count": 24
 			}
 		]
 	}
