@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "66ad50d2-4f99-472f-9d1e-6c797f5fca29"
+				"spark.autotune.trackingId": "400fb99e-3be4-4e73-8095-82ac908cd9f5"
 			}
 		},
 		"metadata": {
@@ -70,14 +70,14 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 93
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": 94
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(decision_raw.limit(10))"
 				],
-				"execution_count": 95
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +142,7 @@
 					"print(\"Decision rows (selected):\", decision_ready.count())\n",
 					"display(decision_ready.limit(50))"
 				],
-				"execution_count": 96
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -192,6 +192,7 @@
 					"        clean(F.col(\"15\").cast(\"string\")).alias(\"casePublishFlag\"),\n",
 					"        clean(F.col(\"14\").cast(\"string\")).alias(\"decisionType\"),\n",
 					"        clean(F.col(\"1\").cast(\"string\")).alias(\"decisionBranch\"),\n",
+					"        F.lit(\"secretary-of-state\").cast(\"string\").alias(\"decisionMakerType\")\n",
 					"    )\n",
 					")\n",
 					"\n",
@@ -288,7 +289,7 @@
 					"print(\"Decision rows (combined):\", decision_ready.count())\n",
 					"display(sos_ready.limit(100))"
 				],
-				"execution_count": 97
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -316,7 +317,7 @@
 					"null_count = sos_ready.filter(F.col(\"decisionType\").isNull()).count()\n",
 					"print(\"Null decisionType rows:\", null_count)"
 				],
-				"execution_count": 98
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -358,6 +359,7 @@
 					"        F.lit(None).cast(\"string\").alias(\"casePublishFlag\"),\n",
 					"        F.lit(\"Order made with modifications\").alias(\"decisionType\"),\n",
 					"        F.lit(\"Modification\").alias(\"decisionBranch\"),\n",
+					"        F.lit(\"inspector\").cast(\"string\").alias(\"decisionMakerType\"),\n",
 					"    )\n",
 					")\n",
 					"\n",
@@ -377,7 +379,7 @@
 					"print(\"Decision rows (combined):\", decision_ready.count())\n",
 					"display(mod_ready.limit(20))"
 				],
-				"execution_count": 99
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -399,7 +401,7 @@
 					"print(\"Cases columns:\", cases_raw.columns)   # should be ['Case ID', 'GUID']\n",
 					"display(cases_raw.limit(20))"
 				],
-				"execution_count": 100
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -420,7 +422,7 @@
 					"print(\"cases_key rows:\", cases_key.count())\n",
 					"display(cases_key.limit(20))"
 				],
-				"execution_count": 101
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -437,7 +439,7 @@
 					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
 					"display(decision_with_guid.limit(50))"
 				],
-				"execution_count": 102
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -453,7 +455,7 @@
 					"# how many actually have a decisionType?\n",
 					"print(\"Rows with decisionType:\", decision_with_guid.filter(F.col(\"decisionType\").isNotNull()).count())"
 				],
-				"execution_count": 103
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -463,13 +465,22 @@
 				"source": [
 					"decision_final = (\n",
 					"    decision_with_guid\n",
+					"    .withColumn(\n",
+					"        \"decisionMakerType\",\n",
+					"        F.when(\n",
+					"            (F.col(\"decisionMakerType\").isNull()) |\n",
+					"            (F.trim(F.lower(F.col(\"decisionMakerType\"))) == \"undefined\") |\n",
+					"            (F.trim(F.col(\"decisionMakerType\")) == \"\"),\n",
+					"            F.lit(\"inspector\")\n",
+					"        ).otherwise(F.col(\"decisionMakerType\"))\n",
+					"    )\n",
 					"    .withColumn(\"dtypeId\", F.lit(\"decision\"))\n",
 					")\n",
 					"\n",
 					"display(decision_final.limit(50))\n",
 					"print(\"Final row count:\", decision_final.count())"
 				],
-				"execution_count": 104
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -559,7 +570,7 @@
 					"\n",
 					"display(decision_mapped.select(\"decisionType\", \"outcomeId\").dropDuplicates().orderBy(\"decisionType\"))"
 				],
-				"execution_count": 105
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -578,7 +589,7 @@
 					"display(unmapped)\n",
 					"print(\"Unmapped distinct decisionType values:\", unmapped.count())"
 				],
-				"execution_count": 106
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -598,7 +609,7 @@
 					"\n",
 					"display(decision_for_load.limit(50))"
 				],
-				"execution_count": 107
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -617,7 +628,7 @@
 					"\n",
 					"print(\"Decision CSV written to:\", output_path)"
 				],
-				"execution_count": 108
+				"execution_count": 46
 			}
 		]
 	}
