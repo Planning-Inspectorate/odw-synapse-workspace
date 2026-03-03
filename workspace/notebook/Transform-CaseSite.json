@@ -1,0 +1,252 @@
+{
+	"name": "Transform-CaseSite",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "dd653f9d-80d1-4d22-b3e1-2fe26ff182bc"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Site_95502/\"\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = (\n",
+					"    spark.read\n",
+					"         .format(\"csv\")\n",
+					"         .option(\"header\", \"true\")\n",
+					"         .option(\"sep\", \"|\")          # Pipe delimiter\n",
+					"         .option(\"multiLine\", \"true\")\n",
+					"         .option(\"quote\", \"\\\"\")       # Handles quoted text\n",
+					"         .option(\"escape\", \"\\\\\")      # Handles escaped quotes\n",
+					"         .load(path)\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df.printSchema()\n",
+					"display(df.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"df_named = df.select(\n",
+					"    F.col(\"ID\").alias(\"case_id\"),\n",
+					"\n",
+					"    F.col(\"1\").alias(\"site_id\"),\n",
+					"    F.col(\"2\").alias(\"site_address_line1\"),\n",
+					"    F.col(\"3\").alias(\"site_address_line2\"),\n",
+					"    F.col(\"4\").alias(\"site_town\"),\n",
+					"    F.col(\"5\").alias(\"site_county\"),\n",
+					"    F.col(\"6\").alias(\"site_postcode\"),\n",
+					"    F.col(\"7\").alias(\"site_country\"),\n",
+					"\n",
+					"    F.col(\"10\").alias(\"land_use\"),\n",
+					"    F.col(\"11\").alias(\"site_viewable_from_road\"),\n",
+					"    F.col(\"12\").alias(\"inspector_need_to_enter_site\"),\n",
+					"    F.col(\"13\").alias(\"number_of_residences\"),\n",
+					"    F.col(\"14\").alias(\"site_area_hectares\"),\n",
+					"    F.col(\"15\").alias(\"floor_space_sqm\"),\n",
+					"    F.col(\"16\").alias(\"listed_building_grade\"),\n",
+					"    F.col(\"17\").alias(\"affects_setting_of_listed_building\"),\n",
+					"    F.col(\"18\").alias(\"within_green_belt\"),\n",
+					"    F.col(\"19\").alias(\"within_aonb\"),\n",
+					"    F.col(\"20\").alias(\"within_sssi\"),\n",
+					"    F.col(\"21\").alias(\"historic_building_grant_made\"),\n",
+					"    F.col(\"22\").alias(\"in_or_relates_to_conservation_area\"),\n",
+					"    F.col(\"23\").alias(\"flooding_issue\"),\n",
+					"    F.col(\"24\").alias(\"attribute_24_unknown\"),\n",
+					"    F.col(\"25\").alias(\"agricultural_holding\"),\n",
+					"    F.col(\"26\").alias(\"grid_reference_easting\"),\n",
+					"    F.col(\"27\").alias(\"grid_reference_northing\"),\n",
+					"    F.col(\"28\").alias(\"land_use_category\"),\n",
+					"    F.col(\"29\").alias(\"common_or_village_green_name\")\n",
+					")\n",
+					"\n",
+					"display(df_named.limit(20))\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"server = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"database = \"pins-sqldb-peas-dev\"\n",
+					"\n",
+					"url = (\n",
+					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
+					"    f\"database={database};\"\n",
+					"    \"encrypt=true;\"\n",
+					"    \"trustServerCertificate=false;\"\n",
+					"    \"hostNameInCertificate=*.database.windows.net;\"\n",
+					"    \"loginTimeout=30;\"\n",
+					")\n",
+					"\n",
+					"user = \"peas_app_ZXzkE0vP\"\n",
+					"\n",
+					"\n",
+					"password = mssparkutils.credentials.getSecret(\"pinskvsynwodwdevuks\", \"mpesc-sql-password\")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_df = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(cases_path)\n",
+					")\n",
+					"\n",
+					"# Rename column to match df_named\n",
+					"cases_df = cases_df.select(\n",
+					"    F.col(\"Case ID\").cast(\"string\").alias(\"case_id\")\n",
+					")\n",
+					"\n",
+					"df_filtered = df_named.join(\n",
+					"    cases_df,\n",
+					"    on=\"case_id\",\n",
+					"    how=\"inner\"\n",
+					")\n",
+					"\n",
+					"display(df_filtered)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"output_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/case_site_95502_sample/\"\n",
+					"\n",
+					"(\n",
+					"    df_filtered\n",
+					"        .coalesce(1)\n",
+					"        .write\n",
+					"        .mode(\"overwrite\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")        # Pipe delimiter\n",
+					"        .option(\"quote\", \"\\\"\")     # Preserve quoted text\n",
+					"        .option(\"escape\", \"\\\\\")    # Handle escaped quotes\n",
+					"        .csv(output_path)\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(\n",
+					"    spark.read.option(\"header\", \"true\").csv(output_path)\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
