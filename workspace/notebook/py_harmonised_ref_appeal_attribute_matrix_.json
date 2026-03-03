@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f7cc8a4d-70a6-4114-8d29-7060d36c0440"
+				"spark.autotune.trackingId": "432ed404-a1ec-4506-8c4a-568da98c5d88"
 			}
 		},
 		"metadata": {
@@ -141,6 +141,8 @@
 					"collapsed": false
 				},
 				"source": [
+					"from pyspark.sql.functions import col\n",
+					"\n",
 					"df = spark.table(std_table)\n",
 					"std_cols = df.columns[:]\n",
 					"\n",
@@ -171,14 +173,17 @@
 					"ordered = [c for c in std_cols if c in df.columns] + [c for c in extras if c in df.columns]\n",
 					"df = df.select(*ordered)\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\",\"true\").save(target_path)\n",
+					"if \"s78\" in df.columns:\n",
+					"    df = df.withColumn(\"s78\", col(\"s78\").cast(\"string\"))\n",
+					"\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(target_path)\n",
 					"\n",
 					"if not spark.catalog.tableExists(table_name):\n",
 					"    print(f\"Table '{table_name}' created.\")\n",
 					"else:\n",
 					"   print(f\"Table '{table_name}' already exists. If new schema changes have been added, the table has been updated.\")\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").option(\"mergeSchema\", \"true\").option(\"overwriteSchema\", \"true\").saveAsTable(table_name)\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(table_name)\n",
 					"\n",
 					"display(spark.table(table_name).limit(50))"
 				],

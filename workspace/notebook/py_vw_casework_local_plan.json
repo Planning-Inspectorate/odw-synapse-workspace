@@ -1,0 +1,277 @@
+{
+	"name": "py_vw_casework_local_plan",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/casework_local_plan"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "95def997-97c7-4092-95e8-a9ded83f77ee"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Harmonised layer and build a view & table for Power BI use.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-April-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Casework Specialist curated view and table for Power BI"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"from datetime import datetime, timedelta"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark_table_final = \"odw_curated_db.pbi_casework_local_plan\"\n",
+					"view_name = \"odw_curated_db.vw_casework_local_plan\"\n",
+					"source_table = \"odw_harmonised_db.load_casework_local_plan\"\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''\n",
+					"storage_account = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        logInfo(\"Starting Casework Specialist curated table setup\")\n",
+					"        \n",
+					"        # Get storage account \n",
+					"        storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"        logInfo(f\"Using storage account: {storage_account}\")\n",
+					"        \n",
+					"        # Fix the path\n",
+					"        storage_account = storage_account.rstrip('/')\n",
+					"        delta_table_path = f\"abfss://odw-curated@{storage_account}/casework_local_plan/pbi_casework_local_plan\"\n",
+					"        logInfo(f\"Delta table will be created at: {delta_table_path}\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in getting storage account configuration: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create/refresh view\n",
+					"        logInfo(f\"Creating view {view_name}\")\n",
+					"        spark.sql(f\"\"\"\n",
+					"        CREATE OR REPLACE VIEW {view_name} AS\n",
+					"        SELECT  \n",
+					"            horizonId,\n",
+					"            localDevelopmentFrameworkId,\n",
+					"            region,\n",
+					"            pinsLpaName,\n",
+					"            localPlanTitle,\n",
+					"            developmentPlanDocumentType,\n",
+					"            grade,\n",
+					"            actualPublicationReg19Date,\n",
+					"            actualPublicationNotes,\n",
+					"            actualSubmissionReg22Date,\n",
+					"            actualSubmissionNotes,\n",
+					"            fiveYearSupplyOfLand,\n",
+					"            inspectorNames,\n",
+					"            mentorOrNamedContact,\n",
+					"            programmeOfficer,\n",
+					"            appointmentDate,\n",
+					"            appointmentNotes,\n",
+					"            actualHearingStartDate,\n",
+					"            actualHearingStartNotes,\n",
+					"            hearingsCloseDate,\n",
+					"            hearingsCloseNotes,\n",
+					"            prepDays,\n",
+					"            hearingDays,\n",
+					"            siteVisitDays,\n",
+					"            travelDays,\n",
+					"            reptgDays,\n",
+					"            totalDays,\n",
+					"            localDevelopmentFrameworkRef,\n",
+					"            factCheckReceiptDueDate,\n",
+					"            factCheckReceiptDueDateNotes,\n",
+					"            draftReportSentToQAGroupDate,\n",
+					"            draftReportSentToQAGroupNotes,\n",
+					"            qaPanel,\n",
+					"            factCheckReportReceivedFromINSPDate,\n",
+					"            factCheckReportReceivedFromINSPNotes,\n",
+					"            factCheckReportDispatchDate,\n",
+					"            factCheckReportDispatchNotes,\n",
+					"            finalReportIssuedDate,\n",
+					"            finalReportIssuedNotes,\n",
+					"            adoptionDate,\n",
+					"            adoptionNotes,\n",
+					"            withdrawnDate,\n",
+					"            withdrawnNotes,\n",
+					"            status,\n",
+					"            totalWeeks,\n",
+					"            hearingCloseToFinalReport,\n",
+					"            notes,\n",
+					"            onsLPACode,\n",
+					"            submissionMonthYear,\n",
+					"            reportsIssuedMonthYear,\n",
+					"            Migrated,\n",
+					"            IngestionDate,\n",
+					"            ValidFrom,\n",
+					"            ValidTo,\n",
+					"            RowID,\n",
+					"            IsActive\n",
+					"        \n",
+					"        FROM {source_table}  \n",
+					"        \"\"\")\n",
+					"        logInfo(f\"Successfully created view {view_name}\")\n",
+					"        \n",
+					"        # Count records in view\n",
+					"        casework_count = spark.sql(f\"SELECT COUNT(*) as count FROM {view_name}\").collect()[0]['count']\n",
+					"        logInfo(f\"View contains {casework_count} casework local plan records\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in creating view {view_name}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create table from view with specified location\n",
+					"        logInfo(f\"Creating or replacing table {spark_table_final}\")\n",
+					"        spark.sql(f\"\"\"\n",
+					"        CREATE OR REPLACE TABLE {spark_table_final}\n",
+					"        USING delta\n",
+					"        LOCATION '{delta_table_path}'\n",
+					"        AS SELECT * FROM {view_name}\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        # Count records in table - this is our final record count\n",
+					"        insert_count = spark.sql(f\"SELECT COUNT(*) as count FROM {spark_table_final}\").collect()[0]['count']\n",
+					"        logInfo(f\"Created table with {insert_count} records at location: {delta_table_path}\")\n",
+					"        \n",
+					"        logInfo(\"Casework Specialist curated table setup completed successfully\")\n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in creating table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully created {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to create {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

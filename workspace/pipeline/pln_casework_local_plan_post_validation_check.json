@@ -1,0 +1,757 @@
+{
+	"name": "pln_casework_local_plan_post_validation_check",
+	"properties": {
+		"activities": [
+			{
+				"name": "Notebook Post Check Validation",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_casework_local_plan_standardised_post_validation_check",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set Json Logging Output",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Json_Logging_Output",
+					"value": {
+						"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If validation success",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set Output Return variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary.validation_status,'Failed')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Set Post Val Continue Processing",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "pipelineReturnValue",
+								"value": [
+									{
+										"key": "Post_Val_Check",
+										"value": {
+											"type": "String",
+											"content": "Y"
+										}
+									}
+								],
+								"setSystemVariable": true
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Execute Post Validation Notification",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Prepare HTML Body",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_specialist_case_post_validation_email_notification",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Json_Output": {
+										"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary)",
+										"type": "Expression"
+									},
+									"Json_HTML_Body": {
+										"value": "@variables('Json_HTML_body')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Prepare HTML Body",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Json Output Validation Summary",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_HTML_body",
+								"value": {
+									"value": "@concat('<html><body style=\\\"font-family: Arial, sans-serif;\\\"><p><strong>Local Plan data processing halted.</strong></p><p>Total Rejection Rows: ', string(json(variables('Json_Validation_Output')).total_rejection_rows), '<br>Unique Rejected Records: ', string(json(variables('Json_Validation_Output')).unique_rejected_records), '<br>Status: ', json(variables('Json_Validation_Output')).validation_status, '</p><p><strong>Error Breakdown:</strong><br>- Duplicates: ', string(json(variables('Json_Validation_Output')).ldfno_duplicates), '<br>- LDFNo Invalid No. : ', string(json(variables('Json_Validation_Output')).ldfno_format_errors), '<br>- Date Errors: ', string(json(variables('Json_Validation_Output')).date_errors), '</p><p><strong>Rejection File:</strong><br>', json(variables('Json_Validation_Output')).rejection_file_name, '</p><p><strong>Please review and correct the data issues.</strong></p></body></html>')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Json Output Validation Summary",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set PostVal start time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Json_Validation_Output",
+								"value": {
+									"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).validation_summary)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record failed Casework Local Plan Post Validation",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Execute Post Validation Notification",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Start Time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"StatusMessage": "Casework Local Plan Post Validation Email notification sent successfully.",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": "200",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set PostVal start time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Start Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record failed Caseqork Local Plan Post Validation",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Execute Post Validation Notification",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Fail",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Start Time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@substring(activity('Execute Post Validation Notification').error.message,0,2000)\n",
+										"type": "Expression"
+									},
+									"StatusMessage": "Green Specialist Case Post Validation Email notification failed.",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Start Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": "400",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Record Completed Casework Local Plan Post Valid",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set Json Logging Output",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.start_time)",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation checks Notebook completed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record completed Local Plan Post Validation",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation Checks completed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set Output Return variable",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "Post_Val_Check",
+							"value": {
+								"type": "String",
+								"content": "N"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Record Failed Casework Local Plan Post Valid",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Notebook Post Check Validation",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.start_time)",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.end_time)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.error_message)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation checks Notebook failed.",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Notebook Post Check Validation').output.status.output.result.exitValue).logging_info.total_exec_time)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record Failed Local Plan Post Validation",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "If validation success",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@substring(activity('Execute Post Validation Notification').error.message,0,2000)",
+							"type": "Expression"
+						},
+						"StatusMessage": "Casework Local Plan Post Validation Checks Failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"horizon_feed": {
+				"type": "array"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"completed_colour": {
+				"type": "string"
+			},
+			"completed_image": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"Json_Logging_Output": {
+				"type": "String"
+			},
+			"Json_Validation_Output": {
+				"type": "String"
+			},
+			"Json_HTML_body": {
+				"type": "String"
+			},
+			"Start Time": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "casework_local_plan/layers/1-standardised"
+		},
+		"annotations": []
+	}
+}

@@ -14,7 +14,16 @@ steps:
       echo "Building with timestamp $buildId"
       poetry build --config-settings local-version=$buildId
 
+      # Determine the produced wheel (pick the most recent in dist/)
+      wheel_path=$(ls -1t dist/odw-*.whl | head -n 1)
+      if [ -z "$wheel_path" ]; then
+        echo "ERROR: No ODW wheel found in dist/ after build"
+        ls -al dist || true
+        exit 1
+      fi
+      wheel_name=$(basename "$wheel_path")
+
       export PYTHONPATH="${PYTHONPATH}:/./"
-      python3 $(Build.SourcesDirectory)/pipelines/scripts/deploy_odw_package.py -e ${{ parameters.env }} -wn "odw-1.0.0+$buildId-py3-none-any.whl"
+      python3 $(Build.SourcesDirectory)/pipelines/scripts/deploy_odw_package.py -e ${{ parameters.env }} -wn "$wheel_name"
     displayName: 'Build and Deploy ODW package'
     name: BuildODWPackage
