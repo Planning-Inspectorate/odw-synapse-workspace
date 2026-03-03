@@ -73,7 +73,7 @@
 							"value": "@variables('starting_image')",
 							"type": "Expression"
 						},
-						"Message_title": "ODW - SAP HR Master pipeline starting",
+						"Message_title": "Unmanaged data - SAP HR Master pipeline starting",
 						"Message_subtitle": "The SAP HR master pipeline for loading data to ODW is starting with the following parameters:"
 					}
 				}
@@ -231,7 +231,7 @@
 				"typeProperties": {
 					"method": "GET",
 					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
+						"value": "@concat(variables('Key_Vault_Url'), 'UnmanagedDataTeamsWebhook',variables('Key_Vault_API'))",
 						"type": "Expression"
 					},
 					"connectVia": {
@@ -422,81 +422,17 @@
 				}
 			},
 			{
-				"name": "Record moving on to loading Horizon data_copy1",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Record pipeline starting",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "OnProgress",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"StatusMessage": "Progressing to load SAP HR data",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"AppInsIKey": {
-							"value": "@variables('apps_insights_ikey')",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "pln_saphr_main",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record moving on to loading Horizon data_copy1",
+						"activity": "Send starting teams notification",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "Send SAP HR Loading notification",
+						"activity": "Record pipeline starting",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -715,8 +651,8 @@
 							"value": "@variables('failed_image')",
 							"type": "Expression"
 						},
-						"Message_title": "ODW - SAP HR Master pipeline failed",
-						"Message_subtitle": "ODW failed to load data from SAP HR"
+						"Message_title": "Unmanaged data - SAP HR Master pipeline failed",
+						"Message_subtitle": "Unmanaged data failed to load data from SAP HR"
 					}
 				}
 			},
@@ -836,105 +772,8 @@
 							"value": "@variables('completed_image')",
 							"type": "Expression"
 						},
-						"Message_title": "ODW - SAP HR Master pipeline completed",
-						"Message_subtitle": "ODW has completed to load data from SAP HR successfully"
-					}
-				}
-			},
-			{
-				"name": "Send SAP HR Loading notification",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Send starting teams notification",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Progressing SAP HR data load",
-						"activityDuration": "0H:00M:00s",
-						"activityStatus": "On Progress",
-						"Colour": {
-							"value": "@variables('on_progress_colour')",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@variables('progress_image')",
-							"type": "Expression"
-						},
-						"Message_title": "ODW - SAP HR data load progressing",
-						"Message_subtitle": "The SAP HR loading data to ODW is progressing"
-					}
-				}
-			},
-			{
-				"name": "Notify curated failure via email",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Record SAP HR",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.00:10:00",
-					"retry": 3,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "POST",
-					"headers": {
-						"Content-Type": "application/json"
-					},
-					"url": "https://prod-50.uksouth.logic.azure.com:443/workflows/edf644dce8e24b96b2684b825615faa6/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=mPuvKYA7JLK8hX30pXXCmoAxgubekmoYhzKhwkcT8Lw",
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"body": {
-						"pipelineName": "@{pipeline().Pipeline}",
-						"status": "Failed",
-						"runId": "@{pipeline().RunId}",
-						"timestamp": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ss')}",
-						"dataFactory": "@{pipeline().DataFactory}",
-						"environment": "@{split(pipeline().DataFactory, '-')[3]}"
+						"Message_title": "Unmanaged data - SAP HR Master pipeline completed",
+						"Message_subtitle": "Unmanaged data SAP HR load completed successfully"
 					}
 				}
 			}
