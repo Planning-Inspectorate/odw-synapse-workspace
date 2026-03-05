@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "440c9b64-9059-4c18-bd9e-fa72e0881306"
+				"spark.autotune.trackingId": "9bcbd9a9-ab5d-4d57-bf35-010e08d872de"
 			}
 		},
 		"metadata": {
@@ -61,10 +61,10 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this pyspark notebook is to read Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
+					"#### The purpose of this pyspark notebook is to read weekly Delta tables from owb_standarsied_db to owb_harmonisied_db and load all records as Delta tables along with metadata columns.\n",
 					"\n",
 					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
-					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to create delta Table dim_inspector_address into owb-harmonisied_db &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;layer from MiPiNS using this strored procedure [Build].[dim_inspector]\n",
+					"Rohit Shukla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;04-Mar-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The functionality of this notebook is to load weekly data into delta Table owb-harmonisied_db.dim_inspector_address &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;layer from MiPiNS using this strored procedure [Build].[dim_inspector]\n",
 					"\n",
 					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4\n",
 					"\n",
@@ -270,7 +270,7 @@
 					"                    END AS emp_type,\n",
 					"                    sp_list_inspector_map.HorizonID,\n",
 					"                    'SAP' AS inspectorSource\n",
-					"                FROM odw_harmonised_db.load_sap_hr_monthly sap_hr\n",
+					"                FROM odw_harmonised_db.load_sap_hr_weekly sap_hr\n",
 					"                LEFT JOIN odw_standardised_db.load_sp_list_inspector_map sp_list_inspector_map\n",
 					"                    ON sap_hr.PersNo = sp_list_inspector_map.StaffNumber\n",
 					"                LEFT JOIN odw_standardised_db.load_inspector_raw inspector_raw\n",
@@ -288,7 +288,7 @@
 					"                    ON sap_hr.PersNo = leavers.PersNo\n",
 					"                LEFT JOIN odw_standardised_db.bis_inspector_group inspector_group\n",
 					"                    ON sap_hr.OrganizationalUnit = inspector_group.sap_ou\n",
-					"                LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email vw_SAP_HR_email\n",
+					"                LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email_weekly vw_SAP_HR_email\n",
 					"                    ON sap_hr.PersNo = vw_SAP_HR_email.PersNo\n",
 					"                LEFT JOIN odw_standardised_db.load_sappreferredname SAPPreferredName\n",
 					"                    ON sap_hr.PersNo = SAPPreferredName.PERSNO\n",
@@ -425,7 +425,7 @@
 					"                        AND inspector_address.IsActive = 'Y'\n",
 					"                    LEFT OUTER JOIN odw_standardised_db.bis_inspector_group inspector_group\n",
 					"                        ON SAP_HR_Leavers.OrganizationalUnit = inspector_group.sap_ou\n",
-					"                    LEFT OUTER JOIN odw_harmonised_db.load_vw_sap_hr_email vw_SAP_HR_email\n",
+					"                    LEFT OUTER JOIN odw_harmonised_db.load_vw_sap_hr_email_weekly vw_SAP_HR_email\n",
 					"                        ON SAP_HR_Leavers.PersNo = vw_SAP_HR_email.PersNo\n",
 					"                    WHERE\n",
 					"                        SAP_HR_Leavers.PSgroup IN ('APO', 'APP HEO', 'BAND 1', 'BAND 2', 'BAND 3', 'PL')\n",
@@ -503,11 +503,11 @@
 					"                            NULL AS HorizonID,\n",
 					"                            'RAW' AS inspectorSource\n",
 					"                        FROM odw_standardised_db.load_inspector_raw inspector_raw\n",
-					"                        LEFT JOIN odw_harmonised_db.load_sap_hr_monthly sap_hr\n",
+					"                        LEFT JOIN odw_harmonised_db.load_sap_hr_weekly sap_hr\n",
 					"                        ON inspector_raw.PINSStaffNumber = CAST(sap_hr.EmployeeNo AS INT)\n",
 					"                        LEFT JOIN odw_harmonised_db.sap_hr_inspector_address inspector_address\n",
 					"                        ON sap_hr.PersNo = inspector_address.StaffNumber AND inspector_address.IsActive = 'Y'\n",
-					"                        LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email S\n",
+					"                        LEFT JOIN odw_harmonised_db.load_vw_sap_hr_email_weekly S\n",
 					"                        ON inspector_raw.PINSStaffNumber = CAST(REPLACE(LTRIM(REPLACE(S.EmployeeNo, '0', ' ')), ' ', '0') AS INT)\n",
 					"                        LEFT JOIN odw_harmonised_db.load_sap_pins_email e2\n",
 					"                        ON CASE LEFT(inspector_raw.PINSStaffNumber, 2)\n",
