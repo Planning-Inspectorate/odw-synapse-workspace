@@ -1,0 +1,1484 @@
+{
+	"name": "pln_transform_and_load",
+	"properties": {
+		"activities": [
+			{
+				"name": "Guard_NoEntities",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(\n  equals(length(pipeline().parameters.sbEntities), 0),\n  equals(length(pipeline().parameters.hzEntities), 0)\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Log_No_Entities",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Warning",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"ErrorMessage": "No entities to transform",
+									"StatusMessage": "NoWork",
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set_Empty_Status",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Log_No_Entities",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "transformStatusJson",
+								"value": {
+									"value": "@concat('{\"hasFailure\":false,\"results\":[]}')\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach_SB_Entities",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Guard_NoEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.sbEntities\n",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "SB_Random_Wait",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": {
+									"value": "@rand(1,20)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "SB_Log_Start",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "SB_Random_Wait",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Start",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ' TRANSFORM SB starting')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "SB_Set_LoopStartTicks",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "SB_Log_Start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "loopStartTicks",
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "SB_Reset_LastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "SB_Set_LoopStartTicks",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": {
+									"value": "@string('')\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If_Run_Standardised",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "SB_Reset_EntityFailed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@contains(pipeline().parameters.stages, 'standardised')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "SB_ETL_Standardise",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_etl_orchestrator",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"input_arguments": {
+													"value": {
+														"value": "@string(\n  json(\n    concat(\n      '{',\n        '\"entity_stage_name\":\"Service Bus Standardisation\",',\n        '\"entity_name\":\"', string(item()), '\"',\n      '}'\n    )\n  )\n)",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "fredPool",
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"driverSize": "Small",
+											"numExecutors": null,
+											"authentication": {
+												"type": "MSI"
+											}
+										}
+									},
+									{
+										"name": "SB_SetLastError_Standardise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_ETL_Standardise",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('SB_ETL_Standardise').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "SB_Log_Failure_Standardise",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "SB_SetLastError_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'),'\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' SB standardised failed')\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "SB_AppendFailed_Standardise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_Log_Failure_Standardise",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'),'\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "SB_MarkFailure_Standardise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_AppendFailed_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									},
+									{
+										"name": "SB_MarkEntityFailed_Standardise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_MarkFailure_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbEntityFailed",
+											"value": true
+										}
+									},
+									{
+										"name": "SB_AppendSuccess_Standardise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_ETL_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "SB_Reset_EntityFailed",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "SB_Reset_LastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sbEntityFailed",
+								"value": {
+									"value": "@bool('false')\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If_Run_Harmonised",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If_Run_Standardised",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@and(\n  contains(pipeline().parameters.stages,'harmonised'),\n  equals(variables('sbEntityFailed'), false)\n)\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "SB_ETL_Harmonise",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_etl_orchestrator",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"input_arguments": {
+													"value": {
+														"value": "@string(\n  json(\n    concat(\n      '{',\n        '\"entity_stage_name\":\"Service Bus Harmonisation\",',\n        '\"entity_name\":\"', string(item()), '\"',\n      '}'\n    )\n  )\n)\n",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "fredPool",
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"driverSize": "Small",
+											"numExecutors": null,
+											"authentication": {
+												"type": "MSI"
+											}
+										}
+									},
+									{
+										"name": "SB_SetLastError_Harmonise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_ETL_Harmonise",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('SB_ETL_Harmonise').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "SB_Log_Failure_Harmonise",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "SB_SetLastError_Harmonise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'), '\"', ''''),\n    '\\r', ' '\n  ),\n  '\\n', ' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' SB harmonised failed')\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "SB_AppendFailed_Harmonise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_Log_Failure_Harmonise",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "SB_MarkFailure_Harmonise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_AppendFailed_Harmonise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									},
+									{
+										"name": "SB_MarkEntityFailed_Harmonise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_MarkFailure_Harmonise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbEntityFailed",
+											"value": true
+										}
+									},
+									{
+										"name": "SB_AppendSuccess_Harmonise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "SB_ETL_Harmonise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "sbStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"harmonised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach_HZ_Entities",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Guard_NoEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.hzEntities\n",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "HZ_Random_Wait",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": {
+									"value": "@rand(1,20)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "HZ_Log_Start",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "HZ_Random_Wait",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Start",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')\n",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item(), ' TRANSFORM HZ starting')\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "HZ_Set_LoopStartTicks",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "HZ_Log_Start",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "loopStartTicks",
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "HZ_Reset_LastErrorMessage",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "HZ_Set_LoopStartTicks",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "lastErrorMessage",
+								"value": {
+									"value": "@string('')\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If_Run_HZ_Standardised",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "HZ_Reset_LastErrorMessage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@contains(pipeline().parameters.stages,'standardised')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "HZ_ETL_Standardise",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 2,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_etl_orchestrator",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"input_arguments": {
+													"value": {
+														"value": "@string(\n  json(\n    concat(\n      '{',\n        '\"entity_stage_name\":\"Horizon Standardisation\",',\n        '\"entity_name\":\"', string(item()), '\"',\n      '}'\n    )\n  )\n)\n",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"sparkPool": {
+												"referenceName": "fredPool",
+												"type": "BigDataPoolReference"
+											},
+											"executorSize": "Small",
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"driverSize": "Small",
+											"numExecutors": null,
+											"authentication": {
+												"type": "MSI"
+											}
+										}
+									},
+									{
+										"name": "HZ_SetLastError_Standardise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "HZ_ETL_Standardise",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "lastErrorMessage",
+											"value": {
+												"value": "@string(activity('HZ_ETL_Standardise').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "HZ_Log_Failure_Standardise",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "HZ_SetLastError_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('lastErrorMessage'),'\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item(), ' HZ standardised failed')\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "HZ_AppendFailed_Standardise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "HZ_Log_Failure_Standardise",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hzStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('lastErrorMessage'), '\"', ''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "HZ_MarkFailure_Standardise",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "HZ_AppendFailed_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									},
+									{
+										"name": "HZ_AppendSuccess_Standardise",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "HZ_ETL_Standardise",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hzStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"standardised\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Output_JSON",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEach_AllEntities_EntitySpecific",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "transformStatusJson",
+					"value": {
+						"value": "@concat(\n  '{',\n    '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n    '\"results\":', string(union(variables('sbStatus'), variables('hzStatus'), variables('entitySpecificStatus'))),\n  '}'\n)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Return_Result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Output_JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('transformStatusJson')\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "ForEach_AllEntities_EntitySpecific",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "ForEach_HZ_Entities",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "ForEach_SB_Entities",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@union(pipeline().parameters.sbEntities, pipeline().parameters.hzEntities)\n",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "ES_Run_SubPipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "ES_Reset_LastError",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_entity_specific_transform",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"runContextJson": {
+										"value": "@pipeline().parameters.runContextJson",
+										"type": "Expression"
+									},
+									"entityName": {
+										"value": "@string(item())",
+										"type": "Expression"
+									},
+									"stages": {
+										"value": "@pipeline().parameters.stages",
+										"type": "Expression"
+									},
+									"retryCount": {
+										"value": "@pipeline().parameters.retryCount",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "ES_Set_LoopStartTicks",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entitySpecificLoopStartTicks",
+								"value": {
+									"value": "@string(ticks(utcNow()))\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "ES_Reset_LastError",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "ES_Set_LoopStartTicks",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "entitySpecificLastError",
+								"value": {
+									"value": "@string('')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "ES_If_EntitySpecific_Failed",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "ES_Run_SubPipeline",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(activity('ES_Run_SubPipeline').Status, 'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "ES_Set_Error_From_SubPipeline",
+										"type": "SetVariable",
+										"dependsOn": [],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificLastError",
+											"value": {
+												"value": "@string(activity('ES_Run_SubPipeline').Error.Message)\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "ES_Log_Failure_EntitySpecific",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "ES_Set_Error_From_SubPipeline",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Failure",
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@replace(\n  replace(\n    replace(variables('entitySpecificLastError'),'\\\"',''''),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(string(item()), ' entity-specific subpipeline failed to run')\n",
+													"type": "Expression"
+												},
+												"AppInsIKey": {
+													"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "ES_Append_Failed_EntitySpecificStatus",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Log_Failure_EntitySpecific",
+												"dependencyConditions": [
+													"Succeeded",
+													"Failed"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"', replace(variables('entitySpecificLastError'),'\\\"',''''), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "ES_MarkFailure",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Append_Failed_EntitySpecificStatus",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "ES_IfSubPipeline_ReturnedFailure",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "ES_Run_SubPipeline",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "ES_If_EntitySpecific_Failed",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(\n  coalesce(\n    json(activity('ES_Run_SubPipeline').output.pipelineReturnValue.result).hasFailure,\n    false\n  ),\n  true\n)\n",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "ES_Append_Success_EntitySpecificStatus",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Succeeded\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "ES_Append_Failed_ReturnedStatus",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "entitySpecificStatus",
+											"value": {
+												"value": "@json(concat(\n  '{',\n    '\"entity\":\"', string(item()), '\",',\n    '\"status\":\"Failed\",',\n    '\"stage\":\"entity_specific\",',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('entitySpecificLoopStartTicks'))), 10000000)), ',',\n    '\"error\":\"Entity-specific pipeline returned hasFailure=true\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "ES_MarkFailure_Returned",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "ES_Append_Failed_ReturnedStatus",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "hasFailure",
+											"value": true
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"runContextJson": {
+				"type": "string"
+			},
+			"sbEntities": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"hzEntities": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"stages": {
+				"type": "array",
+				"defaultValue": [
+					"standardised",
+					"harmonised",
+					"curated"
+				]
+			},
+			"retryCount": {
+				"type": "int",
+				"defaultValue": 2
+			}
+		},
+		"variables": {
+			"transformStatusJson": {
+				"type": "String",
+				"defaultValue": "'[]'"
+			},
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"lastErrorMessage": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"loopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"currentEntity": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"sbEntityFailed": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"sbStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"hzStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"entitySpecificStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"entitySpecificLastError": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"entitySpecificLoopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"entitySpecificEntityFailed": {
+				"type": "Boolean",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "utils/Transform"
+		},
+		"annotations": []
+	}
+}
