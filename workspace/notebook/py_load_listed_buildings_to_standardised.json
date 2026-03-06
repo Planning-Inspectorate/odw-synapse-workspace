@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "50173db6-6fea-46f9-ae89-338360bf3a23"
+				"spark.autotune.trackingId": "56ab78ee-c2ed-4be4-8901-81481ae40cf6"
 			}
 		},
 		"metadata": {
@@ -280,7 +280,8 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"def step_write_listed_buildings(df):\r\n",
@@ -289,8 +290,12 @@
 					"    # Count before write\r\n",
 					"    insert_count = df.count()\r\n",
 					"\r\n",
+					"    # Get path of external table\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name_lbdng}\")\r\n",
+					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
+					"\r\n",
 					"    # Write to the standardised table\r\n",
-					"    df.write.mode(\"overwrite\").saveAsTable(table_name_lbdng)\r\n",
+					"    df.write.mode(\"overwrite\").option(\"path\",table_path).saveAsTable(table_name_lbdng)\r\n",
 					"\r\n",
 					"    logInfo(f\"Written to {table_name_lbdng} successfully\")\r\n",
 					"\r\n",
@@ -393,14 +398,18 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"collapsed": false
 				},
 				"source": [
 					"def step_write_listed_building_outline(df):\r\n",
 					"    logInfo(f\"Writing to {table_name_lbo}\")\r\n",
 					"\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name_lbo}\")\r\n",
+					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
+					"\r\n",
 					"    insert_count = df.count()\r\n",
-					"    df.write.mode(\"overwrite\").saveAsTable(\"table_name_lbo\")\r\n",
+					"    df.write.mode(\"overwrite\").option(\"path\", table_path).saveAsTable(table_name_lbo)\r\n",
 					"\r\n",
 					"    logInfo(f\"Written to {table_name_lbo} successfully\")\r\n",
 					"    return insert_count\r\n",
