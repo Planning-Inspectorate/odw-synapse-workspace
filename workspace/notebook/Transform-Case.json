@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bddf469b-be12-4d3f-9e58-8d68e26073e1"
+				"spark.autotune.trackingId": "07623afe-e665-4ff7-8f8d-ffbd439875d1"
 			}
 		},
 		"metadata": {
@@ -448,6 +448,7 @@
 					"collapsed": false
 				},
 				"source": [
+					"# not required\n",
 					"df_mapped.select(\"hznReference\").distinct().show(2, truncate=False)\n",
 					"\n",
 					"   \n",
@@ -468,8 +469,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"#df_mapped.columns\n",
-					"from pyspark.sql import functions as F\n",
+					"# spreadsheet data mapped manually for certain cases\n",
 					"\n",
 					"SUBTYPE_CLOSED_FROM_SS_FILE = f\"{mpesc_base_path}/config/Subtype_case_closed_from_spreadsheet.csv\"\n",
 					"\n",
@@ -481,16 +481,22 @@
 					"        .csv(SUBTYPE_CLOSED_FROM_SS_FILE)\n",
 					")\n",
 					"\n",
-					"display(closed_case.limit(10))\n",
+					"display(closed_case.limit(3))\n",
 					"\n",
 					"\n",
 					""
 				],
-				"execution_count": 96
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"\n",
 					"df_updated = (\n",
 					"    df_mapped.alias(\"m\")\n",
 					"    .join(\n",
@@ -499,9 +505,31 @@
 					"        how=\"left\"\n",
 					"    )\n",
 					"    .withColumn(\n",
-					"        \"applicationSubtypeMapped\", F.col(\"c.applicationSubtypeMapped\"))\n",
+					"        \"applicationSubtypeMapped\", F.col(\"c.applicationSubtypeMapped\")\n",
 					"    )\n",
 					"    .drop(\"c.applicationSubtypeMapped\")\n",
+					")\n",
+					"\n",
+					"\n",
+					"\n",
+					"df_mapped = df_updated\n",
+					"\n",
+					"display(df_mapped.limit(5))\n",
+					"\n",
+					""
+				],
+				"execution_count": 101
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# not required\n",
+					"df_mapped.select(\"caseReference\", \"hznReference\", \"applicationSubtypeMapped\",\"applicationSubtype\") \\\n",
+					"    .filter(F.col(\"hznReference\") == \"ROW/3172664\") \\\n",
+					"    .show(truncate=False)\n",
+					"\n",
+					"display(\n",
+					"    df_mapped.filter(F.col(\"hznReference\") == \"ROW/3172664\")\n",
 					")\n",
 					""
 				],
