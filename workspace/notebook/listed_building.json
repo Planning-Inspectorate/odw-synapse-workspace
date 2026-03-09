@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "601584ad-1bc8-4e42-88b2-f7042bc4d13b"
+				"spark.autotune.trackingId": "b2c0e080-7c01-46c0-bdb7-8e041090bbec"
 			}
 		},
 		"metadata": {
@@ -103,7 +103,7 @@
 					"import json\n",
 					"from datetime import datetime"
 				],
-				"execution_count": 19
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -123,7 +123,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -197,7 +197,7 @@
 					"    error_message = f\"Error appending data to the curated layer table : {str(e)[:800]}\"\n",
 					"    end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -215,22 +215,24 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"\n",
 					"if not error_message:\n",
 					"    start_exec_time = datetime.now()\n",
 					"    try:\n",
-					"\n",
 					"        # ---------------------------------------------------------\n",
-					"        # 1️⃣ Remove invalid rows before caching (PREVENT NULL ENTITY)\n",
+					"        # 1️⃣ CLEAN SOURCE DF — remove any NULL entity rows (safe)\n",
 					"        # ---------------------------------------------------------\n",
 					"        df = df.filter(\"entity IS NOT NULL\")\n",
 					"\n",
 					"        df.cache()\n",
 					"        insert_count = df.count()\n",
 					"\n",
+					"        # Check table existence\n",
 					"        table_exists = spark.catalog.tableExists(f\"{db_name}.{table_name.split('.')[-1]}\")\n",
 					"        print(f\"Table exists? {table_name} -> {table_exists}\")\n",
 					"\n",
 					"        if not table_exists:\n",
+					"            # Create table first time\n",
 					"            (df.write\n",
 					"               .format(\"delta\")\n",
 					"               .mode(\"errorifexists\")\n",
@@ -240,11 +242,12 @@
 					"            print(f\"Created table {table_name} with {insert_count} records\")\n",
 					"\n",
 					"        else:\n",
+					"            # Load delta table\n",
 					"            delta_table = DeltaTable.forName(spark, table_name)\n",
 					"            spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
 					"\n",
 					"            # ---------------------------------------------------------\n",
-					"            # 2️⃣ DELETE existing NULL entity rows from CURATED (ONCE)\n",
+					"            # 2️⃣ REMOVE EXISTING BAD ROWS FROM CURATED (ONCE)\n",
 					"            # ---------------------------------------------------------\n",
 					"            spark.sql(f\"\"\"\n",
 					"                DELETE FROM {table_name}\n",
@@ -252,15 +255,18 @@
 					"            \"\"\")\n",
 					"\n",
 					"            # ---------------------------------------------------------\n",
-					"            # 3️⃣ INSERT & UPDATE counts (unchanged)\n",
+					"            # 3️⃣ COUNT INSERTS & UPDATES BEFORE MERGE\n",
 					"            # ---------------------------------------------------------\n",
 					"            from pyspark.sql import functions as F\n",
+					"\n",
 					"            key_col = \"entity\"\n",
 					"            target_df = delta_table.toDF()\n",
 					"\n",
+					"            # columns to compare\n",
 					"            common_cols = [c for c in df.columns if c in target_df.columns]\n",
 					"            non_key_cols = [c for c in common_cols if c != key_col]\n",
 					"\n",
+					"            # INSERT detection\n",
 					"            inserts_count = (\n",
 					"                df.select(key_col)\n",
 					"                  .dropDuplicates([key_col])\n",
@@ -268,6 +274,7 @@
 					"                  .count()\n",
 					"            )\n",
 					"\n",
+					"            # UPDATE detection\n",
 					"            if non_key_cols:\n",
 					"                src_hash = df.withColumn(\n",
 					"                    \"hash\",\n",
@@ -280,9 +287,9 @@
 					"\n",
 					"                updates_count = (\n",
 					"                    src_hash.alias(\"s\")\n",
-					"                           .join(tgt_hash.alias(\"t\"), key_col)\n",
-					"                           .where(F.col(\"s.hash\") != F.col(\"t.hash\"))\n",
-					"                           .count()\n",
+					"                        .join(tgt_hash.alias(\"t\"), key_col)\n",
+					"                        .where(F.col(\"s.hash\") != F.col(\"t.hash\"))\n",
+					"                        .count()\n",
 					"                )\n",
 					"            else:\n",
 					"                updates_count = 0\n",
@@ -291,9 +298,9 @@
 					"            print(f\"[MERGE PLAN] Inserts={inserts_count}, Updates={updates_count}, Total={total_merge_count}\")\n",
 					"\n",
 					"            # ---------------------------------------------------------\n",
-					"            # 4️⃣ SAFE MERGE CONDITION — prevents NULL matches\n",
+					"            # 4️⃣ SAFE MERGE CONDITION (prevents NULL insert)\n",
 					"            # ---------------------------------------------------------\n",
-					"            merge_condition = \"target.entity = source.entity AND source.entity IS NOT NULL\"\n",
+					"            merge_condition = \"target.entity = source.entity\"\n",
 					"\n",
 					"            (delta_table.alias(\"target\")\n",
 					"                .merge(\n",
@@ -318,7 +325,7 @@
 					"        except Exception:\n",
 					"            pass"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -368,7 +375,7 @@
 					"#     status_code\n",
 					"# )"
 				],
-				"execution_count": null
+				"execution_count": 25
 			}
 		]
 	}
