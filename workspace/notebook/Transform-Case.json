@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d35c953d-9d58-4b51-82f3-f05089e6a16a"
+				"spark.autotune.trackingId": "1b2165af-b10f-4b0f-b1ab-e20f15c6b726"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -99,7 +99,7 @@
 					"display(case_ref.limit(10))\n",
 					"print(\"case_ref rows:\", case_ref.count())"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -133,7 +133,7 @@
 					"print(\"filtered cases:\", filtered_cases.count())\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +171,7 @@
 					"display(attrs_filtered.limit(5))\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -184,7 +184,7 @@
 					"print(\"Remaining attr cols:\", len(attrs_clean.columns))\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -209,7 +209,7 @@
 					"print(\"cases_joined rows:\", cases_joined.count())\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -236,7 +236,7 @@
 					"display(final_df.limit(10))\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -297,7 +297,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -311,7 +311,7 @@
 					"final_df_named = df\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -323,7 +323,7 @@
 					"display(final_df_named)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -331,7 +331,7 @@
 					"df = final_df_named.cache()\n",
 					"df.count()"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -349,7 +349,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -366,7 +366,7 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -376,7 +376,7 @@
 					"    .orderBy(F.col(\"caseTypeId\").cast(\"int\")) \\\n",
 					"    .show(truncate=False)"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -386,7 +386,7 @@
 				"source": [
 					"display(df_mapped.limit(10))"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -395,7 +395,7 @@
 					"df.groupBy(\"applicationSubtype\").count().show(100, truncate=False)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -440,7 +440,66 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 37
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df_mapped.select(\"hznReference\").distinct().show(2, truncate=False)\n",
+					"\n",
+					"   \n",
+					"df_mapped.select(\"caseReference\", \"hznReference\", \"applicationSubtypeMapped\",\"applicationSubtype\") \\\n",
+					"    .filter(F.col(\"hznReference\") == \"ROW/3172664\") \\\n",
+					"    .show(truncate=False)\n",
+					"\n",
+					"display(\n",
+					"    df_mapped.filter(F.col(\"hznReference\") == \"ROW/3172664\")\n",
+					")\n",
+					""
+				],
+				"execution_count": 70
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"#df_mapped.columns\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"SUBTYPE_CLOSED_FROM_SS_FILE = f\"{mpesc_base_path}/config/Subtype_case_closed_from_spreadsheet.csv\"\n",
+					"\n",
+					"closed_case = (\n",
+					"    spark.read\n",
+					"        .option(\"header\", True)\n",
+					"        .option(\"sep\", \",\")\n",
+					"        .option(\"inferSchema\", True)\n",
+					"        .csv(SUBTYPE_CLOSED_FROM_SS_FILE)\n",
+					")\n",
+					"\n",
+					"display(closed_case.limit(10))\n",
+					"\n",
+					"df_updated = (\n",
+					"    df_mapped.alias(\"m\")\n",
+					"    .join(\n",
+					"        closed_case.select(\"hznReference\", \"applicationSubtypeMapped\").alias(\"c\"),\n",
+					"        on=\"hznReference\",\n",
+					"        how=\"left\"\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"applicationSubtypeMapped\",\n",
+					"        F.coalesce(F.col(\"c.applicationSubtypeMapped\"), F.col(\"m.applicationSubtypeMapped\"))\n",
+					"    )\n",
+					"    .drop(\"c.applicationSubtypeMapped\")\n",
+					")\n",
+					"\n",
+					""
+				],
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -451,7 +510,7 @@
 					").distinct().orderBy(\"applicationSubtype\").show(truncate=False)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -567,7 +626,7 @@
 					"display(user_clean.limit(20))\n",
 					"print(\"User rows:\", user_clean.count())"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -600,7 +659,7 @@
 					"    .drop(\"caseOwnerId_str\", \"idpUserId\")\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -613,7 +672,7 @@
 					"df_mapped = df_mapped.withColumn(\"name\", F.col(\"hznReference\"))\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -621,7 +680,7 @@
 					"df_mapped.select(\"caseOfficerId\").show(10, truncate=False)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -704,7 +763,7 @@
 					"display(address_lookup.limit(20))\n",
 					"print(\"address_lookup rows:\", address_lookup.count())"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -726,7 +785,7 @@
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -748,7 +807,7 @@
 					"\n",
 					"display(df_mapped.select(\"band\", \"band_id\").distinct())"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -785,7 +844,7 @@
 					"    .orderBy(\"processingStateAttr\")\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -802,7 +861,7 @@
 					"     .otherwise(F.lit(None))\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -829,7 +888,7 @@
 					"display(cases_df)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -850,7 +909,7 @@
 					"case_ids\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -921,7 +980,7 @@
 					"print(\"Updated Cases.csv with GUIDs (without overwriting existing GUIDs):\", final_file)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -970,7 +1029,7 @@
 					"df_mapped = df_mapped2.filter(F.col(\"caseGuid\").isNotNull())\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -1040,7 +1099,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -1075,7 +1134,7 @@
 					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -1147,7 +1206,7 @@
 					"print(\"Rows after join:\", df_mapped.count())\n",
 					"display(df_mapped.select(\"caseNodeId_str\", \"caseReceiptDate\", \"advertisedModificationId\").limit(50))"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
