@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8763e61a-e611-4a4d-91f2-5546c25bc077"
+				"spark.autotune.trackingId": "18b83a9e-5c06-406c-9949-fcb6eb42b5e0"
 			}
 		},
 		"metadata": {
@@ -70,14 +70,14 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 79
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": null
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(decision_raw.limit(10))"
 				],
-				"execution_count": null
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +142,107 @@
 					"print(\"Decision rows (selected):\", decision_ready.count())\n",
 					"display(decision_ready.limit(50))"
 				],
-				"execution_count": null
+				"execution_count": 82
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# LOAD CASE DECISION DATE ONLY\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"SRC_PATH = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Dates_95499/\"\n",
+					"\n",
+					"case_decision_dates = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"mode\", \"PERMISSIVE\")\n",
+					"    .load(SRC_PATH)\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.when(\n",
+					"            F.col(\"14\").isNull() |\n",
+					"            (F.trim(F.col(\"14\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"14\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"14\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"caseDecisionDate\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.col(\"legacyCaseId\").isNotNull() &\n",
+					"        (F.col(\"legacyCaseId\") != \"\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\n",
+					"    \"Case Dates rows with non-null caseDecisionDate:\",\n",
+					"    case_decision_dates.filter(F.col(\"caseDecisionDate\").isNotNull()).count()\n",
+					")\n",
+					"\n",
+					"display(case_decision_dates.filter(F.col(\"caseDecisionDate\").isNotNull()).limit(50))\n",
+					"\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# NORMALISE decision_ready JOIN KEY\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"decision_ready = decision_ready.withColumn(\n",
+					"    \"legacyCaseId\",\n",
+					"    F.trim(F.col(\"legacyCaseId\").cast(\"string\"))\n",
+					")\n",
+					"\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# FILL decisionIssue FROM CASE DATES\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"decision_ready = (\n",
+					"    decision_ready.alias(\"d\")\n",
+					"    .join(case_decision_dates.alias(\"cd\"), \"legacyCaseId\", \"left\")\n",
+					"    .select(\n",
+					"        \"legacyCaseId\",\n",
+					"        *[\n",
+					"            (\n",
+					"                F.coalesce(F.col(\"d.decisionIssue\"), F.col(\"cd.caseDecisionDate\")).alias(\"decisionIssue\")\n",
+					"                if c == \"decisionIssue\"\n",
+					"                else F.col(f\"d.{c}\")\n",
+					"            )\n",
+					"            for c in decision_ready.columns\n",
+					"            if c != \"legacyCaseId\"\n",
+					"        ]\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\n",
+					"    \"Rows with decisionIssue after Case Dates join:\",\n",
+					"    decision_ready.filter(F.col(\"decisionIssue\").isNotNull()).count()\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    decision_ready.select(\"legacyCaseId\", \"decisionIssue\").limit(50)\n",
+					")\n",
+					"\n",
+					"print(\n",
+					"    \"Rows where Case Dates supplied decisionIssue:\",\n",
+					"    decision_ready.alias(\"d\")\n",
+					"    .join(case_decision_dates.alias(\"cd\"), \"legacyCaseId\", \"left\")\n",
+					"    .filter(F.col(\"cd.caseDecisionDate\").isNotNull())\n",
+					"    .filter(F.col(\"d.decisionIssue\").isNotNull())\n",
+					"    .count()\n",
+					")"
+				],
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -289,7 +389,7 @@
 					"print(\"Decision rows (combined):\", decision_ready.count())\n",
 					"display(sos_ready.limit(100))"
 				],
-				"execution_count": null
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -317,7 +417,7 @@
 					"null_count = sos_ready.filter(F.col(\"decisionType\").isNull()).count()\n",
 					"print(\"Null decisionType rows:\", null_count)"
 				],
-				"execution_count": null
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -379,7 +479,7 @@
 					"print(\"Decision rows (combined):\", decision_ready.count())\n",
 					"display(mod_ready.limit(20))"
 				],
-				"execution_count": null
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -401,7 +501,7 @@
 					"print(\"Cases columns:\", cases_raw.columns)   # should be ['Case ID', 'GUID']\n",
 					"display(cases_raw.limit(20))"
 				],
-				"execution_count": null
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -422,7 +522,7 @@
 					"print(\"cases_key rows:\", cases_key.count())\n",
 					"display(cases_key.limit(20))"
 				],
-				"execution_count": null
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -439,7 +539,7 @@
 					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
 					"display(decision_with_guid.limit(50))"
 				],
-				"execution_count": null
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -455,7 +555,7 @@
 					"# how many actually have a decisionType?\n",
 					"print(\"Rows with decisionType:\", decision_with_guid.filter(F.col(\"decisionType\").isNotNull()).count())"
 				],
-				"execution_count": null
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -480,7 +580,7 @@
 					"display(decision_final.limit(50))\n",
 					"print(\"Final row count:\", decision_final.count())"
 				],
-				"execution_count": null
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -570,7 +670,7 @@
 					"\n",
 					"display(decision_mapped.select(\"decisionType\", \"outcomeId\").dropDuplicates().orderBy(\"decisionType\"))"
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -589,7 +689,7 @@
 					"display(unmapped)\n",
 					"print(\"Unmapped distinct decisionType values:\", unmapped.count())"
 				],
-				"execution_count": null
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
