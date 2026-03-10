@@ -1,0 +1,612 @@
+{
+	"name": "nb_template_notebook",
+	"properties": {
+		"folder": {
+			"name": "templates"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "acaaba97-56b9-4a61-a28f-6256af0e79b9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Template Notebook - PINS Coding Standards\n",
+					"\n",
+					"**Purpose:** Generic template for CSV/DataFrame ingestion and transformation across all layers    \n",
+					"**Inputs:**  \n",
+					"- source_folder: Source folder name in raw container  \n",
+					"- date_folder: Optional specific date folder to process  \n",
+					"- specific_file: Optional specific file to process  \n",
+					"- environment: dev, test, prod  \n",
+					"- database_name: Target database name  \n",
+					"- table_name: Target table name  \n",
+					"- delete_existing_table: Whether to delete existing table before loading  \n",
+					"\n",
+					"**Outputs:**  \n",
+					"- Delta table in specified database  \n",
+					"\n",
+					"**Standards:**  \n",
+					"- Parameterisation - no hardcoded values  \n",
+					"- Modular functions - single responsibility, reusable  \n",
+					"- Logging via odw/core utilities (LoggingUtil)  \n",
+					"- Secure secret retrieval via Key Vault  \n",
+					"- Error handling with fail-fast behavior  \n",
+					"- Delta Lake best practices  \n",
+					"- Strong naming conventions (snake_case)  \n",
+					"- No hidden globals - explicit parameter passing\n",
+					"\n",
+					"| Date | Author | Ticket | Description |\n",
+					"|------|--------|--------|-------------|\n",
+					"| 2026-03-05 | Stef Deligia | THEODW-2520 | Initial template creation - Enterprise coding standards |\n",
+					"\n",
+					"---\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Spark Configuration (Optional - only if large files)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Uncomment if processing large files (several GBs)\n",
+					"# %%configure -f\n",
+					"# {\n",
+					"#     \"conf\": {\n",
+					"#         \"spark.kryoserializer.buffer.max\": \"2047m\",\n",
+					"#         \"spark.driver.maxResultSize\": \"10g\",\n",
+					"#         \"spark.rpc.message.maxSize\": \"1280\"\n",
+					"#     }\n",
+					"# }"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Import ONLY Required Modules"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Example libraries to import - replace with actual required imports for your functionality\n",
+					"# Standard library imports\n",
+					"import json\n",
+					"from datetime import datetime, timezone\n",
+					"from typing import Dict, Any, List\n",
+					"\n",
+					"# PySpark imports\n",
+					"from pyspark.sql import SparkSession, DataFrame\n",
+					"from pyspark.sql.functions import col, lit, current_timestamp, input_file_name\n",
+					"from pyspark.sql.types import StructType, StructField, StringType\n",
+					"from delta import DeltaTable\n",
+					"\n",
+					"# Synapse utilities\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"# ODW core utilities\n",
+					"from odw.core.util.logging_util import LoggingUtil\n",
+					"from odw.core.util.util import Util\n",
+					"from odw.core.util.table_util import TableUtil\n",
+					"from odw.core.io.synapse_file_data_io import SynapseFileDataIO\n",
+					"\n",
+					"# Initialize logging\n",
+					"logging_util = LoggingUtil()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Define Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"# Pipeline parameters - these will be injected by Synapse pipelines\n",
+					"source_folder = \"\"  # e.g., \"Horizon\", \"ServiceBus\"\n",
+					"date_folder = \"\"  # Optional: specific date folder to process\n",
+					"specific_file = \"\"  # Optional: if not provided, process all files\n",
+					"environment = \"dev\"  # dev, test, prod\n",
+					"database_name = \"odw_standardised_db\"  # target database\n",
+					"table_name = \"appeal_has\"  # target table name\n",
+					"truncate_existing_table = False  # whether to truncate existing table before loading\n",
+					"\n",
+					"# Tracking metrics\n",
+					"start_execution_time = datetime.now(timezone.utc)\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Validate Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Validate required parameters are present\n",
+					"try:\n",
+					"    source_folder\n",
+					"except NameError:\n",
+					"    source_folder = \"\"\n",
+					"\n",
+					"try:\n",
+					"    database_name\n",
+					"except NameError:\n",
+					"    database_name = \"\"\n",
+					"\n",
+					"try:\n",
+					"    table_name\n",
+					"except NameError:\n",
+					"    table_name = \"\"\n",
+					"\n",
+					"try:\n",
+					"    environment\n",
+					"except NameError:\n",
+					"    environment = \"dev\"\n",
+					"\n",
+					"try:\n",
+					"    date_folder\n",
+					"except NameError:\n",
+					"    date_folder = \"\"\n",
+					"\n",
+					"try:\n",
+					"    specific_file\n",
+					"except NameError:\n",
+					"    specific_file = \"\"\n",
+					"\n",
+					"try:\n",
+					"    truncate_existing_table\n",
+					"except NameError:\n",
+					"    truncate_existing_table = False\n",
+					"\n",
+					"# Strip whitespace and validate required parameters\n",
+					"source_folder = (source_folder or \"\").strip()\n",
+					"database_name = (database_name or \"\").strip()\n",
+					"table_name = (table_name or \"\").strip()\n",
+					"environment = (environment or \"dev\").strip()\n",
+					"\n",
+					"# Assert required parameters\n",
+					"assert source_folder, \"Missing required param: source_folder\"\n",
+					"assert database_name, \"Missing required param: database_name\"\n",
+					"assert table_name, \"Missing required param: table_name\"\n",
+					"assert environment in [\"dev\", \"test\", \"prod\"], f\"Invalid environment: {environment}\"\n",
+					"\n",
+					"logging_util.log_info(f\"Parameters validated - source_folder: {source_folder}, database: {database_name}, table: {table_name}, environment: {environment}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Initialize Spark Session and Configuration"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Initialize Spark session\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"# Get storage account using odw/core utility\n",
+					"storage_account = Util.get_storage_account()\n",
+					"\n",
+					"# Configure paths using parameters\n",
+					"source_container = \"odw-raw\"\n",
+					"target_container = \"odw-standardised\"  # Change based on layer: odw-raw, odw-standardised, odw-harmonised, odw-curated\n",
+					"\n",
+					"source_path = f\"abfss://{source_container}@{storage_account}/{source_folder}/\"\n",
+					"target_path = f\"abfss://{target_container}@{storage_account}\"\n",
+					"\n",
+					"logging_util.log_info(f\"Source path: {source_path}\")\n",
+					"logging_util.log_info(f\"Target path: {target_path}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Helper Functions - Configuration Retrieval"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Import your specific transformation functions from odw.package\n",
+					"# Example: from odw.etl.my_entity import get_latest_folder, get_files_to_process, load_config\n",
+					"\n",
+					"# Placeholder - replace with actual function calls from ODW package\n",
+					"# These functions should be implemented in the odw.package and imported here\n",
+					"pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Helper Functions - Schema and Table Management"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Import your schema and table management functions from odw.package\n",
+					"# Example: from odw.etl.my_entity import load_schema, ensure_table_exists\n",
+					"\n",
+					"# Placeholder - replace with actual function calls from ODW package\n",
+					"pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Helper Functions - Data Processing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Import your data processing functions from odw.package\n",
+					"# Example: from odw.etl.my_entity import read_source, transform_data, write_to_delta\n",
+					"\n",
+					"# Placeholder - replace with actual function calls from ODW package\n",
+					"# All data reading, transformation, and writing logic should be in the ODW package\n",
+					"pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Helper Functions - Telemetry"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Import your telemetry functions from odw.package\n",
+					"# Example: from odw.telemetry import get_run_context, build_telemetry_payload\n",
+					"\n",
+					"# Placeholder - replace with actual function calls from ODW package\n",
+					"pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Main Processing Function"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Import your main processing orchestrator from odw.package\n",
+					"# Example: from odw.etl.my_entity import process_files\n",
+					"\n",
+					"# Placeholder - the main orchestration logic should be in the ODW package\n",
+					"# This notebook should primarily call ODW package functions with the right parameters\n",
+					"pass"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Main Execution Logic"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# TODO: Replace with your entity-specific ETL orchestration from odw.package\n",
+					"# Example:\n",
+					"# from odw.etl.my_entity import run_etl\n",
+					"#\n",
+					"# try:\n",
+					"#     logging_util.log_info(\"Starting ETL execution\")\n",
+					"#\n",
+					"#     # Call the main ETL function from ODW package with parameters\n",
+					"#     result = run_etl(\n",
+					"#         spark=spark,\n",
+					"#         source_folder=source_folder,\n",
+					"#         date_folder=date_folder,\n",
+					"#         specific_file=specific_file,\n",
+					"#         database_name=database_name,\n",
+					"#         table_name=table_name,\n",
+					"#         truncate_existing_table=truncate_existing_table,\n",
+					"#         storage_account=storage_account,\n",
+					"#         environment=environment\n",
+					"#     )\n",
+					"#\n",
+					"#     logging_util.log_info(f\"ETL completed successfully. Rows processed: {result['row_count']}\")\n",
+					"#     mssparkutils.notebook.exit(json.dumps({\n",
+					"#         \"status\": \"SUCCESS\",\n",
+					"#         \"rowCount\": result.get('row_count', 0),\n",
+					"#         \"insertCount\": result.get('insert_count', 0),\n",
+					"#         \"updateCount\": result.get('update_count', 0),\n",
+					"#         \"deleteCount\": result.get('delete_count', 0)\n",
+					"#     }))\n",
+					"#\n",
+					"# except Exception as e:\n",
+					"#     error_message = str(e)\n",
+					"#     logging_util.log_error(f\"ETL failed: {error_message}\")\n",
+					"#     logging_util.log_exception(e)\n",
+					"#     mssparkutils.notebook.exit(json.dumps({\n",
+					"#         \"status\": \"FAILED\",\n",
+					"#         \"errorMessage\": error_message,\n",
+					"#         \"rowCount\": 0\n",
+					"#     }))\n",
+					"\n",
+					"# Placeholder - implement your ETL logic in ODW package\n",
+					"logging_util.log_info(\"Notebook template - replace with ODW package calls\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
