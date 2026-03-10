@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2a5e84da-869d-4553-b464-e928f9ba00e8"
+				"spark.autotune.trackingId": "e04c277c-30e1-4c9e-85ac-7e29dfbdd547"
 			}
 		},
 		"metadata": {
@@ -815,8 +815,12 @@
 					"        logInfo(f\"Writing to {table_name}\")\n",
 					"        insert_count = final_df.count()\n",
 					"\n",
+					"        # Get path of External table\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"        table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
+					"\n",
 					"        # Create/overwrite standardised HAS table\n",
-					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\n",
+					"        final_df.write.mode(\"overwrite\").option(\"path\", table_path).saveAsTable(table_name)\n",
 					"        logInfo(f\"Written to {table_name}\")\n",
 					"\n",
 					"        end_exec_time = datetime.now()\n",
