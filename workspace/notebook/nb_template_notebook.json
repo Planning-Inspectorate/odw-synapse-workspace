@@ -244,6 +244,85 @@
 					}
 				},
 				"source": [
+					"## Validate Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Validate required parameters are present\n",
+					"try:\n",
+					"    source_folder\n",
+					"except NameError:\n",
+					"    source_folder = \"\"\n",
+					"\n",
+					"try:\n",
+					"    database_name\n",
+					"except NameError:\n",
+					"    database_name = \"\"\n",
+					"\n",
+					"try:\n",
+					"    table_name\n",
+					"except NameError:\n",
+					"    table_name = \"\"\n",
+					"\n",
+					"try:\n",
+					"    environment\n",
+					"except NameError:\n",
+					"    environment = \"dev\"\n",
+					"\n",
+					"try:\n",
+					"    date_folder\n",
+					"except NameError:\n",
+					"    date_folder = \"\"\n",
+					"\n",
+					"try:\n",
+					"    specific_file\n",
+					"except NameError:\n",
+					"    specific_file = \"\"\n",
+					"\n",
+					"try:\n",
+					"    truncate_existing_table\n",
+					"except NameError:\n",
+					"    truncate_existing_table = False\n",
+					"\n",
+					"# Strip whitespace and validate required parameters\n",
+					"source_folder = (source_folder or \"\").strip()\n",
+					"database_name = (database_name or \"\").strip()\n",
+					"table_name = (table_name or \"\").strip()\n",
+					"environment = (environment or \"dev\").strip()\n",
+					"\n",
+					"# Assert required parameters\n",
+					"assert source_folder, \"Missing required param: source_folder\"\n",
+					"assert database_name, \"Missing required param: database_name\"\n",
+					"assert table_name, \"Missing required param: table_name\"\n",
+					"assert environment in [\"dev\", \"test\", \"prod\"], f\"Invalid environment: {environment}\"\n",
+					"\n",
+					"logging_util.log_info(f\"Parameters validated - source_folder: {source_folder}, database: {database_name}, table: {table_name}, environment: {environment}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
 					"## Initialize Spark Session and Configuration"
 				]
 			},
@@ -505,13 +584,23 @@
 					"#     )\n",
 					"#\n",
 					"#     logging_util.log_info(f\"ETL completed successfully. Rows processed: {result['row_count']}\")\n",
-					"#     mssparkutils.notebook.exit(\"SUCCESS\")\n",
+					"#     mssparkutils.notebook.exit(json.dumps({\n",
+					"#         \"status\": \"SUCCESS\",\n",
+					"#         \"rowCount\": result.get('row_count', 0),\n",
+					"#         \"insertCount\": result.get('insert_count', 0),\n",
+					"#         \"updateCount\": result.get('update_count', 0),\n",
+					"#         \"deleteCount\": result.get('delete_count', 0)\n",
+					"#     }))\n",
 					"#\n",
 					"# except Exception as e:\n",
 					"#     error_message = str(e)\n",
 					"#     logging_util.log_error(f\"ETL failed: {error_message}\")\n",
 					"#     logging_util.log_exception(e)\n",
-					"#     mssparkutils.notebook.exit(f\"FAILED: {error_message}\")\n",
+					"#     mssparkutils.notebook.exit(json.dumps({\n",
+					"#         \"status\": \"FAILED\",\n",
+					"#         \"errorMessage\": error_message,\n",
+					"#         \"rowCount\": 0\n",
+					"#     }))\n",
 					"\n",
 					"# Placeholder - implement your ETL logic in ODW package\n",
 					"logging_util.log_info(\"Notebook template - replace with ODW package calls\")"
