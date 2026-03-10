@@ -1,6 +1,5 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
-import odw.core.util.logging_util
 import pytest
 import mock
 from logging import Logger
@@ -9,7 +8,7 @@ import logging
 
 def get_new_logging_instance():
     with mock.patch.object(LoggingUtil, "__new__", return_value=object.__new__(LoggingUtil)):
-        with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
+        with mock.patch.object(LoggingUtil, "setup_logging"):
             return LoggingUtil()
 
 
@@ -26,11 +25,10 @@ def test_logging_util__initialise():
     mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
     with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
         with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value="some_connection_string;blah;blah"):
-            with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
+            with mock.patch.object(LoggingUtil, "setup_logging"):
                 logging_util_inst = LoggingUtil()
                 assert logging_util_inst.pipelinejobid == "some_guid"
                 assert isinstance(logging_util_inst.logger, Logger)
-                odw.core.util.logging_util.configure_azure_monitor.assert_called_once()
 
 
 def test_logging_util__log_info():
@@ -91,10 +89,9 @@ def test_logging_util__logging_to_appins__with_args():
 
     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
         with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
-            with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
-                resp = my_function_with_args(1, 2, c="bob")
-                LoggingUtil.log_info.assert_called_once_with(f"Function my_function_with_args called with args: {', '.join(args_repr + kwargs_repr)}")
-                assert resp == "Hello world (1, 2, bob)"
+            resp = my_function_with_args(1, 2, c="bob")
+            LoggingUtil.log_info.assert_called_once_with(f"Function my_function_with_args called with args: {', '.join(args_repr + kwargs_repr)}")
+            assert resp == "Hello world (1, 2, bob)"
 
 
 def test_logging_util__logging_to_appins__with_notebook_exception():
