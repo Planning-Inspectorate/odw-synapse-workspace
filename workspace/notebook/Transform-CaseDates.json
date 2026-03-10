@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "338bf00d-2653-421b-976b-a6d16517b251"
+				"spark.autotune.trackingId": "bc69e004-cf48-4e52-8dde-e7e1fa90bbdd"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -94,7 +94,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -156,7 +156,7 @@
 					"}\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -180,7 +180,92 @@
 					"\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# LOAD MODIFICATION DATES\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"mod_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Modification_15809003/\"\n",
+					"\n",
+					"mods_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"inferSchema\", \"false\")\n",
+					"    .load(mod_path)\n",
+					")\n",
+					"\n",
+					"mods_dates = (\n",
+					"    mods_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"\n",
+					"        # Attr 4 = Proposed Mods Advertised\n",
+					"        F.when(\n",
+					"            F.col(\"4\").isNull() |\n",
+					"            (F.trim(F.col(\"4\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"4\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"4\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"proposedModificationsDate\"),\n",
+					"\n",
+					"        # Attr 5 = Objection Period Ends\n",
+					"        F.when(\n",
+					"            F.col(\"5\").isNull() |\n",
+					"            (F.trim(F.col(\"5\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"5\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"5\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"objectionPeriodEndsDate\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"# If multiple modification rows exist per case, keep latest values\n",
+					"mods_dates = (\n",
+					"    mods_dates\n",
+					"    .groupBy(\"legacyCaseId\")\n",
+					"    .agg(\n",
+					"        F.max(\"proposedModificationsDate\").alias(\"proposedModificationsDate\"),\n",
+					"        F.max(\"objectionPeriodEndsDate\").alias(\"objectionPeriodEndsDate\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(mods_dates.limit(50))\n",
+					"\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# JOIN MODIFICATION DATES INTO df3\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"df3 = (\n",
+					"    df3\n",
+					"    .withColumn(\"legacyCaseId\", F.trim(F.col(\"legacyCaseId\").cast(\"string\")))\n",
+					"    .join(mods_dates, \"legacyCaseId\", \"left\")\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    df3.select(\n",
+					"        \"legacyCaseId\",\n",
+					"        \"proposedModificationsDate\",\n",
+					"        \"objectionPeriodEndsDate\"\n",
+					"    ).limit(50)\n",
+					")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -204,9 +289,9 @@
 					"        F.lit(None).cast(\"timestamp\").alias(\"proposalLetterDate\"),\n",
 					"        F.lit(None).cast(\"timestamp\").alias(\"expiryDate\"),\n",
 					"        F.lit(None).cast(\"timestamp\").alias(\"partiesDecisionNotificationDeadlineDate\"),\n",
-					"        F.lit(\"appealValidDate\").cast(\"timestamp\").alias(\"caseOfficerVerificationDate\"),\n",
-					"        F.lit(None).cast(\"timestamp\").alias(\"proposedModificationsDate\"),\n",
-					"        F.lit(None).cast(\"timestamp\").alias(\"objectionPeriodEndsDate\"),\n",
+					"        F.col(\"appealValidDate\"),\n",
+					"        F.col(\"proposedModificationsDate\"),\n",
+					"        F.col(\"objectionPeriodEndsDate\"),\n",
 					"    )\n",
 					")\n",
 					"\n",
@@ -214,7 +299,7 @@
 					"display(case_dates_target.limit(50))\n",
 					""
 				],
-				"execution_count": 13
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -262,7 +347,7 @@
 					"display(case_dates_ready.select(\"id\",\"caseId\",\"legacyCaseId\",\"startDate\",\"targetDecisionDate\").limit(50))\n",
 					""
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -290,7 +375,7 @@
 					"display(final_df)\n",
 					""
 				],
-				"execution_count": 15
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -311,7 +396,7 @@
 					"print(\"CaseDates written to:\", OUT_DIR)\n",
 					""
 				],
-				"execution_count": 16
+				"execution_count": null
 			}
 		]
 	}
