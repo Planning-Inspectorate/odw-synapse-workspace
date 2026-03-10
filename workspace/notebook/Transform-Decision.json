@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f4fbf684-007a-406d-80fb-e9a3f36f4c8f"
+				"spark.autotune.trackingId": "e51badaa-a538-4105-b6c9-243b4a478862"
 			}
 		},
 		"metadata": {
@@ -393,7 +393,7 @@
 					"    decision_with_guid\n",
 					"    .withColumn(\"decisionTypeNorm\", dt)\n",
 					"    .withColumn(\n",
-					"        \"outcomeId\",\n",
+					"        \"dectype\",\n",
 					"        F.when(\n",
 					"            F.col(\"decisionType\").isNull() |\n",
 					"            (F.trim(F.col(\"decisionType\")) == \"\") |\n",
@@ -476,7 +476,7 @@
 					"\n",
 					"display(\n",
 					"    decision_mapped\n",
-					"    .select(\"decisionType\", \"decisionTypeNorm\", \"outcomeId\")\n",
+					"    .select(\"decisionType\", \"decisionTypeNorm\", \"dectype\")\n",
 					"    .dropDuplicates()\n",
 					"    .orderBy(\"decisionType\")\n",
 					")"
@@ -491,7 +491,7 @@
 				"source": [
 					"display(\n",
 					"    decision_mapped\n",
-					"    .groupBy(\"decisionType\", \"outcomeId\")\n",
+					"    .groupBy(\"decisionType\", \"dectype\")\n",
 					"    .count()\n",
 					"    .orderBy(F.desc(\"count\"))\n",
 					")"
@@ -504,13 +504,19 @@
 					"collapsed": false
 				},
 				"source": [
+					"\n",
 					"decision_final = (\n",
 					"    decision_mapped\n",
+					"    .withColumn(\n",
+					"        \"outcomeId\",\n",
+					"        F.expr(\"uuid()\")   # generates a GUID\n",
+					"    )\n",
 					"    .select(\n",
+					"        F.col(\"outcomeId\"),\n",
 					"        F.col(\"caseId\"),\n",
 					"        F.col(\"decisionIssue\"),\n",
 					"        F.col(\"decisionMakerType\"),\n",
-					"        F.col(\"outcomeId\"),\n",
+					"        F.col(\"dectype\"),\n",
 					"        F.col(\"decisionType\").alias(\"outcomeRaw\"),\n",
 					"        F.col(\"decisionBranch\"),\n",
 					"        F.col(\"casePublishFlag\"),\n",
