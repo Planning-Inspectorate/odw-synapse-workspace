@@ -106,6 +106,30 @@ The HTTP Pull pattern is used when ingestion is triggered externally, for exampl
 6. Successfully processed messages are completed in Service Bus.
 7. Downstream ODW processing reads the RAW data into later layers.
 
+---
+
+```mermaid
+sequenceDiagram
+    participant Synapse
+    participant KeyVault as Key Vault
+    participant FunctionApp as Function App
+    participant ServiceBus as Service Bus
+    participant Validator
+    participant Storage as Storage (RAW)
+    participant Standardised as ODW Standardised
+
+    Synapse->>KeyVault: Fetch Function URL
+    KeyVault->>Synapse: Return URL and access key
+    Synapse->>FunctionApp: HTTP GET request
+    FunctionApp->>ServiceBus: Read messages from main subscription
+    ServiceBus->>FunctionApp: Return messages
+    FunctionApp->>Validator: Validate against JSON schema
+    Validator->>FunctionApp: Validation result
+    FunctionApp->>Storage: Write valid messages
+    FunctionApp->>ServiceBus: Complete valid messages
+    Storage->>Standardised: Downstream processing
+```
+
 ### Wake & Drain pattern
 
 Wake & Drain separates **triggering** from **processing**.
@@ -145,6 +169,39 @@ appeal-document-odw-wake-sub
    - written to RAW storage if valid
    - completed if storage succeeds
    - explicitly dead-lettered if invalid
+
+---
+
+```mermaid
+sequenceDiagram
+    participant Producer
+    participant Topic as Service Bus Topic
+    participant WakeSub as Wake Subscription
+    participant MainSub as Main Subscription
+    participant Trigger as Function Trigger
+    participant Processor as WakeDrainProcessor
+    participant Validator
+    participant Storage as Storage (RAW)
+    participant Standardised as ODW Standardised
+
+    Producer->>Topic: Publish message
+    Topic->>WakeSub: Copy message
+    Topic->>MainSub: Copy message
+    WakeSub->>Trigger: Fire ServiceBusTrigger
+    Trigger->>Processor: Start processing
+    Processor->>MainSub: Drain messages
+    MainSub->>Processor: Return batch
+    Processor->>Validator: Validate payload
+
+    alt Valid
+        Processor->>Storage: Save payload
+        Processor->>MainSub: Complete message
+    else Invalid
+        Processor->>MainSub: Dead-letter message
+    end
+
+    Storage->>Standardised: Downstream processing
+```
 
 ### Important distinction
 
