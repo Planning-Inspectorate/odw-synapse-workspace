@@ -6,7 +6,7 @@ from typing import Dict, Union
 
 
 """
-This module contains various utiliity functions that can be used to run the etl process locally via patching
+This module contains various utility functions that can be used to run the etl process locally via patching
 """
 
 

@@ -48,7 +48,7 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             f"{unexpected_data_sample}"
             "\nExpected dataframe\n"
             f"{expected._jdf.showString(rows_to_show, 20, False)}"
-            "\Actual dataframe\n"
+            "\nActual dataframe\n"
             f"{actual._jdf.showString(rows_to_show, 20, False)}"
         )
     assert not data_mismatch, exception_message

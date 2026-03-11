@@ -8,8 +8,8 @@ import mock
 
 
 def test__synapse_file_data_io__read__successful(tmpdir):
-    spark_sesson = PytestSparkSessionUtil().get_spark_session()
-    mock_dataframe: DataFrame = spark_sesson.createDataFrame(
+    spark_session = PytestSparkSessionUtil().get_spark_session()
+    mock_dataframe: DataFrame = spark_session.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c")], StructType([StructField("id", IntegerType(), True), StructField("name", StringType(), True)])
     )
     mock_file_path = f"{tmpdir}/{test__synapse_file_data_io__read__successful}"
@@ -20,7 +20,7 @@ def test__synapse_file_data_io__read__successful(tmpdir):
     file_format = "parquet"
     with mock.patch.object(SynapseFileDataIO, "_format_to_adls_path", return_value=mock_file_path):
         actual_dataframe = SynapseFileDataIO().read(
-            storage_name=storage_name, container_name=container_name, blob_path=blob_path, file_format=file_format, spark=spark_sesson
+            storage_name=storage_name, container_name=container_name, blob_path=blob_path, file_format=file_format, spark=spark_session
         )
         assert_dataframes_equal(mock_dataframe, actual_dataframe)
 

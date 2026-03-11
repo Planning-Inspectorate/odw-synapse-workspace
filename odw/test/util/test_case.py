@@ -1,9 +1,9 @@
 class TestCase:
     """
-    Represents a test case with setup and teardown methods. This is to support using pytestx-dist, whic
+    Represents a test case with setup and teardown methods. This is to support using pytest-xdist, which
     does not respect pytest's session-level fixtures
 
-    If you need a setup or teardown to be called at the session-level withpytest-xdist, then
+    If you need a setup or teardown to be called at the session-level with pytest-xdist, then
     create your test using the test case as the parent class, and implement one of the below methods
     """
 

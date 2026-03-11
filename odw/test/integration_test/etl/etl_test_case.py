@@ -68,7 +68,7 @@ class ETLTestCase(TestCase):
         mode: str,
         options: Dict[str, Any] = dict(),
     ):
-        logging.info(f"Createing table '{database_name}.{table_name}'")
+        logging.info(f"Creating table '{database_name}.{table_name}'")
         spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
         table_path = f"{database_name}.{table_name}"
         data_path = format_to_adls_path(None, container, blob_path)
