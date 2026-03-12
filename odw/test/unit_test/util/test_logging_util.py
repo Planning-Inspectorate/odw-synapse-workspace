@@ -1,5 +1,8 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
+from opentelemetry.sdk._logs import LoggerProvider
+from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 import pytest
 import mock
 from logging import Logger

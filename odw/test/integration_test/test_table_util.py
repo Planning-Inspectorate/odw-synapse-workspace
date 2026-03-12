@@ -1,5 +1,4 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
-from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -8,6 +7,7 @@ import mock
 from datetime import datetime
 from pyspark.sql.types import StructType, StructField, IntegerType, LongType, StringType, TimestampType, ArrayType, MapType
 from pyspark.errors.exceptions.captured import AnalysisException
+from pyspark.sql import SparkSession
 from typing import Callable
 
 
@@ -36,7 +36,7 @@ DESCRIPTION_SCHEMA = StructType(
 
 
 def validate_table_deleted(database_name: str, table_name: str, raw_data_path: str, function_to_test: Callable):
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
         mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
         app_insights_connection_string = TEST_CONFIG["APP_INSIGHTS_CONNECTION_STRING"]

@@ -234,9 +234,11 @@ def get_all_odw_package_content():
             if not any(x in os.path.join(path, name) for x in module_content_to_exclude) and name.endswith(".py")
         ]
     )
+
     def get_module_content(module):
         with open(module, "r") as f:
             return f.read()
+
     python_modules_package_map = {x: x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load}
     module_content_map = {import_path: get_module_content(module) for module, import_path in python_modules_package_map.items()}
     return module_content_map
@@ -246,7 +248,7 @@ def extract_imports_from_file(module_content: str):
     try:
         abstract_syntax_tree = ast.parse(module_content)
     except SyntaxError as e:
-        print(f"Warning: Generated code has syntax errors. Aborting the process. Please review the code that raised the below exception")
+        print("Warning: Generated code has syntax errors. Aborting the process. Please review the code that raised the below exception")
         raise e
     abstract_syntax_tree_json = ast2json(abstract_syntax_tree)
     ast_attributes = AttributeExtractor().get_all_attributes(abstract_syntax_tree_json)
