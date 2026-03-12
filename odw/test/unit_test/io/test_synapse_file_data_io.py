@@ -12,7 +12,7 @@ def test__synapse_file_data_io__read__successful(tmpdir):
     mock_dataframe: DataFrame = spark_session.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c")], StructType([StructField("id", IntegerType(), True), StructField("name", StringType(), True)])
     )
-    mock_file_path = f"{tmpdir}/{test__synapse_file_data_io__read__successful}"
+    mock_file_path = f"{tmpdir}/test__synapse_file_data_io__read__successful"
     mock_dataframe.write.format("parquet").mode("overwrite").save(mock_file_path)
     storage_name = "somestorageaccount"
     container_name = "somecontainername"
@@ -42,11 +42,11 @@ def test__synapse_file_data_io__read__with_missing_arguments(argument_to_drop: s
 
 
 def test__synapse_file_data_io__write__successful(tmpdir):
-    spark_sesson = PytestSparkSessionUtil().get_spark_session()
-    mock_dataframe: DataFrame = spark_sesson.createDataFrame(
+    spark_session = PytestSparkSessionUtil().get_spark_session()
+    mock_dataframe: DataFrame = spark_session.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c")], StructType([StructField("id", IntegerType(), True), StructField("name", StringType(), True)])
     )
-    mock_file_path = f"{tmpdir}/{test__synapse_file_data_io__write__successful}"
+    mock_file_path = f"{tmpdir}/test__synapse_file_data_io__write__successful"
     storage_name = "somestorageaccount"
     container_name = "somecontainername"
     blob_path = "some/path/to/a/blob.parquet"
@@ -59,16 +59,16 @@ def test__synapse_file_data_io__write__successful(tmpdir):
             blob_path=blob_path,
             file_format=file_format,
             write_mode="overwrite",
-            spark=spark_sesson,
+            spark=spark_session,
         )
-        written_dataframe = spark_sesson.read.parquet(mock_file_path)
+        written_dataframe = spark_session.read.parquet(mock_file_path)
         assert_dataframes_equal(mock_dataframe, written_dataframe)
 
 
 @pytest.mark.parametrize("argument_to_drop", ["storage_name", "container_name", "blob_path", "file_format", "write_mode"])
 def test__synapse_file_data_io__write__with_missing_arguments(argument_to_drop: str):
-    spark_sesson = PytestSparkSessionUtil().get_spark_session()
-    mock_dataframe: DataFrame = spark_sesson.createDataFrame(
+    spark_session = PytestSparkSessionUtil().get_spark_session()
+    mock_dataframe: DataFrame = spark_session.createDataFrame(
         [],
         StructType(
             [
