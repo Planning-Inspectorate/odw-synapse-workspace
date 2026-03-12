@@ -31,9 +31,13 @@ class AttributeNotFoundException(Exception):
 @dataclass
 class JsonPropertyIteratorResult:
     parent_collection: Union[Dict[str, Any], List[Any]]
+    """The most recently-accessed collection"""
     attribute: str
+    """The most recently-accessed property"""
     value: Union[Dict[str, Any], List[Any], Any]
+    """The value associated with the most recent property in the most recent collection"""
     remaining_attribute: str
+    """The remaining attribute string"""
 
 
 class JsonPropertyIterator:
@@ -54,10 +58,7 @@ class JsonPropertyIterator:
 
     def __next__(self):
         """
-        :return: The most recently-accessed collection
-        :return: The most recently-accessed property
-        :return: The value associated with the most recent property in the most recent collection
-        :return: The remaining attribute string
+        :return: A JsonPropertyIteratorResult containing
 
         """
         if not self.attribute_split:
