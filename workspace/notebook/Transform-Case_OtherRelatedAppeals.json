@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6c809d23-8cf6-4f64-a507-d596292f5c9f"
+				"spark.autotune.trackingId": "ce6825d1-d38b-40dd-b8c4-2485a190cbe1"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 2
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -99,7 +99,7 @@
 					"display(case_ref.limit(5))\n",
 					"print(\"case_ref rows:\", case_ref.count())"
 				],
-				"execution_count": 3
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -107,34 +107,20 @@
 					"collapsed": false
 				},
 				"source": [
-					"PREFIXES = [\"ROW/\"]\n",
-					"\n",
-					"prefix_filter = None\n",
-					"for p in PREFIXES:\n",
-					"    cond = F.col(\"CaseReference\").startswith(p)\n",
-					"    prefix_filter = cond if prefix_filter is None else (prefix_filter | cond)\n",
-					"\n",
 					"filtered_cases = (\n",
 					"    case_ref\n",
-					"    .filter(prefix_filter & F.col(\"CaseParentId\").isNotNull())\n",
 					"    .select(\n",
-					"        F.col(\"CaseNodeId\").alias(\"caseNodeId\"),\n",
-					"        F.col(\"CaseReference\").alias(\"hznReference\"),\n",
-					"        F.col(\"CaseParentId\").alias(\"CaseParentId\")\n",
-					"    )\n",
-					"    .withColumn(\n",
-					"        \"IsLead\",\n",
-					"        F.when(F.col(\"caseNodeId\") == F.col(\"CaseParentId\"), F.lit(\"True\"))\n",
-					"         .otherwise(F.lit(\"False\"))\n",
-					"    )\n",
-					")\n",
+					"        F.col(\"Id\").alias(\"Case ID\"),\n",
+					"        F.col(\"69\").alias(\"Reference\")\n",
+					"        )\n",
 					"\n",
+					")\n",
 					"\n",
 					"display(filtered_cases.limit(3))\n",
 					"print(\"filtered cases:\", filtered_cases.count())\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -160,7 +146,29 @@
 					"display(cases_gui_ref.limit(5))\n",
 					"print(\"case_ref rows:\", cases_gui_ref.count())"
 				],
-				"execution_count": 4
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"from pyspark.sql.functions import col\n",
+					"\n",
+					"df_fil = cases_gui_ref.filter(col(\"Case ID\") == 20071315)\n",
+					"display(df_fil.limit(5))\n",
+					"\n",
+					"\n",
+					"df_fi = filtered_cases.filter(\n",
+					"    (col(\"Case ID\").isNotNull()) & (col(\"Case ID\") != \"\")\n",
+					")\n",
+					"display(df_fi.limit(3))\n",
+					"\n",
+					""
+				],
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -173,10 +181,10 @@
 					"    filtered_cases\n",
 					"        .join(\n",
 					"            cases_gui_ref.select(\n",
-					"                F.col(\"Case ID\").alias(\"CaseParentId\"),\n",
+					"                F.col(\"Case ID\"),\n",
 					"                F.col(\"GUID\")\n",
 					"            ),\n",
-					"            on=\"CaseParentId\",\n",
+					"            on=\"Case ID\",\n",
 					"            how=\"inner\"\n",
 					"        )\n",
 					")\n",
@@ -184,12 +192,12 @@
 					"\n",
 					""
 				],
-				"execution_count": 5
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"out_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/LinkedCases/\"\n",
+					"out_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/OtherRelatedAppeals/\"\n",
 					"\n",
 					"\n",
 					"(\n",
