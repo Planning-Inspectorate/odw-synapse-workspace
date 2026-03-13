@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "24739c5a-c801-477d-aa54-e3f9dc4ccbef"
+				"spark.autotune.trackingId": "bb8d1c2b-cf3b-433e-b255-ebda90c6555a"
 			}
 		},
 		"metadata": {
@@ -42,11 +42,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -131,12 +131,18 @@
 					"    except Exception as e:\n",
 					"        logInfo(f\"Could not read existing table '{full_table_name}' (may not exist yet). Proceeding without alignment. Details: {e}\")\n",
 					"    \n",
-					"    # Get exisiting path\n",
-					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {db_name}.{table_name}\")\n",
-					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
+					"    try:\n",
+					"        # Get exisiting path\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {db_name}.{table_name}\")\n",
+					"        table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\n",
 					"\n",
-					"    #  overwrite schema \n",
-					"    df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").option(\"path\", table_path).format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
+					"        #  overwrite schema \n",
+					"        df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").option(\"path\", table_path).format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
+					"    \n",
+					"    except:\n",
+					"        # create managed table\n",
+					"        df.write.mode(\"overwrite\").option(\"overwriteSchema\", \"true\").format(\"delta\").saveAsTable(f\"{db_name}.{table_name}\")\n",
+					"\n",
 					"\n",
 					"    #obsolete code removed"
 				],
