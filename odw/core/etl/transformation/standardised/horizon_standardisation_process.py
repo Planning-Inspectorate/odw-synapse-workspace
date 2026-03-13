@@ -209,7 +209,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
                 table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
                 write_mode = "append" if table_exists else "overwrite"
-                write_opts = [("mergeSchema", "true")] if table_exists else []
+                write_opts = {"mergeSchema": "true"} if table_exists else dict()
 
                 new_row_count += data.count()
                 data_to_write[f"odw_standardised_db.{table_name}"] = {

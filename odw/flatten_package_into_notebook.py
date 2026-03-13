@@ -31,9 +31,13 @@ class AttributeNotFoundException(Exception):
 @dataclass
 class JsonPropertyIteratorResult:
     parent_collection: Union[Dict[str, Any], List[Any]]
+    """The most recently-accessed collection"""
     attribute: str
+    """The most recently-accessed property"""
     value: Union[Dict[str, Any], List[Any], Any]
+    """The value associated with the most recent property in the most recent collection"""
     remaining_attribute: str
+    """The remaining attribute string"""
 
 
 class JsonPropertyIterator:
@@ -54,10 +58,7 @@ class JsonPropertyIterator:
 
     def __next__(self):
         """
-        :return: The most recently-accessed collection
-        :return: The most recently-accessed property
-        :return: The value associated with the most recent property in the most recent collection
-        :return: The remaining attribute string
+        :return: A JsonPropertyIteratorResult containing
 
         """
         if not self.attribute_split:
@@ -195,7 +196,7 @@ class AttributeExtractor:
 
         e.g.
         ```
-        my_dict = {"group": 1, "of": 2, "attributes": 3, "a_list": {"a", "b", "c}, "nested": {"a": 1, "b"; 2}}
+        my_dict = {"group": 1, "of": 2, "attributes": 3, "a_list": {"a", "b", "c"}, "nested": {"a": 1, "b": 2}}
         _extract_list_attributes(my_dict, "some_prefix")
         # Returns
         {
@@ -234,13 +235,22 @@ def get_all_odw_package_content():
             if not any(x in os.path.join(path, name) for x in module_content_to_exclude) and name.endswith(".py")
         ]
     )
+
+    def get_module_content(module):
+        with open(module, "r") as f:
+            return f.read()
+
     python_modules_package_map = {x: x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load}
-    module_content_map = {import_path: open(module, "r").read() for module, import_path in python_modules_package_map.items()}
+    module_content_map = {import_path: get_module_content(module) for module, import_path in python_modules_package_map.items()}
     return module_content_map
 
 
 def extract_imports_from_file(module_content: str):
-    abstract_syntax_tree = ast.parse(module_content)
+    try:
+        abstract_syntax_tree = ast.parse(module_content)
+    except SyntaxError as e:
+        print("Warning: Generated code has syntax errors. Aborting the process. Please review the code that raised the below exception")
+        raise e
     abstract_syntax_tree_json = ast2json(abstract_syntax_tree)
     ast_attributes = AttributeExtractor().get_all_attributes(abstract_syntax_tree_json)
     import_attr_types = {"Import", "ImportFrom"}
@@ -268,6 +278,8 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
     """
     dag = {module: extract_imports_from_file(module_content) for module, module_content in module_map.items()}
     if root:
+        if not os.path.exists(root):
+            raise FileNotFoundError(f"Root file '{root}' does not exist")
         root_as_module = root.replace(".py", "").replace(os.sep, ".")
         relations_to_explore = list(dag.get(root_as_module, None))
         if not relations_to_explore:
@@ -282,7 +294,7 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
     return dag
 
 
-def topological_sort(dag: dict[str, list[str]]) -> List[str]:
+def topological_sort(dag: Dict[str, List[str]]) -> List[str]:
     return list(TopologicalSorter(dag).static_order())
 
 

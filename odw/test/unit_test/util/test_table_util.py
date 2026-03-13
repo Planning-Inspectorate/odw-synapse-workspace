@@ -1,6 +1,7 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
+from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import SparkSession
 from pyspark.sql import Catalog
 import pytest
@@ -31,7 +32,7 @@ DESCRIPTION_SCHEMA = StructType(
 
 
 def get_sample_table_dataframe(table_details: List[Dict[str, str]], table_kind: str):
-    spark = SparkSession.builder.getOrCreate()
+    spark = PytestSparkSessionUtil().get_spark_session()
     datetime_format = "%Y-%m-%d %H:%M:%S.%f"
     return spark.createDataFrame(
         [
