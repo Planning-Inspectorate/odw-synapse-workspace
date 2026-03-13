@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw35",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4c07bb31-564d-4cde-a154-45ebda2f59d8"
+				"spark.autotune.trackingId": "d8c03878-9c2e-45cf-a869-316600159db9"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-				"name": "pinssynspodw35",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -259,9 +259,7 @@
 					"            df.write.format(\"delta\").mode(\"errorifexists\").saveAsTable(table_name)\n",
 					"            print(f\"[INFO] Created table {table_name}\")\n",
 					"\n",
-					"            \n",
 					"            insert_count = source_count\n",
-					"\n",
 					"            end_exec_time = datetime.now()\n",
 					"            return insert_count, update_count, delete_count, end_exec_time, error_message\n",
 					"\n",
@@ -312,6 +310,10 @@
 					"\n",
 					"        print(f\"[PLAN] Inserts = {insert_count}, Updates = {update_count}\")\n",
 					"\n",
+					"        # --- COLUMN MAPPING (UPDATED AS REQUESTED) ---------------------------\n",
+					"        update_mapping = {c: F.col(f\"s.`{c}`\") for c in non_key_cols}\n",
+					"        insert_mapping = {c: F.col(f\"s.`{c}`\") for c in common_cols}\n",
+					"\n",
 					"        # --- EXECUTE SAFE MERGE ---------------------------------------------\n",
 					"        (\n",
 					"            delta_table.alias(\"t\")\n",
@@ -321,10 +323,10 @@
 					"                )\n",
 					"                .whenMatchedUpdate(\n",
 					"                    condition=hash_diff_cond,\n",
-					"                    set={c: F.col(f\"s.{c}\") for c in non_key_cols}  # do not update key\n",
+					"                    set=update_mapping\n",
 					"                )\n",
 					"                .whenNotMatchedInsert(\n",
-					"                    values={c: F.col(f\"s.{c}\") for c in common_cols}\n",
+					"                    values=insert_mapping\n",
 					"                )\n",
 					"                .execute()\n",
 					"        )\n",
