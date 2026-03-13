@@ -174,7 +174,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
                 "blob_path": table_name,
                 "file_format": "delta",
                 "write_mode": "append",
-                "write_options": [("mergeSchema", "true")],
+                "write_options": {"mergeSchema": "true"},
             }
         }, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
