@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8f99b263-75cf-4b21-adeb-a23b113d952b"
+				"spark.autotune.trackingId": "40be680d-88fc-42fb-a6a9-72303d5621fb"
 			}
 		},
 		"metadata": {
@@ -275,6 +275,26 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"# Detect all date-like columns\n",
+					"date_cols = [c for c in view_df.columns if \"date\" in c.lower()]\n",
+					"\n",
+					"print(\"Detected date columns:\")\n",
+					"for c in date_cols:\n",
+					"     print(\" -\", c)\n",
+					"\n",
+					"# Apply generic 1900-01-01 filter to all detected date columns\n",
+					"filtered_df = view_df\n",
+					"for c in date_cols:\n",
+					"    filtered_df = filtered_df.filter(\n",
+					"        (F.col(c).isNull()) |\n",
+					"        (F.to_timestamp(F.col(c)) >= F.lit(\"1900-01-01\"))\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
 				},
@@ -315,7 +335,7 @@
 					"]\n",
 					"\n",
 					"# Apply the conversion in a loop\n",
-					"final_view_df = view_df\n",
+					"final_view_df = filtered_df\n",
 					"for column_name in timestamp_columns:\n",
 					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))\n",
 					""
