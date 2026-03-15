@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "24064d86-8c05-46f9-b963-df7b131a9aff"
+				"spark.autotune.trackingId": "1f5ae9ff-0544-4904-a271-1698490eec59"
 			}
 		},
 		"metadata": {
@@ -69,7 +69,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 38
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"print(\"CASE_OFFICER_PATH:\", CASE_OFFICER_PATH)\n",
 					"print(\"ENTRA_FOLDER_PATH:\", ENTRA_FOLDER_PATH)"
 				],
-				"execution_count": 39
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +106,7 @@
 					"\n",
 					"display(case_officer_raw.limit(20))"
 				],
-				"execution_count": 40
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"print(\"Clean rows:\", case_officer_clean.count())\n",
 					"display(case_officer_clean.limit(20))"
 				],
-				"execution_count": 41
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"print(\"Distinct case officer emails:\", case_officer_distinct_email.count())\n",
 					"display(case_officer_distinct_email.orderBy(\"caseOfficerEmailNorm\").limit(50))"
 				],
-				"execution_count": 42
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,7 @@
 					"    print(\"Fallback parsed users. Rows:\", entra_raw.count())\n",
 					"    print(\"Columns:\", entra_raw.columns)"
 				],
-				"execution_count": 43
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
@@ -253,7 +253,7 @@
 					"print(\"Entra dedup rows:\", entra_dedup.count())\n",
 					"display(entra_dedup.limit(20))"
 				],
-				"execution_count": 44
+				"execution_count": 75
 			},
 			{
 				"cell_type": "code",
@@ -306,7 +306,7 @@
 					"print(\"Entra dedup rows:\", entra_dedup.count())\n",
 					"display(entra_dedup.limit(20))"
 				],
-				"execution_count": 45
+				"execution_count": 76
 			},
 			{
 				"cell_type": "code",
@@ -345,7 +345,7 @@
 					"\n",
 					"display(case_officer_matched.orderBy(\"caseOfficerName\").limit(100))"
 				],
-				"execution_count": 46
+				"execution_count": 77
 			},
 			{
 				"cell_type": "code",
@@ -395,7 +395,7 @@
 					"print(\"Users for load:\", users_for_load.count())\n",
 					"display(users_for_load.orderBy(\"caseOfficerName\").limit(100))"
 				],
-				"execution_count": 47
+				"execution_count": 78
 			},
 			{
 				"cell_type": "code",
@@ -428,7 +428,7 @@
 					"print(\"Case map rows:\", case_officer_case_map.count())\n",
 					"display(case_officer_case_map.limit(100))"
 				],
-				"execution_count": 48
+				"execution_count": 79
 			},
 			{
 				"cell_type": "code",
@@ -475,8 +475,18 @@
 					"        ).otherwise(F.col(\"caseOfficerName\"))\n",
 					"    )\n",
 					"    .withColumn(\n",
+					"        \"idpUserId\",\n",
+					"        F.when(\n",
+					"            F.col(\"idpUserId\").isNull(),\n",
+					"            F.concat_ws(\" \", F.col(\"firstName\"), F.col(\"lastName\"))\n",
+					"        ).otherwise(F.col(\"idpUserId\"))\n",
+					"    )\n",
+					"    .withColumn(\n",
 					"        \"hasEntraId\",\n",
-					"        F.when(F.col(\"idpUserId\").isNotNull(), F.lit(True)).otherwise(F.lit(False))\n",
+					"        F.when(\n",
+					"            F.col(\"idpUserId\").rlike(\"^[0-9a-fA-F-]{36}$\"),\n",
+					"            F.lit(True)\n",
+					"        ).otherwise(F.lit(False))\n",
 					"    )\n",
 					"    .dropDuplicates([\"emailAddress\"])\n",
 					"    .select(\n",
@@ -489,9 +499,12 @@
 					"        \"caseOfficerName\",\n",
 					"        \"hasEntraId\"\n",
 					"    )\n",
-					")"
+					")\n",
+					"\n",
+					"display(users_for_load.orderBy(\"caseOfficerName\"))\n",
+					"print(\"Users for load:\", users_for_load.count())"
 				],
-				"execution_count": 49
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -500,7 +513,7 @@
 					"    [\n",
 					"        (\n",
 					"            \"00000000-0000-0000-0000-000000000000\",\n",
-					"            None,\n",
+					"            \"Unknown User\",\n",
 					"            \"UNKNOWN\",\n",
 					"            \"Unknown\",\n",
 					"            \"User\",\n",
@@ -514,7 +527,7 @@
 					"\n",
 					"users_for_load = users_for_load.unionByName(unknown_user_df)"
 				],
-				"execution_count": 50
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -532,13 +545,13 @@
 					"    ).limit(50)\n",
 					")"
 				],
-				"execution_count": 51
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"(\n",
-					"    case_officer_matched\n",
+					"    case_officer_case_map\n",
 					"    .coalesce(1)\n",
 					"    .write\n",
 					"    .mode(\"overwrite\")\n",
@@ -568,7 +581,7 @@
 					"print(\"Wrote users for load to:\", OUT_CASE_OFFICER_USERS_FOR_LOAD)\n",
 					"print(\"Wrote case officer case map to:\", OUT_CASE_OFFICER_CASE_MAP)"
 				],
-				"execution_count": 52
+				"execution_count": 83
 			}
 		]
 	}
