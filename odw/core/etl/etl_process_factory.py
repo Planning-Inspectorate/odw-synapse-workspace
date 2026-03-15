@@ -4,6 +4,7 @@ from odw.core.etl.transformation.standardised.standardisation_process import Sta
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -14,6 +15,7 @@ class ETLProcessFactory:
         ServiceBusStandardisationProcess,
         HorizonStandardisationProcess,
         ServiceBusHarmonisationProcess,
+        NsipDocumentHarmonisationProcess,
     }
 
     @classmethod
