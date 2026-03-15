@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e9681687-4317-47fb-9071-d25b4029205e"
+				"spark.autotune.trackingId": "5b7ab302-5405-45b1-beda-403c9a54a9e5"
 			}
 		},
 		"metadata": {
@@ -69,7 +69,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 2
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -87,7 +87,7 @@
 					"print(\"CASE_OFFICER_PATH:\", CASE_OFFICER_PATH)\n",
 					"print(\"ENTRA_FOLDER_PATH:\", ENTRA_FOLDER_PATH)"
 				],
-				"execution_count": 3
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +106,7 @@
 					"\n",
 					"display(case_officer_raw.limit(20))"
 				],
-				"execution_count": 4
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"print(\"Clean rows:\", case_officer_clean.count())\n",
 					"display(case_officer_clean.limit(20))"
 				],
-				"execution_count": 5
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -166,7 +166,7 @@
 					"print(\"Distinct case officer emails:\", case_officer_distinct_email.count())\n",
 					"display(case_officer_distinct_email.orderBy(\"caseOfficerEmailNorm\").limit(50))"
 				],
-				"execution_count": 6
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,7 @@
 					"    print(\"Fallback parsed users. Rows:\", entra_raw.count())\n",
 					"    print(\"Columns:\", entra_raw.columns)"
 				],
-				"execution_count": 7
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -253,7 +253,7 @@
 					"print(\"Entra dedup rows:\", entra_dedup.count())\n",
 					"display(entra_dedup.limit(20))"
 				],
-				"execution_count": 8
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -306,7 +306,7 @@
 					"print(\"Entra dedup rows:\", entra_dedup.count())\n",
 					"display(entra_dedup.limit(20))"
 				],
-				"execution_count": 9
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -325,14 +325,17 @@
 					"        F.col(\"co.caseOfficerId\"),\n",
 					"        F.col(\"co.firstName\"),\n",
 					"        F.col(\"co.lastName\"),\n",
-					"        F.col(\"co.caseOfficerName\"),\n",
 					"        F.col(\"co.caseOfficerEmail\").alias(\"coEmailAddress\"),\n",
 					"        F.col(\"co.caseOfficerEmailNorm\").alias(\"coEmailAddressNorm\"),\n",
 					"        F.col(\"co.caseOfficerEmailLocal\"),\n",
-					"        F.col(\"e.idpUserId\"),\n",
+					"        nullify_str(F.col(\"e.idpUserId\")).alias(\"idpUserId\"),\n",
 					"        F.col(\"e.displayName\").alias(\"entraDisplayName\"),\n",
 					"        F.col(\"e.mail\"),\n",
 					"        F.col(\"e.userPrincipalName\")\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"caseOfficerName\",\n",
+					"        F.concat_ws(\" \", F.col(\"firstName\"), F.col(\"lastName\"))\n",
 					"    )\n",
 					")\n",
 					"\n",
@@ -342,7 +345,7 @@
 					"\n",
 					"display(case_officer_matched.orderBy(\"caseOfficerName\").limit(100))"
 				],
-				"execution_count": 10
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -376,7 +379,7 @@
 					"        \"caseOfficerName\",\n",
 					"        \"hasEntraId\"\n",
 					"    )\n",
-					"    .dropDuplicates([\"id\"])\n",
+					"    .dropDuplicates([\"emailAddress\"])\n",
 					")\n",
 					"\n",
 					"print(\"Users for load:\", users_for_load.count())\n",
@@ -384,7 +387,7 @@
 					"\n",
 					"display(users_for_load.orderBy(\"caseOfficerName\").limit(100))"
 				],
-				"execution_count": 11
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -417,54 +420,111 @@
 					"print(\"Case map rows:\", case_officer_case_map.count())\n",
 					"display(case_officer_case_map.limit(100))"
 				],
-				"execution_count": 12
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F, types as T\n",
+					"import uuid\n",
+					"\n",
+					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
+					"\n",
+					"@F.udf(returnType=T.StringType())\n",
+					"def uuid5_from_legacy(legacy_id):\n",
+					"    if legacy_id is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(NAMESPACE_UUID, str(legacy_id)))\n",
+					"\n",
+					"def nullify_str(col):\n",
+					"    s = F.trim(col.cast(\"string\"))\n",
+					"    return (\n",
+					"        F.when(col.isNull(), None)\n",
+					"         .when(F.lower(s).isin(\"undefined\", \"null\", \"none\", \"\"), None)\n",
+					"         .otherwise(s)\n",
+					"    )\n",
+					"\n",
+					"users_for_load = (\n",
+					"    case_officer_matched\n",
+					"    .select(\n",
+					"        F.col(\"caseOfficerId\").cast(\"string\").alias(\"legacyId\"),\n",
+					"        nullify_str(F.col(\"firstName\")).alias(\"firstName\"),\n",
+					"        nullify_str(F.col(\"lastName\")).alias(\"lastName\"),\n",
+					"        nullify_str(F.col(\"coEmailAddress\")).alias(\"emailAddress\"),\n",
+					"        nullify_str(F.col(\"caseOfficerName\")).alias(\"caseOfficerName\"),\n",
+					"        nullify_str(F.col(\"idpUserId\")).alias(\"idpUserId\")\n",
+					"    )\n",
+					"    .filter(F.col(\"legacyId\").isNotNull())\n",
+					"    .withColumn(\"id\", uuid5_from_legacy(F.col(\"legacyId\")))\n",
+					"    .withColumn(\n",
+					"        \"caseOfficerName\",\n",
+					"        F.when(\n",
+					"            F.col(\"caseOfficerName\").isNull(),\n",
+					"            F.concat_ws(\" \", F.col(\"firstName\"), F.col(\"lastName\"))\n",
+					"        ).otherwise(F.col(\"caseOfficerName\"))\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"hasEntraId\",\n",
+					"        F.when(F.col(\"idpUserId\").isNotNull(), F.lit(True)).otherwise(F.lit(False))\n",
+					"    )\n",
+					"    .dropDuplicates([\"emailAddress\"])\n",
+					"    .select(\n",
+					"        \"id\",\n",
+					"        \"idpUserId\",\n",
+					"        \"legacyId\",\n",
+					"        \"firstName\",\n",
+					"        \"lastName\",\n",
+					"        \"emailAddress\",\n",
+					"        \"caseOfficerName\",\n",
+					"        \"hasEntraId\"\n",
+					"    )\n",
+					")"
+				],
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
-					"from pyspark.sql import types as T\n",
-					"\n",
-					"# --------------------------------------------------\n",
-					"# Ensure missing Entra users keep name + email\n",
-					"# --------------------------------------------------\n",
-					"users_for_load_prepared = (\n",
-					"    users_for_load\n",
-					"    .withColumn(\n",
-					"        \"firstName\",\n",
-					"        F.when(F.col(\"firstName\").isNull(), F.lit(\"Unknown\")).otherwise(F.col(\"firstName\"))\n",
-					"    )\n",
-					"    .withColumn(\n",
-					"        \"lastName\",\n",
-					"        F.when(F.col(\"lastName\").isNull(), F.lit(\"User\")).otherwise(F.col(\"lastName\"))\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"# --------------------------------------------------\n",
-					"# Add UNKNOWN USER row\n",
-					"# --------------------------------------------------\n",
 					"unknown_user_df = spark.createDataFrame(\n",
 					"    [\n",
 					"        (\n",
-					"            \"00000000-0000-0000-0000-000000000000\",  # id\n",
-					"            None,                                   # idpUserId\n",
-					"            \"UNKNOWN\",                              # legacyId\n",
-					"            \"Unknown\",                               # firstName\n",
-					"            \"User\",                                  # lastName\n",
-					"            \"unknown.user@pins.local\",               # emailAddress\n",
-					"            \"Unknown User\",                          # caseOfficerName\n",
-					"            False                                    # hasEntraId\n",
+					"            \"00000000-0000-0000-0000-000000000000\",\n",
+					"            None,\n",
+					"            \"UNKNOWN\",\n",
+					"            \"Unknown\",\n",
+					"            \"User\",\n",
+					"            \"unknown.user@pins.local\",\n",
+					"            \"Unknown User\",\n",
+					"            False\n",
 					"        )\n",
 					"    ],\n",
-					"    users_for_load_prepared.schema\n",
+					"    users_for_load.schema\n",
 					")\n",
 					"\n",
-					"users_for_load_final = (\n",
-					"    users_for_load_prepared\n",
-					"    .unionByName(unknown_user_df)\n",
+					"users_for_load = users_for_load.unionByName(unknown_user_df)"
+				],
+				"execution_count": 35
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(\n",
+					"    case_officer_matched.select(\n",
+					"        \"caseOfficerId\",\n",
+					"        \"firstName\",\n",
+					"        \"lastName\",\n",
+					"        \"coEmailAddress\",\n",
+					"        \"idpUserId\"\n",
+					"    ).limit(50)\n",
 					")"
 				],
-				"execution_count": 13
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -479,7 +539,7 @@
 					")\n",
 					"\n",
 					"(\n",
-					"    users_for_load_final\n",
+					"    users_for_load\n",
 					"    .coalesce(1)\n",
 					"    .write\n",
 					"    .mode(\"overwrite\")\n",
@@ -500,7 +560,7 @@
 					"print(\"Wrote users for load to:\", OUT_CASE_OFFICER_USERS_FOR_LOAD)\n",
 					"print(\"Wrote case officer case map to:\", OUT_CASE_OFFICER_CASE_MAP)"
 				],
-				"execution_count": 15
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
