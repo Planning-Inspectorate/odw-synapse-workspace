@@ -38,6 +38,7 @@ submodules = [
     "session",
     "udf",
     "variableLibrary",
+    "visualization",
 ]
 
 notebookutils = types.ModuleType(module_name)
