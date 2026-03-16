@@ -1,18 +1,18 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
-from pyspark.sql import SparkSession
+from odw.test.util.session_util import PytestSparkSessionUtil
 import pytest
 import mock
 from datetime import datetime
 from pyspark.sql.types import StructType, StructField, IntegerType, LongType, StringType, TimestampType, ArrayType, MapType
 from pyspark.errors.exceptions.captured import AnalysisException
+from pyspark.sql import SparkSession
 from typing import Callable
 
 
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_SERVER_VERSION = 18
-spark = SparkSession.builder.getOrCreate()
 
 
 DESCRIPTION_SCHEMA = StructType(
@@ -36,52 +36,53 @@ DESCRIPTION_SCHEMA = StructType(
 
 
 def validate_table_deleted(database_name: str, table_name: str, raw_data_path: str, function_to_test: Callable):
+    spark = PytestSparkSessionUtil().get_spark_session()
     with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
         mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
         app_insights_connection_string = TEST_CONFIG["APP_INSIGHTS_CONNECTION_STRING"]
         with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
             with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value=app_insights_connection_string):
                 # Mock configure_azure_monitor to save time, since this takes 1 minute each time it is called
-                with mock.patch("odw.core.util.logging_util.configure_azure_monitor"):
-                    datetime_format = "%Y-%m-%d %H:%M:%S.%f"
-                    mock_table_details = spark.createDataFrame(
-                        [
-                            (
-                                "parquet",
-                                "some_guid",
-                                f"spark_catalog.{database_name}.{table_name}",
-                                None,
-                                raw_data_path,
-                                datetime.strptime("2024-01-01 00:00:00.000000", datetime_format),
-                                datetime.strptime("2025-01-01 00:00:00.000000", datetime_format),
-                                [],
-                                20000,
-                                4000000000,
-                                {},
-                                1,
-                                2,
-                                ["appendOnly", "invariants"],
-                            )
-                        ],
-                        DESCRIPTION_SCHEMA,
-                    )
-                    real_sql_function = spark.sql
+                datetime_format = "%Y-%m-%d %H:%M:%S.%f"
+                mock_table_details = spark.createDataFrame(
+                    [
+                        (
+                            "parquet",
+                            "some_guid",
+                            f"spark_catalog.{database_name}.{table_name}",
+                            None,
+                            raw_data_path,
+                            datetime.strptime("2024-01-01 00:00:00.000000", datetime_format),
+                            datetime.strptime("2025-01-01 00:00:00.000000", datetime_format),
+                            [],
+                            20000,
+                            4000000000,
+                            {},
+                            1,
+                            2,
+                            ["appendOnly", "invariants"],
+                        )
+                    ],
+                    DESCRIPTION_SCHEMA,
+                )
+                real_sql_function = spark.sql
 
-                    def sql_side_effect(sql_query: str):
-                        # A wrapper around spark.sql, to allow the DESCRIBE DETAIL call to be overridden
-                        if "DESCRIBE DETAIL" in sql_query:
-                            return mock_table_details
-                        return real_sql_function(sql_query)
+                def sql_side_effect(sql_query: str):
+                    # A wrapper around spark.sql, to allow the DESCRIBE DETAIL call to be overridden
+                    if "DESCRIBE DETAIL" in sql_query:
+                        return mock_table_details
+                    return real_sql_function(sql_query)
 
-                    with mock.patch.object(SparkSession, "sql", side_effect=sql_side_effect):
-                        function_to_test(database_name, table_name)
-                    # Table should not exist after delete_table is called
-                    with pytest.raises(AnalysisException):
-                        spark.sql(f"select * from {database_name}.{table_name}")
+                with mock.patch.object(SparkSession, "sql", side_effect=sql_side_effect):
+                    function_to_test(spark, database_name, table_name)
+                # Table should not exist after delete_table is called
+                with pytest.raises(AnalysisException):
+                    spark.sql(f"select * from {database_name}.{table_name}")
 
 
 def create_table(data_format: str, file_path: str, database_name: str, table_name: str):
     # Create the database table
+    spark = PytestSparkSessionUtil().get_spark_session()
     data = spark.createDataFrame(
         [
             ("Jean-Luc Picard", "Captain"),
