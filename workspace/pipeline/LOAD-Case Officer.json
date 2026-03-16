@@ -1,0 +1,64 @@
+{
+	"name": "LOAD-Case Officer",
+	"properties": {
+		"activities": [
+			{
+				"name": "LOAD-CASEOFFICER",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT\n    h.CaseReference,\n    h.CaseNodeId,\n    k.ID AS caseOfficerId,\n    k.FirstName,\n    k.LastName,\n    k.MailAddress AS caseOfficerEmail\nFROM dbo.Horizon_CaseReference h\nLEFT JOIN dbo.Horizon_vw_MiPINS_AppSubTypeCaseName a\n    ON h.CaseUniqueId = a.appeal_reference_number\nLEFT JOIN dbo.Horizon_vw_BIS_FirstCaseOfficer co\n    ON h.CaseNodeId = co.CaseId\nLEFT JOIN dbo.KUAF k\n    ON co.CaseOfficerId = k.ID\nWHERE REPLACE(a.case_name, '•  ', '') LIKE 'ROW/%'\n  AND k.ID IS NOT NULL",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".csv"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "users",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "MPESC_CASEOFFICER",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-EXTRACT"
+		},
+		"annotations": []
+	}
+}

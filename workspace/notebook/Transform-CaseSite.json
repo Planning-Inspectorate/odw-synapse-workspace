@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dd653f9d-80d1-4d22-b3e1-2fe26ff182bc"
+				"spark.autotune.trackingId": "b9198c92-d136-44c4-8ca0-0025d0c7c4e9"
 			}
 		},
 		"metadata": {
@@ -208,6 +208,21 @@
 					"    on=\"case_id\",\n",
 					"    how=\"inner\"\n",
 					")\n",
+					"\n",
+					"\n",
+					"non_key_cols = [c for c in df_filtered.columns if c not in [\"case_id\", \"site_id\"]]\n",
+					"\n",
+					"has_real_data_expr = None\n",
+					"\n",
+					"for c in non_key_cols:\n",
+					"    cond = (\n",
+					"        F.col(c).isNotNull() &\n",
+					"        (F.trim(F.col(c).cast(\"string\")) != \"\") &\n",
+					"        (F.lower(F.trim(F.col(c).cast(\"string\"))) != \"undefined\")\n",
+					"    )\n",
+					"    has_real_data_expr = cond if has_real_data_expr is None else (has_real_data_expr | cond)\n",
+					"\n",
+					"df_filtered = df_filtered.filter(has_real_data_expr)\n",
 					"\n",
 					"display(df_filtered)\n",
 					""
