@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw35",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "092b873a-1ea5-44c6-bfb4-a0234ce9e03e"
+				"spark.autotune.trackingId": "f26f2135-9710-4258-9780-9981bb9d25bf"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-				"name": "pinssynspodw35",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -55,6 +55,7 @@
 				"cell_type": "code",
 				"source": [
 					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.window import Window\n",
 					"\n",
 					"workspace = mssparkutils.env.getWorkspaceName()\n",
 					"\n",
@@ -310,27 +311,40 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.window import Window\n",
-					"\n",
 					"def extract_one_defid(defid: int):\n",
-					"    # Filter to one DefID\n",
 					"    d = dfv_good.filter(F.col(\"DefID\") == F.lit(defid))\n",
 					"\n",
-					"    # Keep latest VerNum per (ID, AttrID)\n",
-					"    w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.col(\"VerNum\").desc())\n",
-					"    d_latest = (\n",
-					"        d.withColumn(\"rn\", F.row_number().over(w))\n",
-					"         .filter(F.col(\"rn\") == 1)\n",
-					"         .drop(\"rn\", \"VerNum\", \"DefID\")\n",
-					"    )\n",
+					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
+					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
 					"\n",
-					"    # Pivot to wide table (1 row per ID)\n",
-					"    wide = (\n",
-					"        d_latest\n",
-					"        .groupBy(\"ID\")\n",
-					"        .pivot(\"AttrID\")\n",
-					"        .agg(F.first(\"Value\"))\n",
-					"    )\n",
+					"    if defid == 95501:\n",
+					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.monotonically_increasing_id())\n",
+					"\n",
+					"        d_occ = d.withColumn(\"row_instance\", F.row_number().over(w))\n",
+					"\n",
+					"        wide = (\n",
+					"            d_occ\n",
+					"            .groupBy(\"ID\", \"row_instance\")\n",
+					"            .pivot(\"AttrID\")\n",
+					"            .agg(F.first(\"Value\"))\n",
+					"            .orderBy(\"ID\", \"row_instance\")\n",
+					"        )\n",
+					"    else:\n",
+					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.col(\"VerNum\").desc())\n",
+					"\n",
+					"        d_latest = (\n",
+					"            d.withColumn(\"rn\", F.row_number().over(w))\n",
+					"             .filter(F.col(\"rn\") == 1)\n",
+					"             .drop(\"rn\", \"VerNum\", \"DefID\")\n",
+					"        )\n",
+					"\n",
+					"        wide = (\n",
+					"            d_latest\n",
+					"            .groupBy(\"ID\")\n",
+					"            .pivot(\"AttrID\")\n",
+					"            .agg(F.first(\"Value\"))\n",
+					"            .orderBy(\"ID\")\n",
+					"        )\n",
 					"\n",
 					"    wide_clean = wide\n",
 					"    for c in wide_clean.columns:\n",
@@ -340,15 +354,15 @@
 					"             .otherwise(F.regexp_replace(F.col(c).cast(\"string\"), r\"[\\r\\n]+\", \" \"))\n",
 					"        )\n",
 					"\n",
-					"    # Write out\n",
-					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
-					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
-					"    wide_clean.write.mode(\"overwrite\") \\\n",
-					"    .option(\"header\", True) \\\n",
-					"    .option(\"sep\", \"|\") \\\n",
-					"    .option(\"quote\", \"\\\"\") \\\n",
-					"    .option(\"escape\", \"\\\"\") \\\n",
-					"    .csv(out_dir)\n",
+					"    (\n",
+					"        wide_clean.write\n",
+					"        .mode(\"overwrite\")\n",
+					"        .option(\"header\", True)\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"quote\", \"\\\"\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .csv(out_dir)\n",
+					"    )\n",
 					"\n",
 					"    print(f\"Wrote DefID {defid} -> {out_dir}\")\n",
 					""
@@ -358,7 +372,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"extract_one_defid(95498)   # Case\n",
+					"extract_one_defid(95501)   # Case\n",
 					""
 				],
 				"execution_count": null
