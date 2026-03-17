@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f26f2135-9710-4258-9780-9981bb9d25bf"
+				"spark.autotune.trackingId": "792cc61c-8f76-4d3f-94e5-0181af203505"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -86,7 +86,7 @@
 					"print(\"Output:\", output_base)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -104,7 +104,7 @@
 					"print(df.columns)\n",
 					"print(\"Column count:\", len(df.columns))"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -133,7 +133,7 @@
 					"dfv.show(5, truncate=False)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"print(\"Rows kept:\", dfv_good.count())\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +167,7 @@
 					"print(\"First 20:\", sorted(defids)[:20])\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -306,18 +306,107 @@
 					"}\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"case_site_src = (\n",
+					"    dfv_good\n",
+					"    .filter(\n",
+					"        (F.col(\"DefID\") == \"95502\") &\n",
+					"        (F.col(\"ID\") == \"20779454\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(case_site_src.orderBy(F.col(\"AttrID\").cast(\"int\")))\n",
+					"print(\"Rows before pivot:\", case_site_src.count())"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"case_site_src = (\n",
+					"    df\n",
+					"    .filter(F.col(\"DefID\").cast(\"int\") == 95502)\n",
+					"    .withColumn(\n",
+					"        \"Value\",\n",
+					"        F.coalesce(\n",
+					"            F.when(\n",
+					"                ~F.lower(F.trim(F.col(\"ValStr\").cast(\"string\"))).isin(\"undefined\", \"null\", \"none\", \"\"),\n",
+					"                F.trim(F.col(\"ValStr\").cast(\"string\"))\n",
+					"            ),\n",
+					"            F.col(\"ValLong\").cast(\"string\"),\n",
+					"            F.col(\"ValInt\").cast(\"string\"),\n",
+					"            F.col(\"ValReal\").cast(\"string\"),\n",
+					"            F.col(\"ValDate\").cast(\"string\")\n",
+					"        )\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    case_site_src\n",
+					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
+					"    .orderBy(F.col(\"AttrID\").cast(\"int\"))\n",
+					")\n",
+					"\n",
+					"print(\n",
+					"    \"Rows before pivot:\",\n",
+					"    case_site_src.filter(F.col(\"ID\").cast(\"string\") == \"20779454\").count()\n",
+					")\n",
+					"\n",
+					"test_pivot = (\n",
+					"    case_site_src\n",
+					"    .groupBy(\"ID\")\n",
+					"    .pivot(\"AttrID\")\n",
+					"    .agg(F.first(\"Value\"))\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    test_pivot\n",
+					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
+					")\n",
+					"\n",
+					"print(\n",
+					"    \"Rows after pivot:\",\n",
+					"    test_pivot.filter(F.col(\"ID\").cast(\"string\") == \"20779454\").count()\n",
+					")\n",
+					"\n",
+					"\n",
+					"display(\n",
+					"    test_pivot\n",
+					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
+					"    .select(\"ID\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\")\n",
+					")"
+				],
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"\n",
 					"def extract_one_defid(defid: int):\n",
-					"    d = dfv_good.filter(F.col(\"DefID\") == F.lit(defid))\n",
+					"\n",
+					"    d = dfv_good.filter(F.col(\"DefID\") == defid)\n",
 					"\n",
 					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
 					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
 					"\n",
 					"    if defid == 95501:\n",
+					"\n",
 					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.monotonically_increasing_id())\n",
 					"\n",
 					"        d_occ = d.withColumn(\"row_instance\", F.row_number().over(w))\n",
@@ -326,23 +415,17 @@
 					"            d_occ\n",
 					"            .groupBy(\"ID\", \"row_instance\")\n",
 					"            .pivot(\"AttrID\")\n",
-					"            .agg(F.first(\"Value\"))\n",
+					"            .agg(F.first(\"Value\", ignorenulls=True))\n",
 					"            .orderBy(\"ID\", \"row_instance\")\n",
 					"        )\n",
-					"    else:\n",
-					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.col(\"VerNum\").desc())\n",
 					"\n",
-					"        d_latest = (\n",
-					"            d.withColumn(\"rn\", F.row_number().over(w))\n",
-					"             .filter(F.col(\"rn\") == 1)\n",
-					"             .drop(\"rn\", \"VerNum\", \"DefID\")\n",
-					"        )\n",
+					"    else:\n",
 					"\n",
 					"        wide = (\n",
-					"            d_latest\n",
+					"            d\n",
 					"            .groupBy(\"ID\")\n",
 					"            .pivot(\"AttrID\")\n",
-					"            .agg(F.first(\"Value\"))\n",
+					"            .agg(F.first(\"Value\", ignorenulls=True))\n",
 					"            .orderBy(\"ID\")\n",
 					"        )\n",
 					"\n",
@@ -364,18 +447,17 @@
 					"        .csv(out_dir)\n",
 					"    )\n",
 					"\n",
-					"    print(f\"Wrote DefID {defid} -> {out_dir}\")\n",
-					""
+					"    print(f\"Wrote DefID {defid} -> {out_dir}\")"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"extract_one_defid(95501)   # Case\n",
-					""
+					"extract_one_defid(95502)  "
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
