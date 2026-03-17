@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "eb6143d6-7246-4c2c-beb5-d506774e808a"
+				"spark.autotune.trackingId": "4ea94d1b-4025-45b6-ba49-2fda807d9274"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 10
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -99,7 +99,7 @@
 					"print(\"load_file rows:\", load_file.count())\n",
 					""
 				],
-				"execution_count": 11
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -110,27 +110,37 @@
 					"from pyspark.sql.functions import regexp_extract\n",
 					"\n",
 					"df = load_file.select(\n",
-					"    \"*\",\n",
-					"    regexp_extract(\"id\", r\"/(\\d+)-\", 1).alias(\"Case_ID\")\n",
+					"    regexp_extract(\"id\", r\"/(\\d+)-\", 1).alias(\"Case_ID\"),\n",
+					"    \"*\"\n",
+					"    \n",
 					")\n",
 					"\n",
 					"display(df.limit(10))\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"from pyspark.sql.functions import regexp_extract\n",
+					"from pyspark.sql.functions import md5, regexp_replace\n",
 					"\n",
-					"df = load_file.withColumn(\n",
-					"    \"case_id\",\n",
-					"    regexp_extract(\"your_column\", r\"MCA/OBJ/(\\d+)-\", 1)\n",
+					"df_guid = df.select(\n",
+					"    regexp_replace(\n",
+					"        md5(\"id\"),\n",
+					"        r\"(.{8})(.{4})(.{4})(.{4})(.{12})\",\n",
+					"        r\"$1-$2-$3-$4-$5\"\n",
+					"    ).alias(\"GUID\")\n",
+					"    ,\"*\"\n",
 					")\n",
+					"\n",
+					"display(df_guid.limit(10))\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
