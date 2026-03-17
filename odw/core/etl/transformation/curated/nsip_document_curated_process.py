@@ -3,6 +3,7 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
 
@@ -34,14 +35,58 @@ class NsipDocumentCuratedProcess(CurationProcess):
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
-        Load raw source data from the harmonised and curated layers.
-        No transformations are applied here – only reads.
+        Load source data, selecting only the columns needed downstream.
+        No joins or transformations are applied here – only reads.
         """
         LoggingUtil().log_info(f"Loading harmonised NSIP Document data from {self.HARMONISED_TABLE}")
-        harmonised_docs = self.spark.sql(f"SELECT * FROM {self.HARMONISED_TABLE}")
+        harmonised_docs = self.spark.sql(f"""
+            SELECT
+                documentId,
+                caseId,
+                caseRef,
+                documentReference,
+                version,
+                examinationRefNo,
+                filename,
+                originalFilename,
+                size,
+                mime,
+                documentURI,
+                publishedDocumentURI,
+                path,
+                virusCheckStatus,
+                fileMD5,
+                dateCreated,
+                lastModified,
+                caseType,
+                redactedStatus,
+                PublishedStatus,
+                datePublished,
+                documentType,
+                securityClassification,
+                sourceSystem,
+                origin,
+                owner,
+                author,
+                authorWelsh,
+                representative,
+                description,
+                descriptionWelsh,
+                documentCaseStage,
+                filter1,
+                filter1Welsh,
+                filter2,
+                horizonFolderId,
+                transcriptId,
+                IsActive
+            FROM {self.HARMONISED_TABLE}
+        """)
 
         LoggingUtil().log_info(f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}")
-        curated_projects = self.spark.sql(f"SELECT * FROM {self.CURATED_PROJECT_TABLE}")
+        curated_projects = self.spark.sql(f"""
+            SELECT caseReference
+            FROM {self.CURATED_PROJECT_TABLE}
+        """)
 
         return {
             "harmonised_docs": harmonised_docs,
@@ -51,75 +96,65 @@ class NsipDocumentCuratedProcess(CurationProcess):
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
         Apply curated transformations to the loaded source data.
-        All business rules (COALESCE, LOWER, CASE transformations, LEFT JOIN, filtering)
-        are applied here. No reads or writes happen in this method.
+        Joins and business rules (COALESCE, LOWER, CASE) are applied here.
+        No reads or writes happen in this method.
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_docs: DataFrame = self.load_parameter("harmonised_docs", source_data)
         curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
 
-        # Register temp views so we can use Spark SQL for the transformation
-        harmonised_docs.createOrReplaceTempView("harmonised_nsip_document")
-        curated_projects.createOrReplaceTempView("curated_nsip_project")
+        # Filter to active records
+        docs = harmonised_docs.filter(F.col("IsActive") == "Y")
 
-        df = self.spark.sql("""
-            SELECT DISTINCT
-            doc.documentId,
-            doc.caseId,
-            doc.caseRef,
-            doc.documentReference,
-            doc.version,
-            doc.examinationRefNo,
-            doc.filename,
-            doc.originalFilename,
-            doc.size,
-            doc.mime,
-            COALESCE(doc.documentURI, '') AS documentURI,
-            doc.publishedDocumentURI,
-            doc.path,
-            doc.virusCheckStatus,
-            doc.fileMD5,
-            doc.dateCreated,
-            doc.lastModified,
-            LOWER(doc.caseType) AS caseType,
-            doc.redactedStatus,
-            CASE
-                WHEN doc.PublishedStatus = 'Depublished'
-                THEN 'unpublished'
-                ELSE REPLACE(
-                    LOWER(doc.PublishedStatus),
-                    ' ',
-                    '_')
-            END AS publishedStatus,
-            doc.datePublished,
-            doc.documentType,
-            doc.securityClassification,
-            doc.sourceSystem,
-            doc.origin,
-            doc.owner,
-            doc.author,
-            doc.authorWelsh,
-            doc.representative,
-            doc.description,
-            doc.descriptionWelsh,
-            CASE
-                WHEN doc.documentCaseStage = "Developer's Application"
-                THEN 'developers_application'
-                WHEN doc.documentCaseStage = 'Post decision'
-                THEN 'post_decision'
-                ELSE LOWER(doc.documentCaseStage)
-            END AS documentCaseStage,
-            doc.filter1,
-            doc.filter1Welsh,
-            doc.filter2,
-            doc.horizonFolderId,
-            doc.transcriptId
-            FROM harmonised_nsip_document AS doc
-            LEFT JOIN curated_nsip_project proj
-                ON proj.caseReference = doc.caseRef
-            WHERE doc.IsActive = 'Y'
-        """)
+        # LEFT JOIN to curated projects (matching notebook: LEFT JOIN on caseReference = caseRef)
+        docs = docs.join(curated_projects, curated_projects["caseReference"] == docs["caseRef"], "left")
+
+        # Apply curated column transformations and SELECT DISTINCT
+        df = docs.select(
+            F.col("documentId"),
+            F.col("caseId"),
+            F.col("caseRef"),
+            F.col("documentReference"),
+            F.col("version"),
+            F.col("examinationRefNo"),
+            F.col("filename"),
+            F.col("originalFilename"),
+            F.col("size"),
+            F.col("mime"),
+            F.coalesce(F.col("documentURI"), F.lit("")).alias("documentURI"),
+            F.col("publishedDocumentURI"),
+            F.col("path"),
+            F.col("virusCheckStatus"),
+            F.col("fileMD5"),
+            F.col("dateCreated"),
+            F.col("lastModified"),
+            F.lower(F.col("caseType")).alias("caseType"),
+            F.col("redactedStatus"),
+            F.when(F.col("PublishedStatus") == "Depublished", F.lit("unpublished"))
+            .otherwise(F.regexp_replace(F.lower(F.col("PublishedStatus")), " ", "_"))
+            .alias("publishedStatus"),
+            F.col("datePublished"),
+            F.col("documentType"),
+            F.col("securityClassification"),
+            F.col("sourceSystem"),
+            F.col("origin"),
+            F.col("owner"),
+            F.col("author"),
+            F.col("authorWelsh"),
+            F.col("representative"),
+            F.col("description"),
+            F.col("descriptionWelsh"),
+            F.when(F.col("documentCaseStage") == "Developer's Application", F.lit("developers_application"))
+            .when(F.col("documentCaseStage") == "Post decision", F.lit("post_decision"))
+            .otherwise(F.lower(F.col("documentCaseStage")))
+            .alias("documentCaseStage"),
+            F.col("filter1"),
+            F.col("filter1Welsh"),
+            F.col("filter2"),
+            F.col("horizonFolderId"),
+            F.col("transcriptId"),
+        ).distinct()
 
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated NSIP Document row count: {insert_count}")
@@ -151,4 +186,3 @@ class NsipDocumentCuratedProcess(CurationProcess):
                 duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )
-
