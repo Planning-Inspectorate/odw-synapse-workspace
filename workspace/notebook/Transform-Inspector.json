@@ -1,0 +1,642 @@
+{
+	"name": "Transform-Inspector",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2278344d-688a-445b-8ff8-6b62bd0d1921"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"import re\n",
+					"import uuid\n",
+					"\n",
+					"# =========================================\n",
+					"# Paths\n",
+					"# =========================================\n",
+					"BASE_PATH = \"abfss://mpesc@pinsstmpescdevuksw49hqz.dfs.core.windows.net\"\n",
+					"\n",
+					"INSPECTOR_PATH = f\"{BASE_PATH}/MPESC-EXTRACT/Inspector.csv\"\n",
+					"ENTRA_FOLDER_PATH = f\"{BASE_PATH}/MPESC-TRANSFORM/Entra\"\n",
+					"\n",
+					"OUT_DEBUG_MATCH = f\"{BASE_PATH}/MPESC-TRANSFORM/Inspector/debug_inspector_entra_match\"\n",
+					"OUT_USERS_LOAD = f\"{BASE_PATH}/MPESC-TRANSFORM/Inspector/users_for_load_inspectors\"\n",
+					"OUT_CASE_MAP = f\"{BASE_PATH}/MPESC-TRANSFORM/Inspector/inspector_case_map\"\n",
+					"\n",
+					"print(\"INSPECTOR_PATH:\", INSPECTOR_PATH)\n",
+					"print(\"ENTRA_FOLDER_PATH:\", ENTRA_FOLDER_PATH)\n",
+					"print(\"OUT_DEBUG_MATCH:\", OUT_DEBUG_MATCH)\n",
+					"print(\"OUT_USERS_LOAD:\", OUT_USERS_LOAD)\n",
+					"print(\"OUT_CASE_MAP:\", OUT_CASE_MAP)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def nullify_str(col):\n",
+					"    s = F.trim(col.cast(\"string\"))\n",
+					"    return (\n",
+					"        F.when(col.isNull(), None)\n",
+					"         .when(F.lower(s).isin(\"undefined\", \"null\", \"none\", \"\"), None)\n",
+					"         .otherwise(s)\n",
+					"    )\n",
+					"\n",
+					"def make_uuid_from_text(text: str) -> str:\n",
+					"    if text is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(uuid.NAMESPACE_DNS, text))\n",
+					"\n",
+					"uuid_udf = F.udf(make_uuid_from_text)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"inspector_df = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .option(\"inferSchema\", True)\n",
+					"    .csv(INSPECTOR_PATH)\n",
+					")\n",
+					"\n",
+					"print(\"Inspector source rows:\", inspector_df.count())\n",
+					"print(\"Inspector source columns:\", inspector_df.columns)\n",
+					"display(inspector_df.limit(20))"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"entra_raw = (\n",
+					"    spark.read\n",
+					"    .option(\"multiline\", \"true\")\n",
+					"    .json(ENTRA_FOLDER_PATH)\n",
+					")\n",
+					"\n",
+					"only_corrupt = (\n",
+					"    entra_raw.columns == [\"_corrupt_record\"]\n",
+					"    or set(entra_raw.columns) == {\"_corrupt_record\"}\n",
+					")\n",
+					"\n",
+					"if not only_corrupt:\n",
+					"    print(\"Parsed Entra as JSON\")\n",
+					"    print(\"Entra raw columns:\", entra_raw.columns)\n",
+					"else:\n",
+					"    print(\"JSON parse failed, using text fallback\")\n",
+					"\n",
+					"    txt = spark.read.text(ENTRA_FOLDER_PATH)\n",
+					"\n",
+					"    blob = (\n",
+					"        txt.agg(F.concat_ws(\"\\n\", F.collect_list(\"value\")).alias(\"blob\"))\n",
+					"        .collect()[0][\"blob\"]\n",
+					"    )\n",
+					"\n",
+					"    chunks = re.findall(\n",
+					"        r'\"value\"\\s*:\\s*\\[(.*?)\\]\\s*(?:,|\\})',\n",
+					"        blob,\n",
+					"        flags=re.DOTALL\n",
+					"    )\n",
+					"\n",
+					"    if len(chunks) == 0:\n",
+					"        raise Exception('Could not find any \"value\": [...] arrays in Entra export text.')\n",
+					"\n",
+					"    arrays = [\"[\" + c + \"]\" for c in chunks]\n",
+					"    rdd = spark.sparkContext.parallelize(arrays)\n",
+					"    entra_raw = spark.read.json(rdd)\n",
+					"\n",
+					"    print(\"Fallback Entra raw columns:\", entra_raw.columns)"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if \"value\" in entra_raw.columns:\n",
+					"    entra_users = (\n",
+					"        entra_raw\n",
+					"        .select(F.explode(\"value\").alias(\"u\"))\n",
+					"        .select(\"u.*\")\n",
+					"    )\n",
+					"else:\n",
+					"    entra_users = entra_raw\n",
+					"\n",
+					"print(\"Entra rows:\", entra_users.count())\n",
+					"print(\"Entra columns:\", entra_users.columns)\n",
+					"display(entra_users.limit(20))"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"inspector_clean = (\n",
+					"    inspector_df\n",
+					"    .select(\n",
+					"        nullify_str(F.col(\"ContactID\")).alias(\"legacyId\"),\n",
+					"        nullify_str(F.col(\"AppealRefNumber\")).alias(\"appealRefNumber\"),\n",
+					"        nullify_str(F.col(\"CaseReference\")).alias(\"caseReference\"),\n",
+					"        nullify_str(F.col(\"CaseNodeId\")).alias(\"caseNodeId\"),\n",
+					"        nullify_str(F.col(\"TypeOfInvolvement\")).alias(\"typeOfInvolvement\"),\n",
+					"        nullify_str(F.col(\"InspectorName\")).alias(\"inspectorNameRaw\"),\n",
+					"        nullify_str(F.col(\"PostName\")).alias(\"postName\"),\n",
+					"        nullify_str(F.col(\"FirstName\")).alias(\"firstName\"),\n",
+					"        nullify_str(F.col(\"LastName\")).alias(\"lastName\"),\n",
+					"        F.concat_ws(\n",
+					"            \" \",\n",
+					"            nullify_str(F.col(\"FirstName\")),\n",
+					"            nullify_str(F.col(\"LastName\"))\n",
+					"        ).alias(\"inspectorName\"),\n",
+					"        F.lower(nullify_str(F.col(\"Email\"))).alias(\"inspectorEmailRaw\")\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"inspectorEmailClean\",\n",
+					"        F.regexp_replace(F.col(\"inspectorEmailRaw\"), r\"\\.dib$\", \"\")\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"inspectorEmailNorm\",\n",
+					"        F.regexp_replace(\n",
+					"            F.col(\"inspectorEmailClean\"),\n",
+					"            r\"@pins\\.gsi\\.gov\\.uk$\",\n",
+					"            \"@planninginspectorate.gov.uk\"\n",
+					"        )\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Inspector clean rows:\", inspector_clean.count())\n",
+					"display(inspector_clean.limit(20))"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"entra_clean = (\n",
+					"    entra_users\n",
+					"    .select(\n",
+					"        nullify_str(F.col(\"id\")).alias(\"idpUserId\"),\n",
+					"        nullify_str(F.col(\"employeeId\")).alias(\"employeeId\"),\n",
+					"        nullify_str(F.col(\"displayName\")).alias(\"displayName\"),\n",
+					"        nullify_str(F.col(\"givenName\")).alias(\"givenName\"),\n",
+					"        nullify_str(F.col(\"surname\")).alias(\"surname\"),\n",
+					"        F.lower(nullify_str(F.col(\"mail\"))).alias(\"mail\"),\n",
+					"        F.lower(nullify_str(F.col(\"userPrincipalName\"))).alias(\"userPrincipalName\"),\n",
+					"        F.col(\"otherMails\")\n",
+					"    )\n",
+					"    .filter(F.col(\"idpUserId\").isNotNull())\n",
+					")\n",
+					"\n",
+					"print(\"Entra clean rows:\", entra_clean.count())\n",
+					"display(entra_clean.limit(20))"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"debug_match_df = (\n",
+					"    inspector_clean.alias(\"i\")\n",
+					"    .join(\n",
+					"        entra_clean.alias(\"en\"),\n",
+					"        (\n",
+					"            (F.col(\"i.inspectorEmailNorm\") == F.col(\"en.mail\")) |\n",
+					"            (F.col(\"i.inspectorEmailNorm\") == F.col(\"en.userPrincipalName\"))\n",
+					"        ),\n",
+					"        \"left\"\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"i.legacyId\"),\n",
+					"        F.col(\"i.appealRefNumber\"),\n",
+					"        F.col(\"i.caseReference\"),\n",
+					"        F.col(\"i.caseNodeId\"),\n",
+					"        F.col(\"i.typeOfInvolvement\"),\n",
+					"        F.col(\"i.inspectorNameRaw\"),\n",
+					"        F.col(\"i.postName\"),\n",
+					"        F.col(\"i.firstName\"),\n",
+					"        F.col(\"i.lastName\"),\n",
+					"        F.col(\"i.inspectorName\"),\n",
+					"        F.col(\"i.inspectorEmailRaw\"),\n",
+					"        F.col(\"i.inspectorEmailClean\"),\n",
+					"        F.col(\"i.inspectorEmailNorm\"),\n",
+					"        F.col(\"en.idpUserId\"),\n",
+					"        F.col(\"en.employeeId\"),\n",
+					"        F.col(\"en.displayName\").alias(\"entraDisplayName\"),\n",
+					"        F.col(\"en.givenName\"),\n",
+					"        F.col(\"en.surname\"),\n",
+					"        F.col(\"en.mail\"),\n",
+					"        F.col(\"en.userPrincipalName\"),\n",
+					"        F.when(F.col(\"en.idpUserId\").isNotNull(), F.lit(\"matched\"))\n",
+					"         .otherwise(F.lit(\"unmatched\"))\n",
+					"         .alias(\"matchStatus\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Debug match rows:\", debug_match_df.count())\n",
+					"display(debug_match_df.limit(50))\n",
+					"debug_match_df.groupBy(\"matchStatus\").count().show()"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"users_for_load = (\n",
+					"    debug_match_df\n",
+					"    .select(\n",
+					"        F.col(\"legacyId\"),\n",
+					"        F.col(\"idpUserId\"),\n",
+					"        F.col(\"employeeId\"),\n",
+					"        F.coalesce(F.col(\"entraDisplayName\"), F.col(\"inspectorName\")).alias(\"displayName\"),\n",
+					"        F.coalesce(F.col(\"givenName\"), F.col(\"firstName\")).alias(\"givenName\"),\n",
+					"        F.coalesce(F.col(\"surname\"), F.col(\"lastName\")).alias(\"surname\"),\n",
+					"        F.coalesce(F.col(\"mail\"), F.col(\"inspectorEmailNorm\")).alias(\"email\"),\n",
+					"        F.col(\"userPrincipalName\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyId\"])\n",
+					"    .withColumn(\n",
+					"        \"id\",\n",
+					"        uuid_udf(F.concat_ws(\"||\", F.lit(\"user\"), F.col(\"legacyId\")))\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"id\"),\n",
+					"        F.col(\"idpUserId\"),\n",
+					"        F.col(\"legacyId\"),\n",
+					"        F.col(\"employeeId\"),\n",
+					"        F.col(\"displayName\"),\n",
+					"        F.col(\"givenName\"),\n",
+					"        F.col(\"surname\"),\n",
+					"        F.col(\"email\"),\n",
+					"        F.col(\"userPrincipalName\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Users for load rows:\", users_for_load.count())\n",
+					"display(users_for_load.limit(50))"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"user_id_lookup = (\n",
+					"    users_for_load\n",
+					"    .select(\n",
+					"        F.col(\"legacyId\").alias(\"u_legacyId\"),\n",
+					"        F.col(\"id\").alias(\"userId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"inspector_case_map = (\n",
+					"    debug_match_df.alias(\"dm\")\n",
+					"    .join(\n",
+					"        user_id_lookup.alias(\"ul\"),\n",
+					"        F.col(\"dm.legacyId\") == F.col(\"ul.u_legacyId\"),\n",
+					"        \"left\"\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"dm.appealRefNumber\"),\n",
+					"        F.col(\"dm.caseReference\"),\n",
+					"        F.col(\"dm.caseNodeId\"),\n",
+					"        F.col(\"dm.legacyId\"),\n",
+					"        F.col(\"dm.typeOfInvolvement\"),\n",
+					"        F.col(\"dm.inspectorName\"),\n",
+					"        F.col(\"dm.inspectorEmailNorm\"),\n",
+					"        F.col(\"dm.idpUserId\"),\n",
+					"        F.col(\"ul.userId\"),\n",
+					"        F.col(\"dm.matchStatus\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Inspector case map rows:\", inspector_case_map.count())\n",
+					"display(inspector_case_map.limit(50))"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"unmatched_inspectors = (\n",
+					"    debug_match_df\n",
+					"    .filter(F.col(\"matchStatus\") == \"unmatched\")\n",
+					")\n",
+					"\n",
+					"print(\"Unmatched rows:\", unmatched_inspectors.count())\n",
+					"display(unmatched_inspectors.limit(50))"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"CASES_PATH = f\"{BASE_PATH}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_df = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(CASES_PATH)\n",
+					")\n",
+					"\n",
+					"print(\"Cases rows:\", cases_df.count())\n",
+					"print(\"Cases columns:\", cases_df.columns)\n",
+					"\n",
+					"display(cases_df.limit(20))"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"inspector_case_map_batch = (\n",
+					"    inspector_case_map.alias(\"m\")\n",
+					"    .join(\n",
+					"        cases_df.select(\n",
+					"            F.col(\"Case ID\").cast(\"string\").alias(\"batchCaseNodeId\"),\n",
+					"            F.col(\"GUID\").alias(\"caseId\")\n",
+					"        ).dropDuplicates([\"batchCaseNodeId\"]),\n",
+					"        F.col(\"m.caseNodeId\").cast(\"string\") == F.col(\"batchCaseNodeId\"),\n",
+					"        \"inner\"\n",
+					"    )\n",
+					"    .drop(\"batchCaseNodeId\")\n",
+					")\n",
+					"\n",
+					"print(\"Filtered case map rows:\", inspector_case_map_batch.count())\n",
+					"display(inspector_case_map_batch.limit(50))"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"user_unique_base = (\n",
+					"    debug_match_df\n",
+					"    .select(\n",
+					"        F.col(\"legacyId\"),\n",
+					"        F.col(\"idpUserId\"),\n",
+					"        F.col(\"employeeId\"),\n",
+					"        F.coalesce(F.col(\"entraDisplayName\"), F.col(\"inspectorName\")).alias(\"displayName\"),\n",
+					"        F.coalesce(F.col(\"givenName\"), F.col(\"firstName\")).alias(\"givenName\"),\n",
+					"        F.coalesce(F.col(\"surname\"), F.col(\"lastName\")).alias(\"surname\"),\n",
+					"        F.coalesce(F.col(\"mail\"), F.col(\"inspectorEmailNorm\")).alias(\"email\"),\n",
+					"        F.col(\"userPrincipalName\")\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"userDedupeKey\",\n",
+					"        F.when(\n",
+					"            F.col(\"email\").isNotNull(),\n",
+					"            F.lower(F.trim(F.col(\"email\")))\n",
+					"        ).otherwise(\n",
+					"            F.concat(F.lit(\"legacyId::\"), F.col(\"legacyId\"))\n",
+					"        )\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(user_unique_base.limit(20))"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"user_unique_df = (\n",
+					"    user_unique_base\n",
+					"    .dropDuplicates([\"userDedupeKey\"])\n",
+					"    .withColumn(\n",
+					"        \"id\",\n",
+					"        uuid_udf(F.concat_ws(\"||\", F.lit(\"user\"), F.col(\"userDedupeKey\")))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Unique users:\", user_unique_df.count())\n",
+					"display(user_unique_df.limit(20))"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"user_unique_lookup = (\n",
+					"    user_unique_df\n",
+					"    .select(\n",
+					"        F.col(\"id\").alias(\"userId\"),\n",
+					"        F.col(\"userDedupeKey\"),\n",
+					"        F.col(\"idpUserId\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"debug_match_with_key = (\n",
+					"    debug_match_df\n",
+					"    .withColumn(\n",
+					"        \"userDedupeKey\",\n",
+					"        F.when(\n",
+					"            F.coalesce(F.col(\"mail\"), F.col(\"inspectorEmailNorm\")).isNotNull(),\n",
+					"            F.lower(F.trim(F.coalesce(F.col(\"mail\"), F.col(\"inspectorEmailNorm\"))))\n",
+					"        ).otherwise(\n",
+					"            F.concat(F.lit(\"legacyId::\"), F.col(\"legacyId\"))\n",
+					"        )\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"inspector_case_map_deduped = (\n",
+					"    debug_match_with_key.alias(\"dm\")\n",
+					"    .join(\n",
+					"        user_unique_lookup.alias(\"ul\"),\n",
+					"        \"userDedupeKey\",\n",
+					"        \"left\"\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(user_unique_lookup.limit(20))\n",
+					"display(inspector_case_map_deduped.limit(20))"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_user_df = (\n",
+					"    inspector_case_map_deduped.alias(\"m\")\n",
+					"    .join(\n",
+					"        cases_df.select(\n",
+					"            F.col(\"Case ID\").cast(\"string\").alias(\"batchCaseNodeId\"),\n",
+					"            F.col(\"GUID\").alias(\"caseId\")\n",
+					"        ),\n",
+					"        F.col(\"m.caseNodeId\").cast(\"string\") == F.col(\"batchCaseNodeId\"),\n",
+					"        \"inner\"\n",
+					"    )\n",
+					"    .drop(\"batchCaseNodeId\")\n",
+					")\n",
+					"\n",
+					"display(case_user_df.limit(20))"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from collections import Counter\n",
+					"\n",
+					"cols = case_user_df.columns\n",
+					"counts = Counter()\n",
+					"new_cols = []\n",
+					"\n",
+					"for c in cols:\n",
+					"    counts[c] += 1\n",
+					"    if counts[c] == 1:\n",
+					"        new_cols.append(c)\n",
+					"    else:\n",
+					"        new_cols.append(f\"{c}_{counts[c]}\")\n",
+					"\n",
+					"case_user_df_renamed = case_user_df.toDF(*new_cols)\n",
+					"\n",
+					"print(case_user_df_renamed.columns)\n",
+					"display(case_user_df_renamed.limit(5))"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"OUT_USERS_LOAD = f\"{BASE_PATH}/MPESC-TRANSFORM/User/users_for_load_inspectors\"\n",
+					"OUT_CASE_MAP = f\"{BASE_PATH}/MPESC-TRANSFORM/User/inspector_case_map\"\n",
+					"\n",
+					"case_user_df_clean = case_user_df_renamed.select(\n",
+					"    \"appealRefNumber\",\n",
+					"    \"caseReference\",\n",
+					"    \"caseNodeId\",\n",
+					"    \"caseId\",\n",
+					"    \"legacyId\",\n",
+					"    \"userId\",\n",
+					"    \"idpUserId\",\n",
+					"    \"typeOfInvolvement\",\n",
+					"    \"inspectorName\",\n",
+					"    \"inspectorEmailNorm\",\n",
+					"    \"matchStatus\"\n",
+					")\n",
+					"\n",
+					"(\n",
+					"    debug_match_df\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(OUT_DEBUG_MATCH)\n",
+					")\n",
+					"\n",
+					"(\n",
+					"    user_unique_df\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(OUT_USERS_LOAD)\n",
+					")\n",
+					"\n",
+					"(\n",
+					"    case_user_df_clean\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(OUT_CASE_MAP)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote debug match to:\", OUT_DEBUG_MATCH)\n",
+					"print(\"Wrote users to:\", OUT_USERS_LOAD)\n",
+					"print(\"Wrote case map to:\", OUT_CASE_MAP)"
+				],
+				"execution_count": 21
+			}
+		]
+	}
+}
