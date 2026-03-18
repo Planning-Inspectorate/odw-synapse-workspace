@@ -1,5 +1,5 @@
 {
-	"name": "py_sb_raw_to_std",
+	"name": "py_sb_raw_to_std_old",
 	"properties": {
 		"folder": {
 			"name": "service-bus"
@@ -20,15 +20,15 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f204cf5c-e06b-4f3c-9637-f271ef175934"
+				"spark.autotune.trackingId": "a89e00f4-4c63-4d61-9ca2-5650fe2cc118"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": true,
+			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "Synapse PySpark"
+				"display_name": "python"
 			},
 			"language_info": {
 				"name": "python"
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 27
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 28
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 29
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -123,13 +123,13 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": 30
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\r\n",
-					"entity_name = \"appeal_has\"\r\n",
+					"entity_name = \"appeal-s78\"\r\n",
 					"PipelineName = \"pln_se\"\r\n",
 					"PipelineRunID = \"184fb642-eb3a-4705-a6a2-b593bbbbaea4\"\r\n",
 					"PipelineTriggerID = \"fe4dc540-38f6-41c2-847e-aa60d95427d3\"\r\n",
@@ -138,7 +138,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"5ac44682-5051-4ea8-9df2-b876470afc40\""
 				],
-				"execution_count": 31
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -152,10 +152,9 @@
 					"from pyspark.sql import DataFrame\r\n",
 					"from pyspark.sql.types import StructType,TimestampType\r\n",
 					"from pyspark.sql.functions import *\r\n",
-					"import re\r\n",
-					""
+					"import re"
 				],
-				"execution_count": 32
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -168,7 +167,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
 					"    raise e "
 				],
-				"execution_count": 33
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -180,7 +179,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 34
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +189,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 35
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -210,13 +209,12 @@
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\r\n",
 					"target_table: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\r\n",
 					"date_folder = datetime.now().date().strftime('%Y-%m-%d') if date_folder == '' else date_folder\r\n",
-					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/{date_folder}\"\r\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\r\n",
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
-					"start_exec_time = datetime.now()\r\n",
-					"print(source_path)"
+					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 36
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -263,7 +261,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 37
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -314,7 +312,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 38
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -335,14 +333,13 @@
 					"    \"\"\"\r\n",
 					"    Lists all files in a given source path.\r\n",
 					"    Recursively loops through all directories.\r\n",
-					"    Handles missing paths gracefully without crashing.\r\n",
 					"\r\n",
 					"    Args:\r\n",
 					"        source_path: the folder path to start from,\r\n",
-					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
+					"        e.g. abfss://odw-raw@.../ServiceBus/appeal-has/\r\n",
 					"\r\n",
 					"    Returns:\r\n",
-					"        files: a list of files in the source path (empty list if path missing).\r\n",
+					"        files: a list of files in the source path.\r\n",
 					"    \"\"\"\r\n",
 					"    files = []\r\n",
 					"    logInfo(f\"Listing files from {source_path}\")\r\n",
@@ -362,17 +359,17 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error listing files in {source_path}: {e}\")\r\n",
-					"        # Path doesn't exist - return empty list (no crash)\r\n",
 					"    \r\n",
 					"    return files\r\n",
+					"\r\n",
 					"\r\n",
 					"def step_list_all_files():\r\n",
 					"    return get_all_files_recursive(source_path)\r\n",
 					"\r\n",
-					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
-					""
+					"\r\n",
+					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": 39
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -390,51 +387,32 @@
 				},
 				"source": [
 					"@logging_to_appins\r\n",
-					"def get_all_files_recursive(path: str) -> list:\r\n",
-					"    \"\"\"\r\n",
-					"    Recursively lists all files from the given ABFSS path.\r\n",
-					"    Handles missing paths gracefully.\r\n",
-					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        all_files = []\r\n",
-					"        items = mssparkutils.fs.ls(path)\r\n",
-					"        for item in items:\r\n",
-					"            if item.isDir:\r\n",
-					"                all_files.extend(get_all_files_recursive(item.path))\r\n",
-					"            elif item.isFile:\r\n",
-					"                all_files.append(item.path)\r\n",
-					"        return all_files\r\n",
-					"    except Exception:\r\n",
-					"        # Path doesn't exist - return empty list\r\n",
-					"        return []\r\n",
-					"\r\n",
-					"@logging_to_appins\r\n",
 					"def get_missing_files(target_table: str, source_path: str) -> list:\r\n",
-					" \r\n",
-					"    # Get files already in table\r\n",
-					"    df = spark.table(target_table)\r\n",
-					"    files_in_table = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
-					"    \r\n",
-					"    # Get files from source path (handles missing path)\r\n",
-					"    files_in_path = set(get_all_files_recursive(source_path))\r\n",
-					"    \r\n",
-					"    # Files in source but not in table\r\n",
+					"    \"\"\"\r\n",
+					"    Gets the difference between the files in the source path and the files in the table.\r\n",
+					"    Converts the table column \"filename\" into a set.\r\n",
+					"    Creates a set containing all the files int he source path.\r\n",
+					"    Compares the two sets to give the missing files not yet loaded to the table.\r\n",
+					"\r\n",
+					"    Args:\r\n",
+					"        target_table: the name of the table, e.g. sb_appeal_has\r\n",
+					"        source_path: the folder path to start from, \r\n",
+					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
+					"\r\n",
+					"    Returns:\r\n",
+					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
+					"    \"\"\"\r\n",
+					"    df: DataFrame = spark.table(target_table)\r\n",
+					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
+					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
 					"    missing_files = list(files_in_path - files_in_table)\r\n",
-					"    \r\n",
-					"    print(f\"Found {len(files_in_path)} files in source, {len(files_in_table)} in table, {len(missing_files)} missing\")\r\n",
+					"        \r\n",
 					"    return missing_files\r\n",
-					"\r\n",
 					"def step_get_missing_files():\r\n",
-					"    \"\"\"Step wrapper for pipeline execution\"\"\"\r\n",
-					"    return get_missing_files(\r\n",
-					"        target_table=target_table, \r\n",
-					"        source_path=source_path\r\n",
-					"    )\r\n",
-					"\r\n",
-					"# Execute step\r\n",
-					"missing_files = run_step(\"Get list of missing files(source_table)\", step_get_missing_files)"
+					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
+					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 40
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -488,7 +466,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": 41
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -534,58 +512,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 42
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# @logging_to_appins\r\n",
-					"# def read_raw_messages():\r\n",
-					"#     \"\"\"\r\n",
-					"#     Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
-					"#     Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
-					"#     \"\"\"\r\n",
-					"\r\n",
-					"#     # filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-document/2026-03-17/appeal-document_2026-03-17T02:05:34.231506+0000.json\"\r\n",
-					"#     # filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-document/2026-03-18/appeal-document_2026-03-18T02_08_00.709396+0000.json\"\r\n",
-					"\r\n",
-					"#     if not filtered_paths:\r\n",
-					"#         logInfo(\"No files to ingest.\")\r\n",
-					"#         return (\r\n",
-					"#             spark.createDataFrame([], schema=spark_schema)\r\n",
-					"#             if spark_schema is not None\r\n",
-					"#             else spark.createDataFrame([], StructType())\r\n",
-					"#         )\r\n",
-					"\r\n",
-					"#     reader = spark.read.option(\"multiline\", \"true\")\r\n",
-					"\r\n",
-					"#     if spark_schema:\r\n",
-					"#         reader = reader.schema(spark_schema)\r\n",
-					"\r\n",
-					"#     df = reader.json(filtered_paths)\r\n",
-					"\r\n",
-					"#     logInfo(f\"Found {df.count()} new rows.\")\r\n",
-					"\r\n",
-					"#     df = (\r\n",
-					"#         df.withColumn(\"expected_from\", current_timestamp())\r\n",
-					"#           .withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
-					"#           .withColumn(\"ingested_datetime\", to_timestamp(\"message_enqueued_time_utc\"))\r\n",
-					"#           .withColumn(\"input_file\", input_file_name())\r\n",
-					"#     )\r\n",
-					"\r\n",
-					"#     return df\r\n",
-					"\r\n",
-					"\r\n",
-					"# def step_read_raw_messages():\r\n",
-					"#     return read_raw_messages()\r\n",
-					"\r\n",
-					"\r\n",
-					"# raw_df = run_step(\r\n",
-					"#     \"Read raw service bus messages\",\r\n",
-					"#     step_read_raw_messages\r\n",
-					"# )"
-				],
-				"execution_count": 43
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -626,7 +553,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 44
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -640,11 +567,6 @@
 					"        df: DataFrame of new rows\r\n",
 					"        target_table: name of the target table\r\n",
 					"    \"\"\"\r\n",
-					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
-					"\r\n",
-					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
-					"\r\n",
-					"\r\n",
 					"    logInfo(f\"Appending data to table {target_table}\")\r\n",
 					" \r\n",
 					"    (\r\n",
@@ -652,7 +574,6 @@
 					"        .mode(\"append\")\r\n",
 					"        .format(\"delta\")\r\n",
 					"        .option(\"mergeSchema\", \"true\")\r\n",
-					"        .option(\"path\", table_path)\r\n",
 					"        .saveAsTable(target_table)\r\n",
 					"    )\r\n",
 					" \r\n",
@@ -669,7 +590,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 45
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -703,7 +624,7 @@
 					"    return result\r\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -777,7 +698,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": 47
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -823,7 +744,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 48
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -850,7 +771,7 @@
 					"    return spark.table(target_table).count()\r\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
-				"execution_count": 49
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -889,7 +810,7 @@
 					"\r\n",
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)"
 				],
-				"execution_count": 50
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -949,7 +870,7 @@
 					"if not error_message:\r\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": 51
+				"execution_count": null
 			}
 		]
 	}
