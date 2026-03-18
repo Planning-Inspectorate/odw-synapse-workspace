@@ -23,11 +23,11 @@ class ETLProcessFactory:
         ServiceBusHarmonisationProcess,
         NsipDocumentHarmonisationProcess,
         NsipExamTimetableHarmonisationProcess,
-        NsipExamTimetableHarmonisationProcess,
+        NsipRepresentationHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
         NsipExamTimetableCuratedProcess,
-        NsipExamTimetableCuratedProcess,
+        NsipRepresentationCuratedProcess,
     }
 
     @classmethod
