@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ee81b5be-b542-4276-9c39-649c047b2e8c"
+				"spark.autotune.trackingId": "f82d59d7-8b36-4a36-b866-17671129245b"
 			}
 		},
 		"metadata": {
@@ -39,11 +39,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -77,12 +77,28 @@
 					"\n",
 					"empty_df = spark.createDataFrame([], schema)\n",
 					"\n",
-					"spark.sql(f\"USE {db_name}\")\n",
-					"if not spark._jsparkSession.catalog().tableExists(db_name, table_name):\n",
-					"    (empty_df.write\n",
-					"        .format(\"delta\")\n",
-					"        .mode(\"overwrite\")\n",
-					"        .saveAsTable(f\"{db_name}.{table_name}\"))\n",
+					"try:\n",
+					"\n",
+					"\t# Resolve storage path of the target table\n",
+					"\tdf_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"\ttable_path = (\n",
+					"\t\tdf_table_path\n",
+					"\t\t.where(\"col_name == 'Location'\")\n",
+					"\t\t.select(\"data_type\")\n",
+					"\t\t.collect()[0][0]\n",
+					"\t)\n",
+					"\t\n",
+					"\tspark.sql(f\"USE {db_name}\")\n",
+					"\tif not spark._jsparkSession.catalog().tableExists(db_name, table_name):\n",
+					"\t\t(empty_df.write \\\n",
+					"\t\t\t.format(\"delta\") \\\n",
+					"\t\t\t.mode(\"overwrite\") \\\n",
+					"\t\t\t.option(\"path\", table_path) \\\n",
+					"\t\t\t.saveAsTable(f\"{db_name}.{table_name}\"))\n",
+					"\n",
+					"except Exception as e:\n",
+					"\terror_message = f\"Error when writing the final data for {FINAL}: {str(e)[:800]}\"\n",
+					"\tprint(error_message)\n",
 					""
 				],
 				"execution_count": null
