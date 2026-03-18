@@ -54,7 +54,7 @@ _DOCUMENT_ROW_ID_COLUMNS = [
 ]
 
 # Columns used for the final deduplication step
-_DEDUP_COLUMNS = [
+_DEDUPE_COLUMNS = [
     "documentId",
     "filename",
     "version",
@@ -423,7 +423,7 @@ class NsipDocumentHarmonisationProcess(HarmonisationProcess):
 
         # Step 7: Drop the temporary primary key and deduplicate
         final_df = joined.drop(pk).dropDuplicates()
-        final_df = final_df.dropDuplicates(subset=_DEDUP_COLUMNS)
+        final_df = final_df.dropDuplicates(subset=_DEDUPE_COLUMNS)
 
         # Ensure final column order: put SourceSystemID where it belongs if present
         # (The base run() -> write_data() will handle the actual write)
