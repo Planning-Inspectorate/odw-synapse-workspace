@@ -77,9 +77,9 @@ class NsipDocumentCuratedProcess(CurationProcess):
                 filter1Welsh,
                 filter2,
                 horizonFolderId,
-                transcriptId,
-                IsActive
+                transcriptId
             FROM {self.HARMONISED_TABLE}
+            WHERE IsActive = 'Y'
         """)
 
         LoggingUtil().log_info(f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}")
@@ -104,11 +104,8 @@ class NsipDocumentCuratedProcess(CurationProcess):
         harmonised_docs: DataFrame = self.load_parameter("harmonised_docs", source_data)
         curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
 
-        # Filter to active records
-        docs = harmonised_docs.filter(F.col("IsActive") == "Y")
-
         # LEFT JOIN to curated projects (matching notebook: LEFT JOIN on caseReference = caseRef)
-        docs = docs.join(curated_projects, curated_projects["caseReference"] == docs["caseRef"], "left")
+        docs = harmonised_docs.join(curated_projects, curated_projects["caseReference"] == harmonised_docs["caseRef"], "left")
 
         # Apply curated column transformations and SELECT DISTINCT
         df = docs.select(
