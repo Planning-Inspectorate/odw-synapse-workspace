@@ -5,8 +5,10 @@ from odw.core.etl.transformation.standardised.service_bus_standardisation_proces
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process import NsipExamTimetableHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
+from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -18,8 +20,10 @@ class ETLProcessFactory:
         HorizonStandardisationProcess,
         ServiceBusHarmonisationProcess,
         NsipDocumentHarmonisationProcess,
+        NsipExamTimetableHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
+        NsipExamTimetableCuratedProcess,
     }
 
     @classmethod
