@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d390a840-94df-46e0-a740-e1a7f77d7613"
+				"spark.autotune.trackingId": "d0221a66-30d6-456b-83d9-2cc8ca5d7831"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 39
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 40
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 41
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": 42
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -138,7 +138,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"5ac44682-5051-4ea8-9df2-b876470afc40\""
 				],
-				"execution_count": 43
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -154,7 +154,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 44
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +167,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
 					"    raise e "
 				],
-				"execution_count": 45
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +179,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 46
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -187,9 +187,10 @@
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
-					"error_message= None"
+					"error_message= None\r\n",
+					"db_name='odw_standardised_db'"
 				],
-				"execution_count": 47
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -214,7 +215,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 48
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -261,7 +262,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 49
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -312,7 +313,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 50
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -369,7 +370,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": 51
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -412,7 +413,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 52
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -466,7 +467,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": 53
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -512,19 +513,67 @@
 					"# )\r\n",
 					""
 				],
-				"execution_count": 54
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"# @logging_to_appins\r\n",
+					"# def read_raw_messages():\r\n",
+					"#     \"\"\"\r\n",
+					"#     Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
+					"#     Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
+					"#     \"\"\"\r\n",
+					"\r\n",
+					"#     # filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-s78/2026-03-17/*.json\"\r\n",
+					"#     filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-s78/2026-03-18/*.json\"\r\n",
+					"\r\n",
+					"#     if not filtered_paths:\r\n",
+					"#         logInfo(\"No files to ingest.\")\r\n",
+					"#         return (\r\n",
+					"#             spark.createDataFrame([], schema=spark_schema)\r\n",
+					"#             if spark_schema is not None\r\n",
+					"#             else spark.createDataFrame([], StructType())\r\n",
+					"#         )\r\n",
+					"\r\n",
+					"#     reader = spark.read.option(\"multiline\", \"true\")\r\n",
+					"\r\n",
+					"#     if spark_schema:\r\n",
+					"#         reader = reader.schema(spark_schema)\r\n",
+					"\r\n",
+					"#     df = reader.json(filtered_paths)\r\n",
+					"\r\n",
+					"#     logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"\r\n",
+					"#     df = (\r\n",
+					"#         df.withColumn(\"expected_from\", current_timestamp())\r\n",
+					"#           .withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"#           .withColumn(\"ingested_datetime\", to_timestamp(\"message_enqueued_time_utc\"))\r\n",
+					"#           .withColumn(\"input_file\", input_file_name())\r\n",
+					"#     )\r\n",
+					"\r\n",
+					"#     return df\r\n",
+					"\r\n",
+					"\r\n",
+					"# def step_read_raw_messages():\r\n",
+					"#     return read_raw_messages()\r\n",
+					"\r\n",
+					"\r\n",
+					"# raw_df = run_step(\r\n",
+					"#     \"Read raw service bus messages\",\r\n",
+					"#     step_read_raw_messages\r\n",
+					"# )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\r\n",
 					"@logging_to_appins\r\n",
 					"def read_raw_messages():\r\n",
-					"    \"\"\"\r\n",
-					"    Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
-					"    Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
-					"    \"\"\"\r\n",
 					"\r\n",
-					"    # filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-s78/2026-03-17/*.json\"\r\n",
+					"\r\n",
 					"    filtered_paths = \"abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-s78/2026-03-18/*.json\"\r\n",
 					"\r\n",
 					"    if not filtered_paths:\r\n",
@@ -535,15 +584,39 @@
 					"            else spark.createDataFrame([], StructType())\r\n",
 					"        )\r\n",
 					"\r\n",
-					"    reader = spark.read.option(\"multiline\", \"true\")\r\n",
+					"    # ---------------------------------------------------------\r\n",
+					"    # STEP 1 — Infer schema from incoming JSON files\r\n",
+					"    # ---------------------------------------------------------\r\n",
+					"    incoming_schema = spark.read.option(\"multiline\", \"true\").json(filtered_paths).schema\r\n",
 					"\r\n",
-					"    if spark_schema:\r\n",
-					"        reader = reader.schema(spark_schema)\r\n",
-					"\r\n",
-					"    df = reader.json(filtered_paths)\r\n",
+					"    # Read data using inferred schema\r\n",
+					"    df = spark.read.option(\"multiline\", \"true\").schema(incoming_schema).json(filtered_paths)\r\n",
 					"\r\n",
 					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"\r\n",
+					"    # ---------------------------------------------------------\r\n",
+					"    # STEP 2 — If master schema exists, reconcile\r\n",
+					"    # ---------------------------------------------------------\r\n",
+					"    if spark_schema:\r\n",
+					"\r\n",
+					"        for field in spark_schema.fields:\r\n",
+					"            col_name = field.name\r\n",
+					"            col_type = field.dataType\r\n",
+					"\r\n",
+					"            if col_name not in df.columns:\r\n",
+					"                # Missing column → add as null with correct type\r\n",
+					"                df = df.withColumn(col_name, lit(None).cast(col_type))\r\n",
+					"\r\n",
+					"            else:\r\n",
+					"                # Column exists → cast if datatype mismatch\r\n",
+					"                if df.schema[col_name].dataType != col_type:\r\n",
+					"                    df = df.withColumn(col_name, col(col_name).cast(col_type))\r\n",
+					"\r\n",
+					"        # Keep extra fields that exist in incoming but not in master schema\r\n",
+					"\r\n",
+					"    # ---------------------------------------------------------\r\n",
+					"    # STEP 3 — Add system columns\r\n",
+					"    # ---------------------------------------------------------\r\n",
 					"    df = (\r\n",
 					"        df.withColumn(\"expected_from\", current_timestamp())\r\n",
 					"          .withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
@@ -561,9 +634,10 @@
 					"raw_df = run_step(\r\n",
 					"    \"Read raw service bus messages\",\r\n",
 					"    step_read_raw_messages\r\n",
-					")"
+					")\r\n",
+					""
 				],
-				"execution_count": 55
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -604,7 +678,91 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 56
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Schema Comparison Script-- need to remove"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import DataFrame\r\n",
+					"\r\n",
+					"def compare_schemas(df1: DataFrame, df2: DataFrame, name1=\"raw_df\", name2=\"target_df\"):\r\n",
+					"    \"\"\"\r\n",
+					"    Compares two DataFrame schemas and prints differences.\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    # print(f\"=== {name1} Schema ===\")\r\n",
+					"    # df1.printSchema()\r\n",
+					"    # print(f\"=== {name2} Schema ===\")\r\n",
+					"    # df2.printSchema()\r\n",
+					"\r\n",
+					"    # Convert schema to dict: {column_name: data_type}\r\n",
+					"    schema1 = {field.name: field.dataType.simpleString() for field in df1.schema.fields}\r\n",
+					"    schema2 = {field.name: field.dataType.simpleString() for field in df2.schema.fields}\r\n",
+					"\r\n",
+					"    # Columns present in df2 but missing in df1\r\n",
+					"    missing_in_df1 = [col for col in schema2 if col not in schema1]\r\n",
+					"\r\n",
+					"    # Columns present in df1 but missing in df2\r\n",
+					"    missing_in_df2 = [col for col in schema1 if col not in schema2]\r\n",
+					"\r\n",
+					"    # Columns with same name but different data types\r\n",
+					"    type_mismatches = [\r\n",
+					"        (col, schema1[col], schema2[col])\r\n",
+					"        for col in schema1\r\n",
+					"        if col in schema2 and schema1[col] != schema2[col]\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    print(\"\\n\\n=== SCHEMA COMPARISON RESULTS ===\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns missing in RAW DF (present in target table):\")\r\n",
+					"    if missing_in_df1:\r\n",
+					"        for c in missing_in_df1:\r\n",
+					"            print(f\"  - {c} : {schema2[c]}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns missing in TARGET TABLE (present in raw_df):\")\r\n",
+					"    if missing_in_df2:\r\n",
+					"        for c in missing_in_df2:\r\n",
+					"            print(f\"  - {c} : {schema1[c]}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns with DIFFERENT DATA TYPES:\")\r\n",
+					"    if type_mismatches:\r\n",
+					"        for col, t1, t2 in type_mismatches:\r\n",
+					"            print(f\"  - {col}: raw_df={t1}, target={t2}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n=== END OF REPORT ===\")\r\n",
+					"\r\n",
+					"\r\n",
+					"# -------------------------------------------\r\n",
+					"# USAGE\r\n",
+					"# -------------------------------------------\r\n",
+					"\r\n",
+					"raw_df = raw_df  # your existing raw dataframe\r\n",
+					"\r\n",
+					"target_table = \"odw_standardised_db.sb_appeal_s78\"\r\n",
+					"target_df = spark.table(target_table)\r\n",
+					"\r\n",
+					"compare_schemas(raw_df, target_df, \"raw_df\", target_table)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -641,7 +799,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 57
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
