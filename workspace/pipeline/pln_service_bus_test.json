@@ -1249,7 +1249,7 @@
 				}
 			},
 			{
-				"name": "Filter_Harmonised_Notebook",
+				"name": "Filter_Config",
 				"type": "Filter",
 				"dependsOn": [
 					{
@@ -1276,7 +1276,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Filter_Harmonised_Notebook",
+						"activity": "Filter_Config",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1290,7 +1290,7 @@
 				"typeProperties": {
 					"variableName": "harmonised_notebook_name",
 					"value": {
-						"value": "@if(\n    and(\n        greater(length(activity('Filter_Harmonised_Notebook').output.value), 0),\n        not(empty(first(activity('Filter_Harmonised_Notebook').output.value).Harmonised_Notebook_Name))\n    ),\n    first(activity('Filter_Harmonised_Notebook').output.value).Harmonised_Notebook_Name,\n    ''\n)",
+						"value": "@if(\n    and(\n        greater(length(activity('Filter_Config').output.value), 0),\n        not(empty(first(activity('Filter_Config').output.value).Harmonised_Notebook_Name))\n    ),\n    first(activity('Filter_Config').output.value).Harmonised_Notebook_Name,\n    ''\n)",
 						"type": "Expression"
 					}
 				}
@@ -1335,7 +1335,11 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('Std to Hrm').output.status.output.result.exitValue.table_details[0].error_message",
+							"value": "@json(activity('Harmonised_service-Bus_NoteBook').output.status).error_message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat('Failed to load service bus: ', variables('entity_name'))",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -1359,10 +1363,14 @@
 							"type": "Expression"
 						},
 						"PipelineExecutionTimeInSec": {
-							"value": "\n",
+							"value": "@string(json(activity('Harmonised_service-Bus_NoteBook').output.status.output.result.exitValue).table_details[0].total_exec_time)\n",
 							"type": "Expression"
 						},
 						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+							"type": "Expression"
+						},
 						"StatusCode": "500",
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
