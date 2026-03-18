@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "638b1b84-0a11-4e30-83c7-ad45df776d3a"
+				"spark.autotune.trackingId": "f204cf5c-e06b-4f3c-9637-f271ef175934"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 380
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 381
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 382
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -123,13 +123,13 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": 383
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\r\n",
-					"entity_name = \"appeal_document\"\r\n",
+					"entity_name = \"appeal_has\"\r\n",
 					"PipelineName = \"pln_se\"\r\n",
 					"PipelineRunID = \"184fb642-eb3a-4705-a6a2-b593bbbbaea4\"\r\n",
 					"PipelineTriggerID = \"fe4dc540-38f6-41c2-847e-aa60d95427d3\"\r\n",
@@ -138,7 +138,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"5ac44682-5051-4ea8-9df2-b876470afc40\""
 				],
-				"execution_count": 384
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -155,7 +155,7 @@
 					"import re\r\n",
 					""
 				],
-				"execution_count": 385
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -168,7 +168,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
 					"    raise e "
 				],
-				"execution_count": 386
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -180,7 +180,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 387
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +190,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 388
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -216,7 +216,7 @@
 					"start_exec_time = datetime.now()\r\n",
 					"print(source_path)"
 				],
-				"execution_count": 389
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -263,7 +263,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 390
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -314,7 +314,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 391
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -335,13 +335,14 @@
 					"    \"\"\"\r\n",
 					"    Lists all files in a given source path.\r\n",
 					"    Recursively loops through all directories.\r\n",
+					"    Handles missing paths gracefully without crashing.\r\n",
 					"\r\n",
 					"    Args:\r\n",
 					"        source_path: the folder path to start from,\r\n",
-					"        e.g. abfss://odw-raw@.../ServiceBus/appeal-has/\r\n",
+					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
 					"\r\n",
 					"    Returns:\r\n",
-					"        files: a list of files in the source path.\r\n",
+					"        files: a list of files in the source path (empty list if path missing).\r\n",
 					"    \"\"\"\r\n",
 					"    files = []\r\n",
 					"    logInfo(f\"Listing files from {source_path}\")\r\n",
@@ -361,17 +362,17 @@
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        logError(f\"Error listing files in {source_path}: {e}\")\r\n",
+					"        # Path doesn't exist - return empty list (no crash)\r\n",
 					"    \r\n",
 					"    return files\r\n",
-					"\r\n",
 					"\r\n",
 					"def step_list_all_files():\r\n",
 					"    return get_all_files_recursive(source_path)\r\n",
 					"\r\n",
-					"\r\n",
-					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
+					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)\r\n",
+					""
 				],
-				"execution_count": 392
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -389,32 +390,51 @@
 				},
 				"source": [
 					"@logging_to_appins\r\n",
+					"def get_all_files_recursive(path: str) -> list:\r\n",
+					"    \"\"\"\r\n",
+					"    Recursively lists all files from the given ABFSS path.\r\n",
+					"    Handles missing paths gracefully.\r\n",
+					"    \"\"\"\r\n",
+					"    try:\r\n",
+					"        all_files = []\r\n",
+					"        items = mssparkutils.fs.ls(path)\r\n",
+					"        for item in items:\r\n",
+					"            if item.isDir:\r\n",
+					"                all_files.extend(get_all_files_recursive(item.path))\r\n",
+					"            elif item.isFile:\r\n",
+					"                all_files.append(item.path)\r\n",
+					"        return all_files\r\n",
+					"    except Exception:\r\n",
+					"        # Path doesn't exist - return empty list\r\n",
+					"        return []\r\n",
+					"\r\n",
+					"@logging_to_appins\r\n",
 					"def get_missing_files(target_table: str, source_path: str) -> list:\r\n",
-					"    \"\"\"\r\n",
-					"    Gets the difference between the files in the source path and the files in the table.\r\n",
-					"    Converts the table column \"filename\" into a set.\r\n",
-					"    Creates a set containing all the files int he source path.\r\n",
-					"    Compares the two sets to give the missing files not yet loaded to the table.\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        target_table: the name of the table, e.g. sb_appeal_has\r\n",
-					"        source_path: the folder path to start from, \r\n",
-					"        e.g. abfss://odw-raw@pinsstodwdevuks9h80mb.dfs.core.windows.net/ServiceBus/appeal-has/\r\n",
-					"\r\n",
-					"    Returns:\r\n",
-					"        missing_files: a list of missing files not yet loaded to the table.\r\n",
-					"    \"\"\"\r\n",
-					"    df: DataFrame = spark.table(target_table)\r\n",
-					"    files_in_path: set = set(get_all_files_recursive(source_path))\r\n",
-					"    files_in_table: set = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					" \r\n",
+					"    # Get files already in table\r\n",
+					"    df = spark.table(target_table)\r\n",
+					"    files_in_table = set(df.select(\"input_file\").rdd.flatMap(lambda x: x).collect())\r\n",
+					"    \r\n",
+					"    # Get files from source path (handles missing path)\r\n",
+					"    files_in_path = set(get_all_files_recursive(source_path))\r\n",
+					"    \r\n",
+					"    # Files in source but not in table\r\n",
 					"    missing_files = list(files_in_path - files_in_table)\r\n",
-					"        \r\n",
+					"    \r\n",
+					"    print(f\"Found {len(files_in_path)} files in source, {len(files_in_table)} in table, {len(missing_files)} missing\")\r\n",
 					"    return missing_files\r\n",
+					"\r\n",
 					"def step_get_missing_files():\r\n",
-					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
-					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
+					"    \"\"\"Step wrapper for pipeline execution\"\"\"\r\n",
+					"    return get_missing_files(\r\n",
+					"        target_table=target_table, \r\n",
+					"        source_path=source_path\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# Execute step\r\n",
+					"missing_files = run_step(\"Get list of missing files(source_table)\", step_get_missing_files)"
 				],
-				"execution_count": 393
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -468,7 +488,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": 394
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -514,7 +534,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 395
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -565,7 +585,7 @@
 					"#     step_read_raw_messages\r\n",
 					"# )"
 				],
-				"execution_count": 396
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -606,7 +626,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 397
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -649,7 +669,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 398
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -683,7 +703,7 @@
 					"    return result\r\n",
 					""
 				],
-				"execution_count": 399
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -757,7 +777,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": 400
+				"execution_count": 47
 			},
 			{
 				"cell_type": "markdown",
@@ -803,7 +823,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 401
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -830,7 +850,7 @@
 					"    return spark.table(target_table).count()\r\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
-				"execution_count": 402
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -869,7 +889,7 @@
 					"\r\n",
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)"
 				],
-				"execution_count": 403
+				"execution_count": 50
 			},
 			{
 				"cell_type": "markdown",
@@ -929,7 +949,7 @@
 					"if not error_message:\r\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": 404
+				"execution_count": 51
 			}
 		]
 	}
