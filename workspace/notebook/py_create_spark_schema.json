@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1bddc1bf-c2e8-452b-a84d-ed7d2395aee1"
+				"spark.autotune.trackingId": "582c312a-556b-4e89-892f-522f99414323"
 			}
 		},
 		"metadata": {
@@ -67,7 +67,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 15
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -86,15 +86,31 @@
 					]
 				},
 				"source": [
-					"entity_name = 'appeal_s78'\r\n",
+					"entity_name = 'appeal-s78'\r\n",
 					"db_name = 'odw_standardised_db'\r\n",
 					"incremental_key = ''\r\n",
 					"is_servicebus_schema: bool = True\r\n",
 					"return_json_schema = False\r\n",
 					"odw_config_entity = ''\r\n",
-					"version = '2.29.0'"
+					"# version = '2.29.0'"
 				],
-				"execution_count": 16
+				"execution_count": 105
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import requests, re\r\n",
+					"from packaging import version as ver\r\n",
+					"\r\n",
+					"version = sorted(\r\n",
+					"    [t[\"name\"] for t in requests.get(\"https://api.github.com/repos/Planning-Inspectorate/data-model/tags\").json()\r\n",
+					"     if re.fullmatch(r\"v?\\d+\\.\\d+\\.\\d+\", t[\"name\"])],\r\n",
+					"    key=lambda v: ver.parse(v),\r\n",
+					"    reverse=True\r\n",
+					")[0]\r\n",
+					"print(version)"
+				],
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +121,7 @@
 					"import json\r\n",
 					"import requests"
 				],
-				"execution_count": 17
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +139,7 @@
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 18
+				"execution_count": 108
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +165,7 @@
 					"    'timestamp': TimestampType() \r\n",
 					"    }"
 				],
-				"execution_count": 19
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -205,7 +221,7 @@
 					"if is_servicebus_schema:\r\n",
 					"    harmonised_fields = StructType(harmonised_fields.fields + [StructField(\"message_id\", StringType(), True)])"
 				],
-				"execution_count": 20
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -233,7 +249,7 @@
 					"    except requests.exceptions.RequestException as e:\r\n",
 					"        logException(e)"
 				],
-				"execution_count": 21
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
@@ -274,7 +290,7 @@
 					"        raise\r\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
@@ -307,7 +323,7 @@
 					"            fields.append(StructField(field[\"name\"], spark_type, nullable))\r\n",
 					"        return StructType(fields)"
 				],
-				"execution_count": 23
+				"execution_count": 113
 			},
 			{
 				"cell_type": "code",
@@ -337,7 +353,7 @@
 					"    else:\r\n",
 					"        return schema"
 				],
-				"execution_count": 24
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
@@ -378,7 +394,7 @@
 					"\r\n",
 					"    return final_schema"
 				],
-				"execution_count": 25
+				"execution_count": 115
 			},
 			{
 				"cell_type": "code",
@@ -387,6 +403,7 @@
 					"\r\n",
 					"    if is_servicebus_schema:\r\n",
 					"        url = f\"https://raw.githubusercontent.com/Planning-Inspectorate/data-model/refs/tags/{version}/schemas/{entity_name}.schema.json\"\r\n",
+					"        print(url)\r\n",
 					"    else:\r\n",
 					"        url = f\"https://raw.githubusercontent.com/Planning-Inspectorate/odw-config/refs/heads/main/data-lake/standardised_table_definitions/Horizon/{entity_name}.json\"\r\n",
 					"\r\n",
@@ -399,7 +416,7 @@
 					"\r\n",
 					"    return json_schema"
 				],
-				"execution_count": 26
+				"execution_count": 116
 			},
 			{
 				"cell_type": "code",
@@ -422,7 +439,7 @@
 					"#     logError(f\"Invalid schema retrieved from {url}\")\r\n",
 					"#     mssparkutils.notebook.exit('')"
 				],
-				"execution_count": 27
+				"execution_count": 117
 			},
 			{
 				"cell_type": "code",
@@ -455,7 +472,7 @@
 					"\r\n",
 					"final_schema: StructType = add_master_columns_to_schema(db_name)"
 				],
-				"execution_count": 28
+				"execution_count": 118
 			},
 			{
 				"cell_type": "code",
