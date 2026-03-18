@@ -3,7 +3,6 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
 
@@ -46,9 +45,9 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
                 subscriptionType,
                 startDate,
                 endDate,
-                language,
-                IsActive
+                language
             FROM {self.HARMONISED_TABLE}
+            WHERE IsActive = 'Y'
         """)
 
         return {
@@ -65,20 +64,16 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_subscriptions: DataFrame = self.load_parameter("harmonised_subscriptions", source_data)
 
-        # Filter to active records and select curated columns
-        df = (
-            harmonised_subscriptions.filter(F.col("IsActive") == "Y")
-            .select(
-                "subscriptionId",
-                "caseReference",
-                "emailAddress",
-                "subscriptionType",
-                "startDate",
-                "endDate",
-                "language",
-            )
-            .distinct()
-        )
+        # Select curated columns and deduplicate
+        df = harmonised_subscriptions.select(
+            "subscriptionId",
+            "caseReference",
+            "emailAddress",
+            "subscriptionType",
+            "startDate",
+            "endDate",
+            "language",
+        ).distinct()
 
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated NSIP Subscription row count: {insert_count}")
