@@ -7,10 +7,12 @@ from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process im
 from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process import NsipExamTimetableHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import NsipRepresentationHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import NsipS51AdviceHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
 from odw.core.etl.transformation.curated.nsip_representation_curated_process import NsipRepresentationCuratedProcess
+from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -24,10 +26,12 @@ class ETLProcessFactory:
         NsipDocumentHarmonisationProcess,
         NsipExamTimetableHarmonisationProcess,
         NsipRepresentationHarmonisationProcess,
+        NsipS51AdviceHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
         NsipExamTimetableCuratedProcess,
         NsipRepresentationCuratedProcess,
+        NsipS51AdviceCuratedProcess,
     }
 
     @classmethod
