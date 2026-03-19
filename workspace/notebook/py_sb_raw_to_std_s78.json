@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f83f65b6-6396-483b-a31c-831ef04ad61c"
+				"spark.autotune.trackingId": "0b7d07c1-5e32-4551-8172-6a5196b045c4"
 			}
 		},
 		"metadata": {
@@ -77,7 +77,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 42
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -95,14 +95,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 43
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 44
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -124,7 +124,7 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": 45
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,7 @@
 					"PipelineTriggeredbyPipelineRunID = \"fcb9bae9-b783-472c-b9a1-303b281cb31f\"\r\n",
 					""
 				],
-				"execution_count": 46
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 47
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -174,7 +174,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
 					"    raise e "
 				],
-				"execution_count": 48
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -186,7 +186,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 49
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -196,7 +196,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 50
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -221,7 +221,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 51
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -268,7 +268,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 52
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -319,7 +319,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 53
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -376,7 +376,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": 54
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -419,7 +419,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 55
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -473,7 +473,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": 56
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -520,7 +520,7 @@
 					"    step_read_raw_messages\r\n",
 					")"
 				],
-				"execution_count": 57
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -561,137 +561,181 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 58
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# cell 3 - FIXED VERSION\r\n",
-					"from pyspark.sql.types import StructType\r\n",
-					"from pyspark.sql import functions as F\r\n",
+					"# === Cell 3: Auto-cast raw_df to match target table schema ===\r\n",
 					"\r\n",
-					"@logging_to_appins\r\n",
-					"def get_table_path_safe(target_table: str) -> str:\r\n",
+					"from pyspark.sql.functions import col, when, lit, array, from_json\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"\r\n",
+					"# Load target table schema\r\n",
+					"target_schema = spark.table(target_table).schema\r\n",
+					"\r\n",
+					"def cast_column(df, col_name, target_type):\r\n",
+					"    src = col(col_name)\r\n",
+					"\r\n",
+					"    # --- Handle arrays ---\r\n",
+					"    if isinstance(target_type, ArrayType):\r\n",
+					"        df = df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            when(src.isNull(), lit(\"[]\"))\r\n",
+					"            .when(src == \"\", lit(\"[]\"))\r\n",
+					"            .when(src.startswith(\"[\"), src)\r\n",
+					"            .otherwise(array(src))\r\n",
+					"        )\r\n",
+					"        return df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            from_json(col(col_name).cast(\"string\"), target_type)\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    # --- Handle booleans ---\r\n",
+					"    if isinstance(target_type, BooleanType):\r\n",
+					"        return df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            when(src.isNull() | (src == \"\"), None)\r\n",
+					"            .when(src == \"true\", True)\r\n",
+					"            .when(src == \"false\", False)\r\n",
+					"            .otherwise(src.cast(BooleanType()))\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    # --- Handle numeric ---\r\n",
+					"    if isinstance(target_type, (IntegerType, LongType, DoubleType, FloatType, DecimalType)):\r\n",
+					"        return df.withColumn(\r\n",
+					"            col_name,\r\n",
+					"            when(src.isNull() | (src == \"\"), None)\r\n",
+					"            .otherwise(src.cast(target_type))\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    # --- Default cast ---\r\n",
+					"    return df.withColumn(col_name, src.cast(target_type))\r\n",
+					"\r\n",
+					"\r\n",
+					"# Apply auto-casting for every column in target table\r\n",
+					"df_fixed = raw_df\r\n",
+					"for field in target_schema.fields:\r\n",
+					"    if field.name in raw_df.columns:\r\n",
+					"        df_fixed = cast_column(df_fixed, field.name, field.dataType)\r\n",
+					"\r\n",
+					"# Replace raw_df with fixed version for next steps\r\n",
+					"raw_df = df_fixed\r\n",
+					"\r\n",
+					"logInfo(\"Completed auto-casting to target schema.\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import DataFrame\r\n",
+					"\r\n",
+					"def compare_schemas(df1: DataFrame, df2: DataFrame, name1=\"raw_df\", name2=\"target_df\"):\r\n",
 					"    \"\"\"\r\n",
-					"    Safely gets Delta table path without collect() failure.\r\n",
+					"    Compares two DataFrame schemas and prints differences.\r\n",
 					"    \"\"\"\r\n",
-					"    try:\r\n",
-					"        # Method 1: Delta table property (fastest, Spark 3.5+)\r\n",
-					"        path = spark.sql(f\"DESCRIBE DETAIL EXTENDED {target_table}\") \\\r\n",
-					"                   .select(\"location\").collect()[0][0]\r\n",
-					"        logInfo(f\"Found table path via DESCRIBE DETAIL: {path}\")\r\n",
-					"        return path\r\n",
-					"    except:\r\n",
-					"        try:\r\n",
-					"            # Method 2: Delta history (if table exists)\r\n",
-					"            path = spark.sql(f\"\"\"\r\n",
-					"                SELECT DISTINCT location \r\n",
-					"                FROM delta.`{target_table}`.history \r\n",
-					"                LIMIT 1\r\n",
-					"            \"\"\").collect()[0][0]\r\n",
-					"            logInfo(f\"Found table path via Delta history: {path}\")\r\n",
-					"            return path\r\n",
-					"        except:\r\n",
-					"            # Method 3: Fallback - use catalog/database convention\r\n",
-					"            logWarning(f\"Could not auto-detect path for {target_table}. Using default.\")\r\n",
-					"            return f\"abfss://YOUR-CONTAINER@{YOUR-STORAGE-ACCOUNT}.dfs.core.windows.net/YOUR-PATH/{target_table}\"\r\n",
 					"\r\n",
-					"@logging_to_appins\r\n",
-					"def cast_df_to_target_schema(df: DataFrame, target_table: str) -> DataFrame:\r\n",
-					"    \"\"\"Casts DataFrame schema to match target Delta table (handles allocationBand error).\"\"\"\r\n",
-					"    if df is None or df.rdd.isEmpty():\r\n",
-					"        logInfo(\"No rows found. Skipping schema alignment\")\r\n",
-					"        return df\r\n",
+					"    # print(f\"=== {name1} Schema ===\")\r\n",
+					"    # df1.printSchema()\r\n",
+					"    # print(f\"=== {name2} Schema ===\")\r\n",
+					"    # df2.printSchema()\r\n",
 					"\r\n",
-					"    target_schema: StructType = spark.table(target_table).schema\r\n",
-					"    logInfo(f\"Aligning {df.count()} rows to target schema {target_table}\")\r\n",
+					"    # Convert schema to dict: {column_name: data_type}\r\n",
+					"    schema1 = {field.name: field.dataType.simpleString() for field in df1.schema.fields}\r\n",
+					"    schema2 = {field.name: field.dataType.simpleString() for field in df2.schema.fields}\r\n",
 					"\r\n",
-					"    cast_exprs = []\r\n",
-					"    for field in target_schema.fields:\r\n",
-					"        col_name = field.name\r\n",
-					"        col_type = field.dataType\r\n",
-					"        if col_name in df.columns:\r\n",
-					"            cast_exprs.append(F.col(col_name).cast(col_type).alias(col_name))\r\n",
-					"        else:\r\n",
-					"            cast_exprs.append(F.lit(None).cast(col_type).alias(col_name))\r\n",
+					"    # Columns present in df2 but missing in df1\r\n",
+					"    missing_in_df1 = [col for col in schema2 if col not in schema1]\r\n",
 					"\r\n",
-					"    return df.select(*cast_exprs)\r\n",
+					"    # Columns present in df1 but missing in df2\r\n",
+					"    missing_in_df2 = [col for col in schema1 if col not in schema2]\r\n",
 					"\r\n",
+					"    # Columns with same name but different data types\r\n",
+					"    type_mismatches = [\r\n",
+					"        (col, schema1[col], schema2[col])\r\n",
+					"        for col in schema1\r\n",
+					"        if col in schema2 and schema1[col] != schema2[col]\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    print(\"\\n\\n=== SCHEMA COMPARISON RESULTS ===\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns missing in RAW DF (present in target table):\")\r\n",
+					"    if missing_in_df1:\r\n",
+					"        for c in missing_in_df1:\r\n",
+					"            print(f\"  - {c} : {schema2[c]}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns missing in TARGET TABLE (present in raw_df):\")\r\n",
+					"    if missing_in_df2:\r\n",
+					"        for c in missing_in_df2:\r\n",
+					"            print(f\"  - {c} : {schema1[c]}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n➡️ Columns with DIFFERENT DATA TYPES:\")\r\n",
+					"    if type_mismatches:\r\n",
+					"        for col, t1, t2 in type_mismatches:\r\n",
+					"            print(f\"  - {col}: raw_df={t1}, target={t2}\")\r\n",
+					"    else:\r\n",
+					"        print(\"  None\")\r\n",
+					"\r\n",
+					"    print(\"\\n=== END OF REPORT ===\")\r\n",
+					"\r\n",
+					"\r\n",
+					"# -------------------------------------------\r\n",
+					"# USAGE\r\n",
+					"# -------------------------------------------\r\n",
+					"\r\n",
+					"raw_df = raw_df  # your existing raw dataframe\r\n",
+					"\r\n",
+					"target_table = \"odw_standardised_db.sb_appeal_s78\"\r\n",
+					"target_df = spark.table(target_table)\r\n",
+					"\r\n",
+					"compare_schemas(raw_df, target_df, \"raw_df\", target_table)"
+				],
+				"execution_count": 42
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"@logging_to_appins\r\n",
 					"def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
-					"    \"\"\"Appends DataFrame to Delta table with safe path detection.\"\"\"\r\n",
-					"    if df is None or df.rdd.isEmpty():\r\n",
-					"        logInfo(\"No rows to append. Skipping.\")\r\n",
-					"        return\r\n",
+					"    \"\"\"\r\n",
+					"    Appends the new rows to the target table.\r\n",
+					" \r\n",
+					"    Args:\r\n",
+					"        df: DataFrame of new rows\r\n",
+					"        target_table: name of the target table\r\n",
+					"    \"\"\"\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
 					"\r\n",
-					"    table_path = get_table_path_safe(target_table)\r\n",
-					"    \r\n",
-					"    logInfo(f\"Appending {df.count()} rows to {target_table} at {table_path}\")\r\n",
+					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
 					"\r\n",
+					"\r\n",
+					"    logInfo(f\"Appending data to table {target_table}\")\r\n",
+					" \r\n",
 					"    (\r\n",
 					"        df.write\r\n",
 					"        .mode(\"append\")\r\n",
 					"        .format(\"delta\")\r\n",
-					"        .option(\"mergeSchema\", \"false\")  # Strict after casting\r\n",
+					"        .option(\"mergeSchema\", \"true\")\r\n",
 					"        .option(\"path\", table_path)\r\n",
 					"        .saveAsTable(target_table)\r\n",
 					"    )\r\n",
+					" \r\n",
+					"    logInfo(f\"Successfully appended data to table {target_table}\")\r\n",
 					"\r\n",
-					"    logInfo(f\"✅ Successfully appended to {target_table}\")\r\n",
-					"\r\n",
-					"# MAIN PIPELINE EXECUTION\r\n",
-					"raw_df = run_step(\r\n",
-					"    \"🔄 Align schema to target table\", \r\n",
-					"    lambda: cast_df_to_target_schema(raw_df, target_table)\r\n",
-					")\r\n",
+					"def step_append_df_to_table(df: DataFrame, target_table: str):\r\n",
+					"    logInfo(\"Starting append DataFrame to table step...\")\r\n",
+					"    append_df_to_table(df, target_table)\r\n",
+					"    logInfo(\"Append DataFrame to table step finished.\")\r\n",
 					"\r\n",
 					"run_step(\r\n",
-					"    \"💾 Append to target table\",\r\n",
-					"    lambda: append_df_to_table(raw_df, target_table)\r\n",
+					"    \"Append DataFrame to target table\",\r\n",
+					"    lambda: step_append_df_to_table(raw_df, target_table)\r\n",
 					")\r\n",
-					""
-				],
-				"execution_count": 59
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# @logging_to_appins\r\n",
-					"# def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
-					"#     \"\"\"\r\n",
-					"#     Appends the new rows to the target table.\r\n",
-					" \r\n",
-					"#     Args:\r\n",
-					"#         df: DataFrame of new rows\r\n",
-					"#         target_table: name of the target table\r\n",
-					"#     \"\"\"\r\n",
-					"#     df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
-					"\r\n",
-					"#     table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
-					"\r\n",
-					"\r\n",
-					"#     logInfo(f\"Appending data to table {target_table}\")\r\n",
-					" \r\n",
-					"#     (\r\n",
-					"#         df.write\r\n",
-					"#         .mode(\"append\")\r\n",
-					"#         .format(\"delta\")\r\n",
-					"#         .option(\"mergeSchema\", \"true\")\r\n",
-					"#         .option(\"path\", table_path)\r\n",
-					"#         .saveAsTable(target_table)\r\n",
-					"#     )\r\n",
-					" \r\n",
-					"#     logInfo(f\"Successfully appended data to table {target_table}\")\r\n",
-					"\r\n",
-					"# def step_append_df_to_table(df: DataFrame, target_table: str):\r\n",
-					"#     logInfo(\"Starting append DataFrame to table step...\")\r\n",
-					"#     append_df_to_table(df, target_table)\r\n",
-					"#     logInfo(\"Append DataFrame to table step finished.\")\r\n",
-					"\r\n",
-					"# run_step(\r\n",
-					"#     \"Append DataFrame to target table\",\r\n",
-					"#     lambda: step_append_df_to_table(raw_df, target_table)\r\n",
-					"# )\r\n",
 					""
 				],
 				"execution_count": null
