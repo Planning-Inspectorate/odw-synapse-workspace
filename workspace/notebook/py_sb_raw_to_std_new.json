@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "62e72e32-4e7f-4fea-b81a-834361e6e685"
+				"spark.autotune.trackingId": "54d3513a-17c0-4909-a7ed-af08534a8166"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 53
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 54
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 55
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": 56
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -138,7 +138,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
 					"PipelineTriggeredbyPipelineRunID = \"5ac44682-5051-4ea8-9df2-b876470afc40\""
 				],
-				"execution_count": 57
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -154,7 +154,7 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": 58
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -167,7 +167,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
 					"    raise e "
 				],
-				"execution_count": 59
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -179,7 +179,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 60
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +190,7 @@
 					"error_message= None\r\n",
 					"db_name='odw_standardised_db'"
 				],
-				"execution_count": 61
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -216,7 +216,7 @@
 					"start_exec_time = datetime.now()\r\n",
 					"print(source_path)"
 				],
-				"execution_count": 62
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -263,7 +263,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 63
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -314,7 +314,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 64
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -371,7 +371,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": 65
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -414,7 +414,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 66
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -553,11 +553,38 @@
 				"cell_type": "code",
 				"source": [
 					"@logging_to_appins\r\n",
+					"def cast_df_using_schema(df: DataFrame, schema: StructType) -> DataFrame:\r\n",
+					"    \"\"\"\r\n",
+					"    Casts the incoming DataFrame to match the FINAL TARGET TABLE SCHEMA.\r\n",
+					"    Ensures correct column names, datatypes, and ordering.\r\n",
+					"    Adds missing columns with nulls.\r\n",
+					"    \"\"\"\r\n",
+					"    casted_df = df\r\n",
+					"\r\n",
+					"    for field in schema.fields:\r\n",
+					"        col_name = field.name\r\n",
+					"        col_type = field.dataType\r\n",
+					"\r\n",
+					"        if col_name in casted_df.columns:\r\n",
+					"            casted_df = casted_df.withColumn(col_name, F.col(col_name).cast(col_type))\r\n",
+					"        else:\r\n",
+					"            casted_df = casted_df.withColumn(col_name, F.lit(None).cast(col_type))\r\n",
+					"\r\n",
+					"    # reorder columns to match schema\r\n",
+					"    return casted_df.select([f.name for f in schema.fields])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
-					"    Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
-					"    Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
+					"    Reads service-bus JSON messages from raw ADLS.\r\n",
+					"    Applies spark_schema for reading but does not cast to target schema yet.\r\n",
 					"    \"\"\"\r\n",
+					"\r\n",
 					"    if not filtered_paths:\r\n",
 					"        logInfo(\"No files to ingest.\")\r\n",
 					"        return (\r\n",
@@ -567,8 +594,10 @@
 					"        )\r\n",
 					"\r\n",
 					"    reader = spark.read.option(\"multiline\", \"true\")\r\n",
-					"    if spark_schema: \r\n",
+					"\r\n",
+					"    if spark_schema:\r\n",
 					"        reader = reader.schema(spark_schema)\r\n",
+					"\r\n",
 					"    df = reader.json(filtered_paths)\r\n",
 					"\r\n",
 					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
@@ -803,8 +832,7 @@
 					"run_step(\r\n",
 					"    \"Append DataFrame to target table\",\r\n",
 					"    lambda: step_append_df_to_table(raw_df, target_table)\r\n",
-					")\r\n",
-					""
+					")"
 				],
 				"execution_count": null
 			},
