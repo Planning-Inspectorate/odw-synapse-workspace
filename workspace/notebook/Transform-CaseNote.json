@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "54559a6c-f59d-4174-a302-b9863a78cfd5"
+				"spark.autotune.trackingId": "48c1dacb-04b1-465b-8de1-3ce938abf25c"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 61
+				"execution_count": 79
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,7 @@
 					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\"\n",
 					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
 				],
-				"execution_count": 62
+				"execution_count": 80
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": 63
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -125,7 +125,7 @@
 					"\n",
 					"display(case_notes_clean)"
 				],
-				"execution_count": 64
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"\n",
 					"display(case_notes_mapped)"
 				],
-				"execution_count": 65
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +190,7 @@
 					"\n",
 					"display(filtered_df)"
 				],
-				"execution_count": 66
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -276,7 +276,7 @@
 					"\n",
 					"display(user_clean.limit(20))"
 				],
-				"execution_count": 67
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -325,7 +325,7 @@
 					"display(important_notes)\n",
 					""
 				],
-				"execution_count": 68
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -407,7 +407,7 @@
 					"display(event_notes)\n",
 					"print(\"event_notes rows:\", event_notes.count())"
 				],
-				"execution_count": 69
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -427,7 +427,7 @@
 					"\n",
 					"display(case_notes_combined)"
 				],
-				"execution_count": 70
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -460,7 +460,7 @@
 					"display(case_notes_filtered)\n",
 					"print(\"rows after filter:\", case_notes_filtered.count())"
 				],
-				"execution_count": 71
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -486,7 +486,7 @@
 					"\n",
 					"display(case_notes_filtered)"
 				],
-				"execution_count": 72
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -496,9 +496,9 @@
 				"source": [
 					"from pyspark.sql import functions as F\n",
 					"\n",
-					"# Map createdBy -> idpUserId for sticky notes (and anything else with createdBy)\n",
 					"created_by_map = (\n",
 					"    user_clean\n",
+					"    .withColumn(\"legacyId_str\", F.trim(F.col(\"legacyId_str\")))\n",
 					"    .select(\n",
 					"        F.col(\"legacyId_str\").alias(\"createdBy_str\"),\n",
 					"        F.col(\"userGuid\").alias(\"mappedAuthorId\")\n",
@@ -509,17 +509,19 @@
 					"case_notes_filtered = (\n",
 					"    case_notes_filtered\n",
 					"    .filter(F.col(\"noteText\").isNotNull() & (F.trim(F.col(\"noteText\")) != \"\"))\n",
-					"    .withColumn(\"createdBy_str\", F.col(\"CreatedBy\").cast(\"string\"))\n",
+					"    .withColumn(\"createdBy_str\", F.trim(F.col(\"CreatedBy\").cast(\"string\")))\n",
 					"    .join(created_by_map, on=\"createdBy_str\", how=\"left\")\n",
 					"    .withColumn(\n",
 					"        \"authorId\",\n",
 					"        F.when(\n",
-					"            F.col(\"authorId\").isNull() | (F.trim(F.col(\"authorId\")) == \"\"),\n",
+					"            F.col(\"noteSource\") == \"sticky-note\",\n",
 					"            F.coalesce(\n",
 					"                F.col(\"mappedAuthorId\"),\n",
 					"                F.lit(DEFAULT_USER_ID)\n",
 					"            )\n",
-					"        ).otherwise(F.col(\"authorId\"))\n",
+					"        ).otherwise(\n",
+					"            F.lit(DEFAULT_USER_ID)\n",
+					"        )\n",
 					"    )\n",
 					"    .withColumn(\n",
 					"        \"noteDate_joined\",\n",
@@ -530,9 +532,10 @@
 					"    )\n",
 					"    .drop(\"createdBy_str\", \"mappedAuthorId\")\n",
 					")\n",
+					"\n",
 					"display(case_notes_filtered)"
 				],
-				"execution_count": 73
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -551,7 +554,7 @@
 					"    .csv(OUTPUT_PATH)\n",
 					")"
 				],
-				"execution_count": 74
+				"execution_count": 92
 			}
 		]
 	}
