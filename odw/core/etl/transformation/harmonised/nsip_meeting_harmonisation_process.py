@@ -1,32 +1,3 @@
-"""
-NSIP Meeting Harmonisation Process (SCD Type 2)
-
-Refactored from the Synapse notebook: py_sb_harmonised_nsip_meeting
-
-Inputs:
-    - odw_harmonised_db.sb_nsip_project  (meetings array from project data)
-    - odw_harmonised_db.sb_nsip_meeting  (target table for SCD2 comparison)
-
-Output:
-    - odw_harmonised_db.sb_nsip_meeting  (delta)
-
-Business rules (SCD Type 2 full load):
-    1. Load meetings from sb_nsip_project where meetings IS NOT NULL.
-    2. Explode meetings array, flatten struct fields.
-    3. Filter where meetingId IS NOT NULL.
-    4. Align source schema to target table schema via casting.
-    5. Create business_key = sha2(NSIPProjectInfoInternalID ~ caseId ~ meetingId).
-    6. Create row_hash = sha2(business_key_cols + change_tracking_cols).
-    7. Deduplicate source: keep latest per business_key by IngestionDate desc.
-    8. If target is empty: initial load with sequential NSIPMeetingId, IsActive='Y', ValidTo=null.
-    9. If target has data:
-       a. Identify changed records (hash differs between source and active target).
-       b. Expire old versions: IsActive='N', ValidTo=current_timestamp().
-       c. Identify new records (left_anti join on business_key).
-       d. Union new + changed, assign incremental NSIPMeetingId, IsActive='Y', ValidTo=null.
-       e. Append to target.
-"""
-
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util

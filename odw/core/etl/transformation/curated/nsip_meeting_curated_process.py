@@ -1,24 +1,3 @@
-"""
-NSIP Meeting Curation Process
-
-Refactored from the Synapse notebook: nsip_meeting
-
-Inputs:
-    - odw_harmonised_db.sb_nsip_meeting  (harmonised NSIP meeting data)
-
-Output:
-    - odw_curated_db.nsip_meeting
-
-Business rules:
-    1. Read active records from odw_harmonised_db.sb_nsip_meeting
-       (IsActive = 'Y' AND meetingId IS NOT NULL).
-    2. Deduplicate: ROW_NUMBER() PARTITION BY meetingId ORDER BY meetingDate DESC,
-       keep rn = 1.
-    3. SELECT caseId, caseReference, meetingAgenda, planningInspectorateRole,
-       meetingId, meetingDate, meetingType, estimatedPrelimMeetingDate, IsActive.
-    4. Overwrite odw_curated_db.nsip_meeting as parquet.
-"""
-
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
