@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ee6c9db9-6437-4522-acb7-1cf21fc95b92"
+				"spark.autotune.trackingId": "ec992884-5cab-4706-81a9-443fa26fe6c0"
 			}
 		},
 		"metadata": {
@@ -74,9 +74,22 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_servicebus_to_odw\"\r\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\r\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_servicebus_data\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": 81
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +107,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": null
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +136,7 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": null
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -139,10 +152,72 @@
 					"from pyspark.sql.functions import *\r\n",
 					"import re"
 				],
-				"execution_count": null
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import col, split\r\n",
+					"from pyspark.sql.types import StringType\r\n",
+					"\r\n",
+					"CAST_RULES = {\r\n",
+					"    \"appeal-has\": {\r\n",
+					"        # numeric fields\r\n",
+					"        \"allocationBand\": \"double\",\r\n",
+					"        \"siteAreaSquareMetres\": \"double\",\r\n",
+					"        \"floorSpaceSquareMetres\": \"double\",\r\n",
+					"        \"lpaProcedurePreferenceDuration\": \"double\",\r\n",
+					"\r\n",
+					"        # boolean flags\r\n",
+					"        \"enforcementNotice\": \"boolean\",\r\n",
+					"        \"isCorrectAppealType\": \"boolean\",\r\n",
+					"        \"isGreenBelt\": \"boolean\",\r\n",
+					"        \"inConservationArea\": \"boolean\",\r\n",
+					"        \"affectsScheduledMonument\": \"boolean\",\r\n",
+					"        \"hasProtectedSpecies\": \"boolean\",\r\n",
+					"        \"isAonbNationalLandscape\": \"boolean\",\r\n",
+					"        \"hasInfrastructureLevy\": \"boolean\",\r\n",
+					"        \"isInfrastructureLevyFormallyAdopted\": \"boolean\",\r\n",
+					"        \"ownsAllLand\": \"boolean\",\r\n",
+					"        \"ownsSomeLand\": \"boolean\",\r\n",
+					"        \"advertisedAppeal\": \"boolean\",\r\n",
+					"        \"ownersInformed\": \"boolean\",\r\n",
+					"        \"hasLandownersPermission\": \"boolean\",\r\n",
+					"        \"wasApplicationRefusedDueToHighwayOrTraffic\": \"boolean\",\r\n",
+					"        \"didAppellantSubmitCompletePhotosAndPlans\": \"boolean\",\r\n",
+					"        \"isSiteInAreaOfSpecialControlAdverts\": \"boolean\",\r\n",
+					"        \"redeterminedIndicator\": \"boolean\",\r\n",
+					"\r\n",
+					"        # string -> array<string> (only if DF column is a single string)\r\n",
+					"        \"caseSpecialisms\": \"array_from_string\",\r\n",
+					"        \"caseValidationIncompleteDetails\": \"array_from_string\",\r\n",
+					"    }\r\n",
+					"}\r\n",
+					"\r\n",
+					"def apply_casts(df: DataFrame, entity_name: str) -> DataFrame:\r\n",
+					"    rules = CAST_RULES.get(entity_name, {})\r\n",
+					"    for col_name, target_type in rules.items():\r\n",
+					"        if col_name not in df.columns:\r\n",
+					"            continue\r\n",
+					"\r\n",
+					"        if target_type == \"array_from_string\":\r\n",
+					"            if isinstance(df.schema[col_name].dataType, StringType):\r\n",
+					"                df = df.withColumn(col_name, split(col(col_name), \"\\\\|\"))  # change delimiter if needed\r\n",
+					"        else:\r\n",
+					"            df = df.withColumn(col_name, col(col_name).cast(target_type))\r\n",
+					"    return df\r\n",
+					""
+				],
+				"execution_count": 87
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\r\n",
 					"    global error_message\r\n",
@@ -156,6 +231,12 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"error_message = None\r\n",
 					"def run_step(step_name: str, fn):\r\n",
@@ -169,12 +250,36 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"error_message = None\r\n",
+					"\r\n",
+					"def _fail_and_log(step_name: str, e: Exception):\r\n",
+					"    global error_message\r\n",
+					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
+					"    logError(error_message)\r\n",
+					"\r\n",
+					"    if \"_log_telemetry\" in globals():\r\n",
+					"        _log_telemetry(\"Failed\", error_message, step_name)\r\n",
+					"\r\n",
+					"    raise e\r\n",
+					"\r\n",
+					"def run_step(step_name: str, fn):\r\n",
+					"    try:\r\n",
+					"        return fn()\r\n",
+					"    except Exception as e:\r\n",
+					"        _fail_and_log(step_name, e)\r\n",
+					""
+				],
+				"execution_count": 88
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"insert_count = 0\r\n",
 					"update_count = 0\r\n",
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": null
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -199,7 +304,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -246,7 +351,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -297,7 +402,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -354,7 +459,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": null
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -403,7 +508,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": null
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -457,7 +562,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": null
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -503,7 +608,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -542,9 +647,19 @@
 					"        return df\r\n",
 					"\r\n",
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
-					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
+					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   \r\n",
+					"raw_df = apply_casts(raw_df, entity_name)"
 				],
-				"execution_count": null
+				"execution_count": 97
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"raw_df.select(\"caseValidationIncompleteDetails\").printSchema()\r\n",
+					"spark.table(\"odw_standardised_db.sb_appeal_has\").select(\"caseValidationIncompleteDetails\").printSchema()\r\n",
+					""
+				],
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -587,7 +702,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -621,7 +736,7 @@
 					"    return result\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 100
 			},
 			{
 				"cell_type": "markdown",
@@ -695,7 +810,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "markdown",
@@ -741,7 +856,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -768,7 +883,7 @@
 					"    return spark.table(target_table).count()\r\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
-				"execution_count": null
+				"execution_count": 103
 			},
 			{
 				"cell_type": "markdown",
@@ -807,7 +922,7 @@
 					"\r\n",
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)"
 				],
-				"execution_count": null
+				"execution_count": 104
 			},
 			{
 				"cell_type": "markdown",
@@ -867,7 +982,7 @@
 					"if not error_message:\r\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
+				"execution_count": 105
 			}
 		]
 	}
