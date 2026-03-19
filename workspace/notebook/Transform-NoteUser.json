@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "47a2139c-6ec1-472f-a900-b8a0510f404c"
+				"spark.autotune.trackingId": "c5b9cae3-000d-4770-b0bd-d1998644db7c"
 			}
 		},
 		"metadata": {
@@ -349,6 +349,15 @@
 				"source": [
 					"users_load = (\n",
 					"    users_final_out\n",
+					"    .withColumn(\n",
+					"        \"idpUserIdGuid_final\",\n",
+					"        F.when(\n",
+					"            F.col(\"idpUserIdGuid\").isNull() |\n",
+					"            (F.trim(F.col(\"idpUserIdGuid\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"idpUserIdGuid\"))) == \"undefined\"),\n",
+					"            F.col(\"displayName_final\")\n",
+					"        ).otherwise(F.col(\"idpUserIdGuid\"))\n",
+					"    )\n",
 					"    .select(\n",
 					"        F.col(\"userGuid\").alias(\"id\"),\n",
 					"        F.col(\"legacyId\"),\n",
@@ -358,14 +367,14 @@
 					"        F.col(\"surname_final\").alias(\"surname\"),\n",
 					"        F.col(\"email_final\").alias(\"email\"),\n",
 					"        F.col(\"userPrincipalName_final\").alias(\"userPrincipalName\"),\n",
-					"        F.col(\"idpUserIdGuid\")\n",
+					"        F.col(\"idpUserIdGuid_final\").alias(\"idpUserIdGuid\")\n",
 					"    )\n",
 					")\n",
 					"\n",
 					"print(\"Users for load rows:\", users_load.count())\n",
 					"display(users_load.limit(50))"
 				],
-				"execution_count": 39
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -375,7 +384,7 @@
 					"print(\"Wrote users to:\", f\"{OUTPUT_BASE}/users\")\n",
 					""
 				],
-				"execution_count": 41
+				"execution_count": 43
 			}
 		]
 	}
