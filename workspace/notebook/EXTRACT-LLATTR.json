@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f88258cf-2e45-4bca-8915-e6658514d7e2"
+				"spark.autotune.trackingId": "7d8ab982-7900-4ae6-9848-1844577096b1"
 			}
 		},
 		"metadata": {
@@ -53,58 +53,30 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql.window import Window\n",
 					"\n",
-					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"llattrdata_path = \"abfss://mpesc@pinsstmpescdevuksw49hqz.dfs.core.windows.net/MPESC-EXTRACT/LLAttrData.csv\"\n",
 					"\n",
-					"if workspace == \"pins-synw-odw-prod-uks\":\n",
-					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
-					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
-					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
-					"else:\n",
-					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
-					"\n",
-					"\n",
-					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
-					"\n",
-					"print(\"Using:\", mpesc_base_path)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# INPUT: LLAttrData (EAV) CSV\n",
-					"llattrdata_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttrData.csv\"\n",
-					"\n",
-					"# OUTPUT BASE folder\n",
-					"output_base = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr\"\n",
-					"\n",
-					"print(\"Input :\", llattrdata_path)\n",
-					"print(\"Output:\", output_base)\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"df = (\n",
 					"    spark.read\n",
 					"         .option(\"header\", True)\n",
 					"         .option(\"sep\", \"|\")\n",
-					"         .option(\"quote\", \"\\\"\")\n",
-					"         .option(\"escape\", \"\\\"\")\n",
+					"         .option(\"quote\", '\"')\n",
+					"         .option(\"escape\", '\"')\n",
 					"         .option(\"multiLine\", True)\n",
 					"         .csv(llattrdata_path)\n",
 					")\n",
 					"\n",
 					"print(df.columns)\n",
-					"print(\"Column count:\", len(df.columns))"
+					"print(\"Column count:\", len(df.columns))\n",
+					"display(df.limit(5))"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -117,6 +89,8 @@
 					"    .withColumn(\"ID\", F.col(\"ID\").cast(\"long\"))\n",
 					"    .withColumn(\"AttrID\", F.col(\"AttrID\").cast(\"int\"))\n",
 					"    .withColumn(\"VerNum\", F.col(\"VerNum\").cast(\"int\"))\n",
+					"    .withColumn(\"EntryNum\", F.col(\"EntryNum\").cast(\"int\"))\n",
+					"    .withColumn(\"ParentKeyID\", F.col(\"ParentKeyID\").cast(\"int\"))\n",
 					"    .withColumn(\n",
 					"        \"Value\",\n",
 					"        F.coalesce(\n",
@@ -124,19 +98,21 @@
 					"            F.col(\"ValLong\"),\n",
 					"            F.col(\"ValInt\").cast(\"string\"),\n",
 					"            F.col(\"ValReal\").cast(\"string\"),\n",
-					"            F.date_format(F.col(\"ValDate\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"            F.date_format(F.col(\"ValDate\").cast(\"timestamp\"), \"yyyy-MM-dd HH:mm:ss\")\n",
 					"        )\n",
 					"    )\n",
-					"    .select(\"DefID\", \"ID\", \"AttrID\", \"VerNum\", \"Value\")\n",
+					"    .select(\"DefID\", \"ID\", \"AttrID\", \"VerNum\", \"EntryNum\", \"ParentKeyID\", \"Value\")\n",
 					")\n",
 					"\n",
-					"dfv.show(5, truncate=False)\n",
-					""
+					"dfv.show(5, truncate=False)"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"dfv_good = (\n",
 					"    dfv\n",
@@ -147,27 +123,10 @@
 					")\n",
 					"\n",
 					"print(\"Rows kept:\", dfv_good.count())\n",
-					""
+					"print(dfv_good.columns)\n",
+					"display(dfv_good.limit(10))"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"defids = [\n",
-					"    r[\"DefID\"] for r in (\n",
-					"        dfv_good\n",
-					"        .select(\"DefID\")\n",
-					"        .distinct()\n",
-					"        .collect()\n",
-					"    )\n",
-					"]\n",
-					"\n",
-					"print(\"DefIDs found:\", len(defids))\n",
-					"print(\"First 20:\", sorted(defids)[:20])\n",
-					""
-				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -246,11 +205,6 @@
 					"    15809441: \"Recharge\",\n",
 					"\n",
 					"    # ======================\n",
-					"    # Coastal / Environmental\n",
-					"    # ======================\n",
-					"    15809442: \"Coastal_Access\",\n",
-					"\n",
-					"    # ======================\n",
 					"    # Knowledge / Content\n",
 					"    # ======================\n",
 					"    18122884: \"Knowledge_Document\",\n",
@@ -260,137 +214,17 @@
 					"    # ======================\n",
 					"    15809003: \"Modification\",\n",
 					"\n",
-					"    # ======================\n",
-					"    # s62A (Section 62A)\n",
-					"    # ======================\n",
-					"    12351021: \"s62A_Application_Basic_Data\",\n",
-					"    12351020: \"s62A_Key_Dates\",\n",
-					"    12351022: \"s62A_Extended_Data\",\n",
-					"    12351018: \"s62A_Fees\",\n",
-					"    12351019: \"s62A_Hearing\",\n",
-					"    12351017: \"s62A_DCLG_Return\",\n",
-					"    12351014: \"s62A_Application_Document_Data\",\n",
-					"    12351015: \"s62A_Case_Officers\",\n",
-					"    12351016: \"s62A_Comment\",\n",
-					"    12351023: \"s62A_Publish_Documents\",\n",
-					"    12351024: \"s62A_Statutory_Consultees\",\n",
 					"\n",
-					"    # ======================\n",
-					"    # DCLG (Call-in / Orders / Directions etc.)\n",
-					"    # ======================\n",
-					"    24636659: \"DCLG\",\n",
-					"    24636660: \"DCLG_Allotment_Disposal\",\n",
-					"    24636661: \"DCLG_Article_4_Direction\",\n",
-					"    24636662: \"DCLG_Business_Commercial_NSIP\",\n",
-					"    24636663: \"DCLG_Conservation_Area_Demolition\",\n",
-					"    24636664: \"DCLG_Consultation_Direction\",\n",
-					"    24636665: \"DCLG_Correspondence\",\n",
-					"    24636666: \"DCLG_CPO\",\n",
-					"    24636667: \"DCLG_EIA\",\n",
-					"    24636668: \"DCLG_Green_Belt_Act_1938\",\n",
-					"    24636669: \"DCLG_Ground_10A\",\n",
-					"    24636670: \"DCLG_Habitats_Regulations\",\n",
-					"    24636671: \"DCLG_High_Court\",\n",
-					"    24636672: \"DCLG_Lee_Valley\",\n",
-					"    24636673: \"DCLG_Less_Than_Best\",\n",
-					"    24636674: \"DCLG_Listed_Building_Consent_Private\",\n",
-					"    24636675: \"DCLG_Order\",\n",
-					"    24636676: \"DCLG_Rare\",\n",
-					"    24636677: \"DCLG_Recovered_Case\",\n",
-					"    24636678: \"DCLG_Recovered_NSIP\",\n",
-					"    24636679: \"DCLG_Request_To_Intervene\",\n",
-					"    24636680: \"DCLG_Right_To_Contest\",\n",
-					"    24636681: \"DCLG_S100_104\",\n",
-					"    24636682: \"DCLG_Section_19_Land_Acquisition\",\n",
-					"    24636683: \"DCLG_Document\",\n",
-					"}\n",
-					""
+					"}"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
 				"source": [
-					"from pyspark.sql import functions as F\n",
-					"\n",
-					"case_site_src = (\n",
-					"    dfv_good\n",
-					"    .filter(\n",
-					"        (F.col(\"DefID\") == \"95502\") &\n",
-					"        (F.col(\"ID\") == \"20779454\")\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"display(case_site_src.orderBy(F.col(\"AttrID\").cast(\"int\")))\n",
-					"print(\"Rows before pivot:\", case_site_src.count())"
+					"output_base = \"abfss://mpesc@pinsstmpescdevuksw49hqz.dfs.core.windows.net/MPESC-EXTRACT/LLAttr\""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"from pyspark.sql import functions as F\n",
-					"\n",
-					"case_site_src = (\n",
-					"    df\n",
-					"    .filter(F.col(\"DefID\").cast(\"int\") == 95502)\n",
-					"    .withColumn(\n",
-					"        \"Value\",\n",
-					"        F.coalesce(\n",
-					"            F.when(\n",
-					"                ~F.lower(F.trim(F.col(\"ValStr\").cast(\"string\"))).isin(\"undefined\", \"null\", \"none\", \"\"),\n",
-					"                F.trim(F.col(\"ValStr\").cast(\"string\"))\n",
-					"            ),\n",
-					"            F.col(\"ValLong\").cast(\"string\"),\n",
-					"            F.col(\"ValInt\").cast(\"string\"),\n",
-					"            F.col(\"ValReal\").cast(\"string\"),\n",
-					"            F.col(\"ValDate\").cast(\"string\")\n",
-					"        )\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"display(\n",
-					"    case_site_src\n",
-					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
-					"    .orderBy(F.col(\"AttrID\").cast(\"int\"))\n",
-					")\n",
-					"\n",
-					"print(\n",
-					"    \"Rows before pivot:\",\n",
-					"    case_site_src.filter(F.col(\"ID\").cast(\"string\") == \"20779454\").count()\n",
-					")\n",
-					"\n",
-					"test_pivot = (\n",
-					"    case_site_src\n",
-					"    .groupBy(\"ID\")\n",
-					"    .pivot(\"AttrID\")\n",
-					"    .agg(F.first(\"Value\"))\n",
-					")\n",
-					"\n",
-					"display(\n",
-					"    test_pivot\n",
-					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
-					")\n",
-					"\n",
-					"print(\n",
-					"    \"Rows after pivot:\",\n",
-					"    test_pivot.filter(F.col(\"ID\").cast(\"string\") == \"20779454\").count()\n",
-					")\n",
-					"\n",
-					"\n",
-					"display(\n",
-					"    test_pivot\n",
-					"    .filter(F.col(\"ID\").cast(\"string\") == \"20779454\")\n",
-					"    .select(\"ID\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\")\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -405,8 +239,22 @@
 					"    table = DEFID_TO_TABLE.get(defid, f\"DefID_{defid}\")\n",
 					"    out_dir = f\"{output_base}/{table}_{defid}\"\n",
 					"\n",
-					"    if defid in [95501, 95506]:\n",
+					"    if defid == 95501:\n",
+					"        # Case Involvement:\n",
+					"        # use ParentKeyID as the repeated row key\n",
+					"        # only pivot the actual visible involvement columns\n",
+					"        wide = (\n",
+					"            d\n",
+					"            .filter(F.col(\"AttrID\").isin([3, 4, 16, 17, 18, 19, 20]))\n",
+					"            .filter(F.col(\"ParentKeyID\").isNotNull())\n",
+					"            .groupBy(\"ID\", \"ParentKeyID\")\n",
+					"            .pivot(\"AttrID\")\n",
+					"            .agg(F.first(\"Value\", ignorenulls=True))\n",
+					"            .orderBy(\"ID\", \"ParentKeyID\")\n",
+					"        )\n",
 					"\n",
+					"    elif defid == 95506:\n",
+					"        # keep existing repeated-row logic for this one\n",
 					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.monotonically_increasing_id())\n",
 					"\n",
 					"        d_occ = d.withColumn(\"row_instance\", F.row_number().over(w))\n",
@@ -420,7 +268,6 @@
 					"        )\n",
 					"\n",
 					"    else:\n",
-					"\n",
 					"        wide = (\n",
 					"            d\n",
 					"            .groupBy(\"ID\")\n",
@@ -429,17 +276,15 @@
 					"            .orderBy(\"ID\")\n",
 					"        )\n",
 					"\n",
-					"    # CLEAN DATA (fix quotes, pipes, and line breaks)\n",
 					"    wide_clean = wide\n",
 					"    for c in wide_clean.columns:\n",
 					"        wide_clean = wide_clean.withColumn(\n",
 					"            c,\n",
-					"            F.when(F.col(c).isNull(), None)\n",
-					"            .otherwise(\n",
+					"            F.when(F.col(c).isNull(), None).otherwise(\n",
 					"                F.trim(\n",
-					"                    F.regexp_replace(            # collapse whitespace\n",
-					"                        F.regexp_replace(        # fix double quotes\n",
-					"                            F.regexp_replace(    # replace pipe delimiter\n",
+					"                    F.regexp_replace(\n",
+					"                        F.regexp_replace(\n",
+					"                            F.regexp_replace(\n",
 					"                                F.regexp_replace(\n",
 					"                                    F.col(c).cast(\"string\"),\n",
 					"                                    r\"[\\r\\n]+\",\n",
@@ -471,21 +316,76 @@
 					"\n",
 					"    print(f\"Wrote DefID {defid} -> {out_dir}\")"
 				],
-				"execution_count": null
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"test_parent = (\n",
+					"    dfv_good\n",
+					"    .filter(\n",
+					"        (F.col(\"DefID\") == 95501) &\n",
+					"        (F.col(\"ID\").cast(\"string\") == \"20071315\") &\n",
+					"        (F.col(\"AttrID\").isin([3, 4, 16, 17, 18, 19, 20]))\n",
+					"    )\n",
+					"    .groupBy(\"ID\", \"ParentKeyID\")\n",
+					"    .pivot(\"AttrID\")\n",
+					"    .agg(F.first(\"Value\", ignorenulls=True))\n",
+					"    .orderBy(\"ParentKeyID\")\n",
+					")\n",
+					"\n",
+					"display(test_parent)"
+				],
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"extract_one_defid(95501)   # Case\n",
-					"extract_one_defid(95502)  "
+					"extract_one_defid(95501)"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"CASE_INVOLVEMENT_PATH = \"abfss://mpesc@pinsstmpescdevuksw49hqz.dfs.core.windows.net/MPESC-EXTRACT/LLAttr/Case_Involvement_95501/\"\n",
+					"\n",
+					"case_involvement_extract = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"quote\", '\"')\n",
+					"    .option(\"escape\", '\"')\n",
+					"    .csv(CASE_INVOLVEMENT_PATH)\n",
+					")\n",
+					"\n",
+					"print(\"Rows:\", case_involvement_extract.count())\n",
+					"print(\"Columns:\", case_involvement_extract.columns)\n",
+					"\n",
+					"display(\n",
+					"    case_involvement_extract\n",
+					"    .filter(F.col(\"ID\").cast(\"string\") == \"20071315\")\n",
+					")"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"for defid in sorted(DEFID_TO_TABLE.keys()):\n",
+					"    extract_one_defid(defid)"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"for d in sorted(defids):\n",
-					"    extract_one_defid(d)\n",
 					""
 				],
 				"execution_count": null
