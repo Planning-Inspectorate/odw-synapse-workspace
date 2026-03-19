@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "7a5e8f1a-17aa-481d-a925-6b863154330c"
+				"spark.autotune.trackingId": "88625124-6594-490e-b4d3-d25a4b277b38"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 15
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -92,7 +92,7 @@
 					"            .load(path)\n",
 					"    )"
 				],
-				"execution_count": 16
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -112,7 +112,7 @@
 					"out_addresses       = f\"{mpesc_base_path}/MPESC-TRANSFORM/Address/ContactAddress.csv\"\n",
 					""
 				],
-				"execution_count": 17
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -132,7 +132,7 @@
 					"display(cases_map.limit(10))\n",
 					""
 				],
-				"execution_count": 18
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -147,7 +147,7 @@
 					"display(involv_raw.limit(10))\n",
 					""
 				],
-				"execution_count": 19
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -191,7 +191,7 @@
 					"display(involv_filtered.limit(20))\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -248,7 +248,7 @@
 					"display(contacts_dim.limit(20))\n",
 					""
 				],
-				"execution_count": 21
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -277,7 +277,7 @@
 					"display(contacts_dim.select(\"legacyContactId\",\"addressKey\",\"postcode\").limit(20))\n",
 					""
 				],
-				"execution_count": 22
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -368,7 +368,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 23
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -391,7 +391,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 24
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -506,7 +506,7 @@
 					"\n",
 					""
 				],
-				"execution_count": 25
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -559,174 +559,7 @@
 					"print(\"Wrote CaseInvolvement_Contacts.csv:\", out_involv_contacts)\n",
 					""
 				],
-				"execution_count": 26
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"print(\"missing contact matches:\", involv_final.filter(F.col(\"contactSource\").isNull()).count())\n",
-					"print(\"rows with null addressId:\", involv_final.filter(F.col(\"addressId\").isNull()).count())\n",
-					"\n",
-					"display(involv_final\n",
-					"        .filter(F.col(\"contactSource\").isNull())\n",
-					"        .select(\"legacyCaseId\",\"caseId\",\"legacyContactId\",\"typeOfInvolvement\",\"contactDetails\")\n",
-					"        .limit(50))\n",
-					""
-				],
-				"execution_count": 27
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"from pyspark.sql import functions as F, types as T\n",
-					"import uuid\n",
-					"\n",
-					"# output paths\n",
-					"out_applicant = f\"{mpesc_base_path}/MPESC-TRANSFORM/Applicant/Applicant.csv\"\n",
-					"out_authority = f\"{mpesc_base_path}/MPESC-TRANSFORM/Authority/Authority.csv\"\n",
-					"out_inspector = f\"{mpesc_base_path}/MPESC-TRANSFORM/Inspector/Inspector.csv\"\n",
-					"\n",
-					"# deterministic ids for name-based tables\n",
-					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
-					"\n",
-					"@F.udf(returnType=T.StringType())\n",
-					"def uuid5_name(x: str):\n",
-					"    if x is None:\n",
-					"        return None\n",
-					"    return str(uuid.uuid5(NAMESPACE_UUID, x.strip().lower()))\n",
-					"\n",
-					"def contact_display_name(df):\n",
-					"    # Prefer orgName; else First Last; else contactDetails; else legacyContactId\n",
-					"    return (\n",
-					"        F.when(F.col(\"orgName\").isNotNull() & (F.trim(F.col(\"orgName\")) != \"\"), F.trim(F.col(\"orgName\")))\n",
-					"         .when(\n",
-					"             (F.col(\"firstName\").isNotNull() | F.col(\"lastName\").isNotNull()),\n",
-					"             F.trim(F.concat_ws(\" \", F.col(\"firstName\"), F.col(\"lastName\")))\n",
-					"         )\n",
-					"         .when(F.col(\"contactDetails\").isNotNull() & (F.trim(F.col(\"contactDetails\")) != \"\"), F.trim(F.col(\"contactDetails\")))\n",
-					"         .otherwise(F.col(\"legacyContactId\"))\n",
-					"    )\n",
-					"\n",
-					"# normalised type for filters\n",
-					"df = out.withColumn(\"toi_norm\", F.lower(F.trim(F.col(\"typeOfInvolvement\"))))\n",
-					"\n",
-					"\n",
-					"applicant_df = (df\n",
-					"    .filter(F.col(\"toi_norm\") == \"applicant\")\n",
-					"    .withColumn(\"name\", contact_display_name(df))\n",
-					"    .withColumn(\n",
-					"        \"id\",\n",
-					"        uuid5_name(F.concat(F.lit(\"applicant|\"), F.col(\"name\")))\n",
-					"    )\n",
-					"    .select(\n",
-					"        F.col(\"caseId\"),          # <-- include case GUID\n",
-					"        F.col(\"legacyCaseId\"),    # optional but useful\n",
-					"        F.col(\"id\"),\n",
-					"        F.col(\"name\")\n",
-					"    )\n",
-					"    .dropDuplicates([\"caseId\", \"id\"])   # <-- dedupe per case\n",
-					")\n",
-					"\n",
-					"print(\"Applicant rows:\", applicant_df.count())\n",
-					"display(applicant_df.limit(50))\n",
-					"\n",
-					"(applicant_df\n",
-					"    .coalesce(1)\n",
-					"    .write\n",
-					"    .mode(\"overwrite\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")          #  pipe delimiter\n",
-					"    .option(\"quote\", \"\\\"\")       # preserve quoted text\n",
-					"    .option(\"escape\", \"\\\\\")      # safe escaping\n",
-					"    .csv(out_applicant)\n",
-					")\n",
-					"\n",
-					"AUTHORITY_TYPES = [\"lpa\", \"order making authority\"]\n",
-					"\n",
-					"authority_df = (df\n",
-					"    .filter(F.col(\"toi_norm\").isin(AUTHORITY_TYPES))\n",
-					"    .withColumn(\"name\", contact_display_name(df))\n",
-					"    .withColumn(\n",
-					"        \"id\",\n",
-					"        uuid5_name(F.concat(F.lit(\"authority|\"), F.col(\"name\")))\n",
-					"    )\n",
-					"    .select(\n",
-					"        F.col(\"caseId\"),          # <-- include case GUID\n",
-					"        F.col(\"legacyCaseId\"),    # optional but useful\n",
-					"        F.col(\"id\"),\n",
-					"        F.col(\"name\"),\n",
-					"        F.col(\"typeOfInvolvement\").alias(\"authorityRole\")  # optional, helpful\n",
-					"    )\n",
-					"    .dropDuplicates([\"caseId\", \"id\"])  # <-- dedupe per case\n",
-					")\n",
-					"\n",
-					"print(\"Authority rows:\", authority_df.count())\n",
-					"display(authority_df.limit(50))\n",
-					"\n",
-					"(authority_df\n",
-					"    .coalesce(1)\n",
-					"    .write\n",
-					"    .mode(\"overwrite\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")          # pipe delimiter\n",
-					"    .option(\"quote\", \"\\\"\")       # preserve quoted text\n",
-					"    .option(\"escape\", \"\\\\\")      # safe escaping\n",
-					"    .csv(out_authority)\n",
-					")\n",
-					"\n",
-					"\n",
-					"INSPECTOR_TYPES = [\n",
-					"    \"assessor inspector\",\n",
-					"    \"assistant inspector\",\n",
-					"    \"inspector\",\n",
-					"    \"observing inspector\",\n",
-					"    \"previous inspector\",\n",
-					"    \"acceptance inspector\",\n",
-					"    \"pre-application inspector\",\n",
-					"    # optional (include if you want)\n",
-					"    # \"single inspector/panel chair\",\n",
-					"]\n",
-					"\n",
-					"inspector_stage = (df\n",
-					"    .filter(F.col(\"toi_norm\").isin([t.lower() for t in INSPECTOR_TYPES]))\n",
-					"    .withColumn(\"inspectorName\", contact_display_name(df))\n",
-					"    .select(\n",
-					"        \"caseId\",\n",
-					"        \"legacyCaseId\",\n",
-					"        \"legacyContactId\",\n",
-					"        F.col(\"typeOfInvolvement\").alias(\"inspectorRole\"),\n",
-					"        F.col(\"inspectorName\").alias(\"inspectorName\"),\n",
-					"        \"email\",\n",
-					"        \"telephoneNumber\",\n",
-					"        \"contactDetails\"\n",
-					"        # addressId intentionally omitted here (usually not relevant for inspectors)\n",
-					"    )\n",
-					")\n",
-					"\n",
-					"print(\"Inspector staging rows:\", inspector_stage.count())\n",
-					"display(inspector_stage.limit(50))\n",
-					"\n",
-					"(inspector_stage\n",
-					"    .coalesce(1)\n",
-					"    .write\n",
-					"    .mode(\"overwrite\")\n",
-					"    .option(\"header\", \"true\")\n",
-					"    .option(\"sep\", \"|\")          # pipe delimiter\n",
-					"    .option(\"quote\", \"\\\"\")       # preserve text safely\n",
-					"    .option(\"escape\", \"\\\\\")      # prevent quote breakage\n",
-					"    .csv(out_inspector)\n",
-					")\n",
-					"\n",
-					"print(\"Wrote Inspector.csv (staging):\", out_inspector)\n",
-					""
-				],
-				"execution_count": 28
+				"execution_count": 12
 			}
 		]
 	}
