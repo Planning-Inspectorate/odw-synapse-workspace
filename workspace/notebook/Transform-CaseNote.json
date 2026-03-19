@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b16fa0de-33a7-457e-80c5-bfb35439caa8"
+				"spark.autotune.trackingId": "54559a6c-f59d-4174-a302-b9863a78cfd5"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -81,7 +81,7 @@
 					"EXTRACT = f\"{mpesc_base_path}/MPESC-EXTRACT\"\n",
 					"CASE_NOTES_FILE = f\"{EXTRACT}/Horizon_CaseNotes.csv\""
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -105,7 +105,7 @@
 					"\n",
 					"display(case_notes)"
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -125,7 +125,7 @@
 					"\n",
 					"display(case_notes_clean)"
 				],
-				"execution_count": null
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -149,7 +149,7 @@
 					"\n",
 					"display(case_notes_mapped)"
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +190,7 @@
 					"\n",
 					"display(filtered_df)"
 				],
-				"execution_count": null
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -258,24 +258,25 @@
 					"    .option(\"user\", user)\n",
 					"    .option(\"password\", password)\n",
 					"    .load()\n",
-					"    .select(\"legacyId\", \"idpUserId\")\n",
+					"    .select(\"id\", \"legacyId\")\n",
 					")\n",
 					"\n",
 					"user_clean = (\n",
 					"    user_df\n",
 					"    .filter(\n",
-					"        (F.col(\"legacyId\").isNotNull()) &\n",
-					"        (F.col(\"legacyId\") != \"undefined\")\n",
+					"        F.col(\"legacyId\").isNotNull() &\n",
+					"        (F.trim(F.col(\"legacyId\").cast(\"string\")) != \"\") &\n",
+					"        (F.lower(F.trim(F.col(\"legacyId\").cast(\"string\"))) != \"undefined\")\n",
 					"    )\n",
 					"    .select(\n",
 					"        F.col(\"legacyId\").cast(\"string\").alias(\"legacyId_str\"),\n",
-					"        F.col(\"idpUserId\")\n",
+					"        F.col(\"id\").alias(\"userGuid\")\n",
 					"    )\n",
 					")\n",
 					"\n",
 					"display(user_clean.limit(20))"
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -287,7 +288,7 @@
 					"    user_clean\n",
 					"    .select(\n",
 					"        F.col(\"legacyId_str\").alias(\"caseOwnerId_str\"),\n",
-					"        F.col(\"idpUserId\").alias(\"authorId\")\n",
+					"        F.col(\"userGuid\").alias(\"authorId\")\n",
 					"    )\n",
 					"    .dropDuplicates([\"caseOwnerId_str\"])\n",
 					")\n",
@@ -324,7 +325,7 @@
 					"display(important_notes)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -383,11 +384,11 @@
 					"    event_with_owner\n",
 					"    .withColumn(\"caseOwnerId_str\", F.col(\"caseOwnerId\"))\n",
 					"    .join(\n",
-					"        user_clean\n",
+					"      user_clean\n",
 					"        .select(\n",
 					"            F.col(\"legacyId_str\").alias(\"caseOwnerId_str\"),\n",
-					"            F.col(\"idpUserId\").alias(\"authorId\")\n",
-					"        )\n",
+					"            F.col(\"userGuid\").alias(\"authorId\")\n",
+					"                )\n",
 					"        .dropDuplicates([\"caseOwnerId_str\"]),\n",
 					"        on=\"caseOwnerId_str\",\n",
 					"        how=\"left\"\n",
@@ -406,7 +407,7 @@
 					"display(event_notes)\n",
 					"print(\"event_notes rows:\", event_notes.count())"
 				],
-				"execution_count": null
+				"execution_count": 69
 			},
 			{
 				"cell_type": "code",
@@ -426,7 +427,7 @@
 					"\n",
 					"display(case_notes_combined)"
 				],
-				"execution_count": null
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
@@ -459,7 +460,7 @@
 					"display(case_notes_filtered)\n",
 					"print(\"rows after filter:\", case_notes_filtered.count())"
 				],
-				"execution_count": null
+				"execution_count": 71
 			},
 			{
 				"cell_type": "code",
@@ -485,7 +486,7 @@
 					"\n",
 					"display(case_notes_filtered)"
 				],
-				"execution_count": null
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -493,44 +494,45 @@
 					"collapsed": false
 				},
 				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
 					"# Map createdBy -> idpUserId for sticky notes (and anything else with createdBy)\n",
 					"created_by_map = (\n",
 					"    user_clean\n",
 					"    .select(\n",
 					"        F.col(\"legacyId_str\").alias(\"createdBy_str\"),\n",
-					"        F.col(\"idpUserId\")\n",
+					"        F.col(\"userGuid\").alias(\"mappedAuthorId\")\n",
 					"    )\n",
 					"    .dropDuplicates([\"createdBy_str\"])\n",
 					")\n",
 					"\n",
 					"case_notes_filtered = (\n",
 					"    case_notes_filtered\n",
-					"    .withColumn(\"createdBy_str\", F.col(\"CreatedBy\").cast(\"string\"))  # adjust if your column is 'createdBy'\n",
+					"    .filter(F.col(\"noteText\").isNotNull() & (F.trim(F.col(\"noteText\")) != \"\"))\n",
+					"    .withColumn(\"createdBy_str\", F.col(\"CreatedBy\").cast(\"string\"))\n",
 					"    .join(created_by_map, on=\"createdBy_str\", how=\"left\")\n",
 					"    .withColumn(\n",
 					"        \"authorId\",\n",
 					"        F.when(\n",
-					"            F.trim(F.col(\"authorId\")).isNull() | (F.trim(F.col(\"authorId\")) == \"\"),\n",
+					"            F.col(\"authorId\").isNull() | (F.trim(F.col(\"authorId\")) == \"\"),\n",
 					"            F.coalesce(\n",
-					"                F.col(\"idpUserId\"),\n",
+					"                F.col(\"mappedAuthorId\"),\n",
 					"                F.lit(DEFAULT_USER_ID)\n",
 					"            )\n",
-					"        ).otherwise(F.col(\"authorId\")\n",
-					"    )  \n",
+					"        ).otherwise(F.col(\"authorId\"))\n",
 					"    )\n",
 					"    .withColumn(\n",
 					"        \"noteDate_joined\",\n",
 					"        F.coalesce(\n",
-					"            F.col(\"CreateDate\").cast(\"timestamp\"),   # change to your actual created date column name if different\n",
+					"            F.col(\"CreateDate\").cast(\"timestamp\"),\n",
 					"            F.col(\"noteDate\").cast(\"timestamp\")\n",
 					"        )\n",
 					"    )\n",
-					"    .drop(\"createdBy_str\", \"idpUserId\")\n",
+					"    .drop(\"createdBy_str\", \"mappedAuthorId\")\n",
 					")\n",
-					"\n",
 					"display(case_notes_filtered)"
 				],
-				"execution_count": null
+				"execution_count": 73
 			},
 			{
 				"cell_type": "code",
@@ -549,7 +551,7 @@
 					"    .csv(OUTPUT_PATH)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 74
 			}
 		]
 	}
