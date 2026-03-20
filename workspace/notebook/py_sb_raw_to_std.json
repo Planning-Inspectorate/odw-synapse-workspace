@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ee6c9db9-6437-4522-acb7-1cf21fc95b92"
+				"spark.autotune.trackingId": "476223b1-3151-4324-bdc9-e8e28a230fc6"
 			}
 		},
 		"metadata": {
@@ -74,6 +74,19 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_servicebus_to_odw\"\r\n",
+					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\r\n",
+					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName = \"pln_all_servicebus_data\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"%run utils/py_applicationinsights"
 				],
 				"execution_count": null
@@ -121,7 +134,7 @@
 				},
 				"source": [
 					"entity_name='appeal-has' \r\n",
-					"date_folder=''"
+					"date_folder='2026-03-20'"
 				],
 				"execution_count": null
 			},
@@ -143,6 +156,45 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"def _fail_and_log(step_name: str, e: Exception):\r\n",
+					"    global error_message\r\n",
+					" \r\n",
+					"    try:\r\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\r\n",
+					"    except Exception as format_error:\r\n",
+					"        error_message = (\r\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\r\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\r\n",
+					"        )[:800]\r\n",
+					" \r\n",
+					"    try:\r\n",
+					"        logError(error_message)\r\n",
+					"    except Exception as log_error:\r\n",
+					"        print(f\"Primary logging failed: {log_error}\")\r\n",
+					"        print(error_message)\r\n",
+					" \r\n",
+					"    try:\r\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\r\n",
+					"        if callable(telemetry_fn):\r\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\r\n",
+					"        else:\r\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\r\n",
+					"    except Exception as telemetry_error:\r\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\r\n",
+					" \r\n",
+					"    raise e"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\r\n",
 					"    global error_message\r\n",
