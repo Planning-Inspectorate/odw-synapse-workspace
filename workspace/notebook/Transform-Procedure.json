@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2d0604c8-9c1b-413d-9420-2ee0b09d55e5"
+				"spark.autotune.trackingId": "fa458de9-641f-4b79-835d-31e0c8022d38"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +95,7 @@
 					"print(\"Columns:\", events_raw.columns)\n",
 					"display(events_raw.limit(10))"
 				],
-				"execution_count": 2
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 					"\n",
 					"display(joined.select(*preview_cols).limit(30))"
 				],
-				"execution_count": 3
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -277,7 +277,7 @@
 					"\n",
 					"display(events_clean.limit(100))"
 				],
-				"execution_count": 4
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -370,7 +370,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": 5
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -491,7 +491,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -543,7 +543,7 @@
 					")\n",
 					"display(events_mapped)"
 				],
-				"execution_count": 9
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -647,7 +647,7 @@
 					"    ).limit(20)\n",
 					")"
 				],
-				"execution_count": 10
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -763,7 +763,7 @@
 					"\n",
 					"procedure_ready = procedure_ready_final.withColumn(\"step\", F.lit(\"1\"))"
 				],
-				"execution_count": 11
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -888,16 +888,71 @@
 					"    ).limit(50)\n",
 					")"
 				],
-				"execution_count": 12
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"# caseOfficerVerificationDate from CASE DATES - 95499 \n",
 					"\n",
+					"caseOfficer_veri = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Dates_95499\"\n",
+					"\n",
+					"caseOfficer_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .load(caseOfficer_veri)\n",
+					")\n",
+					"\n",
+					"display(caseOfficer_raw.limit(3))\n",
+					"\n",
+					"\n",
+					"display(\n",
+					"    mapped_only\n",
+					"        .filter(F.col(\"caseId\").isNotNull())\n",
+					"        .select(\"legacyCaseId\",\"caseId\", \"Id\")\n",
+					"        .limit(2)\n",
+					")\n",
+					"\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 91
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"\n",
+					"# Pulled in caseOfficerVerificationDate from CASE DATES - 95499 \n",
+					"\n",
+					"procedure_ready_f = (\n",
+					"    procedure_ready.alias(\"p\")\n",
+					"    .join(\n",
+					"        caseOfficer_raw.alias(\"c\"),\n",
+					"        F.col(\"p.legacyCaseId\") == F.col(\"c.ID\"),\n",
+					"        \"left\"\n",
+					"    )\n",
+					"    .select(\n",
+					"        \"p.*\",\n",
+					"        F.col(\"c.`29`\").alias(\"caseOfficerVerificationDate\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(procedure_ready)\n",
+					"\n",
+					"\n",
+					"I have 2 dataframes procedure_ready and caseOfficer_raw. \n",
+					"I will like to do a join based on procedure_ready.legacyCaseId = caseOfficer_raw.ID. \n",
+					"i WANT ALL columns from procedure_ready and only \"29\" from caseOfficer_raw"
+				],
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -922,7 +977,7 @@
 					"print(\"Wrote Address to:\", out_address_dir)\n",
 					"print(\"Wrote Procedure to:\", out_procedure_dir)"
 				],
-				"execution_count": null
+				"execution_count": 93
 			}
 		]
 	}
