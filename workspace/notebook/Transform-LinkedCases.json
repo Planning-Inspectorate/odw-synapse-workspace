@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "407d2673-52f0-4b6f-a003-c30eb7f27e7a"
+				"spark.autotune.trackingId": "05b185a9-9eec-4d7c-8942-b67ee5b1826e"
 			}
 		},
 		"metadata": {
@@ -234,31 +234,45 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
-					""
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"CASES_CSV_PATH = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_lookup = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", True)\n",
+					"    .csv(CASES_CSV_PATH)\n",
+					"    .select(\n",
+					"        F.col(\"Case ID\").cast(\"string\").alias(\"caseId\"),\n",
+					"        F.col(\"GUID\").cast(\"string\").alias(\"caseGuid\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"caseId\"])\n",
+					")\n",
+					"\n",
+					"linked_cases_with_case_guid = (\n",
+					"    linked_cases_with_refs_clean.alias(\"lc\")\n",
+					"    .join(\n",
+					"        cases_lookup.alias(\"c\"),\n",
+					"        F.col(\"lc.caseId\") == F.col(\"c.caseId\"),\n",
+					"        \"left\"\n",
+					"    )\n",
+					"    .select(\n",
+					"        F.col(\"c.caseGuid\").alias(\"id\"),\n",
+					"        F.col(\"lc.caseId\"),\n",
+					"        F.col(\"lc.linkedCaseId\"),\n",
+					"        F.col(\"lc.linkedCaseReference\"),\n",
+					"        F.col(\"lc.IsLead\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(linked_cases_with_case_guid)\n",
+					"print(\"linked cases with case guid:\", linked_cases_with_case_guid.count())"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					""
-				],
-				"execution_count": null
+				"execution_count": 12
 			}
 		]
 	}
