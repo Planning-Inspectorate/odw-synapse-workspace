@@ -3,431 +3,10 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Service bus loads",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Set Service Bus feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('service_bus_feed')",
-						"type": "Expression"
-					},
-					"isSequential": false,
-					"activities": [
-						{
-							"name": "Random wait to allow parallelism_copy4",
-							"type": "Wait",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"waitTimeInSeconds": {
-									"value": "@rand(1, 20)",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Execute Service Bus Pipeline",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Random wait to allow parallelism_copy4",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_service_bus_35",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"entity_name_input": {
-										"value": "@item()",
-										"type": "Expression"
-									},
-									"apps_insights_ikey": {
-										"value": "@variables('apps_insights_ikey')",
-										"type": "Expression"
-									},
-									"Key_Vault_Url": {
-										"value": "@variables('Key_Vault_Url')",
-										"type": "Expression"
-									},
-									"webhook_url": {
-										"value": "@variables('webhook_url')",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record Service Bus failure",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Execute Service Bus Pipeline",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Fail",
-									"PipelineName": {
-										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineName",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineRunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@activity('Execute Service Bus Pipeline').ExecutionStartTime",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@activity('Execute Service Bus Pipeline').ExecutionEndTime",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@activity('Execute Service Bus Pipeline').Error.message",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item(), ': ', activity('Execute Service Bus Pipeline').Status)",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@activity('Execute Service Bus Pipeline').PipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@activity('Execute Service Bus Pipeline').PipelineRunId",
-										"type": "Expression"
-									},
-									"PipelineExecutionTimeInSec": {
-										"value": "@activity('Execute Service Bus Pipeline').Duration",
-										"type": "Expression"
-									},
-									"ActivityType": {
-										"value": "@activity('Execute Service Bus Pipeline').ActivityType",
-										"type": "Expression"
-									},
-									"DurationSeconds": {
-										"value": "@activity('Execute Service Bus Pipeline').Duration",
-										"type": "Expression"
-									},
-									"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
-									"StatusCode": {
-										"value": "@activity('Execute Service Bus Pipeline').StatusCode",
-										"type": "Expression"
-									},
-									"AppInsIKey": {
-										"value": "@variables('apps_insights_ikey')",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Return Failure",
-							"description": "Return as a failed activity after logging the error",
-							"type": "Fail",
-							"dependsOn": [
-								{
-									"activity": "Record Service Bus failure",
-									"dependencyConditions": [
-										"Completed"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"message": {
-									"value": "@activity('Execute Service Bus Pipeline').Error.message",
-									"type": "Expression"
-								},
-								"errorCode": {
-									"value": "@activity('Execute Service Bus Pipeline').StatusCode",
-									"type": "Expression"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Set start time",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Set key vault URL",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "start_time",
-					"value": {
-						"value": "@utcnow()",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set subscription",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get subscription",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": true,
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "subscription_id",
-					"value": {
-						"value": "@activity('Get subscription').output.value",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set resource group",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get resource group",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": true,
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "resource_group",
-					"value": {
-						"value": "@activity('Get resource group').output.value",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set webhook",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Webhook",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": true,
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "webhook_url",
-					"value": {
-						"value": "@activity('Get Webhook').output.value",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Get subscription",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Get Webhook",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'TeamsWebhook',variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Get resource group",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Set key vault URL",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "Key_Vault_Url",
-					"value": {
-						"value": "@if(equals(pipeline().DataFactory, 'pins-synw-odw-dev-uks'), 'https://pinskvsynwodwdevuks.vault.azure.net/secrets/', if(equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'), 'https://pinskvsynwodwtestuks.vault.azure.net/secrets/', 'https://pinskvsynwodwproduks.vault.azure.net/secrets/'))",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Get Service Bus feed",
 				"description": "Get the enabled service bus feed from master pipeline config",
 				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Set subscription",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set webhook",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set resource group",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set AppIns iKey",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -439,7 +18,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'Service bus' and entity_name='appeal-s78'",
+						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'Service bus' and entity_name='appeal-service-user'",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -475,63 +54,112 @@
 				}
 			},
 			{
-				"name": "Get AppIns iKey",
-				"description": "Get the application insights ikey for logging",
-				"type": "WebActivity",
+				"name": "ForEach",
+				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "Set start time",
+						"activity": "Set Service Bus feed",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string',variables('Key_Vault_API'))",
+					"items": {
+						"value": "@variables('service_bus_feed')",
 						"type": "Expression"
 					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Set AppIns iKey",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get AppIns iKey",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": true,
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "apps_insights_ikey",
-					"value": {
-						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
-						"type": "Expression"
-					}
+					"activities": [
+						{
+							"name": "Create standardised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.1:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "create_table_from_schema",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"db_name": {
+										"value": "odw_standardised_db",
+										"type": "string"
+									},
+									"entity_name": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().TriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().TriggerName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().TriggerType",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						}
+					]
 				}
 			}
 		],
