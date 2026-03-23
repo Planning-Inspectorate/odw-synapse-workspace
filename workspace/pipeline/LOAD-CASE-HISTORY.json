@@ -1,0 +1,128 @@
+{
+	"name": "LOAD-CASE-HISTORY",
+	"properties": {
+		"activities": [
+			{
+				"name": "Case History table",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/case-merged-sample-row",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "upsert",
+						"upsertSettings": {
+							"useTempDB": true,
+							"keys": [
+								"GUID"
+							]
+						},
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "GUID",
+									"type": "String"
+								},
+								"sink": {
+									"name": "caseId"
+								}
+							},
+							{
+								"source": {
+									"name": "action",
+									"type": "String"
+								},
+								"sink": {
+									"name": "action"
+								}
+							},
+							{
+								"source": {
+									"name": "metadata",
+									"type": "String"
+								},
+								"sink": {
+									"name": "metadata"
+								}
+							},
+							{
+								"source": {
+									"name": "userid",
+									"type": "String"
+								},
+								"sink": {
+									"name": "userId"
+								}
+							},
+							{
+								"source": {
+									"name": "user",
+									"type": "String"
+								},
+								"sink": {
+									"name": "User"
+								}
+							},
+							{
+								"source": {
+									"name": "createdAt",
+									"type": "String"
+								},
+								"sink": {
+									"name": "createdAt"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MPESC_CASE_HISTORY",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CASE_HISTORY_MPESC",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-LOAD"
+		},
+		"annotations": []
+	}
+}
