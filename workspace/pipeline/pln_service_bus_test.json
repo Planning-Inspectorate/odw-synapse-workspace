@@ -469,69 +469,6 @@
 				}
 			},
 			{
-				"name": "Record service bus completion",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Switch",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"PipelineName": {
-							"value": "@variables('pipeline name')",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Raw to Std",
 				"description": "Ingests raw data into the standardised table",
 				"type": "SynapseNotebook",
@@ -1296,90 +1233,6 @@
 				}
 			},
 			{
-				"name": "Record convert hrm failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Switch",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Fail",
-						"PipelineName": {
-							"value": "@variables('pipeline name')",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@activity('Harmonised_service-Bus_NoteBook').error.message",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@concat(variables('harmonised_notebook_name'),' notebook got failed')",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"PipelineExecutionTimeInSec": {
-							"value": "@string(json(activity('Harmonised_service-Bus_NoteBook').output.status.output.result.exitValue).table_details[0].total_exec_time)\n",
-							"type": "Expression"
-						},
-						"ActivityType": "Notebook",
-						"DurationSeconds": {
-							"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
-							"type": "Expression"
-						},
-						"StatusCode": "500",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Switch",
 				"type": "Switch",
 				"dependsOn": [
@@ -1401,7 +1254,7 @@
 							"value": "NOT_EMPTY",
 							"activities": [
 								{
-									"name": "Harmonised_service-Bus_NoteBook_copy1",
+									"name": "Harmonised_service-Bus_NoteBook",
 									"description": "Runs the notebooks that ingest standardised data into the harmonised tables",
 									"type": "SynapseNotebook",
 									"dependsOn": [],
@@ -1739,6 +1592,149 @@
 							]
 						}
 					]
+				}
+			},
+			{
+				"name": "Record service bus completion",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Switch",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Completion",
+						"PipelineName": {
+							"value": "@variables('pipeline name')",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record convert hrm failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Switch",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@variables('pipeline name')",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('Switch').Error.Message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(variables('entity_name'),'got failed')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Notebook",
+						"DurationSeconds": {
+							"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+							"type": "Expression"
+						},
+						"StatusCode": "500",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
 				}
 			}
 		],
