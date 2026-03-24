@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "12841f02-1031-44d1-a765-a107633a7b32"
+				"spark.autotune.trackingId": "029921ea-eb12-4cf1-9cd2-a66f937c50d1"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -58,7 +58,7 @@
 					"from datetime import datetime, date\n",
 					"import pyspark.sql.functions as F"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -160,9 +160,33 @@
 					"AH.ValidTo                                   AS ValidTo,\n",
 					"AH.IsActive                                  AS IsActive\n",
 					"FROM odw_harmonised_db.appeal_has AS AH \n",
-					"WHERE AH.lpaCode NOT in ('Q9999', 'Q1111') and AH.caseReference > '6000000' and AH.ODTSourceSystem='ODT'"
+					"WHERE AH.lpaCode NOT in ('Q9999', 'Q1111') and AH.caseReference > '6000000' and AH.ODTSourceSystem='ODT'\n",
+					"AND (caseSubmittedDate IS NULL OR caseSubmittedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseCreatedDate IS NULL OR caseCreatedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseUpdatedDate IS NULL OR caseUpdatedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseValidDate IS NULL OR caseValidDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseValidationDate IS NULL OR caseValidationDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseExtensionDate IS NULL OR caseExtensionDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseStartedDate IS NULL OR caseStartedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (casePublishedDate IS NULL OR casePublishedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (lpaQuestionnaireDueDate IS NULL OR lpaQuestionnaireDueDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (lpaQuestionnaireSubmittedDate IS NULL OR lpaQuestionnaireSubmittedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (lpaQuestionnaireCreatedDate IS NULL OR lpaQuestionnaireCreatedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (lpaQuestionnairePublishedDate IS NULL OR lpaQuestionnairePublishedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (lpaQuestionnaireValidationOutcomeDate IS NULL OR lpaQuestionnaireValidationOutcomeDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseWithdrawnDate IS NULL OR caseWithdrawnDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseTransferredDate IS NULL OR caseTransferredDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (transferredCaseClosedDate IS NULL OR transferredCaseClosedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseDecisionOutcomeDate IS NULL OR caseDecisionOutcomeDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseDecisionPublishedDate IS NULL OR caseDecisionPublishedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseCompletedDate IS NULL OR caseCompletedDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (applicationDate IS NULL OR applicationDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (applicationDecisionDate IS NULL OR applicationDecisionDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (caseSubmissionDueDate IS NULL OR caseSubmissionDueDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (applicationDecisionDueDate IS NULL OR applicationDecisionDueDate >= TIMESTAMP('1900-01-01'))\n",
+					"AND (IngestionDate IS NULL OR IngestionDate >= TIMESTAMP('1900-01-01'))"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -180,28 +204,7 @@
 				"source": [
 					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_appeals_has_curated_mipins\")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# Detect all date-like columns\n",
-					"date_cols = [c for c in view_df.columns if \"date\" in c.lower()]\n",
-					"\n",
-					"print(\"Detected date columns:\")\n",
-					"for c in date_cols:\n",
-					"     print(\" -\", c)\n",
-					"\n",
-					"# Apply generic 1900-01-01 filter to all detected date columns\n",
-					"filtered_df = view_df\n",
-					"for c in date_cols:\n",
-					"    filtered_df = filtered_df.filter(\n",
-					"        (F.col(c).isNull()) |\n",
-					"        (F.to_timestamp(F.col(c)) >= F.lit(\"1900-01-01\"))\n",
-					"    )\n",
-					""
-				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -240,11 +243,11 @@
 					"]\n",
 					"\n",
 					"# Apply the UTC to London conversion for each column\n",
-					"final_view_df = filtered_df\n",
+					"final_view_df = view_df\n",
 					"for column_name in timestamp_columns:\n",
 					"    final_view_df = final_view_df.withColumn(column_name, F.to_timestamp(F.from_utc_timestamp(F.col(column_name), 'Europe/London'), \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -262,14 +265,14 @@
 				"source": [
 					"spark.sql(f\"drop table if exists odw_curated_db.appeals_has_curated_mipins;\")"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_has_curated_mipins\")"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -286,7 +289,7 @@
 					"#select hasLandownersPermission,wasApplicationRefusedDueToHighwayOrTraffic,didAppellantSubmitCompletePhotosAndPlans,\n",
 					"#isSiteInAreaOfSpecialControlAdverts,advertDetails from odw_curated_db.appeals_has_curated_mipins"
 				],
-				"execution_count": null
+				"execution_count": 15
 			}
 		]
 	}
