@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "56ab78ee-c2ed-4be4-8901-81481ae40cf6"
+				"spark.autotune.trackingId": "c255b1d7-4810-4dfc-ab31-02b18a445d55"
 			}
 		},
 		"metadata": {
@@ -42,11 +42,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -145,14 +145,33 @@
 			{
 				"cell_type": "code",
 				"source": [
-					" \r\n",
 					"def _fail_and_log(step_name: str, e: Exception):\r\n",
 					"    global error_message\r\n",
-					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
-					"    logError(error_message)\r\n",
 					"\r\n",
-					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
-					"    raise e "
+					"    try:\r\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\r\n",
+					"    except Exception as format_error:\r\n",
+					"        error_message = (\r\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\r\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\r\n",
+					"        )[:800]\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        logError(error_message)\r\n",
+					"    except Exception as log_error:\r\n",
+					"        print(f\"Primary logging failed: {log_error}\")\r\n",
+					"        print(error_message)\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\r\n",
+					"        if callable(telemetry_fn):\r\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\r\n",
+					"        else:\r\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\r\n",
+					"    except Exception as telemetry_error:\r\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\r\n",
+					"\r\n",
+					"    raise e"
 				],
 				"execution_count": null
 			},

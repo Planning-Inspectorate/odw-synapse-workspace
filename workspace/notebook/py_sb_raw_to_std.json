@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ee6c9db9-6437-4522-acb7-1cf21fc95b92"
+				"spark.autotune.trackingId": "11ccd4f0-ea18-4a54-91a8-c867580cd1a9"
 			}
 		},
 		"metadata": {
@@ -146,11 +146,31 @@
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\r\n",
 					"    global error_message\r\n",
-					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
-					"    logError(error_message)\r\n",
 					"\r\n",
-					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
-					"    raise e "
+					"    try:\r\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\r\n",
+					"    except Exception as format_error:\r\n",
+					"        error_message = (\r\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\r\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\r\n",
+					"        )[:800]\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        logError(error_message)\r\n",
+					"    except Exception as log_error:\r\n",
+					"        print(f\"Primary logging failed: {log_error}\")\r\n",
+					"        print(error_message)\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\r\n",
+					"        if callable(telemetry_fn):\r\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\r\n",
+					"        else:\r\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\r\n",
+					"    except Exception as telemetry_error:\r\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\r\n",
+					"\r\n",
+					"    raise e"
 				],
 				"execution_count": null
 			},
