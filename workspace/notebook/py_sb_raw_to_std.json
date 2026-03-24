@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "534dd796-3548-4827-88cc-f89c4295820d"
+				"spark.autotune.trackingId": "7b5cfa97-09bb-4e3f-9e3e-fbf787f289e2"
 			}
 		},
 		"metadata": {
@@ -608,42 +608,6 @@
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
 				"execution_count": 73
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"from delta.tables import DeltaTable\r\n",
-					"\r\n",
-					"# Get existing Delta table schema\r\n",
-					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
-					"table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
-					"\r\n",
-					"existing_schema = DeltaTable.forPath(spark, table_path).toDF().schema\r\n",
-					"\r\n",
-					"print(\"===== INCOMING DF SCHEMA =====\")\r\n",
-					"for f in raw_df.schema.fields:\r\n",
-					"    print(f\"  {f.name}: {f.dataType} | nullable={f.nullable} | metadata={f.metadata}\")\r\n",
-					"\r\n",
-					"print(\"\\n===== EXISTING TABLE SCHEMA =====\")\r\n",
-					"for f in existing_schema.fields:\r\n",
-					"    print(f\"  {f.name}: {f.dataType} | nullable={f.nullable} | metadata={f.metadata}\")\r\n",
-					"\r\n",
-					"print(\"\\n===== MISMATCHES =====\")\r\n",
-					"incoming = {f.name: f for f in raw_df.schema.fields}\r\n",
-					"existing = {f.name: f for f in existing_schema.fields}\r\n",
-					"\r\n",
-					"for name in incoming:\r\n",
-					"    if name in existing:\r\n",
-					"        i = incoming[name]\r\n",
-					"        e = existing[name]\r\n",
-					"        if i.dataType != e.dataType:\r\n",
-					"            print(f\"  TYPE MISMATCH  → '{name}': incoming={i.dataType}, table={e.dataType}\")\r\n",
-					"        if i.nullable != e.nullable:\r\n",
-					"            print(f\"  NULLABLE DIFF  → '{name}': incoming={i.nullable}, table={e.nullable}\")\r\n",
-					"        if i.metadata != e.metadata:\r\n",
-					"            print(f\"  METADATA DIFF  → '{name}': incoming={i.metadata}, table={e.metadata}\")"
-				],
-				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
