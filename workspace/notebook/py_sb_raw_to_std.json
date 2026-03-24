@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c094917-5ff4-4ee1-b305-0288ac26fe0d"
+				"spark.autotune.trackingId": "534dd796-3548-4827-88cc-f89c4295820d"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 55
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,22 @@
 					"entity_name='appeal-has' \r\n",
 					"date_folder=''"
 				],
-				"execution_count": null
+				"execution_count": 58
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\r\n",
+					"entity_name = \"appeal-s78\"\r\n",
+					"PipelineName = \"pln_service_bus\"\r\n",
+					"PipelineRunID = \"e96f9dd1-d12c-493b-b9bf-234848479441\"\r\n",
+					"PipelineTriggerID = \"4b5d0808-588f-4ab4-9ee7-b8f4d7d8e890\"\r\n",
+					"PipelineTriggerName = \"4b5d0808-588f-4ab4-9ee7-b8f4d7d8e890\"\r\n",
+					"PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
+					"PipelineTriggeredbyPipelineRunID = \"f1013d03-9fbc-479a-91a7-4375e0c970e0\""
+				],
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
@@ -135,11 +150,12 @@
 					"from datetime import datetime, date\r\n",
 					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\r\n",
 					"from pyspark.sql import DataFrame\r\n",
-					"from pyspark.sql.types import StructType,TimestampType\r\n",
+					"from pyspark.sql.types import StructType,TimestampType,StructField,StringType\r\n",
 					"from pyspark.sql.functions import *\r\n",
-					"import re"
+					"import re\r\n",
+					"from delta.tables import DeltaTable"
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -172,7 +188,7 @@
 					"\r\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -184,7 +200,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "code",
@@ -194,7 +210,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": null
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -219,7 +235,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -266,7 +282,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 65
 			},
 			{
 				"cell_type": "code",
@@ -317,7 +333,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -374,7 +390,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": null
+				"execution_count": 67
 			},
 			{
 				"cell_type": "code",
@@ -417,7 +433,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": null
+				"execution_count": 68
 			},
 			{
 				"cell_type": "code",
@@ -471,17 +487,52 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": null
+				"execution_count": 69
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_schema_from_table(target_table: str) -> StructType:\r\n",
+					"    \"\"\"\r\n",
+					"    Reads the Delta table schema and returns it as a spark_schema\r\n",
+					"    for use in read_raw_messages.\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    ingestion_columns = {\r\n",
+					"        \"expected_from\",\r\n",
+					"        \"expected_to\",\r\n",
+					"        \"ingested_datetime\",\r\n",
+					"        \"input_file\"\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    # Get the physical table path\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
+					"    table_path = (\r\n",
+					"        df_table_path\r\n",
+					"        .where(\"col_name == 'Location'\")\r\n",
+					"        .select(\"data_type\")\r\n",
+					"        .collect()[0][0]\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    # Load full schema from the Delta table\r\n",
+					"    full_schema = DeltaTable.forPath(spark, table_path).toDF().schema\r\n",
+					"\r\n",
+					"    # Filter out ingestion columns\r\n",
+					"    filtered_fields = [\r\n",
+					"        f for f in full_schema.fields\r\n",
+					"        if f.name not in ingestion_columns\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    return StructType(filtered_fields)"
+				],
+				"execution_count": 70
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"@logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
-					"    \"\"\"\r\n",
-					"    Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
-					"    Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
-					"    \"\"\"\r\n",
 					"    if not filtered_paths:\r\n",
 					"        logInfo(\"No files to ingest.\")\r\n",
 					"        return (\r\n",
@@ -491,10 +542,10 @@
 					"        )\r\n",
 					"\r\n",
 					"    reader = spark.read.option(\"multiline\", \"true\")\r\n",
-					"    if spark_schema: \r\n",
-					"        reader = reader.schema(spark_schema)\r\n",
-					"    df = reader.json(filtered_paths)\r\n",
+					"    if spark_schema:\r\n",
+					"        reader = reader.schema(spark_schema)   # always uses table schema now\r\n",
 					"\r\n",
+					"    df = reader.json(filtered_paths)\r\n",
 					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"\r\n",
 					"    df = (\r\n",
@@ -503,9 +554,7 @@
 					"          .withColumn(\"ingested_datetime\", to_timestamp(\"message_enqueued_time_utc\"))\r\n",
 					"          .withColumn(\"input_file\", input_file_name())\r\n",
 					"    )\r\n",
-					"\r\n",
 					"    return df\r\n",
-					"\r\n",
 					"\r\n",
 					"def step_read_raw_messages():\r\n",
 					"    return read_raw_messages(filtered_paths)\r\n",
@@ -517,7 +566,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 72
 			},
 			{
 				"cell_type": "code",
@@ -558,36 +607,92 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": null
+				"execution_count": 73
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Get existing Delta table schema\r\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
+					"table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
+					"\r\n",
+					"existing_schema = DeltaTable.forPath(spark, table_path).toDF().schema\r\n",
+					"\r\n",
+					"print(\"===== INCOMING DF SCHEMA =====\")\r\n",
+					"for f in raw_df.schema.fields:\r\n",
+					"    print(f\"  {f.name}: {f.dataType} | nullable={f.nullable} | metadata={f.metadata}\")\r\n",
+					"\r\n",
+					"print(\"\\n===== EXISTING TABLE SCHEMA =====\")\r\n",
+					"for f in existing_schema.fields:\r\n",
+					"    print(f\"  {f.name}: {f.dataType} | nullable={f.nullable} | metadata={f.metadata}\")\r\n",
+					"\r\n",
+					"print(\"\\n===== MISMATCHES =====\")\r\n",
+					"incoming = {f.name: f for f in raw_df.schema.fields}\r\n",
+					"existing = {f.name: f for f in existing_schema.fields}\r\n",
+					"\r\n",
+					"for name in incoming:\r\n",
+					"    if name in existing:\r\n",
+					"        i = incoming[name]\r\n",
+					"        e = existing[name]\r\n",
+					"        if i.dataType != e.dataType:\r\n",
+					"            print(f\"  TYPE MISMATCH  → '{name}': incoming={i.dataType}, table={e.dataType}\")\r\n",
+					"        if i.nullable != e.nullable:\r\n",
+					"            print(f\"  NULLABLE DIFF  → '{name}': incoming={i.nullable}, table={e.nullable}\")\r\n",
+					"        if i.metadata != e.metadata:\r\n",
+					"            print(f\"  METADATA DIFF  → '{name}': incoming={i.metadata}, table={e.metadata}\")"
+				],
+				"execution_count": 74
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"@logging_to_appins\r\n",
 					"def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
-					"    \"\"\"\r\n",
-					"    Appends the new rows to the target table.\r\n",
-					" \r\n",
-					"    Args:\r\n",
-					"        df: DataFrame of new rows\r\n",
-					"        target_table: name of the target table\r\n",
-					"    \"\"\"\r\n",
 					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
-					"\r\n",
-					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
-					"\r\n",
-					"\r\n",
+					"    table_path = (\r\n",
+					"        df_table_path\r\n",
+					"        .where(\"col_name == 'Location'\")\r\n",
+					"        .select(\"data_type\")\r\n",
+					"        .collect()[0][0]\r\n",
+					"    )\r\n",
 					"    logInfo(f\"Appending data to table {target_table}\")\r\n",
-					" \r\n",
+					"\r\n",
 					"    (\r\n",
 					"        df.write\r\n",
-					"        .mode(\"append\")\r\n",
-					"        .format(\"delta\")\r\n",
-					"        .option(\"mergeSchema\", \"true\")\r\n",
-					"        .option(\"path\", table_path)\r\n",
-					"        .saveAsTable(target_table)\r\n",
+					"          .mode(\"append\")\r\n",
+					"          .format(\"delta\")\r\n",
+					"          .option(\"mergeSchema\", \"true\")\r\n",
+					"          .option(\"path\", table_path)\r\n",
+					"          .saveAsTable(target_table)\r\n",
 					"    )\r\n",
-					" \r\n",
+					"    logInfo(f\"Successfully appended data to table {target_table}\")"
+				],
+				"execution_count": 75
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\r\n",
+					"    table_path = (\r\n",
+					"        df_table_path\r\n",
+					"        .where(\"col_name == 'Location'\")\r\n",
+					"        .select(\"data_type\")\r\n",
+					"        .collect()[0][0]\r\n",
+					"    )\r\n",
+					"    logInfo(f\"Appending data to table {target_table}\")\r\n",
+					"\r\n",
+					"    (\r\n",
+					"        df.write\r\n",
+					"          .mode(\"append\")\r\n",
+					"          .format(\"delta\")\r\n",
+					"          .option(\"mergeSchema\", \"true\")\r\n",
+					"          .option(\"path\", table_path)\r\n",
+					"          .saveAsTable(target_table)\r\n",
+					"    )\r\n",
 					"    logInfo(f\"Successfully appended data to table {target_table}\")\r\n",
 					"\r\n",
 					"def step_append_df_to_table(df: DataFrame, target_table: str):\r\n",
@@ -601,7 +706,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 76
 			},
 			{
 				"cell_type": "code",
@@ -635,7 +740,7 @@
 					"    return result\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 77
 			},
 			{
 				"cell_type": "markdown",
@@ -709,7 +814,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 78
 			},
 			{
 				"cell_type": "markdown",
@@ -755,7 +860,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 79
 			},
 			{
 				"cell_type": "markdown",
@@ -782,7 +887,7 @@
 					"    return spark.table(target_table).count()\r\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
-				"execution_count": null
+				"execution_count": 80
 			},
 			{
 				"cell_type": "markdown",
@@ -821,7 +926,7 @@
 					"\r\n",
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)"
 				],
-				"execution_count": null
+				"execution_count": 81
 			},
 			{
 				"cell_type": "markdown",
@@ -881,7 +986,7 @@
 					"if not error_message:\r\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
+				"execution_count": 82
 			}
 		]
 	}
