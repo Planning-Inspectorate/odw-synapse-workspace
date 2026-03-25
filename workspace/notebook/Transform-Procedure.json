@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ebc8b3d4-cff5-40d4-9d1f-5e9d2616d688"
+				"spark.autotune.trackingId": "4fb73fdc-1079-42f8-8c4b-f60e6cafa70f"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": 1
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +95,7 @@
 					"print(\"Columns:\", events_raw.columns)\n",
 					"display(events_raw.limit(10))"
 				],
-				"execution_count": null
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -206,7 +206,7 @@
 					"\n",
 					"display(joined.select(*preview_cols).limit(30))"
 				],
-				"execution_count": null
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -277,7 +277,7 @@
 					"\n",
 					"display(events_clean.limit(100))"
 				],
-				"execution_count": null
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -370,7 +370,7 @@
 					"    .limit(50)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -491,7 +491,7 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -543,7 +543,7 @@
 					")\n",
 					"display(events_mapped)"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -647,7 +647,7 @@
 					"    ).limit(20)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -763,7 +763,7 @@
 					"\n",
 					"procedure_ready = procedure_ready_final.withColumn(\"step\", F.lit(\"1\"))"
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -888,7 +888,133 @@
 					"    ).limit(50)\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 55
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# -------------------------------------------------\n",
+					"# ADD MISSING WRITTEN REPS PROCEDURE ROWS\n",
+					"# Source: CASE - 95498\n",
+					"# AttrID / column 3 = Procedure (LPA)\n",
+					"# If column 3 = \"Written representations\", create a new procedure row\n",
+					"# -------------------------------------------------\n",
+					"\n",
+					"case_src_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_95498/\"\n",
+					"\n",
+					"case_95498 = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"mode\", \"PERMISSIVE\")\n",
+					"    .load(case_src_path)\n",
+					")\n",
+					"\n",
+					"case_written_reps = (\n",
+					"    case_95498\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.trim(F.col(\"3\").cast(\"string\")).alias(\"procedure_lpa_raw\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.col(\"legacyCaseId\").isNotNull() &\n",
+					"        (F.col(\"legacyCaseId\") != \"\") &\n",
+					"        F.col(\"procedure_lpa_raw\").isNotNull() &\n",
+					"        (F.lower(F.trim(F.col(\"procedure_lpa_raw\"))) == \"written representations\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					"    .join(cases_map, on=\"legacyCaseId\", how=\"inner\")\n",
+					")\n",
+					"\n",
+					"existing_written_reps = (\n",
+					"    procedure_ready\n",
+					"    .filter(F.col(\"procedureTypeId\") == \"written-reps\")\n",
+					"    .select(\"legacyCaseId\")\n",
+					"    .dropDuplicates()\n",
+					")\n",
+					"\n",
+					"missing_written_reps = (\n",
+					"    case_written_reps.alias(\"c\")\n",
+					"    .join(existing_written_reps.alias(\"e\"), on=\"legacyCaseId\", how=\"left_anti\")\n",
+					")\n",
+					"\n",
+					"written_reps_rows = missing_written_reps.select(\n",
+					"    F.col(\"caseId\").cast(\"string\").alias(\"caseId\"),\n",
+					"    F.col(\"legacyCaseId\").cast(\"string\").alias(\"legacyCaseId\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"legacyEventId\"),\n",
+					"\n",
+					"    F.lit(\"written-reps\").cast(\"string\").alias(\"procedureTypeId\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"procedureStatusId\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"procedureArrangementId\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"siteVisitDate\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"confirmedHearingDate\"),\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"hearingClosedDate\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"confirmedInquiryDate\"),\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"inquiryClosedDate\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"preInquiryMeetingDate\"),\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"inHouseDate\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"offerForWrittenRepresentationsDate\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"lengthOfHearingEvent\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"hearingPreparationTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"hearingSittingTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"hearingReportingTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"hearingTravelTimeDays\"),\n",
+					"    F.lit(None).cast(\"boolean\").alias(\"hearingInTarget\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"lengthOfInquiryEvent\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"inquiryPreparationTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"inquirySittingTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"inquiryReportingTimeDays\"),\n",
+					"    F.lit(None).cast(\"decimal(10,2)\").alias(\"inquiryTravelTimeDays\"),\n",
+					"    F.lit(None).cast(\"boolean\").alias(\"inquiryInTarget\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"string\").alias(\"hearingVenueId\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"inquiryVenueId\"),\n",
+					"\n",
+					"    F.lit(\"ProcedureOne\").cast(\"string\").alias(\"step\"),\n",
+					"\n",
+					"    F.lit(\"Written representations\").cast(\"string\").alias(\"typeOfEvent_raw\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"chartStatus_raw\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"venueGuid\"),\n",
+					"    F.lit(None).cast(\"string\").alias(\"siteVisitTypeId\"),\n",
+					"\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"statementsOfCaseDate\"),\n",
+					"    F.lit(None).cast(\"timestamp\").alias(\"proofsOfEvidenceDate\")\n",
+					")\n",
+					"\n",
+					"procedure_ready = procedure_ready.unionByName(written_reps_rows)\n",
+					"\n",
+					"print(\"Written reps rows added from Case_95498:\", written_reps_rows.count())\n",
+					"\n",
+					"display(\n",
+					"    procedure_ready\n",
+					"    .filter(F.col(\"procedureTypeId\") == \"written-reps\")\n",
+					"    .select(\n",
+					"        \"legacyCaseId\",\n",
+					"        \"caseId\",\n",
+					"        \"procedureTypeId\",\n",
+					"        \"typeOfEvent_raw\",\n",
+					"        \"legacyEventId\"\n",
+					"    )\n",
+					"    .orderBy(\"legacyCaseId\")\n",
+					"    .limit(100)\n",
+					")"
+				],
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
@@ -913,7 +1039,17 @@
 					"print(\"Wrote Address to:\", out_address_dir)\n",
 					"print(\"Wrote Procedure to:\", out_procedure_dir)"
 				],
-				"execution_count": null
+				"execution_count": 57
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(procedure_ready)"
+				],
+				"execution_count": 59
 			}
 		]
 	}
