@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "19542123-f7be-4183-ab5c-3b3048fb6cd9"
+				"spark.autotune.trackingId": "069d6365-1adc-4a25-b5d6-aa993bd1bb7a"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -208,31 +208,41 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"        # Count records being written\n",
 					"        insert_count = df.count()\n",
 					"        print(insert_count)\n",
-					"        df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"\n",
+					"        # Resolve storage path of the curated table\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
+					"\n",
+					"        # Write curated data with overwrite & schema evolution\n",
+					"        df.write \\\n",
+					"            .format(\"parquet\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\n",
+					"            .saveAsTable(table_name)\n",
+					"\n",
 					"        print(f\"Written to {table_name}\")\n",
-					"        \n",
+					"\n",
+					"        # Capture end time\n",
 					"        end_exec_time = datetime.now()\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        error_message = (\n",
+					"            f\"Error appending data to the curated layer {table_name} table : \"\n",
+					"            f\"{str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			},
