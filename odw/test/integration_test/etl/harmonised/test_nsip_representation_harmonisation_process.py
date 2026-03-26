@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import NsipRepresentationHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
