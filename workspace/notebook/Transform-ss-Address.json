@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0ca483db-18f9-44ea-acce-bac5426420ca"
+				"spark.autotune.trackingId": "131aff05-c824-47a7-add1-747777a59932"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -97,6 +97,60 @@
 					"\n",
 					"display(load_file.limit(10))\n",
 					"print(\"load_file rows:\", load_file.count())\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.functions import regexp_extract\n",
+					"\n",
+					"df = load_file.select(\n",
+					"    regexp_extract(\"id\", r\"/(\\d+)-\", 1).alias(\"Case_ID\"),\n",
+					"    \"*\"\n",
+					"    \n",
+					")\n",
+					"\n",
+					"display(df.limit(10))\n",
+					""
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# pull in cases to get GUID\n",
+					"CASES_FILE = f\"{mpesc_base_path}/MPESC-SPREADSHEETS/MPESC-SPREADSHEETS-TRANSFORM/Cases-Transform\"\n",
+					"\n",
+					"LOAD_CASES = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", True)\n",
+					"        .option(\"sep\", \",\")\n",
+					"        .option(\"multiLine\", True)          \n",
+					"        .option(\"quote\", '\"')               # handle quoted fields\n",
+					"        .option(\"escape\", '\"')              # handle escaped quotes\n",
+					"        .option(\"mode\", \"PERMISSIVE\")       # don’t fail on bad rows\n",
+					"        .option(\"inferSchema\", False)       # safer for messy exports\n",
+					"        .load(CASES_FILE)\n",
+					")\n",
+					"\n",
+					"display(LOAD_CASES.limit(10))\n",
+					"print(\"load_cases rows:\", LOAD_CASES.count())\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					""
 				],
 				"execution_count": null
