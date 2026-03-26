@@ -50,8 +50,11 @@ def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curat
             return_value="test_storage",
     ), mock.patch(
         "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockLogging:
-        MockLogging.return_value = mock.Mock()
+    ) as MockEtlLogging, mock.patch(
+        "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.LoggingUtil"
+    ) as MockProcessLogging:
+        MockEtlLogging.return_value = mock.Mock()
+        MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipExamTimetableCuratedProcess(spark)
 

@@ -87,8 +87,11 @@ def test__nsip_s51_advice_curated_process__run__applies_expected_mappings():
             return_value="test_storage",
     ), mock.patch(
         "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockLogging:
-        MockLogging.return_value = mock.Mock()
+    ) as MockEtlLogging, mock.patch(
+        "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil"
+    ) as MockProcessLogging:
+        MockEtlLogging.return_value = mock.Mock()
+        MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipS51AdviceCuratedProcess(spark)
 

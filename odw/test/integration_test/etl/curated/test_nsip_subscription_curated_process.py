@@ -36,8 +36,11 @@ def test__nsip_subscription_curated_process__run__selects_and_deduplicates_rows(
             return_value="test_storage",
     ), mock.patch(
         "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockLogging:
-        MockLogging.return_value = mock.Mock()
+    ) as MockEtlLogging, mock.patch(
+        "odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"
+    ) as MockProcessLogging:
+        MockEtlLogging.return_value = mock.Mock()
+        MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipSubscriptionCuratedProcess(spark)
 
