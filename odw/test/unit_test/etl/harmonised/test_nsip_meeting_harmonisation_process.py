@@ -14,7 +14,16 @@ def test__nsip_meeting_harmonisation_process__process__initial_load_overwrites_a
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="old", planningInspectorateRole="role", meetingDate="2025-01-01", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-10")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="old",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-01",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-10",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -24,7 +33,16 @@ def test__nsip_meeting_harmonisation_process__process__initial_load_overwrites_a
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="new", planningInspectorateRole="role", meetingDate="2025-01-02", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-11")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="new",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-02",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-11",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -43,11 +61,12 @@ def test__nsip_meeting_harmonisation_process__process__initial_load_overwrites_a
         ],
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipMeetingHarmonisationProcess(spark)
         data_to_write, result = inst.process(
@@ -80,7 +99,16 @@ def test__nsip_meeting_harmonisation_process__process__incremental_change_expire
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="changed", planningInspectorateRole="role", meetingDate="2025-01-03", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-12")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="changed",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-03",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-12",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -144,11 +172,12 @@ def test__nsip_meeting_harmonisation_process__process__incremental_change_expire
         ),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipMeetingHarmonisationProcess(spark)
         data_to_write, result = inst.process(

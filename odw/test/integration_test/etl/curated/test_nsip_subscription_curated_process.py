@@ -31,21 +31,20 @@ def test__nsip_subscription_curated_process__run__selects_and_deduplicates_rows(
         "harmonised_subscriptions": harmonised_subscriptions,
     }
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_subscription_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockEtlLogging, mock.patch(
-        "odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"
-    ) as MockProcessLogging:
+        ),
+        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+        mock.patch("odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil") as MockProcessLogging,
+    ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipSubscriptionCuratedProcess(spark)
 
-        with mock.patch.object(inst, "load_data", return_value=source_data), \
-                mock.patch.object(inst, "write_data") as mock_write:
+        with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
             result = inst.run()
 
     data_to_write = mock_write.call_args[0][0]

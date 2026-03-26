@@ -26,11 +26,12 @@ def test__nsip_subscription_curated_process__process__selects_and_deduplicates_r
         ),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_subscription_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"),
     ):
         inst = NsipSubscriptionCuratedProcess(spark)
         data_to_write, result = inst.process(

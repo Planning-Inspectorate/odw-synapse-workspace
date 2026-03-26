@@ -136,11 +136,12 @@ def test__nsip_document_curated_process__process__applies_expected_transformatio
         T.StructType([T.StructField("caseReference", T.StringType(), True)]),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_document_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_document_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_document_curated_process.LoggingUtil"),
     ):
         inst = NsipDocumentCuratedProcess(spark)
         data_to_write, result = inst.process(

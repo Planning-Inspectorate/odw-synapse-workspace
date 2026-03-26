@@ -77,11 +77,12 @@ def test__nsip_s51_advice_curated_process__process__applies_expected_mappings():
         ),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil"),
     ):
         inst = NsipS51AdviceCuratedProcess(spark)
         data_to_write, result = inst.process(

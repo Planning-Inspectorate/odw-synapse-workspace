@@ -112,7 +112,35 @@ def test__nsip_document_harmonisation_process__process__combines_service_bus_and
 
     horizon_data = spark.createDataFrame(
         [
-            (20, 200, "EN010002", "DOCREF2", 1, "file2.pdf", "original2.pdf", 120, "clean", "2025-02-01", "2025-02-02", "NSIP", "Published", "2025-02-03", "Type2", "Horizon", "author2", "authorcy2", "rep2", "desc2", "desccy2", "Stage2", "f21", "f21cy", "f22", "folder2", "2025-02-10 00:00:00"),
+            (
+                20,
+                200,
+                "EN010002",
+                "DOCREF2",
+                1,
+                "file2.pdf",
+                "original2.pdf",
+                120,
+                "clean",
+                "2025-02-01",
+                "2025-02-02",
+                "NSIP",
+                "Published",
+                "2025-02-03",
+                "Type2",
+                "Horizon",
+                "author2",
+                "authorcy2",
+                "rep2",
+                "desc2",
+                "desccy2",
+                "Stage2",
+                "f21",
+                "f21cy",
+                "f22",
+                "folder2",
+                "2025-02-10 00:00:00",
+            ),
         ],
         [
             "dataId",
@@ -169,11 +197,12 @@ def test__nsip_document_harmonisation_process__process__combines_service_bus_and
         T.StructType([T.StructField("TEMP_PK", T.StringType(), True)]),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipDocumentHarmonisationProcess(spark)
         data_to_write, result = inst.process(

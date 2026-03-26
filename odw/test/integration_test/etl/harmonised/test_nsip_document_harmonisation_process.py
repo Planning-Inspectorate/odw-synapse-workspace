@@ -205,23 +205,20 @@ def test__nsip_document_harmonisation_process__run__combines_service_bus_and_hor
         "sb_primary_keys": sb_primary_keys,
     }
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
-        return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockEtlLogging, mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil"
-    ) as MockProcessLogging:
-
+    with (
+        mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
+            return_value="test_storage",
+        ),
+        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil") as MockProcessLogging,
+    ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipDocumentHarmonisationProcess(spark)
 
-        with mock.patch.object(inst, "load_data", return_value=source_data), \
-             mock.patch.object(inst, "write_data") as mock_write:
-
+        with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
             result = inst.run()
 
     data_to_write = mock_write.call_args[0][0]

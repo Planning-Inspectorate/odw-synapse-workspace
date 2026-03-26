@@ -39,11 +39,12 @@ def test__nsip_exam_timetable_curated_process__process__keeps_only_projects_in_c
         T.StructType([T.StructField("caseReference", T.StringType(), True)]),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.LoggingUtil"),
     ):
         inst = NsipExamTimetableCuratedProcess(spark)
         data_to_write, result = inst.process(

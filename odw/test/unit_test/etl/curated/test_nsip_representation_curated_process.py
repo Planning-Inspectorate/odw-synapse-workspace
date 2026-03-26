@@ -74,11 +74,12 @@ def test__nsip_representation_curated_process__process__applies_status_and_party
         ),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_representation_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_representation_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_representation_curated_process.LoggingUtil"),
     ):
         inst = NsipRepresentationCuratedProcess(spark)
         data_to_write, result = inst.process(

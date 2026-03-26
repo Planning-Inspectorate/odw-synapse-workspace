@@ -226,11 +226,12 @@ def test__nsip_s51_advice_harmonisation_process__process__aggregates_attachments
         ["adviceId"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
-        return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil"
+    with (
+        mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
+            return_value="test_storage",
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipS51AdviceHarmonisationProcess(spark)
         data_to_write, result = inst.process(

@@ -28,11 +28,12 @@ def test__nsip_meeting_curated_process__process__keeps_latest_row_per_meeting_id
         ),
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.curated.nsip_meeting_curated_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.curated.nsip_meeting_curated_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.curated.nsip_meeting_curated_process.LoggingUtil"),
     ):
         inst = NsipMeetingCuratedProcess(spark)
         data_to_write, result = inst.process(

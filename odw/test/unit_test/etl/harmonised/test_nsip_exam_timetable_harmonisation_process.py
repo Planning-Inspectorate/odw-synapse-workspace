@@ -81,11 +81,12 @@ def test__nsip_exam_timetable_harmonisation_process__process__aggregates_horizon
         ["caseReference"],
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipExamTimetableHarmonisationProcess(spark)
         data_to_write, result = inst.process(

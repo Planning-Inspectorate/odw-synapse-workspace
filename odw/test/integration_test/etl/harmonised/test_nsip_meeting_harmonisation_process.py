@@ -15,7 +15,16 @@ def test__nsip_meeting_harmonisation_process__run__initial_load_overwrites_and_k
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="old", planningInspectorateRole="role", meetingDate="2025-01-01", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-10")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="old",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-01",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-10",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -25,7 +34,16 @@ def test__nsip_meeting_harmonisation_process__run__initial_load_overwrites_and_k
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="new", planningInspectorateRole="role", meetingDate="2025-01-02", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-11")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="new",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-02",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-11",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -49,21 +67,20 @@ def test__nsip_meeting_harmonisation_process__run__initial_load_overwrites_and_k
         "target_df": None,
     }
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockEtlLogging, mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
-    ) as MockProcessLogging:
+        ),
+        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil") as MockProcessLogging,
+    ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipMeetingHarmonisationProcess(spark)
 
-        with mock.patch.object(inst, "load_data", return_value=source_data), \
-                mock.patch.object(inst, "write_data") as mock_write:
+        with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
             result = inst.run()
 
     data_to_write = mock_write.call_args[0][0]
@@ -90,7 +107,16 @@ def test__nsip_meeting_harmonisation_process__run__incremental_change_expires_ol
                 1,
                 100,
                 "EN010001",
-                [Row(meetingId="M-1", meetingAgenda="changed", planningInspectorateRole="role", meetingDate="2025-01-03", meetingType="type-a", estimatedPrelimMeetingDate="2025-01-12")],
+                [
+                    Row(
+                        meetingId="M-1",
+                        meetingAgenda="changed",
+                        planningInspectorateRole="role",
+                        meetingDate="2025-01-03",
+                        meetingType="type-a",
+                        estimatedPrelimMeetingDate="2025-01-12",
+                    )
+                ],
                 "1",
                 "ODT",
                 "SRC1",
@@ -159,21 +185,20 @@ def test__nsip_meeting_harmonisation_process__run__incremental_change_expires_ol
         "target_df": target_df,
     }
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.etl_process.LoggingUtil"
-    ) as MockEtlLogging, mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
-    ) as MockProcessLogging:
+        ),
+        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil") as MockProcessLogging,
+    ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
 
         inst = NsipMeetingHarmonisationProcess(spark)
 
-        with mock.patch.object(inst, "load_data", return_value=source_data), \
-                mock.patch.object(inst, "write_data") as mock_write:
+        with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
             result = inst.run()
 
     data_to_write = mock_write.call_args[0][0]

@@ -261,11 +261,12 @@ def test__nsip_representation_harmonisation_process__process__combines_sources_a
         ["representationId"],
     )
 
-    with mock.patch(
+    with (
+        mock.patch(
             "odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.Util.get_storage_account",
             return_value="test_storage",
-    ), mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.LoggingUtil"
+        ),
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.LoggingUtil"),
     ):
         inst = NsipRepresentationHarmonisationProcess(spark)
         data_to_write, result = inst.process(
