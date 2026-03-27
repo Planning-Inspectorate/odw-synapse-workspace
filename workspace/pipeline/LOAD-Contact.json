@@ -1,0 +1,264 @@
+{
+	"name": "LOAD-Contact",
+	"properties": {
+		"activities": [
+			{
+				"name": "Load Address",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/Address/ContactAddress.csv/",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "upsert",
+						"upsertSettings": {
+							"useTempDB": true,
+							"keys": [
+								"id"
+							]
+						},
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "addressLine1"
+								},
+								"sink": {
+									"name": "line1"
+								}
+							},
+							{
+								"source": {
+									"name": "addressLine2"
+								},
+								"sink": {
+									"name": "line2"
+								}
+							},
+							{
+								"source": {
+									"name": "townCity"
+								},
+								"sink": {
+									"name": "townCity"
+								}
+							},
+							{
+								"source": {
+									"name": "county"
+								},
+								"sink": {
+									"name": "county"
+								}
+							},
+							{
+								"source": {
+									"name": "postcode"
+								},
+								"sink": {
+									"name": "postcode"
+								}
+							},
+							{
+								"source": {
+									"name": "caseId"
+								},
+								"sink": {
+									"name": "legacyCaseId"
+								}
+							},
+							{
+								"source": {
+									"name": "addressId"
+								},
+								"sink": {
+									"name": "id"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MPESC_ContactAddress",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Mpesc_Address",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Load Contact",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Load Address",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/CaseInvolvement/CaseInvolvement_Contacts.csv",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "upsert",
+						"upsertSettings": {
+							"useTempDB": true,
+							"keys": [
+								"email"
+							]
+						},
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "orgName"
+								},
+								"sink": {
+									"name": "orgName"
+								}
+							},
+							{
+								"source": {
+									"name": "firstName"
+								},
+								"sink": {
+									"name": "firstName"
+								}
+							},
+							{
+								"source": {
+									"name": "lastName"
+								},
+								"sink": {
+									"name": "lastName"
+								}
+							},
+							{
+								"source": {
+									"name": "telephoneNumber"
+								},
+								"sink": {
+									"name": "telephoneNumber"
+								}
+							},
+							{
+								"source": {
+									"name": "email"
+								},
+								"sink": {
+									"name": "email"
+								}
+							},
+							{
+								"source": {
+									"name": "contactTypeId"
+								},
+								"sink": {
+									"name": "contactTypeId"
+								}
+							},
+							{
+								"source": {
+									"name": "caseId"
+								},
+								"sink": {
+									"name": "caseId"
+								}
+							},
+							{
+								"source": {
+									"name": "addressId"
+								},
+								"sink": {
+									"name": "addressId"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "MPESC_Contact",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CaseContact_MPESC",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-LOAD"
+		},
+		"annotations": []
+	}
+}

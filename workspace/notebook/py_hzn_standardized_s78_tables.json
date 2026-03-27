@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "811265f5-a1a0-471b-9b97-f6d9cd9a0111"
+				"spark.autotune.trackingId": "08124ac4-8b1f-415d-a099-9aa01f927b57"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -419,7 +419,7 @@
 					"  SELECT\r\n",
 					"    h.*,\r\n",
 					"    cs_agg.casespecialism,\r\n",
-					"    cd_1row.receiptdate,\r\n",
+					"    cd_1row.receiptdate AS caseCreatedDate,\r\n",
 					"    cd_1row.appealdocscomplete,\r\n",
 					"    cd_1row.startdate,\r\n",
 					"    cd_1row.appealwithdrawndate,\r\n",
@@ -703,7 +703,12 @@
 					"    try:\r\n",
 					"        insert_count = final_df.count()\r\n",
 					"        # Create a unified table for horizon_appeal_s78\r\n",
-					"        final_df.write.mode(\"overwrite\").saveAsTable(table_name)\r\n",
+					"\r\n",
+					"        # Get path of External table\r\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"        table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
+					"\r\n",
+					"        final_df.write.mode(\"overwrite\").option(\"path\", table_path).saveAsTable(table_name)\r\n",
 					"        logInfo(f\"Written to {table_name}\")\r\n",
 					"        end_exec_time = datetime.now()\r\n",
 					"    except Exception as e:\r\n",

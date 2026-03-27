@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1726fdb4-ac65-485e-8df7-94c9d5f1fa9c"
+				"spark.autotune.trackingId": "536319ff-28fa-4aff-8085-01c92173ece1"
 			}
 		},
 		"metadata": {
@@ -42,11 +42,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -416,9 +416,14 @@
 					"        insert_count = df.count()\r\n",
 					"        print(insert_count)\r\n",
 					"\r\n",
+					"        # Get external table path\r\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"        table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0]\r\n",
+					"\r\n",
 					"        df.write.mode(\"overwrite\") \\\r\n",
 					"            .option(\"overwriteSchema\", \"true\") \\\r\n",
 					"            .format(\"parquet\") \\\r\n",
+					"            .option(\"path\", table_path)\\\r\n",
 					"            .saveAsTable(table_name)\r\n",
 					"\r\n",
 					"        print(f\"Written to {table_name}\")\r\n",

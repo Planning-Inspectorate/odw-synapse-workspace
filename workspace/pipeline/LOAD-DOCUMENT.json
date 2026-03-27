@@ -1,0 +1,131 @@
+{
+	"name": "LOAD-DOCUMENT",
+	"properties": {
+		"activities": [
+			{
+				"name": "Load Document",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "MPESC-TRANSFORM/Document/",
+							"wildcardFileName": "*.csv",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "upsert",
+						"upsertSettings": {
+							"useTempDB": true,
+							"keys": [
+								"fileName",
+								"blobName"
+							]
+						},
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "filename"
+								},
+								"sink": {
+									"name": "fileName"
+								}
+							},
+							{
+								"source": {
+									"name": "size"
+								},
+								"sink": {
+									"name": "size"
+								}
+							},
+							{
+								"source": {
+									"name": "blobName"
+								},
+								"sink": {
+									"name": "blobName"
+								}
+							},
+							{
+								"source": {
+									"name": "mime"
+								},
+								"sink": {
+									"name": "mimeType"
+								}
+							},
+							{
+								"source": {
+									"name": "caseGuid"
+								},
+								"sink": {
+									"name": "caseId"
+								}
+							},
+							{
+								"source": {
+									"name": "folderId"
+								},
+								"sink": {
+									"name": "folderId"
+								}
+							},
+							{
+								"source": {
+									"name": "dateCreated"
+								},
+								"sink": {
+									"name": "uploadedDate"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Document_MPESC",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "MPESC_Document",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-LOAD"
+		},
+		"annotations": []
+	}
+}
