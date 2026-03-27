@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw35",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b2011934-558e-4f14-a312-be0cbf3ca33f"
+				"spark.autotune.trackingId": "3c094917-5ff4-4ee1-b305-0288ac26fe0d"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-				"name": "pinssynspodw35",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -146,11 +146,31 @@
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\r\n",
 					"    global error_message\r\n",
-					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\r\n",
-					"    logError(error_message)\r\n",
 					"\r\n",
-					"    _log_telemetry(\"Failed\", error_message, step_name)\r\n",
-					"    raise e "
+					"    try:\r\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\r\n",
+					"    except Exception as format_error:\r\n",
+					"        error_message = (\r\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\r\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\r\n",
+					"        )[:800]\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        logError(error_message)\r\n",
+					"    except Exception as log_error:\r\n",
+					"        print(f\"Primary logging failed: {log_error}\")\r\n",
+					"        print(error_message)\r\n",
+					"\r\n",
+					"    try:\r\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\r\n",
+					"        if callable(telemetry_fn):\r\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\r\n",
+					"        else:\r\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\r\n",
+					"    except Exception as telemetry_error:\r\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\r\n",
+					"\r\n",
+					"    raise e"
 				],
 				"execution_count": null
 			},

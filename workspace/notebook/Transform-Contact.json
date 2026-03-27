@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw35",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cb8a8e22-ca43-4d6e-a5ca-3b0f06702ae6"
+				"spark.autotune.trackingId": "85086112-823c-40ac-a393-cc946c7e5bc7"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-				"name": "pinssynspodw35",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -286,6 +286,8 @@
 				},
 				"source": [
 					"\n",
+					"import uuid\n",
+					"\n",
 					"involv_with_contacts = (\n",
 					"    involv_filtered\n",
 					"        .join(\n",
@@ -477,9 +479,19 @@
 					"     .when(F.col(\"toi_norm\") == \"electricity company\", \"interested-person-party\")\n",
 					"\n",
 					"     .when(F.col(\"toi_norm\") == \"collecting authority\", \"acquiring-authority\")\n",
+					"     .when(F.col(\"toi_norm\") == \"applicant\", \"applicant-appellant\")\n",
+					"     .when(F.col(\"toi_norm\") == \"appellant\", \"applicant-appellant\")\n",
+					"\n",
+					"     .when(F.col(\"toi_norm\") == \"inspector\", \"inspector\")\n",
+					"     .when(F.col(\"toi_norm\") == \"assessor inspector\", \"inspector\")\n",
+					"\n",
+					"     .when(F.col(\"toi_norm\") == \"relevant authority\", \"relevant-authority\")\n",
+					"\n",
+					"     .when(F.col(\"toi_norm\") == \"statutory party\", \"notified-party\")\n",
+					"\n",
 					"\n",
 					"     # everything else explicitly unmapped in your list stays NULL\n",
-					"     .otherwise(F.lit(None))\n",
+					"     .otherwise(F.lit(\"other-party\"))\n",
 					")\n",
 					"\n",
 					"# optional: drop helper normalised column before writing\n",

@@ -1,0 +1,64 @@
+{
+	"name": "LOAD-INSPECTOR",
+	"properties": {
+		"activities": [
+			{
+				"name": "LOAD-INSPECTOR",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT\n \n    CONVERT(VARCHAR(250), r.CaseUniqueId) AS AppealRefNumber,\n \n    r.CaseReference,\n \n\tr.CaseNodeId,\n \n    ll1.ValStr AS TypeOfInvolvement,\n \n    ll2.ValStr AS InspectorName,\n \n    ll3.ValStr AS ContactID,\n \n    ll1.ParentKeyID,\n \n    P.PostName,\n \n    P.FirstName,\n \n    P.LastName,\n \n    P.Email\n \nFROM dbo.DTree AS d\n \nINNER JOIN dbo.Horizon_CaseReference AS r\n \n    ON d.DataID = r.CaseNodeId\n \nINNER JOIN dbo.LLAttrData AS ll1\n \n    ON d.DataID = ll1.ID\n \nINNER JOIN dbo.LLAttrData AS ll2\n \n    ON d.DataID = ll2.ID\n \n   AND ll1.ParentKeyID = ll2.ParentKeyID\n \nINNER JOIN dbo.LLAttrData AS ll3\n \n    ON d.DataID = ll3.ID\n \n   AND ll2.ParentKeyID = ll3.ParentKeyID\n \nLEFT OUTER JOIN dbo.Contacts_Person AS P\n \n    ON ll3.ValStr = 'P_' + CAST(P.P_ID AS VARCHAR(10))\n \nWHERE ll1.DefID = 95501\n \n  AND ll1.AttrID = 3\n \n  AND ll1.EntryNum = 1\n \n  AND ll2.DefID = 95501\n \n  AND ll2.AttrID = 19\n \n  AND ll2.EntryNum = 1\n \n  AND ll3.DefID = 95501\n \n  AND ll3.AttrID = 20\n \n  AND ll3.EntryNum = 1\n \n  AND ll1.ValStr LIKE '%Inspector%'\n \n  AND r.CaseReference LIKE '%ROW%'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".csv"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "users",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "MPESC_INSPECTOR",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-EXTRACT"
+		},
+		"annotations": []
+	}
+}

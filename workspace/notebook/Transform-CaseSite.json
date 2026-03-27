@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw35",
+			"referenceName": "pinssynspodw34",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dd653f9d-80d1-4d22-b3e1-2fe26ff182bc"
+				"spark.autotune.trackingId": "c3c7a1ee-d71e-425e-8b5a-a39eb3220be0"
 			}
 		},
 		"metadata": {
@@ -34,10 +34,10 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-				"name": "pinssynspodw35",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -208,6 +208,21 @@
 					"    on=\"case_id\",\n",
 					"    how=\"inner\"\n",
 					")\n",
+					"\n",
+					"\n",
+					"non_key_cols = [c for c in df_filtered.columns if c not in [\"case_id\", \"site_id\"]]\n",
+					"\n",
+					"has_real_data_expr = None\n",
+					"\n",
+					"for c in non_key_cols:\n",
+					"    cond = (\n",
+					"        F.col(c).isNotNull() &\n",
+					"        (F.trim(F.col(c).cast(\"string\")) != \"\") &\n",
+					"        (F.lower(F.trim(F.col(c).cast(\"string\"))) != \"undefined\")\n",
+					"    )\n",
+					"    has_real_data_expr = cond if has_real_data_expr is None else (has_real_data_expr | cond)\n",
+					"\n",
+					"df_filtered = df_filtered.filter(has_real_data_expr)\n",
 					"\n",
 					"display(df_filtered)\n",
 					""
