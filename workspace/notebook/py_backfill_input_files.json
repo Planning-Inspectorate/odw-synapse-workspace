@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d6a2b1ce-55c0-4d8d-8a0e-49ee39cdcd51"
+				"spark.autotune.trackingId": "1d4d9421-11cc-433b-a76c-7cce0edebefe"
 			}
 		},
 		"metadata": {
@@ -43,11 +43,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -110,7 +110,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import *\r\n",
+					"import pyspark.sql.functions as F\r\n",
 					"from pyspark.sql import DataFrame\r\n",
 					"from pyspark.sql.types import *"
 				],
@@ -205,11 +205,11 @@
 					"\r\n",
 					"    joined_df = joined_df.withColumn(\r\n",
 					"        \"input_file\",\r\n",
-					"        col(\"source.source_input_file\")\r\n",
+					"        F.col(\"source.source_input_file\")\r\n",
 					"        )\r\n",
 					"\r\n",
 					"    updated_columns = [\r\n",
-					"        col(f\"target.{column}\").alias(column) if column != \"target_input_file\" else col(\"input_file\").alias(\"input_file\")\r\n",
+					"        F.col(f\"target.{column}\").alias(column) if column != \"target_input_file\" else F.col(\"input_file\").alias(\"input_file\")\r\n",
 					"        for column in target_df.columns\r\n",
 					"    ]\r\n",
 					"\r\n",
@@ -275,7 +275,7 @@
 					"    Returns:\r\n",
 					"        True if all rows have an input_file\r\n",
 					"    \"\"\"\r\n",
-					"    invalid_rows = updated_df.filter((col(\"message_id\").isNotNull()) & (col(\"input_file\").isNull()))\r\n",
+					"    invalid_rows = updated_df.filter((F.col(\"message_id\").isNotNull()) & (F.col(\"input_file\").isNull()))\r\n",
 					"    \r\n",
 					"    return invalid_rows.count() == 0"
 				],
