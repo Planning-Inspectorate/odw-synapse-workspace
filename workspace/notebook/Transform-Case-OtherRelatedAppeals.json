@@ -1,0 +1,183 @@
+{
+	"name": "Transform-Case-OtherRelatedAppeals",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "91b1d08a-39b9-4b82-a1d5-5e00cfb9065c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"# Other related appeals\n",
+					"CASE_REF_FILE = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_95498\"\n",
+					"\n",
+					"case_ref = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", True)\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"multiLine\", True)          \n",
+					"        .option(\"quote\", '\"')               # handle quoted fields\n",
+					"        .option(\"escape\", '\"')              # handle escaped quotes\n",
+					"        .option(\"mode\", \"PERMISSIVE\")       # don’t fail on bad rows\n",
+					"        .option(\"inferSchema\", False)       # safer for messy exports\n",
+					"        .load(CASE_REF_FILE)\n",
+					")\n",
+					"\n",
+					"display(case_ref.limit(5))\n",
+					"print(\"case_ref rows:\", case_ref.count())"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"filtered_cases = (\n",
+					"    case_ref\n",
+					"        .filter(\n",
+					"            (F.col(\"69\").isNotNull()) &\n",
+					"            (F.trim(F.col(\"69\")) != \"\")\n",
+					"        )\n",
+					"        .select(\n",
+					"            F.col(\"Id\").alias(\"Case ID\"),\n",
+					"            F.col(\"69\").alias(\"Reference\")\n",
+					"        )\n",
+					")\n",
+					"\n",
+					"display(filtered_cases.limit(3))\n",
+					"\n",
+					"print(\"filtered cases:\", filtered_cases.count())\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"CASES_FILE = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_gui_ref = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", True)\n",
+					"        .option(\"sep\", \",\")\n",
+					"        .option(\"multiLine\", True)          \n",
+					"        .option(\"quote\", '\"')               # handle quoted fields\n",
+					"        .option(\"escape\", '\"')              # handle escaped quotes\n",
+					"        .option(\"mode\", \"PERMISSIVE\")       # don’t fail on bad rows\n",
+					"        .option(\"inferSchema\", False)       # safer for messy exports\n",
+					"        .load(CASES_FILE)\n",
+					")\n",
+					"\n",
+					"display(cases_gui_ref.limit(5))\n",
+					"print(\"case_ref rows:\", cases_gui_ref.count())"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Attach CaseParentId GUID associated with a caseNodeId\n",
+					"joined_df = (\n",
+					"    filtered_cases\n",
+					"        .join(\n",
+					"            cases_gui_ref.select(\n",
+					"                F.col(\"Case ID\"),\n",
+					"                F.col(\"GUID\")\n",
+					"            ),\n",
+					"            on=\"Case ID\",\n",
+					"            how=\"inner\"\n",
+					"        )\n",
+					")\n",
+					"display(joined_df.limit(500))\n",
+					"\n",
+					""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"out_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/OtherRelatedAppeals/\"\n",
+					"\n",
+					"(\n",
+					"    joined_df\n",
+					"    .coalesce(1)\n",
+					"    .write.mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")          \n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .csv(out_path)\n",
+					")\n",
+					"\n",
+					"print(\"Wrote:\", out_path)\n",
+					""
+				],
+				"execution_count": 15
+			}
+		]
+	}
+}
