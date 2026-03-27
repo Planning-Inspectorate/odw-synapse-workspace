@@ -1,0 +1,407 @@
+{
+	"name": "pln_entity_specific_transform",
+	"properties": {
+		"activities": [
+			{
+				"name": "EntitySpecific_Log_Start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Start",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(pipeline().parameters.entityName, ' ENTITY-SPECIFIC starting')",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "EntitySpecific_Set_LoopStartTicks",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "EntitySpecific_Log_Start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "loopStartTicks",
+					"value": {
+						"value": "@string(ticks(utcNow()))\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "EntitySpecific_Reset_LastErrorMessage",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "EntitySpecific_Set_LoopStartTicks",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "lastErrorMessage",
+					"value": {
+						"value": "@string('')\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Switch_EntitySpecific_ByEntity",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "EntitySpecific_Reset_LastErrorMessage",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@pipeline().parameters.entityName\n",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "appeal-has",
+							"activities": [
+								{
+									"name": "A_Run_Entity_AppealHas",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_entity_appeal_has",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"runContextJson": {
+												"value": "@pipeline().parameters.runContextJson",
+												"type": "Expression"
+											},
+											"entityName": {
+												"value": "@pipeline().parameters.entityName",
+												"type": "Expression"
+											},
+											"stages": {
+												"value": "@pipeline().parameters.stages",
+												"type": "Expression"
+											},
+											"retryCount": {
+												"value": "@pipeline().parameters.retryCount",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "EntitySpecific_Set_ResultJson_AppealHas",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "A_Run_Entity_AppealHas",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "resultJson",
+										"value": {
+											"value": "@activity('A_Run_Entity_AppealHas').output.pipelineReturnValue.result\n",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "appeal-event-estimate",
+							"activities": [
+								{
+									"name": "A_Run_Entity_AppealEventEstimate",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pln_entity_appeal_event_estimate",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"runContextJson": "@pipeline().parameters.runContextJson",
+											"entityName": "@pipeline().parameters.entityName",
+											"stages": "@pipeline().parameters.stages",
+											"retryCount": "@pipeline().parameters.retryCount"
+										}
+									}
+								},
+								{
+									"name": "EntitySpecific_Set_ResultJson_AppealEventEstimate",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "A_Run_Entity_AppealEventEstimate",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "resultJson",
+										"value": "@activity('A_Run_Entity_AppealEventEstimate').output.pipelineReturnValue.result\n"
+									}
+								}
+							]
+						}
+					],
+					"defaultActivities": [
+						{
+							"name": "EntitySpecific_Log_Default_NoEntityPipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Warning",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"ErrorMessage": "NoWork",
+									"StatusMessage": {
+										"value": "@concat('No entity-specific pipeline implemented for ', pipeline().parameters.entityName)\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)\n",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "EntitySpecific_Set_Default_ResultJson",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "EntitySpecific_Log_Default_NoEntityPipeline",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "resultJson",
+								"value": {
+									"value": "@concat(\n  '{',\n    '\"hasFailure\":false,',\n    '\"results\":[{',\n      '\"entity\":\"', pipeline().parameters.entityName, '\",',\n      '\"status\":\"Succeeded\",',\n      '\"stage\":\"entity_specific\",',\n      '\"durationSeconds\":0,',\n      '\"runId\":\"', pipeline().RunId, '\"',\n    '}]',\n  '}'\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "EntitySpecific_Return_Result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "EntitySpecific_If_HasFailure",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('resultJson')\n"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "EntitySpecific_If_HasFailure",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Switch_EntitySpecific_ByEntity",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(json(variables('resultJson')).hasFailure, true)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Set_EntitySpecific_HasFailure",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"runContextJson": {
+				"type": "string"
+			},
+			"entityName": {
+				"type": "string"
+			},
+			"stages": {
+				"type": "array",
+				"defaultValue": [
+					"standardised",
+					"harmonised",
+					"curated"
+				]
+			},
+			"retryCount": {
+				"type": "int",
+				"defaultValue": 2
+			}
+		},
+		"variables": {
+			"resultJson": {
+				"type": "String",
+				"defaultValue": "null"
+			},
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"loopStartTicks": {
+				"type": "String",
+				"defaultValue": "''"
+			},
+			"lastErrorMessage": {
+				"type": "String",
+				"defaultValue": "''"
+			}
+		},
+		"folder": {
+			"name": "utils/Transform/EntitySpecifics"
+		},
+		"annotations": []
+	}
+}
