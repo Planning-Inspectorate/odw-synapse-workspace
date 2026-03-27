@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4bd20dd0-33de-413d-9bd0-73636b7d6166"
+				"spark.autotune.trackingId": "1c531ad2-1ac3-474c-8140-ed7947d17797"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -218,7 +218,20 @@
 					"        insert_count = df.count()\n",
 					"        print(insert_count)\n",
 					"\n",
-					"        df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"        # Resolve storage path of the target table\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
+					"\n",
+					"        df.write \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .format(\"parquet\") \\\n",
+					"            .option(\"path\", table_path) \\\n",
+					"            .saveAsTable(table_name)\n",
 					"        print(f\"Written to {table_name}\")\n",
 					"\n",
 					"        end_exec_time = datetime.now()\n",
