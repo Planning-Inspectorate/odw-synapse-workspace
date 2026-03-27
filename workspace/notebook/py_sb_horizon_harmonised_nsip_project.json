@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0a0eeb66-90dc-438e-afe8-3f963227b196"
+				"spark.autotune.trackingId": "4e5f005d-4dfa-469a-87c2-7d113bf06d9f"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -1223,10 +1223,21 @@
 					"        final_df = results.join(df_calcs, (df_calcs[\"temp_caseid\"] == results[\"caseid\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"        final_df = final_df.drop_duplicates()\n",
 					"        insert_count = final_df.count()\n",
-					"        final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"        \n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {spark_table_final}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
+					"        final_df.write \\\n",
+					"            .format(\"delta\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\n",
+					"            .option(\"path\", table_path) \\\n",
+					"            .partitionBy(\"IsActive\") \\\n",
+					"            .saveAsTable(spark_table_final)\n",
 					"        end_exec_time = datetime.now()\n",
-					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)}\"\n",
 					"        end_exec_time = datetime.now()\n",

@@ -1,0 +1,166 @@
+{
+	"name": "Transform-User",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw34",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "6d0e7100-a9e2-4be9-accb-b6d792e00457"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
+				"name": "pinssynspodw34",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 32,
+				"automaticScaleJobs": true
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F, types as T\n",
+					"import uuid"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"path = f\"{mpesc_base_path}/MPESC-EXTRACT/Users.csv\"\n",
+					"\n",
+					"users_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .load(path)\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"users_norm = (\n",
+					"    users_raw\n",
+					"    .withColumn(\"coEmailAddress\", F.trim(F.col(\"coEmailAddress\")))\n",
+					"    .withColumn(\"caseOfficerLogin\", F.trim(F.col(\"caseOfficerLogin\")))\n",
+					"    .withColumn(\"caseOfficerId\", F.trim(F.col(\"caseOfficerId\").cast(\"string\")))\n",
+					"    .withColumn(\n",
+					"        \"user_key\",\n",
+					"        F.lower(\n",
+					"            F.coalesce(\n",
+					"                F.when(F.col(\"coEmailAddress\") != \"\", F.col(\"coEmailAddress\")),\n",
+					"                F.when(F.col(\"caseOfficerLogin\") != \"\", F.col(\"caseOfficerLogin\")),\n",
+					"                F.col(\"caseOfficerId\")\n",
+					"            )\n",
+					"        )\n",
+					"    )\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"NAMESPACE_UUID = uuid.UUID(\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\")\n",
+					"\n",
+					"@F.udf(returnType=T.StringType())\n",
+					"def uuid5_from_key(k: str):\n",
+					"    if k is None:\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(NAMESPACE_UUID, k))\n",
+					"\n",
+					"users_ready = (\n",
+					"    users_norm\n",
+					"    .filter(F.col(\"user_key\").isNotNull())\n",
+					"    .withColumn(\"id\", uuid5_from_key(F.col(\"user_key\")))\n",
+					"    .withColumn(\"legacyId\", F.col(\"caseOfficerId\"))\n",
+					"    .withColumn(\"idpUserId\", F.lit(None).cast(\"string\"))  # Entra GUID not available yet\n",
+					"    .select(\"id\", \"idpUserId\", \"legacyId\")\n",
+					"    .dropDuplicates([\"id\"])  # deterministic anyway, but keep it safe\n",
+					")\n",
+					"\n",
+					"display(users_ready)\n",
+					"print(\"rows:\", users_ready.count())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"transform_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/User/\"\n",
+					"\n",
+					"(users_ready\n",
+					"    .coalesce(1)  # optional – single file\n",
+					"    .write\n",
+					"    .mode(\"overwrite\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .csv(transform_path)\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

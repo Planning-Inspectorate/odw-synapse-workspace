@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0cffea56-d05a-4644-8f9c-8640b8630237"
+				"spark.autotune.trackingId": "49ad066c-72a7-49d4-af88-cca6771e392e"
 			}
 		},
 		"metadata": {
@@ -46,8 +46,8 @@
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 28,
-				"automaticScaleJobs": false
+				"memory": 32,
+				"automaticScaleJobs": true
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -867,10 +867,26 @@
 					"if not error_message:\r\n",
 					"    try:\r\n",
 					"        \r\n",
+					"        # Count records being written\r\n",
 					"        insert_count = final_df.count()\r\n",
-					"        logInfo(f\"Writing final {spark_table_final}\")\r\n",
-					"        final_df.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\r\n",
-					"        \r\n",
+					"\r\n",
+					"        # Resolve storage path of the target table \r\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {spark_table_final}\")\r\n",
+					"        table_path = (\r\n",
+					"            df_table_path\r\n",
+					"            .where(\"col_name == 'Location'\")\r\n",
+					"            .select(\"data_type\")\r\n",
+					"            .collect()[0][0]\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        # Write Delta with overwrite & schema evolution, partitioned by IsActive\r\n",
+					"        final_df.write \\\r\n",
+					"            .format(\"delta\") \\\r\n",
+					"            .mode(\"overwrite\") \\\r\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\r\n",
+					"            .option(\"path\", table_path) \\\r\n",
+					"            .partitionBy(\"IsActive\") \\\r\n",
+					"            .saveAsTable(spark_table_final)\r\n",
 					"        end_exec_time = datetime.now()\r\n",
 					"        logInfo(f\"Written final {spark_table_final}\")\r\n",
 					"        \r\n",
