@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d8f32f24-ef0f-4e61-95ed-467449cc42c9"
+				"spark.autotune.trackingId": "0497841c-b994-4ed0-9356-a053d1a9a99e"
 			}
 		},
 		"metadata": {
@@ -42,11 +42,11 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.5",
+				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -505,13 +505,20 @@
 					"collapsed": false
 				},
 				"source": [
-					"decision_mapped = decision_mapped.withColumn(\"outcomeGuid\", F.expr(\"uuid()\"))\n",
+					"outcome_guid_map = (\n",
+					"    decision_mapped\n",
+					"    .select(\"caseId\")\n",
+					"    .dropDuplicates([\"caseId\"])\n",
+					"    .withColumn(\"outcomeGuid\", F.expr(\"uuid()\"))\n",
+					")\n",
 					"\n",
 					"decision_final = (\n",
 					"    decision_mapped\n",
+					"    .join(outcome_guid_map, on=\"caseId\", how=\"left\")\n",
 					"    .select(\n",
 					"        F.col(\"caseId\"),\n",
 					"        F.col(\"outcomeGuid\"),\n",
+					"        F.col(\"outcomeDate\"),\n",
 					"        F.col(\"decisionIssue\"),\n",
 					"        F.col(\"decisionMakerType\"),\n",
 					"        F.col(\"outcomeId\"),\n",
@@ -519,7 +526,8 @@
 					"        F.col(\"decisionBranch\"),\n",
 					"        F.col(\"casePublishFlag\"),\n",
 					"        F.col(\"dtypeId\")\n",
-					"    ).filter(\n",
+					"    )\n",
+					"    .filter(\n",
 					"        F.col(\"outcomeRaw\").isNotNull() &\n",
 					"        (~F.lower(F.trim(F.col(\"outcomeRaw\"))).isin(\"undefined\", \"null\", \"none\", \"\"))\n",
 					"    )\n",
