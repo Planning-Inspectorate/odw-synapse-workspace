@@ -3,6 +3,58 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "Set Secret Name",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "secret_name",
+					"value": {
+						"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get Function Secret",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set Secret Name",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(pipeline().parameters.Key_Vault_Url, variables('secret_name'), '?api-version=', pipeline().parameters.api_version)",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
 				"name": "Trigger Function",
 				"type": "WebActivity",
 				"dependsOn": [
@@ -96,375 +148,6 @@
 					],
 					"setSystemVariable": true
 				}
-			},
-			{
-				"name": "Set Secret Name",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Record Trigger Function to App Insights",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "secret_name",
-					"value": {
-						"value": "@concat('function-url-', replace(pipeline().parameters.function_name, '-', ''))",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Get Function Secret",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set Secret Name",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 2,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(pipeline().parameters.Key_Vault_Url, variables('secret_name'), '?api-version=', pipeline().parameters.api_version)",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Record Trigger Function to App Insights",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Trigger Function Started",
-						"PipelineName": "@pipeline().Pipeline",
-						"PipelineRunID": "@pipeline().RunId",
-						"StartTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"StatusMessage": "Trigger Function Started",
-						"PipelineTriggerID": "@pipeline().TriggerId",
-						"PipelineTriggerName": "@pipeline().TriggerName",
-						"PipelineTriggerType": "@pipeline().TriggerType",
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
-						"ActivityType": "Pipeline",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
-					}
-				}
-			},
-			{
-				"name": "Record function app failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "No New Messages",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Trigger Function App Completed Successfully',\n    'Trigger Function App Failed'\n\n)",
-							"type": "Expression"
-						},
-						"PipelineName": "@pipeline().Pipeline",
-						"PipelineRunID": "@pipeline().RunId",
-						"EndTime": "@utcNow()",
-						"ErrorMessage": {
-							"value": "@replace(\n    concat(\n        coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''), '|',\n        coalesce(activity('Get Function Secret')?.Error?.message, ''), '|',\n        coalesce(activity('Trigger Function')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)",
-							"type": "Expression"
-						},
-						"StatusMessage": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Trigger Function App Successfully Completed',\n    'Trigger Function App Failed'\n   \n)",
-						"PipelineTriggerID": "@pipeline().TriggerId",
-						"PipelineTriggerName": "@pipeline().TriggerName",
-						"PipelineTriggerType": "@pipeline().TriggerType",
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
-						"ActivityType": "Pipeline",
-						"DurationSeconds": "@activity('Trigger Function').Duration",
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
-					}
-				}
-			},
-			{
-				"name": "Record function app completed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "New Messages",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Trigger Function App Completed Successfully',\n    'Trigger Function App Failed'\n\n)",
-							"type": "Expression"
-						},
-						"PipelineName": "@pipeline().Pipeline",
-						"PipelineRunID": "@pipeline().RunId",
-						"EndTime": "@utcNow()",
-						"ErrorMessage": {
-							"value": "@replace(\n    concat(\n        coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''), '|',\n        coalesce(activity('Get Function Secret')?.Error?.message, ''), '|',\n        coalesce(activity('Trigger Function')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record Trigger Function to App Insights')?.Error?.message, ''),\n                coalesce(activity('Get Function Secret')?.Error?.message, ''),\n                coalesce(activity('Trigger Function')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'Trigger Function App Successfully Completed',\n    'Trigger Function App Failed'\n   \n)",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": "@pipeline().TriggerId",
-						"PipelineTriggerName": "@pipeline().TriggerName",
-						"PipelineTriggerType": "@pipeline().TriggerType",
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
-						"ActivityType": "Pipeline",
-						"DurationSeconds": {
-							"value": "@activity('Trigger Function').Duration",
-							"type": "Expression"
-						},
-						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
-					}
-				}
-			},
-			{
-				"name": "IfConditionNewMessages",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Record function app completed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "Teams Message New Messages",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": "@pipeline().parameters.subscription_id",
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": "@pipeline().Pipeline",
-									"activityMessage": "Trigger Function Failed",
-									"activityDuration": {
-										"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
-										"type": "Expression"
-									},
-									"activityStatus": "Trigger Function Failed",
-									"Colour": {
-										"value": "@variables('failed_colour')",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@variables('failed_image')",
-										"type": "Expression"
-									},
-									"Message_title": "Trigger Function App Failed",
-									"Message_subtitle": "Function App Failed"
-								}
-							}
-						},
-						{
-							"name": "Fail Trigger Function App New Messages",
-							"type": "Fail",
-							"dependsOn": [
-								{
-									"activity": "Teams Message New Messages",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "failing the pipeline as previous activities are failed.",
-								"errorCode": "400"
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "IfConditionNoNewMessages",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Record function app failed",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record Trigger Function to App Insights')?.Error?.message,\n                activity('Get Function Secret')?.Error?.message,\n                activity('Trigger Function')?.Error?.message\n            )\n        ),\n        ''\n    ),\n        false,\n        true\n)",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "Teams Message No New Messages",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_utl_Send_Teams_Message",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"dataFactorySubscription": "@pipeline().parameters.subscription_id",
-									"dataFactoryResourceGroup": {
-										"value": "@pipeline().parameters.resource_group",
-										"type": "Expression"
-									},
-									"pipelineRunId": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"teamsWebhookUrl": {
-										"value": "@pipeline().parameters.webhook_url",
-										"type": "Expression"
-									},
-									"activityName": "@pipeline().Pipeline",
-									"activityMessage": "Trigger Function Failed",
-									"activityDuration": {
-										"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
-										"type": "Expression"
-									},
-									"activityStatus": "Trigger Function Failed",
-									"Colour": {
-										"value": "@variables('failed_colour')",
-										"type": "Expression"
-									},
-									"Image": {
-										"value": "@variables('failed_image')",
-										"type": "Expression"
-									},
-									"Message_title": "Trigger Function App Failed",
-									"Message_subtitle": "Function App Failed"
-								}
-							}
-						},
-						{
-							"name": "Fail Trigger Function App No New Messages",
-							"type": "Fail",
-							"dependsOn": [
-								{
-									"activity": "Teams Message No New Messages",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"message": "failing the pipeline as previous activities are failed.",
-								"errorCode": "400"
-							}
-						}
-					]
-				}
 			}
 		],
 		"parameters": {
@@ -477,21 +160,6 @@
 			},
 			"Key_Vault_Url": {
 				"type": "string"
-			},
-			"apps_insights_ikey": {
-				"type": "string"
-			},
-			"webhook_url": {
-				"type": "string"
-			},
-			"resource_group": {
-				"type": "string"
-			},
-			"subscription_id": {
-				"type": "string"
-			},
-			"start_time": {
-				"type": "string"
 			}
 		},
 		"variables": {
@@ -503,14 +171,6 @@
 			},
 			"function_secret": {
 				"type": "String"
-			},
-			"failed_image": {
-				"type": "String",
-				"defaultValue": "https://tse4.mm.bing.net/th/id/OIP.QvdayQCDbhZL5DsXkaBObwAAAA?w=160&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
-			},
-			"failed_colour": {
-				"type": "String",
-				"defaultValue": "attention"
 			}
 		},
 		"folder": {
