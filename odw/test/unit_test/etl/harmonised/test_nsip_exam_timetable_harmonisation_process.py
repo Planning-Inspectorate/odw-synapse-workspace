@@ -102,6 +102,9 @@ def test__nsip_exam_timetable_harmonisation_process__process__aggregates_horizon
     rows = {row["caseReference"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
     assert actual_df.count() == 2
+    assert "SourceSystemID" not in actual_df.columns
+    assert "SourceSystemID" not in rows["EN010001"]
+    assert "SourceSystemID" not in rows["EN010002"]
     assert rows["EN010001"]["Migrated"] == "1"
     assert rows["EN010002"]["Migrated"] == "0"
     assert rows["EN010002"]["published"] is True

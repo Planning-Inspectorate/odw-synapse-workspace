@@ -254,6 +254,8 @@ def test__nsip_s51_advice_harmonisation_process__run__aggregates_attachments_and
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
     rows = [row.asDict(recursive=True) for row in actual_df.collect()]
 
+    assert "SourceSystemID" not in actual_df.columns
+    assert "AttachmentModifyDate" not in actual_df.columns
     assert actual_df.count() == 3
 
     advice_10_rows = [row for row in rows if row["adviceId"] == 10]

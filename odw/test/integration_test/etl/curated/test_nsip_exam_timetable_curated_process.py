@@ -11,9 +11,10 @@ def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curat
 
     harmonised_exam_timetable = spark.createDataFrame(
         [
-            ("EN010001", True, [Row(eventId=1, name="Event 1")]),
-            ("EN010002", False, [Row(eventId=2, name="Event 2")]),
-            ("EN010001", True, [Row(eventId=1, name="Event 1")]),
+            ("EN010001", True,  [Row(eventId=1, name="Old Horizon Event")], "2025-01-01 00:00:00", "Horizon"),
+            ("EN010001", False, [Row(eventId=2, name="New Horizon Event")], "2025-02-01 00:00:00", "Horizon"),
+            ("EN010001", True,  [Row(eventId=3, name="Service Bus Event")], "2025-03-01 00:00:00", "ODT"),
+            ("EN010002", True,  [Row(eventId=4, name="Other Horizon Event")], "2025-01-15 00:00:00", "Horizon"),
         ],
         T.StructType(
             [
@@ -31,6 +32,8 @@ def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curat
                     ),
                     True,
                 ),
+                T.StructField("IngestionDate", T.StringType(), True),
+                T.StructField("ODTSourceSystem", T.StringType(), True),
             ]
         ),
     )
@@ -67,7 +70,9 @@ def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curat
 
     assert actual_df.count() == 1
     assert rows[0]["caseReference"] == "EN010001"
-    assert rows[0]["published"] is True
+    assert rows[0]["published"] is False
+    assert len(rows[0]["events"]) == 1
+    assert rows[0]["events"][0]["eventId"] == 2
 
     assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
     assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_exam_timetable"

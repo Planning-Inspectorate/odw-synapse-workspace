@@ -154,7 +154,60 @@ def test__nsip_representation_harmonisation_process__process__combines_sources_a
                 "agent2",
                 "Type2",
                 "2025-02-01",
-                ["A2"],
+                "A2",
+                "caseu2",
+                "org2",
+                "job2",
+                "full2",
+                "phone2",
+                "mail2@test.com",
+                "12",
+                "street2",
+                "town2",
+                "county2",
+                "country2",
+                "pc2",
+                "yes",
+                "agent full",
+                "agent org",
+                "aphone",
+                "amail@test.com",
+                "abuild",
+                "astreet",
+                "atown",
+                "acounty",
+                "acountry",
+                "apost",
+                "yes",
+                "no",
+                "yes",
+                "later",
+                "web2",
+                "owner2",
+                "power2",
+                "claim2",
+                "other2",
+                "desc-other2",
+                "email",
+                "2025-02-01 00:00:00",
+                None,
+                "Y",
+            ),
+            (
+                20,
+                "EN010002",
+                200,
+                "New",
+                "orig2",
+                "red2",
+                "user2",
+                "notes2",
+                "Organisation",
+                "contact2",
+                "agent2",
+                "Type2",
+                "2025-02-01",
+                "A3",
                 "caseu2",
                 "org2",
                 "job2",
@@ -209,7 +262,7 @@ def test__nsip_representation_harmonisation_process__process__combines_sources_a
                 T.StructField("agentcontactid", T.StringType(), True),
                 T.StructField("RelRepOrganisation", T.StringType(), True),
                 T.StructField("dateReceived", T.StringType(), True),
-                T.StructField("attachmentId", T.ArrayType(T.StringType()), True),
+                T.StructField("attachmentId", T.StringType(), True),
                 T.StructField("caseuniqueid", T.StringType(), True),
                 T.StructField("organisationname", T.StringType(), True),
                 T.StructField("jobtitle", T.StringType(), True),
@@ -279,14 +332,20 @@ def test__nsip_representation_harmonisation_process__process__combines_sources_a
         )
 
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    rows = {row["representationId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+    rows = [row.asDict(recursive=True) for row in actual_df.collect()]
+    sb_rows = [row for row in rows if row["representationId"] == 10]
+    horizon_rows = [row for row in rows if row["representationId"] == 20]
 
-    assert actual_df.count() == 2
-    assert rows[10]["Migrated"] == "1"
-    assert rows[20]["Migrated"] == "0"
-    assert rows[20]["referenceId"] == "EN010002-20"
-    assert rows[20]["redacted"] is True
+    assert actual_df.count() == 3
+    assert len(sb_rows) == 1
+    assert sb_rows[0]["Migrated"] == "1"
+    assert len(horizon_rows) == 2
+    for row in horizon_rows:
+        assert row["Migrated"] == "0"
+        assert row["referenceId"] == "EN010002-20"
+        assert row["redacted"] is True
+        assert sorted(row["attachmentIds"]) == ["A2", "A3"]
 
     assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
     assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
-    assert result.metadata.insert_count == 2
+    assert result.metadata.insert_count == 3

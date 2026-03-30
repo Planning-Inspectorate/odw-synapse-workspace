@@ -222,6 +222,9 @@ def test__nsip_document_harmonisation_process__process__combines_service_bus_and
     assert rows[20]["Migrated"] == "0"
     assert rows[10]["IsActive"] == "Y"
     assert rows[20]["IsActive"] == "Y"
+    assert "SourceSystemID" not in actual_df.columns
+    assert "SourceSystemID" not in rows[10]
+    assert "SourceSystemID" not in rows[20]
 
     assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
     assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
