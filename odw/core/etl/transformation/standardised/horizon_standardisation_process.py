@@ -5,6 +5,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
+from odw.core.anonymisation.engine import AnonymisationEngine
 from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -206,6 +207,20 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
                     if table_field is not None and field.dataType != table_field.dataType:
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
+
+                # Apply anonymisation only in DEV/TEST environments
+                if Util.is_non_production_environment():
+                    try:
+                        LoggingUtil().log_info(f"Applying anonymisation to Horizon file: {file}")
+                        engine = AnonymisationEngine()
+                        data = engine.apply_from_purview(
+                            data,
+                            file_name=file,
+                            source_folder="Horizon"
+                        )
+                    except Exception as e:
+                        LoggingUtil().log_error(f"Anonymisation failed for {file}: {str(e)}")
+                        raise
 
                 table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
                 write_mode = "append" if table_exists else "overwrite"

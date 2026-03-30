@@ -1,6 +1,6 @@
 from notebookutils import mssparkutils
 from notebookutils import visualization
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 import re
 
 
@@ -8,6 +8,26 @@ class Util:
     """
     Class that defines utility functions
     """
+
+    @classmethod
+    def get_environment(cls) -> str:
+        """
+        Return the current environment (DEV, TEST, or PROD).
+        Reads from Spark configuration 'spark.executorEnv.environment' or defaults to PROD.
+        """
+        try:
+            spark = SparkSession.builder.getOrCreate()
+            env = spark.sparkContext.getConf().get("spark.executorEnv.environment", "PROD")
+            return env.upper()
+        except Exception:
+            return "PROD"  # Fail-safe default
+
+    @classmethod
+    def is_non_production_environment(cls) -> bool:
+        """
+        Return True if the current environment is DEV or TEST.
+        """
+        return cls.get_environment() in ["DEV", "TEST"]
 
     @classmethod
     def get_storage_account(cls) -> str:
