@@ -43,9 +43,10 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             SELECT
                 caseReference,
                 published,
-                events
+                events,
+                IngestionDate,
+                ODTSourceSystem
             FROM {self.HARMONISED_TABLE}
-            WHERE IsActive = 'Y'
         """)
 
         LoggingUtil().log_info(f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}")
@@ -62,31 +63,44 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
         Apply curated transformations to the loaded source data.
-        INNER JOIN to nsip_project ensures only valid caseReferences are included.
-        No reads or writes happen in this method.
+
+        Legacy behaviour for nsip_exam_timetable curated is:
+        - keep Horizon records only
+        - for each caseReference, keep the latest Horizon IngestionDate
+        - inner join to curated nsip_project
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_exam_timetable: DataFrame = self.load_parameter("harmonised_exam_timetable", source_data)
         curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
 
-        # INNER JOIN to curated projects (matching notebook: ensures caseReference exists in project)
-        df = harmonised_exam_timetable.join(
-            curated_projects,
-            harmonised_exam_timetable["caseReference"] == curated_projects["caseReference"],
-            "inner",
+        # Match legacy logic: only Horizon records are eligible
+        horizon_exam_timetable = harmonised_exam_timetable.filter(
+            F.lower(F.col("ODTSourceSystem")) == "horizon"
         )
 
-        # SELECT DISTINCT and ORDER BY caseReference
-        df = (
-            df.select(
-                harmonised_exam_timetable["caseReference"],
-                F.col("published"),
-                F.col("events"),
-            )
-            .distinct()
-            .orderBy("caseReference")
+        # Match legacy logic: latest Horizon record per caseReference
+        latest_horizon_dates = horizon_exam_timetable.groupBy("caseReference").agg(
+            F.max("IngestionDate").alias("latest_date")
         )
+
+        latest_horizon_exam_timetable = horizon_exam_timetable.join(
+            latest_horizon_dates,
+            (horizon_exam_timetable["caseReference"] == latest_horizon_dates["caseReference"]) &
+            (horizon_exam_timetable["IngestionDate"] == latest_horizon_dates["latest_date"]),
+            "inner",
+        ).select(horizon_exam_timetable["*"])
+
+        # Match legacy logic: only caseReferences that exist in curated nsip_project
+        df = latest_horizon_exam_timetable.join(
+            curated_projects,
+            latest_horizon_exam_timetable["caseReference"] == curated_projects["caseReference"],
+            "inner",
+        ).select(
+            latest_horizon_exam_timetable["caseReference"],
+            latest_horizon_exam_timetable["published"],
+            latest_horizon_exam_timetable["events"],
+        ).distinct()
 
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated NSIP Exam Timetable row count: {insert_count}")

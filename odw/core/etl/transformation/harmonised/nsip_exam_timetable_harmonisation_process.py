@@ -253,10 +253,24 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         )
 
         # Step 6: Compute RowID via MD5 hash
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _EXAM_TIMETABLE_ROW_ID_COLUMNS]))
+        row_id_expr = F.md5(
+            F.concat(
+                F.coalesce(F.col("NSIPExaminationTimetableID").cast("bigint").cast("string"), F.lit(".")),
+                F.coalesce(F.col("caseReference").cast("integer").cast("string"), F.lit(".")),
+                F.coalesce(F.col("published").cast("string"), F.lit(".")),
+                F.coalesce(F.col("events").cast("string"), F.lit(".")),
+                F.coalesce(F.col("Migrated").cast("string"), F.lit(".")),
+                F.coalesce(F.col("ODTSourceSystem").cast("string"), F.lit(".")),
+                F.coalesce(F.col("IngestionDate").cast("string"), F.lit(".")),
+                F.coalesce(F.col("ValidTo").cast("string"), F.lit(".")),
+            )
+        )
 
         # Step 7: Rejoin calculations back onto the combined dataset
-        all_columns = [c for c in combined.columns if c != "ReverseOrderProcessed"]
+        all_columns = [
+            c for c in combined.columns
+            if c not in {"ReverseOrderProcessed", "SourceSystemID"}
+        ]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("NSIPExaminationTimetableID", "ValidTo", "Migrated", "IsActive")
