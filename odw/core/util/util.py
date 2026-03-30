@@ -27,7 +27,8 @@ class Util:
         """
         Return True if the current environment is DEV or TEST.
         """
-        return cls.get_environment() in ["DEV", "TEST"]
+        # return cls.get_environment() in ["DEV", "TEST"] To be uncommented when spark configuration is set up for DEV and TEST environments
+        return cls.get_environment() == "DEV"  # Temporary hardcoded value for testing purposes, to be replaced with the above line when spark configuration is set up for DEV and TEST environments
 
     @classmethod
     def get_storage_account(cls) -> str:
