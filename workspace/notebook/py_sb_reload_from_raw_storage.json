@@ -1,9 +1,6 @@
 {
 	"name": "py_sb_reload_from_raw_storage",
 	"properties": {
-		"folder": {
-			"name": ""
-		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
@@ -20,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "91d8ba1c-a640-44f8-942f-00f8451424f4"
+				"spark.autotune.trackingId": "db2a0d37-5c41-461d-997d-ed9d2ed1220b"
 			}
 		},
 		"metadata": {
@@ -55,7 +52,7 @@
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import DataFrame\n",
-					"from pyspark.sql.functions import *\n",
+					"import pyspark.sql.functions as F\n",
 					"import pprint\n",
 					"from pyspark.sql.types import *"
 				],
@@ -413,9 +410,9 @@
 					"collapsed": false
 				},
 				"source": [
-					"historical_df: DataFrame = historical_df.withColumn(\"expected_from\", current_timestamp())\n",
-					"historical_df: DataFrame = historical_df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
-					"historical_df: DataFrame = historical_df.withColumn(\"ingested_datetime\", to_timestamp(col(\"message_enqueued_time_utc\")))"
+					"historical_df: DataFrame = historical_df.withColumn(\"expected_from\", F.current_timestamp())\n",
+					"historical_df: DataFrame = historical_df.withColumn(\"expected_to\", F.expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
+					"historical_df: DataFrame = historical_df.withColumn(\"ingested_datetime\", F.to_timestamp(F.col(\"message_enqueued_time_utc\")))"
 				],
 				"execution_count": null
 			},
@@ -459,7 +456,7 @@
 					"def check_null_message_enqueued_time_utc(df: DataFrame) -> DataFrame:\n",
 					"    # define date pattern to extract the dates from the input file path\n",
 					"    date_pattern = r'(\\d{4}-\\d{2}-\\d{2})'\n",
-					"    df_final = df.withColumn(\"message_enqueued_time_utc\", when(col(\"message_enqueued_time_utc\").isNull(), regexp_extract(df[\"input_file\"], date_pattern,1)).otherwise(col(\"message_enqueued_time_utc\")))\n",
+					"    df_final = df.withColumn(\"message_enqueued_time_utc\", F.when(F.col(\"message_enqueued_time_utc\").isNull(), F.regexp_extract(df[\"input_file\"], date_pattern,1)).otherwise(F.col(\"message_enqueued_time_utc\")))\n",
 					"\n",
 					"    return df_final"
 				],
@@ -497,9 +494,9 @@
 					}
 				},
 				"source": [
-					"final_df: DataFrame = final_df.withColumn(\"expected_from\", current_timestamp())\n",
-					"final_df: DataFrame = final_df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
-					"final_df: DataFrame = final_df.withColumn(\"ingested_datetime\", to_timestamp(col(\"message_enqueued_time_utc\")))\n",
+					"final_df: DataFrame = final_df.withColumn(\"expected_from\", F.current_timestamp())\n",
+					"final_df: DataFrame = final_df.withColumn(\"expected_to\", F.expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
+					"final_df: DataFrame = final_df.withColumn(\"ingested_datetime\", F.to_timestamp(F.col(\"message_enqueued_time_utc\")))\n",
 					"final_df: DataFrame = final_df.withColumn(\"message_enqueued_time_utc\", final_df[\"message_enqueued_time_utc\"].cast(StringType()))"
 				],
 				"execution_count": null
