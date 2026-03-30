@@ -267,10 +267,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         )
 
         # Step 7: Rejoin calculations back onto the combined dataset
-        all_columns = [
-            c for c in combined.columns
-            if c not in {"ReverseOrderProcessed", "SourceSystemID"}
-        ]
+        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID"}]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("NSIPExaminationTimetableID", "ValidTo", "Migrated", "IsActive")

@@ -381,15 +381,9 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
         # Step 2: Aggregate Horizon attachmentIds per representationId
         # to match the legacy notebook behaviour
-        horizon_attachment_ids = horizon_joined.groupBy("representationId").agg(
-            F.collect_list("attachmentIds").alias("attachmentIds")
-        )
+        horizon_attachment_ids = horizon_joined.groupBy("representationId").agg(F.collect_list("attachmentIds").alias("attachmentIds"))
 
-        horizon_joined = (
-            horizon_joined
-            .drop("attachmentIds")
-            .join(horizon_attachment_ids, on="representationId", how="inner")
-        )
+        horizon_joined = horizon_joined.drop("attachmentIds").join(horizon_attachment_ids, on="representationId", how="inner")
 
         # Step 3: Align Horizon columns to SB and union
         LoggingUtil().log_info(f"Combining data for {self.OUTPUT_TABLE}")

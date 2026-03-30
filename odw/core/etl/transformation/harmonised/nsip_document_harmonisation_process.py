@@ -402,10 +402,7 @@ class NsipDocumentHarmonisationProcess(HarmonisationProcess):
         # Mirror the notebook: take SELECT DISTINCT of all columns from the
         # intermediate data, drop the four columns that calcs will replace,
         # then join calcs back and .select(columns) to restore the full column set.
-        all_columns = [
-            c for c in combined.columns
-            if c not in {"ReverseOrderProcessed", "SourceSystemID"}
-        ]
+        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID"}]
         columns = all_columns  # the final column order we want after the join
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("NSIPDocumentID", "ValidTo", "Migrated", "IsActive")

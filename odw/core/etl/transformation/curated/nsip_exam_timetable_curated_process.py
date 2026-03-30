@@ -75,32 +75,32 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
         curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
 
         # Match legacy logic: only Horizon records are eligible
-        horizon_exam_timetable = harmonised_exam_timetable.filter(
-            F.lower(F.col("ODTSourceSystem")) == "horizon"
-        )
+        horizon_exam_timetable = harmonised_exam_timetable.filter(F.lower(F.col("ODTSourceSystem")) == "horizon")
 
         # Match legacy logic: latest Horizon record per caseReference
-        latest_horizon_dates = horizon_exam_timetable.groupBy("caseReference").agg(
-            F.max("IngestionDate").alias("latest_date")
-        )
+        latest_horizon_dates = horizon_exam_timetable.groupBy("caseReference").agg(F.max("IngestionDate").alias("latest_date"))
 
         latest_horizon_exam_timetable = horizon_exam_timetable.join(
             latest_horizon_dates,
-            (horizon_exam_timetable["caseReference"] == latest_horizon_dates["caseReference"]) &
-            (horizon_exam_timetable["IngestionDate"] == latest_horizon_dates["latest_date"]),
+            (horizon_exam_timetable["caseReference"] == latest_horizon_dates["caseReference"])
+            & (horizon_exam_timetable["IngestionDate"] == latest_horizon_dates["latest_date"]),
             "inner",
         ).select(horizon_exam_timetable["*"])
 
         # Match legacy logic: only caseReferences that exist in curated nsip_project
-        df = latest_horizon_exam_timetable.join(
-            curated_projects,
-            latest_horizon_exam_timetable["caseReference"] == curated_projects["caseReference"],
-            "inner",
-        ).select(
-            latest_horizon_exam_timetable["caseReference"],
-            latest_horizon_exam_timetable["published"],
-            latest_horizon_exam_timetable["events"],
-        ).distinct()
+        df = (
+            latest_horizon_exam_timetable.join(
+                curated_projects,
+                latest_horizon_exam_timetable["caseReference"] == curated_projects["caseReference"],
+                "inner",
+            )
+            .select(
+                latest_horizon_exam_timetable["caseReference"],
+                latest_horizon_exam_timetable["published"],
+                latest_horizon_exam_timetable["events"],
+            )
+            .distinct()
+        )
 
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated NSIP Exam Timetable row count: {insert_count}")

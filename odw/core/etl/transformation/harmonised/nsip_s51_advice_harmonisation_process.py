@@ -292,10 +292,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         # Step 7: Rejoin calculations back onto the combined dataset
         # The notebook does: SELECT DISTINCT ... FROM spark_table_final (which is the intermediate write)
         # then drops NSIPAdviceID, ValidTo, Migrated, IsActive, joins calcs back, selects columns
-        all_columns = [
-            c for c in combined.columns
-            if c not in {"ReverseOrderProcessed", "SourceSystemID", "AttachmentModifyDate"}
-        ]
+        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID", "AttachmentModifyDate"}]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("NSIPAdviceID", "ValidTo", "Migrated", "IsActive")

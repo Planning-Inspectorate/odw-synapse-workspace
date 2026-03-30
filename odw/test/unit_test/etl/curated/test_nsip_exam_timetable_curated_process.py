@@ -10,10 +10,10 @@ def test__nsip_exam_timetable_curated_process__process__keeps_only_projects_in_c
 
     harmonised_exam_timetable = spark.createDataFrame(
         [
-            ("EN010001", True,  [Row(eventId=1, name="Old Horizon Event")], "2025-01-01 00:00:00", "Horizon"),
+            ("EN010001", True, [Row(eventId=1, name="Old Horizon Event")], "2025-01-01 00:00:00", "Horizon"),
             ("EN010001", False, [Row(eventId=2, name="New Horizon Event")], "2025-02-01 00:00:00", "Horizon"),
-            ("EN010001", True,  [Row(eventId=3, name="Service Bus Event")], "2025-03-01 00:00:00", "ODT"),
-            ("EN010002", True,  [Row(eventId=4, name="Other Horizon Event")], "2025-01-15 00:00:00", "Horizon"),
+            ("EN010001", True, [Row(eventId=3, name="Service Bus Event")], "2025-03-01 00:00:00", "ODT"),
+            ("EN010002", True, [Row(eventId=4, name="Other Horizon Event")], "2025-01-15 00:00:00", "Horizon"),
         ],
         T.StructType(
             [
