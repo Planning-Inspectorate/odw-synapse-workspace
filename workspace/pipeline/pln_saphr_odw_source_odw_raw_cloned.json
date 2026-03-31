@@ -3,6 +3,48 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "ananomysation",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_saphr_src_data_anonymisation",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"Param_Env_Type": {
+							"value": {
+								"value": "@if(contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if(contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"FileLoad_Type": {
+							"value": {
+								"value": "@pipeline().parameters.FileLoad_Type",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
 				"name": "Copyfiles_odw_source_odw_raw",
 				"type": "Copy",
 				"dependsOn": [
@@ -28,7 +70,7 @@
 							"type": "AzureFileStorageReadSettings",
 							"recursive": true,
 							"wildcardFolderPath": {
-								"value": "@concat(pipeline().parameters.Folder_Path,'/',if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) ),'/',pipeline().parameters.FileLoad_Type)",
+								"value": "@variables('vSourceFolderPath')",
 								"type": "Expression"
 							},
 							"wildcardFileName": "*.csv",
@@ -54,7 +96,7 @@
 						"parameters": {
 							"ds_FileLoad_Type": "@pipeline().parameters.FileLoad_Type",
 							"ds_Folder_Path": "@pipeline().parameters.Folder_Path",
-							"ds_Env_Type": "@if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) )"
+							"ds_Env_Type": "@if(contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if(contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod'))"
 						}
 					}
 				],
@@ -104,7 +146,7 @@
 								"type": "Expression"
 							},
 							"ds_Env_Type": {
-								"value": "@if( contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) )",
+								"value": "@if(contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if(contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod'))",
 								"type": "Expression"
 							}
 						}
@@ -113,6 +155,10 @@
 					"storeSettings": {
 						"type": "AzureFileStorageReadSettings",
 						"recursive": true,
+						"wildcardFolderPath": {
+							"value": "@variables('vSourceFolderPath')",
+							"type": "Expression"
+						},
 						"wildcardFileName": {
 							"value": "*.csv",
 							"type": "Expression"
@@ -120,54 +166,12 @@
 						"enablePartitionDiscovery": false
 					}
 				}
-			},
-			{
-				"name": "ananomysation",
-				"type": "SynapseNotebook",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_saphr_src_data_anonymisation",
-						"type": "NotebookReference"
-					},
-					"parameters": {
-						"Param_Env_Type": {
-							"value": {
-								"value": "@if(contains(toLower(pipeline().DataFactory), 'dev'), 'dev', \nif( contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod' ) )",
-								"type": "Expression"
-							},
-							"type": "string"
-						},
-						"FileLoad_Type": {
-							"value": {
-								"value": "@pipeline().parameters.FileLoad_Type",
-								"type": "Expression"
-							},
-							"type": "string"
-						}
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
 			}
 		],
 		"parameters": {
 			"FileLoad_Type": {
 				"type": "string",
-				"defaultValue": "MONTHLY"
+				"defaultValue": "WEEKLY"
 			},
 			"Folder_Path": {
 				"type": "string",
@@ -176,7 +180,8 @@
 		},
 		"variables": {
 			"vSourceFolderPath": {
-				"type": "String"
+				"type": "String",
+				"defaultValue": "@concat(pipeline().parameters.Folder_Path, '/', if(contains(toLower(pipeline().DataFactory), 'dev'), 'dev', if(contains(toLower(pipeline().DataFactory), 'test'), 'test', 'prod')), '/', toUpper(pipeline().parameters.FileLoad_Type))"
 			}
 		},
 		"folder": {
