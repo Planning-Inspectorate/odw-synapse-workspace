@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5a44c642-3e34-476d-9a2c-c2323eeeb57f"
+				"spark.autotune.trackingId": "b4019746-80c6-43ae-8026-7bd7e6207edb"
 			}
 		},
 		"metadata": {
@@ -54,10 +54,17 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"pip install pydantic"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"### Compatibility shim for older typing_extensions in Synapse\n",
-					"try:\n",
-					"    from typing_extensions import Sentinel\n",
-					"except ImportError:\n",
+					"# Monkey-patch typing_extensions to add Sentinel if it doesn't exist\n",
+					"import typing_extensions\n",
+					"if not hasattr(typing_extensions, 'Sentinel'):\n",
 					"    # Sentinel was added in typing_extensions 4.9.0\n",
 					"    # If not available, create a basic implementation for compatibility\n",
 					"    class Sentinel:\n",
@@ -65,6 +72,8 @@
 					"            self.name = name\n",
 					"        def __repr__(self):\n",
 					"            return f\"<{self.name}>\"\n",
+					"    # Inject it into the typing_extensions module so pydantic can find it\n",
+					"    typing_extensions.Sentinel = Sentinel\n",
 					"\n",
 					"### Module odw.core.util.util\n",
 					"\n",
@@ -72,6 +81,13 @@
 					"from notebookutils import visualization\n",
 					"from pyspark.sql import DataFrame, SparkSession\n",
 					"import re\n",
+					"import pydantic"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"\n",
 					"\n",
 					"class Util:\n",
@@ -459,11 +475,11 @@
 					"from pyspark.sql.column import Column\n",
 					"from azure.identity import DefaultAzureCredential  # type: ignore\n",
 					"\n",
-					"from .base import (\n",
-					"    BaseStrategy,\n",
-					"    default_strategies,\n",
-					")\n",
-					"from .config import AnonymisationConfig\n",
+					"# from .base import (\n",
+					"#     BaseStrategy,\n",
+					"#     default_strategies,\n",
+					"# )\n",
+					"# from .config import AnonymisationConfig\n",
 					"\n",
 					"# Prefer core util logging if available; fallback to module logger\n",
 					"logger = logging.getLogger(__name__)\n",
@@ -2414,7 +2430,7 @@
 					"            )\n",
 					"        )"
 				],
-				"execution_count": 5
+				"execution_count": 14
 			}
 		]
 	}
