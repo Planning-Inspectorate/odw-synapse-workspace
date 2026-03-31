@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Sequence, Set
-import random as _rand
+from typing import List, Optional, Sequence, Set
 
-from pyspark.sql import DataFrame, functions as F, types as T
+from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
 
 
@@ -16,6 +15,9 @@ STAFF_SEED_COL_CANDIDATES: Sequence[str] = (
     "Employee ID",
     "EmployeeID",
 )
+
+_NI_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # 24 characters (no I or O)
+_NI_LAST_LETTERS = "ABCD"
 
 
 class BaseStrategy(ABC):
@@ -31,16 +33,21 @@ class BaseStrategy(ABC):
         """Return a new DataFrame with the transformation applied to the given column."""
 
     @staticmethod
-    def seed_col(df: DataFrame) -> Column:
+    def seed_col(df: DataFrame, seed_column: Optional[str] = None) -> Column:
         """Return a deterministic seed column.
-        Picks the first available identifier in STAFF_SEED_COL_CANDIDATES; if none exist, derive a per-row hash from all columns.
+
+        If seed_column is given and present in the DataFrame it is used directly.
+        Otherwise falls back to known identifier column candidates, then a full-row hash.
+        The full-row hash fallback is not idempotent across schema changes; prefer
+        providing an explicit seed_column via the anonymisation policy config.
         """
+        if seed_column and seed_column in df.columns:
+            return F.col(seed_column).cast("string")
         cols = [c for c in STAFF_SEED_COL_CANDIDATES if c in df.columns]
         if cols:
             return F.coalesce(*[F.col(c).cast("string") for c in cols])
-        # Fallback: deterministic per-row hash using all columns (string-cast, null-safe)
+        # Last resort: deterministic per-row hash using all columns
         if not df.columns:
-            # Extremely defensive: empty schema; maintain previous behavior
             return F.lit("seed")
         concatenated = F.concat_ws(
             "|",
@@ -53,7 +60,7 @@ class BaseStrategy(ABC):
         """Mask a string, keeping only the first and last character.
         Nulls are preserved; intermediate characters are replaced with '*'.
         """
-        return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.$)", "*"))
+        return F.when(col.isNull(), None).otherwise(F.regexp_replace(col.cast("string"), r"(?<=.).(?=.)", "*"))
 
     @staticmethod
     def random_int_from_seed(seed: Column, min_value: int, max_value: int) -> Column:
@@ -74,138 +81,103 @@ class BaseStrategy(ABC):
 class NINumberStrategy(BaseStrategy):
     classification_names = {"NI Number"}
 
-    def generate_random_ni_number(_: str | None) -> str:
-        letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-        first = _rand.choice(letters)
-        second = _rand.choice(letters)
-        digits = "".join(str(_rand.randint(0, 9)) for _ in range(6))
-        last = _rand.choice("ABCD")
-        return f"{first}{second}{digits}{last}"
-
-    # Public UDF
-    generate_random_ni_number_udf = F.udf(generate_random_ni_number, T.StringType())
-
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        return df.withColumn(column, NINumberStrategy.generate_random_ni_number_udf(F.col(column).cast("string")))
+        """Generate a deterministic fake NI number using Spark column expressions.
+
+        Format: <letter><letter><6 digits><A-D>
+        Each component is derived from a salted hash of the seed column so that
+        different positions produce different values from the same seed.
+        """
+        letters_arr = F.array([F.lit(c) for c in _NI_LETTERS])
+        last_arr = F.array([F.lit(c) for c in _NI_LAST_LETTERS])
+        first = F.element_at(letters_arr, (F.abs(F.hash(F.concat(seed, F.lit("_ni1")))) % 24 + 1).cast("int"))
+        second = F.element_at(letters_arr, (F.abs(F.hash(F.concat(seed, F.lit("_ni2")))) % 24 + 1).cast("int"))
+        digits = F.lpad((F.abs(F.hash(F.concat(seed, F.lit("_nid")))) % 1000000).cast("string"), 6, "0")
+        last = F.element_at(last_arr, (F.abs(F.hash(F.concat(seed, F.lit("_nil")))) % 4 + 1).cast("int"))
+        ni_num = F.concat(first, second, digits, last)
+        return df.withColumn(column, F.when(F.col(column).isNull(), None).otherwise(ni_num))
 
 
 class EmailMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
-    def _mask_email_preserve_domain(email: str | None) -> str | None:
-        """Mask email local part (keep first and last char) and preserve the original domain (no '#').
-        If not a valid email, mask the whole string similarly.
-        """
-        try:
-            if email is None:
-                return None
-            s = str(email)
-            parts = s.split("@", 1)
-            if len(parts) != 2:
-                local = s
-                if len(local) <= 2:
-                    masked_local = local
-                else:
-                    masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-                return masked_local
-            local, domain = parts[0], parts[1]
-            if len(local) <= 2:
-                masked_local = local
-            else:
-                masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
-            return f"{masked_local}@{domain}"
-        except Exception:
-            return None
-
-    # UDF (public)
-    mask_email_preserve_domain_udf = F.udf(_mask_email_preserve_domain, T.StringType())
-
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        # Mask local part and preserve domain (no '#', no EmployeeID override)
-        return df.withColumn(column, EmailMaskStrategy.mask_email_preserve_domain_udf(F.col(column)))
+        """Mask the email local part using native Spark column expressions.
+
+        Keeps the first and last character of the local part and replaces the
+        middle with '*'. The domain is preserved unchanged. Non-email strings
+        are masked end-to-end keeping only first and last character.
+        """
+        col_expr = F.col(column).cast("string")
+        has_at = col_expr.contains("@")
+        local_part = F.split(col_expr, "@").getItem(0)
+        domain_part = F.split(col_expr, "@").getItem(1)
+        masked_local = F.regexp_replace(local_part, r"(?<=.).(?=.)", "*")
+        email_result = F.concat(masked_local, F.lit("@"), domain_part)
+        non_email_result = F.regexp_replace(col_expr, r"(?<=.).(?=.)", "*")
+        result = F.when(F.col(column).isNull(), None).otherwise(
+            F.when(has_at, email_result).otherwise(non_email_result)
+        )
+        return df.withColumn(column, result)
 
 
 class NameMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}
 
-    def _mask_fullname_initial_lastletter(v: str | None) -> str | None:
-        """Mask full name keeping only:
-        - first letter of the first name
-        - last letter of the last name
-        All other letters are replaced by '*'.
-        Example: "John Doe" -> "J*** **e".
+    @staticmethod
+    def _mask_first_only_expr(col: Column) -> Column:
+        """Keep the first character, replace the rest with '*'.
+        Uses a lookbehind so any character that has a preceding character is replaced.
         """
-        if v is None:
-            return None
-        tokens = [t for t in str(v).split() if t]
-        if not tokens:
-            return None
-        if len(tokens) == 1:
-            t = tokens[0]
-            if len(t) == 1:
-                return t
-            return t[0] + ("*" * max(0, len(t) - 2)) + t[-1]
-
-        first = tokens[0]
-        last = tokens[-1]
-        middle = tokens[1:-1] if len(tokens) > 2 else []
-
-        def mask_first(t: str) -> str:
-            return t[0] + ("*" * (len(t) - 1)) if len(t) >= 1 else ""
-
-        def mask_middle(t: str) -> str:
-            return "*" * len(t)
-
-        def mask_last(t: str) -> str:
-            return ("*" * (len(t) - 1)) + t[-1] if len(t) >= 1 else ""
-
-        out = [mask_first(first)]
-        out.extend(mask_middle(m) for m in middle)
-        out.append(mask_last(last))
-        return " ".join(out)
-
-    def _mask_name_first_only(v: str | None) -> str | None:
-        """Mask single-part name: keep first letter, mask all remaining letters.
-        Example: 'John' -> 'J***'.
-        """
-        if v is None:
-            return None
-        s = str(v)
-        if len(s) <= 1:
-            return s
-        return s[0] + ("*" * (len(s) - 1))
-
-    # UDFs (public)
-    mask_fullname_initial_lastletter_udf = F.udf(_mask_fullname_initial_lastletter, T.StringType())
-    mask_name_first_only_udf = F.udf(_mask_name_first_only, T.StringType())
-
-    # Backward-compat private aliases
-    _mask_fullname_initial_lastletter_udf = mask_fullname_initial_lastletter_udf
-    _mask_name_first_only_udf = mask_name_first_only_udf
+        return F.regexp_replace(col, r"(?<=.).", "*")
 
     @staticmethod
-    def mask_keep_first_last_col_expr(col: Column) -> Column:
-        return BaseStrategy.mask_keep_first_last(col)
+    def _mask_last_only_expr(col: Column) -> Column:
+        """Keep the last character, replace the rest with '*'.
+        Uses a lookahead so any character that has a following character is replaced.
+        """
+        return F.regexp_replace(col, r".(?=.)", "*")
+
+    @staticmethod
+    def _mask_fullname_expr(col: Column) -> Column:
+        """Mask a full name: keep first char of first token and last char of last token.
+        Single-token names fall back to mask_keep_first_last (first and last char).
+        """
+        tokens = F.split(col, r"\s+")
+        n = F.size(tokens)
+        first_token = tokens.getItem(0)
+        last_token = tokens.getItem(n - 1)
+        masked_first = NameMaskStrategy._mask_first_only_expr(first_token)
+        masked_last = NameMaskStrategy._mask_last_only_expr(last_token)
+        middle_masked = F.transform(
+            F.slice(tokens, 2, n - 2),
+            lambda t: F.regexp_replace(t, ".", "*"),
+        )
+        return F.when(n == 1, BaseStrategy.mask_keep_first_last(col)).otherwise(
+            F.array_join(
+                F.concat(F.array(masked_first), middle_masked, F.array(masked_last)),
+                " ",
+            )
+        )
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        # Apply by classification: if value looks like full name (contains whitespace),
-        # keep first letter of first name and last letter of surname; otherwise keep only first letter.
+        col_expr = F.col(column).cast("string")
         classes = set(context.get("classifications") or [])
         if classes.intersection(self.classification_names):
-            # Use Column.rlike to avoid Spark SQL parsing the regex as an identifier
-            return df.withColumn(
-                column,
-                F.when(
-                    F.col(column).cast("string").rlike(r"\s+"),
-                    NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col(column)),
-                ).otherwise(NameMaskStrategy.mask_name_first_only_udf(F.col(column))),
+            result = F.when(F.col(column).isNull(), None).otherwise(
+                F.when(col_expr.rlike(r"\s+"), self._mask_fullname_expr(col_expr)).otherwise(
+                    self._mask_first_only_expr(col_expr)
+                )
             )
-
-        # Fallback legacy heuristic based on column name
-        cname = column.lower()
-        if "name" in cname and "first" not in cname and "last" not in cname:
-            return df.withColumn(column, NameMaskStrategy.mask_fullname_initial_lastletter_udf(F.col(column)))
-        return df.withColumn(column, NameMaskStrategy.mask_keep_first_last_col_expr(F.col(column)))
+        else:
+            cname = column.lower()
+            if "name" in cname and "first" not in cname and "last" not in cname:
+                result = F.when(F.col(column).isNull(), None).otherwise(
+                    self._mask_fullname_expr(col_expr)
+                )
+            else:
+                result = BaseStrategy.mask_keep_first_last(F.col(column))
+        return df.withColumn(column, result)
 
 
 class BirthDateStrategy(BaseStrategy):

@@ -6,6 +6,7 @@ from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.anonymisation.engine import AnonymisationEngine
+from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -211,8 +212,21 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 # Apply anonymisation only in DEV/TEST environments
                 if Util.is_non_production_environment():
                     try:
+                        anon_config = AnonymisationConfig()
+                        try:
+                            policy_path = Util.get_path_to_file("odw-config/data-lake/anonymisation/policy.yaml")
+                            policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+                            anon_config = load_config(text=policy_text)
+                        except Exception as config_err:
+                            LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
+                        entity_name_for_seed = definition.get("Source_Filename_Start", "")
+                        engine = AnonymisationEngine(
+                            config=AnonymisationConfig(
+                                classification_allowlist=anon_config.classification_allowlist,
+                                seed_column=anon_config.get_seed_column(entity_name_for_seed),
+                            )
+                        )
                         LoggingUtil().log_info(f"Applying anonymisation to Horizon file: {file}")
-                        engine = AnonymisationEngine()
                         data = engine.apply_from_purview(
                             data,
                             file_name=file,

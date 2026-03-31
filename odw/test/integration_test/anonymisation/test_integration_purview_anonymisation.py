@@ -72,7 +72,7 @@ class TestPurviewAnonymisationIntegration:
         This assumes the asset has been scanned and classified in Purview.
         
         Default FQN: https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/service-user/
-                     {Year}-{Month}-{Day}/service-user_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json
+                     {Year}-{Month}-{Day}/service-user_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}_{N}.json
         """
         # Get storage host from environment
         storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST")
@@ -90,8 +90,8 @@ class TestPurviewAnonymisationIntegration:
             pass
         else:
             # Use default ServiceBus service-user entity
-            # Note: Double braces {{}} escape to single braces {} in f-strings for Purview placeholders
-            asset_qn = f"https://{storage_host}/odw-raw/ServiceBus/service-user/{{Year}}-{{Month}}-{{Day}}/service-user_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}:{{N}}.json"
+        # Note: Double braces {{}} escape to single braces {} in f-strings for Purview placeholders
+            asset_qn = f"https://{storage_host}/odw-raw/ServiceBus/service-user/{{Year}}-{{Month}}-{{Day}}/service-user_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}_{{N}}.json"
         
         asset_type = os.getenv("PURVIEW_TEST_ASSET_TYPE", "azure_datalake_gen2_resource_set")
         

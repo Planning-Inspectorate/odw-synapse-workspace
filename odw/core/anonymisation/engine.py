@@ -137,11 +137,11 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
         # Example:
         # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
-        #   <entity>_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json
+        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}_{N}.json
         return (
             f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
             f"{{Year}}-{{Month}}-{{Day}}/"
-            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}:{{N}}.json"
+            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}_{{N}}.json"
         )
     if source_folder == "Horizon":
         if not file_name:
@@ -377,7 +377,7 @@ class AnonymisationEngine:
         """
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         out = df
-        seed = BaseStrategy.seed_col(df)
+        seed = BaseStrategy.seed_col(df, self.config.seed_column)
         # Case-insensitive + trimmed mapping from normalised name -> actual df column
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
 
