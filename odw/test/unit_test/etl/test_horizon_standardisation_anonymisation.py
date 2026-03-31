@@ -1,21 +1,13 @@
-import mock
-import re
-from datetime import date, datetime
+from unittest import mock
+import json
+import pyspark.sql.functions as F
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal
-import pyspark.sql.functions as F
 
 
-def test__horizon_standardisation__anonymisation_applied_in_dev_environment():
-    """
-    Test that anonymisation is applied to Horizon data when environment is DEV
-    """
-    spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with sensitive fields
+def _build_horizon_file_df(spark):
     data = [
         {
             "Staff Number": "S001",
@@ -23,382 +15,241 @@ def test__horizon_standardisation__anonymisation_applied_in_dev_environment():
             "Last Name": "Doe",
             "Email Address": "john.doe@example.com",
             "Birth Date": "1990-01-01",
-            "Annual Salary": 50000,
-        },
+            "Annual Salary": "50000",
+        }
+    ]
+    return spark.createDataFrame(data)
+
+
+def _build_orchestration_df(spark):
+    payload = {
+        "definitions": [
+            {
+                "Source_Filename_Start": "test_file",
+                "Load_Enable_status": "True",
+                "Standardised_Table_Name": "test_table",
+                "Expected_Within_Weekdays": 5,
+            }
+        ]
+    }
+    return spark.read.json(spark.sparkContext.parallelize([json.dumps(payload)]))
+
+
+def _build_schema_dict():
+    return {
+        "type": "struct",
+        "fields": [
+            {"name": "staff_number", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "first_name", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "last_name", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "email_address", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "birth_date", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "annual_salary", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "ingested_datetime", "type": "timestamp", "nullable": True, "metadata": {}},
+            {"name": "ingested_by_process_name", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "expected_from", "type": "timestamp", "nullable": True, "metadata": {}},
+            {"name": "expected_to", "type": "timestamp", "nullable": True, "metadata": {}},
+            {"name": "input_file", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "modified_datetime", "type": "timestamp", "nullable": True, "metadata": {}},
+            {"name": "modified_by_process_name", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "entity_name", "type": "string", "nullable": True, "metadata": {}},
+            {"name": "file_id", "type": "string", "nullable": True, "metadata": {}},
+        ],
+    }
+
+
+def _build_anonymised_df(spark):
+    data = [
         {
-            "Staff Number": "S002",
-            "First Name": "Jane",
-            "Last Name": "Smith",
-            "Email Address": "jane.smith@example.com",
-            "Birth Date": "1985-05-05",
-            "Annual Salary": 60000,
-        },
+            "staff_number": "S001",
+            "first_name": "J***",
+            "last_name": "D**",
+            "email_address": "j******e@example.com",
+            "birth_date": "1980-06-01",
+            "annual_salary": "65000",
+        }
     ]
     df = spark.createDataFrame(data)
-    
-    # Add standardised columns (simulating what Horizon process does)
-    df = (
+    return (
         df.withColumn("ingested_datetime", F.current_timestamp())
         .withColumn("ingested_by_process_name", F.lit("horizon_standardisation_process"))
         .withColumn("expected_from", F.current_timestamp())
-        .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 1 DAY"))
+        .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 5 DAY"))
         .withColumn("input_file", F.lit("test_file.csv"))
         .withColumn("modified_datetime", F.current_timestamp())
         .withColumn("modified_by_process_name", F.lit("horizon_standardisation_process"))
-        .withColumn("entity_name", F.lit("test_entity"))
-        .withColumn("file_ID", F.lit("test_file_id"))
+        .withColumn("entity_name", F.lit("test_file"))
+        .withColumn("file_id", F.lit("dummy-file-id"))
     )
-    
-    # Mock Purview classifications
-    mocked_purview_cols = [
-        {"column_name": "First Name", "classifications": ["First Name"]},
-        {"column_name": "Last Name", "classifications": ["Last Name"]},
-        {"column_name": "Email Address", "classifications": ["Email Address"]},
-        {"column_name": "Birth Date", "classifications": ["Birth Date"]},
-        {"column_name": "Annual Salary", "classifications": ["Annual Salary"]},
-    ]
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
-            with mock.patch.object(LoggingUtil, "__new__"):
-                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                        with mock.patch(
-                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                            return_value=mocked_purview_cols,
-                        ):
-                            # Simulate the anonymisation step in process()
-                            from odw.core.anonymisation.engine import AnonymisationEngine
-                            
-                            engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-    
-    # Verify anonymisation was applied
-    rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date", "Annual Salary").collect()
-    
-    # Names should be masked (first letter only for single names)
-    assert rows[0]["First Name"] == "J***"
-    assert rows[0]["Last Name"] == "D**"
-    assert rows[1]["First Name"] == "J***"
-    assert rows[1]["Last Name"] == "S****"
-    
-    # Email should be masked
-    assert rows[0]["Email Address"] == "j******e@example.com"
-    assert rows[1]["Email Address"] == "j********h@example.com"
-    
-    # Birth date should be within anonymised range
-    start = date(1955, 1, 1)
-    end = date(2005, 12, 31)
-    assert start <= rows[0]["Birth Date"] <= end
-    assert start <= rows[1]["Birth Date"] <= end
-    
-    # Salary should be within anonymised range
-    assert isinstance(rows[0]["Annual Salary"], int) and 20000 <= rows[0]["Annual Salary"] <= 100000
-    assert isinstance(rows[1]["Annual Salary"], int) and 20000 <= rows[1]["Annual Salary"] <= 100000
 
 
-def test__horizon_standardisation__anonymisation_skipped_in_prod_environment():
-    """
-    Test that anonymisation is NOT applied to Horizon data when environment is PROD
-    """
+def test__horizon_standardisation__process_applies_anonymisation_in_non_production():
     spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with sensitive fields
-    data = [
-        {
-            "Staff Number": "S001",
-            "First Name": "John",
-            "Last Name": "Doe",
-            "Email Address": "john.doe@example.com",
-            "Birth Date": "1990-01-01",
-        },
-    ]
-    df = spark.createDataFrame(data)
-    
-    # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("expected_from", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=False):
-        with mock.patch.object(LoggingUtil, "__new__"):
-            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                    # Simulate the anonymisation check in process()
-                    if Util.is_non_production_environment():
-                        # This should NOT be executed in PROD
-                        raise AssertionError("Anonymisation should not run in PROD environment")
-                    
-                    result_df = df
-    
-    # Verify data remains unchanged
-    rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date").collect()
-    
-    assert rows[0]["First Name"] == "John"
-    assert rows[0]["Last Name"] == "Doe"
-    assert rows[0]["Email Address"] == "john.doe@example.com"
-    assert rows[0]["Birth Date"] == "1990-01-01"
+
+    raw_df = _build_horizon_file_df(spark)
+    orchestration_df = _build_orchestration_df(spark)
+    schema_dict = _build_schema_dict()
+    anonymised_df = _build_anonymised_df(spark)
+
+    process = HorizonStandardisationProcess(spark=spark)
+
+    source_data = {
+        "test_file.csv": raw_df,
+        "orchestration_data": orchestration_df,
+        "test_table_standardised_table_schema": schema_dict,
+        "odw_standardised_db.test_table": None,
+    }
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
+         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
+         mock.patch.object(LoggingUtil, "__new__"), \
+         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
+         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
+         mock.patch(
+             "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+             return_value=anonymised_df,
+         ) as mock_apply:
+
+        data_to_write, etl_result = process.process(
+            source_data=source_data.copy(),
+            entity_name="test_file",
+            date_folder="2025-01-05",
+        )
+
+    mock_apply.assert_called_once()
+    _, kwargs = mock_apply.call_args
+    assert kwargs["file_name"] == "test_file.csv"
+    assert kwargs["source_folder"] == "Horizon"
+
+    written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+    row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+
+    assert row["first_name"] == "J***"
+    assert row["last_name"] == "D**"
+    assert row["email_address"] == "j******e@example.com"
+    assert etl_result.metadata.table_name == "test_table"
 
 
-def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns():
-    """
-    Test that non-sensitive columns in Horizon data are not modified during anonymisation
-    """
+def test__horizon_standardisation__process_skips_anonymisation_in_production():
     spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with mix of sensitive and non-sensitive fields
-    data = [
-        {
-            "Staff Number": "S001",
-            "First Name": "John",
-            "Last Name": "Doe",
-            "Department": "Engineering",
-            "Location": "London",
-            "Email Address": "john.doe@example.com",
-        },
-    ]
-    df = spark.createDataFrame(data)
-    
-    # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("expected_from", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
-    
-    # Mock Purview classifications (only for sensitive columns)
-    mocked_purview_cols = [
-        {"column_name": "First Name", "classifications": ["First Name"]},
-        {"column_name": "Last Name", "classifications": ["Last Name"]},
-        {"column_name": "Email Address", "classifications": ["Email Address"]},
-    ]
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
-            with mock.patch.object(LoggingUtil, "__new__"):
-                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                        with mock.patch(
-                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                            return_value=mocked_purview_cols,
-                        ):
-                            from odw.core.anonymisation.engine import AnonymisationEngine
-                            
-                            engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-    
-    # Verify non-sensitive columns remain unchanged
-    rows = result_df.select("Staff Number", "Department", "Location", "First Name", "Last Name", "Email Address").collect()
-    
-    # Non-sensitive columns should be unchanged
-    assert rows[0]["Staff Number"] == "S001"
-    assert rows[0]["Department"] == "Engineering"
-    assert rows[0]["Location"] == "London"
-    
-    # Sensitive columns should be anonymised
-    assert rows[0]["First Name"] == "J***"
-    assert rows[0]["Last Name"] == "D**"
-    assert rows[0]["Email Address"] == "j******e@example.com"
+
+    raw_df = _build_horizon_file_df(spark)
+    orchestration_df = _build_orchestration_df(spark)
+    schema_dict = _build_schema_dict()
+
+    process = HorizonStandardisationProcess(spark=spark)
+
+    source_data = {
+        "test_file.csv": raw_df,
+        "orchestration_data": orchestration_df,
+        "test_table_standardised_table_schema": schema_dict,
+        "odw_standardised_db.test_table": None,
+    }
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=False), \
+         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
+         mock.patch.object(LoggingUtil, "__new__"), \
+         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
+         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
+         mock.patch(
+             "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview"
+         ) as mock_apply:
+
+        data_to_write, etl_result = process.process(
+            source_data=source_data.copy(),
+            entity_name="test_file",
+            date_folder="2025-01-05",
+        )
+
+    mock_apply.assert_not_called()
+
+    written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+    row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+
+    assert row["first_name"] == "John"
+    assert row["last_name"] == "Doe"
+    assert row["email_address"] == "john.doe@example.com"
+    assert etl_result.metadata.table_name == "test_table"
 
 
-def test__horizon_standardisation__anonymisation_handles_column_name_transformations():
-    """
-    Test that anonymisation works correctly after Horizon column name transformations
-    (lowercase, special character removal, etc.)
-    """
+def test__horizon_standardisation__process_preserves_standard_write_contract():
     spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with special characters in column names
-    data = [
-        {
-            "Staff-Number": "S001",
-            "First Name": "John",
-            "Last.Name": "Doe",
-            "Email@Address": "john.doe@example.com",
-        },
-    ]
-    df = spark.createDataFrame(data)
-    
-    # Simulate the column name transformation that Horizon process does
-    # (lowercase, replace special chars with underscore, remove trailing underscores)
-    cols_orig = df.schema.names
-    cols = [re.sub("[^0-9a-zA-Z]+", "_", i).lower() for i in cols_orig]
-    cols = [colm.rstrip("_") for colm in cols]
-    df = df.toDF(*cols)
-    
-    # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
-    
-    # Mock Purview classifications (using normalized column names)
-    mocked_purview_cols = [
-        {"column_name": "first_name", "classifications": ["First Name"]},
-        {"column_name": "last_name", "classifications": ["Last Name"]},
-        {"column_name": "email_address", "classifications": ["Email Address"]},
-    ]
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
-            with mock.patch.object(LoggingUtil, "__new__"):
-                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                        with mock.patch(
-                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                            return_value=mocked_purview_cols,
-                        ):
-                            from odw.core.anonymisation.engine import AnonymisationEngine
-                            
-                            engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-    
-    # Verify anonymisation was applied to transformed column names
-    rows = result_df.select("staff_number", "first_name", "last_name", "email_address").collect()
-    
-    # staff_number should be unchanged (not classified)
-    assert rows[0]["staff_number"] == "S001"
-    
-    # Classified columns should be anonymised
-    assert rows[0]["first_name"] == "J***"
-    assert rows[0]["last_name"] == "D**"
-    assert rows[0]["email_address"] == "j******e@example.com"
+
+    raw_df = _build_horizon_file_df(spark)
+    orchestration_df = _build_orchestration_df(spark)
+    schema_dict = _build_schema_dict()
+    anonymised_df = _build_anonymised_df(spark)
+
+    process = HorizonStandardisationProcess(spark=spark)
+
+    source_data = {
+        "test_file.csv": raw_df,
+        "orchestration_data": orchestration_df,
+        "test_table_standardised_table_schema": schema_dict,
+        "odw_standardised_db.test_table": None,
+    }
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
+         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
+         mock.patch.object(LoggingUtil, "__new__"), \
+         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
+         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
+         mock.patch(
+             "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+             return_value=anonymised_df,
+         ):
+
+        data_to_write, _ = process.process(
+            source_data=source_data.copy(),
+            entity_name="test_file",
+            date_folder="2025-01-05",
+        )
+
+    payload = data_to_write["odw_standardised_db.test_table"]
+
+    assert payload["storage_kind"] == "ADLSG2-Table"
+    assert payload["database_name"] == "odw_standardised_db"
+    assert payload["table_name"] == "test_table"
+    assert payload["storage_endpoint"] == "test-storage.dfs.core.windows.net"
+    assert payload["container_name"] == "odw-standardised"
+    assert payload["blob_path"] == "Horizon/test_table"
+    assert payload["file_format"] == "delta"
+    assert payload["write_mode"] == "overwrite"
+    assert payload["write_options"] == {}
 
 
-def test__horizon_standardisation__anonymisation_is_idempotent():
-    """
-    Test that Horizon anonymisation produces consistent results for the same input
-    (deterministic based on seed columns like Staff Number)
-    """
+def test__horizon_standardisation__process_raises_when_anonymisation_fails():
     spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with Staff Number as seed column
-    data = [
-        {
-            "Staff Number": "S001",
-            "First Name": "John",
-            "Annual Salary": 50000,
-        },
-    ]
-    df = spark.createDataFrame(data)
-    
-    # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
-    
-    # Mock Purview classifications
-    mocked_purview_cols = [
-        {"column_name": "First Name", "classifications": ["First Name"]},
-        {"column_name": "Annual Salary", "classifications": ["Annual Salary"]},
-    ]
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
-            with mock.patch.object(LoggingUtil, "__new__"):
-                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                        with mock.patch(
-                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                            return_value=mocked_purview_cols,
-                        ):
-                            from odw.core.anonymisation.engine import AnonymisationEngine
-                            
-                            # Run anonymisation twice
-                            engine = AnonymisationEngine()
-                            result_df_1 = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-                            
-                            result_df_2 = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-    
-    # Verify both runs produce identical results
-    rows_1 = result_df_1.select("First Name", "Annual Salary").collect()
-    rows_2 = result_df_2.select("First Name", "Annual Salary").collect()
-    
-    assert rows_1[0]["First Name"] == rows_2[0]["First Name"]
-    assert rows_1[0]["Annual Salary"] == rows_2[0]["Annual Salary"]
 
+    raw_df = _build_horizon_file_df(spark)
+    orchestration_df = _build_orchestration_df(spark)
+    schema_dict = _build_schema_dict()
 
-def test__horizon_standardisation__anonymisation_handles_null_values():
-    """
-    Test that anonymisation correctly handles null values in sensitive columns
-    """
-    spark = PytestSparkSessionUtil().get_spark_session()
-    
-    # Mock Horizon CSV data with null values
-    data = [
-        {
-            "Staff Number": "S001",
-            "First Name": "John",
-            "Email Address": "john.doe@example.com",
-        },
-        {
-            "Staff Number": "S002",
-            "First Name": None,  # null value
-            "Email Address": None,  # null value
-        },
-    ]
-    df = spark.createDataFrame(data)
-    
-    # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
-    
-    # Mock Purview classifications
-    mocked_purview_cols = [
-        {"column_name": "First Name", "classifications": ["First Name"]},
-        {"column_name": "Email Address", "classifications": ["Email Address"]},
-    ]
-    
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
-            with mock.patch.object(LoggingUtil, "__new__"):
-                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                        with mock.patch(
-                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                            return_value=mocked_purview_cols,
-                        ):
-                            from odw.core.anonymisation.engine import AnonymisationEngine
-                            
-                            engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
-    
-    # Verify anonymisation
-    rows = result_df.select("First Name", "Email Address").collect()
-    
-    # First row should be anonymised
-    assert rows[0]["First Name"] == "J***"
-    assert rows[0]["Email Address"] == "j******e@example.com"
-    
-    # Second row nulls should remain null
-    assert rows[1]["First Name"] is None
-    assert rows[1]["Email Address"] is None
+    process = HorizonStandardisationProcess(spark=spark)
+
+    source_data = {
+        "test_file.csv": raw_df,
+        "orchestration_data": orchestration_df,
+        "test_table_standardised_table_schema": schema_dict,
+        "odw_standardised_db.test_table": None,
+    }
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
+         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
+         mock.patch.object(LoggingUtil, "__new__"), \
+         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
+         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
+         mock.patch(
+             "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+             side_effect=RuntimeError("Purview anonymisation failed"),
+         ):
+
+        try:
+            process.process(
+                source_data=source_data.copy(),
+                entity_name="test_file",
+                date_folder="2025-01-05",
+            )
+            assert False, "Expected process() to raise when anonymisation fails"
+        except RuntimeError as ex:
+            assert str(ex) == "Purview anonymisation failed"
