@@ -1,4 +1,6 @@
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+
+# from odw.test.util.session_util import SparkSession
 from pyspark.sql import DataFrame
 import json
 
@@ -54,8 +56,9 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             )
         assert not data_mismatch, exception_message
     finally:
-        expected.unpersist()
-        actual.unpersist()
+        expected.unpersist(True)
+        actual.unpersist(True)
+        # SparkSession.getActiveSession().catalog.clearCache()
 
 
 def assert_etl_result_successful(etl_result: ETLResult):
