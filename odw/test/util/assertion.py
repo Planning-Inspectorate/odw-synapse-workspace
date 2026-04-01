@@ -1,6 +1,5 @@
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-
-# from odw.test.util.session_util import SparkSession
+from odw.test.util.session_util import SparkSession
 from pyspark.sql import DataFrame
 import json
 
@@ -58,7 +57,7 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     finally:
         expected.unpersist(True)
         actual.unpersist(True)
-        # SparkSession.getActiveSession().catalog.clearCache()
+        SparkSession.getActiveSession().catalog.clearCache()
 
 
 def assert_etl_result_successful(etl_result: ETLResult):
