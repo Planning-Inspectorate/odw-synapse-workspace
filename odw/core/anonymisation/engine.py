@@ -97,8 +97,8 @@ def _resolve_client_secret() -> str:
     """Resolve client secret via KeyVault when available, else fall back to Azure Identity sentinel.
 
     - If env ODW_CLIENT_SECRET is set, use it.
-    - Else try (KeyVaultName, SecretName) from Spark conf 'keyVaultName' and env ODW_PURVIEW_SECRET_NAME.
-    - Else return 'AZURE_IDENTITY' to trigger DefaultAzureCredential.
+    - Else try (KeyVaultName, SecretName) from Spark conf 'spark.executorEnv.keyVaultName' and env ODW_PURVIEW_SECRET_NAME.
+    - Else return 'AZURE_IDENTITY' to trigger mssparkutils.credentials.getToken / DefaultAzureCredential.
     """
     val = os.getenv("ODW_CLIENT_SECRET")
     if val:
@@ -107,13 +107,12 @@ def _resolve_client_secret() -> str:
         from notebookutils import mssparkutils  # type: ignore
 
         try:
-            # Try Spark conf first
             from pyspark.sql import SparkSession  # type: ignore
 
-            sc = SparkSession.builder.getOrCreate().sparkContext
-            vault_name = sc.getConf("keyVaultName", None)
+            vault_name = SparkSession.builder.getOrCreate().sparkContext.getConf().get("spark.executorEnv.keyVaultName", None)
         except Exception:
-            vault_name = os.getenv("ODW_KEYVAULT_NAME")
+            vault_name = None
+        vault_name = vault_name or os.getenv("ODW_KEYVAULT_NAME")
         secret_name = os.getenv("ODW_PURVIEW_SECRET_NAME")
         if vault_name and secret_name:
             return mssparkutils.credentials.getSecret(vault_name, secret_name)
@@ -172,9 +171,21 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
     """Acquire an access token for Purview.
 
     Prefers client-credential flow when client_secret is provided. If client_secret is blank
-    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}, use DefaultAzureCredential.
+    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}:
+    1. Try mssparkutils.credentials.getToken (Synapse workspace identity — works on Spark pools).
+    2. Fall back to DefaultAzureCredential (works locally with az login or env vars).
     """
     if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
+        try:
+            from notebookutils import mssparkutils  # type: ignore
+
+            token = mssparkutils.credentials.getToken("https://purview.azure.net/.default")
+            # Validate the token is a real JWT string (all JWTs start with 'eyJ').
+            # Guarded against test environments where notebookutils is a Mock.
+            if isinstance(token, str) and token.startswith("eyJ"):
+                return token
+        except Exception:
+            pass
         return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
