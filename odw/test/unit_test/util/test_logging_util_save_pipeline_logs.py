@@ -58,10 +58,13 @@ def test_save_pipeline_logs__success_path_does_not_raise_with_real_log_info():
         )
 
 
-def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_logs_single_formatted_error_message():
+def test_save_pipeline_logs__dataframe_payload_is_sanitised_before_requests_post_and_logs_single_formatted_error_message():
     """
-    Proves that when a DF in the payload causes telemetry submission to fail
-    the except block now logs a single formatted message instead of raising TypeError
+    Proves that a DF in the payload does not reach requests.post as a raw Spark DF
+    Instead it should be sanitised into a serialisable value before telemetry submission
+
+    If telemetry submission still fails the except block should log a single
+    formatted message instead of raising again
     """
     logging_util = _build_logging_util_instance()
     spark = PytestSparkSessionUtil().get_spark_session()
@@ -79,9 +82,14 @@ def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_logs_si
 
         properties = request_payload["data"]["baseData"]["properties"]
         assert "bad_dataframe" in properties
-        assert str(type(properties["bad_dataframe"])).endswith("DataFrame'>")
 
-        raise TypeError("Object of type DataFrame is not JSON serializable")
+        sanitised_value = properties["bad_dataframe"]
+
+        assert not str(type(sanitised_value)).endswith("DataFrame'>")
+        assert isinstance(sanitised_value, str)
+        assert "DataFrame" in sanitised_value
+
+        raise TypeError("Synthetic telemetry failure after payload preparation")
 
     with mock.patch("odw.core.util.logging_util.requests.post", side_effect=fake_post):
         with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
@@ -97,12 +105,12 @@ def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_logs_si
     logged_message = mock_log_info.call_args[0][0]
 
     assert logged_message.startswith("Failed to send telemetry: ")
-    assert "DataFrame is not JSON serializable" in logged_message
+    assert "Synthetic telemetry failure after payload preparation" in logged_message
 
 
 def test_save_pipeline_logs__dataframe_payload_with_real_log_info_does_not_raise_typeerror_from_except_block():
     """
-    After the fix if requests.post raises because the payload is not serializable
+    After the fix if requests.post raises for any reason
     save_pipeline_logs should not crash again while trying to log the failure
     """
     logging_util = _build_logging_util_instance()
@@ -112,7 +120,7 @@ def test_save_pipeline_logs__dataframe_payload_with_real_log_info_does_not_raise
 
     with mock.patch(
         "odw.core.util.logging_util.requests.post",
-        side_effect=TypeError("Object of type DataFrame is not JSON serializable"),
+        side_effect=TypeError("Synthetic telemetry failure after payload preparation"),
     ):
         logging_util.save_pipeline_logs(
             payload={"bad_dataframe": df},
