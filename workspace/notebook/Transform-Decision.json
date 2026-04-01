@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "decec257-43ba-4dd2-939b-c9cec825477b"
+				"spark.autotune.trackingId": "7a5d0f7b-9770-47a0-8ccf-a5b32b953e79"
 			}
 		},
 		"metadata": {
@@ -507,9 +507,15 @@
 				"source": [
 					"from pyspark.sql import functions as F\n",
 					"\n",
-					"decision_mapped = (\n",
+					"outcome_guid_map = (\n",
 					"    decision_mapped\n",
+					"    .select(\"caseId\")\n",
+					"    .dropDuplicates([\"caseId\"])\n",
 					"    .withColumn(\"outcomeGuid\", F.expr(\"uuid()\"))\n",
+					")\n",
+					"\n",
+					"decision_with_defaults = (\n",
+					"    decision_mapped\n",
 					"    .withColumn(\n",
 					"        \"decisionType\",\n",
 					"        F.when(\n",
@@ -526,7 +532,8 @@
 					")\n",
 					"\n",
 					"decision_final = (\n",
-					"    decision_mapped\n",
+					"    decision_with_defaults\n",
+					"    .join(outcome_guid_map, on=\"caseId\", how=\"left\")\n",
 					"    .select(\n",
 					"        F.col(\"caseId\"),\n",
 					"        F.col(\"outcomeGuid\"),\n",
@@ -543,7 +550,8 @@
 					"        (\n",
 					"            F.col(\"outcomeRaw\").isNotNull() &\n",
 					"            (~F.lower(F.trim(F.col(\"outcomeRaw\"))).isin(\"undefined\", \"null\", \"none\", \"\"))\n",
-					"        ) |\n",
+					"        )\n",
+					"        |\n",
 					"        F.col(\"outcomeDate\").isNotNull()\n",
 					"    )\n",
 					")\n",
