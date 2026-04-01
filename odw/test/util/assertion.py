@@ -30,28 +30,32 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     # The workaround is to cache before running that command
     expected.cache()
     actual.cache()
-    # Update column order, since column order maters when comparing the data
-    # At this stage both data frames are guaranteed to have the same schema
-    expected = expected.select(expected.schema.names)
-    actual = actual.select(expected.schema.names)
-    in_expected_but_not_actual = expected.exceptAll(actual)
-    in_actual_but_not_expected = actual.exceptAll(expected)
-    data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
-    if data_mismatch:
-        missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
-        unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
-        exception_message = (
-            "Data mismatch between expected and actual dataframe\n"
-            "In expected dataframe but not the actual dataframe\n"
-            f"{missing_data_sample}"
-            "\nIn actual dataframe but not the expected dataframe\n"
-            f"{unexpected_data_sample}"
-            "\nExpected dataframe\n"
-            f"{expected._jdf.showString(rows_to_show, 20, False)}"
-            "\nActual dataframe\n"
-            f"{actual._jdf.showString(rows_to_show, 20, False)}"
-        )
-    assert not data_mismatch, exception_message
+    try:
+        # Update column order, since column order maters when comparing the data
+        # At this stage both data frames are guaranteed to have the same schema
+        expected = expected.select(expected.schema.names)
+        actual = actual.select(expected.schema.names)
+        in_expected_but_not_actual = expected.exceptAll(actual)
+        in_actual_but_not_expected = actual.exceptAll(expected)
+        data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
+        if data_mismatch:
+            missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
+            unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
+            exception_message = (
+                "Data mismatch between expected and actual dataframe\n"
+                "In expected dataframe but not the actual dataframe\n"
+                f"{missing_data_sample}"
+                "\nIn actual dataframe but not the expected dataframe\n"
+                f"{unexpected_data_sample}"
+                "\nExpected dataframe\n"
+                f"{expected._jdf.showString(rows_to_show, 20, False)}"
+                "\nActual dataframe\n"
+                f"{actual._jdf.showString(rows_to_show, 20, False)}"
+            )
+        assert not data_mismatch, exception_message
+    finally:
+        expected.unpersist()
+        actual.unpersist()
 
 
 def assert_etl_result_successful(etl_result: ETLResult):
