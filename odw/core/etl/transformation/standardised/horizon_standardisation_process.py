@@ -214,7 +214,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     try:
                         anon_config = AnonymisationConfig()
                         try:
-                            policy_path = Util.get_path_to_file("odw-configanonymisation/policy.yaml")
+                            policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
                             policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
                             anon_config = load_config(text=policy_text)
                         except Exception as config_err:
