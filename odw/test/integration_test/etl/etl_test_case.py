@@ -5,7 +5,7 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
 from odw.test.util.util import format_adls_path_to_local_path, format_to_adls_path
-from odw.test.util.test_case import TestCase
+from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import SparkSession, DataFrame
 import json
@@ -17,7 +17,7 @@ import pytest
 import logging
 
 
-class ETLTestCase(TestCase):
+class ETLTestCase(SparkTestCase):
     def session_setup(self):
         return super().session_setup()
 
@@ -33,13 +33,6 @@ class ETLTestCase(TestCase):
                                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                                         yield
-
-    @pytest.fixture(scope="function", autouse=True)
-    def teardown(self, request):
-        yield
-        # Clear the spark cache to free up some memory
-        spark = PytestSparkSessionUtil().get_spark_session()
-        spark.catalog.clearCache()
 
     def write_csv(self, csv_data: List[List[Any]], path: List[str]):
         directories = path[:-1]
