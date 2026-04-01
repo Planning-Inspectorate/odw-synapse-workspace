@@ -189,7 +189,7 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
         # Example:
         # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
-        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}_{N}.json
+        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}.json
         return (
             f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
             f"{{Year}}-{{Month}}-{{Day}}/"

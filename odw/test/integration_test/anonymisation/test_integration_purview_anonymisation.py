@@ -72,7 +72,7 @@ class TestPurviewAnonymisationIntegration:
         This assumes the asset has been scanned and classified in Purview.
         
         Default FQN: https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/service-user/
-                     {Year}-{Month}-{Day}/service-user_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}_{N}.json
+                     {Year}-{Month}-{Day}/service-user_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}.json
         """
         # Get storage host from environment
         storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST")
