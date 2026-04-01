@@ -301,6 +301,17 @@ def topological_sort(dag: Dict[str, List[str]]) -> List[str]:
 def remove_odw_imports(module_content: str):
     cleaned_module_content = re.sub(r"(from\sodw.[A-Za-z._]*\simport\s[A-Za-z0-9.-]*)", r"#COMMENTOUT \1", module_content)
     cleaned_module_content = re.sub(r"(import\sodw[A-Za-z0-9._]*?)", r"#COMMENTOUT \1", cleaned_module_content)
+    # Comment out relative imports - multi-line parenthesised form (e.g. from .base import (\n    X,\n))
+    def _comment_block(match: re.Match) -> str:
+        return "\n".join(f"#COMMENTOUT {line}" for line in match.group(0).split("\n"))
+    cleaned_module_content = re.sub(
+        r"^from\s+\.[A-Za-z._]*\s+import\s+\([^)]*\)",
+        _comment_block,
+        cleaned_module_content,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    # Comment out relative imports - single-line form (e.g. from .config import AnonymisationConfig)
+    cleaned_module_content = re.sub(r"^(from\s+\.[A-Za-z._]*\s+import\s+[^\n]+)", r"#COMMENTOUT \1", cleaned_module_content, flags=re.MULTILINE)
     return cleaned_module_content
 
 

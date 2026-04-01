@@ -13,22 +13,40 @@ class Util:
     def get_environment(cls) -> str:
         """
         Return the current environment (DEV, TEST, or PROD).
-        Reads from Spark configuration 'spark.executorEnv.environment' or defaults to PROD.
+
+        Resolution order:
+        1. Spark configuration 'spark.executorEnv.environment' (set by the attached SparkConfiguration artifact).
+        2. Synapse workspace name — looks for 'dev', 'test', 'preprod' or 'prod' as a substring.
+        3. Defaults to PROD as a fail-safe.
         """
         try:
             spark = SparkSession.builder.getOrCreate()
-            env = spark.sparkContext.getConf().get("spark.executorEnv.environment", "PROD")
-            return env.upper()
+            env = spark.sparkContext.getConf().get("spark.executorEnv.environment", "")
+            if env:
+                return env.upper()
         except Exception:
-            return "PROD"  # Fail-safe default
+            pass
+        # Fallback: infer from the Synapse workspace name
+        try:
+            workspace_name = mssparkutils.env.getWorkspaceName().lower()
+            if "dev" in workspace_name:
+                return "DEV"
+            if "preprod" in workspace_name:
+                return "PREPROD"
+            if "test" in workspace_name:
+                return "TEST"
+            if "prod" in workspace_name:
+                return "PROD"
+        except Exception:
+            pass
+        return "PROD"  # Fail-safe default
 
     @classmethod
     def is_non_production_environment(cls) -> bool:
         """
         Return True if the current environment is DEV or TEST.
         """
-        # return cls.get_environment() in ["DEV", "TEST"] To be uncommented when spark configuration is set up for DEV and TEST environments
-        return cls.get_environment() == "DEV"  # Temporary hardcoded value for testing purposes, to be replaced with the above line when spark configuration is set up for DEV and TEST environments
+        return cls.get_environment() in {"DEV", "TEST"}
 
     @classmethod
     def get_storage_account(cls) -> str:
