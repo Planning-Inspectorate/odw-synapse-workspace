@@ -26,7 +26,7 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
         )
     assert not schema_mismatch, exception_message
     rows_to_show = 20
-    # There seems to be a bug that occasionally appears in spark 3.4 that causes a crash when using exceptAll
+    # There seems to be a bug that occasionally appears in spark that causes a crash when using exceptAll
     # The workaround is to cache before running that command
     expected.cache()
     actual.cache()
