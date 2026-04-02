@@ -132,77 +132,8 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     standardised_table_schema = json.loads(self.spark.read.text(standardised_table_loc, wholetext=True).first().value)
                 else:
                     standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
-                file_map[f"{table_name}_standardised_table_schema"] = 
+                file_map[f"{table_name}_standardised_table_schema"] = standardised_table_schema
         return(file_map)
-
-        # # Filter files by entity_name if specified
-        # if entity_name:
-        #     horizon_files = [f for f in horizon_files if f.startswith(entity_name)]
-        # for file in horizon_files:
-        #     data = SynapseFileDataIO().read(
-        #         spark=self.spark,
-        #         storage_endpoint=Util.get_storage_account(),
-        #         container_name="odw-raw",
-        #         blob_path=f"{source_folder}/{last_modified_folder}/{file}",
-        #         file_format="csv",
-        #         read_options={
-        #             "quote": '"',
-        #             "escape": "\\",
-        #             "encoding": "utf8",
-        #             "header": True,
-        #             "multiLine": True,
-        #             "columnNameOfCorruptRecord": "corrupted_records",
-        #             "mode": "PERMISSIVE",
-        #         },
-        #     )
-        #     if "corrupted_records" in data.columns:
-        #         raise RuntimeError(f"Failed to load file '{file}': The file had corrupt records after being read")
-        #     file_map[file] = data
-
-        # # Load orchestration file
-        # orchestration_data = SynapseFileDataIO().read(
-        #     spark=self.spark,
-        #     storage_endpoint=Util.get_storage_account(),
-        #     container_name="odw-config",
-        #     blob_path="orchestration/orchestration.json",
-        #     file_format="json",
-        #     read_options={"multiline": "true"},
-        # )
-        # file_map["orchestration_data"] = orchestration_data
-
-        # # Load existing data (if any)
-        # definitions: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
-        # for file in horizon_files:
-        #     definition = next(
-        #         (
-        #             d
-        #             for d in definitions
-        #             if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
-        #             and file.startswith(d.get("Source_Filename_Start", None))
-        #             and d.get("Load_Enable_status", False) == "True"
-        #         ),
-        #         None,
-        #     )
-        #     if definition:
-        #         table_name = definition.get("Standardised_Table_Name", None)
-        #         if not table_name:
-        #             raise ValueError(f"Orchestration entry for '{file}' does not have a 'Standardised_Table_Name' property")
-        #         new_entry_name = f"odw_standardised_db.{table_name}"
-        #         try:
-        #             data = SynapseTableDataIO().read(
-        #                 spark=self.spark, database_name="odw_standardised_db", table_name=table_name, file_format="delta"
-        #             )
-        #             file_map[new_entry_name] = data
-        #         except AnalysisException:
-        #             file_map[new_entry_name] = None
-        #         # Load standardised table schema
-        #         if "Standardised_Table_Definition" in definition:
-        #             standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
-        #             standardised_table_schema = json.loads(self.spark.read.text(standardised_table_loc, wholetext=True).first().value)
-        #         else:
-        #             standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
-        #         file_map[f"{table_name}_standardised_table_schema"] = standardised_table_schema
-        # return file_map
 
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
