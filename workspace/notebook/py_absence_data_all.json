@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a4111d0a-e575-4672-be6c-08522fd528f0"
+				"spark.autotune.trackingId": "3e73ce18-805f-4c6a-b8be-54003b0a1ef3"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -88,14 +88,14 @@
 					"from pyspark.sql.functions import col\n",
 					"from pyspark.sql.types import StringType"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -156,7 +156,7 @@
 					"spark.sql(\"\"\"SET spark.sql.legacy.timeParserPolicy = LEGACY\"\"\")\n",
 					"logInfo(\"Initialization complete\")"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -190,7 +190,7 @@
 					"    logInfo(f\"Target table empty or error getting watermark: {e}\")\n",
 					"    safe_start_date = datetime(1900, 1, 1).date()"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +230,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -259,8 +259,8 @@
 					"            AttendanceorAbsenceType,\n",
 					"            ROUND(CAST(REPLACE(Days, ',', '') AS DOUBLE), 2) AS Days,\n",
 					"            ROUND(CAST(REPLACE(Hrs, ',', '') AS DOUBLE), 2) AS Hrs,\n",
-					"            TO_DATE('31/12/1899','dd/MM/yyyy') AS Start,\n",
-					"            TO_DATE('31/12/1899','dd/MM/yyyy') AS Endtime,  \n",
+					"            TO_DATE('01/01/1900','dd/MM/yyyy') AS Start,\n",
+					"            TO_DATE('01/01/1900','dd/MM/yyyy') AS Endtime,  \n",
 					"            Caldays,\n",
 					"            WorkScheduleRule,\n",
 					"            ROUND(TRY_CAST(REPLACE(Wkhrs, ',', '') AS DOUBLE), 2) AS Wkhrs,  \n",
@@ -318,7 +318,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -371,7 +371,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -419,7 +419,7 @@
 					"    # Continue processing even if this fails\n",
 					"    logInfo(\"Continuing despite error...\")"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -471,7 +471,7 @@
 					"    spark.sql(\"DROP VIEW IF EXISTS approved_uuids\")\n",
 					"    logInfo(\"Continuing despite error...\")"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -503,7 +503,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -517,8 +517,8 @@
 					"try:\n",
 					"    if incremental_source_count > 0:\n",
 					"        logInfo(\"Identifying records to insert\")\n",
-					"        \n",
-					"        # Records to insert - new RowIDs that don't exist in harmonised\n",
+					"       \n",
+					"        # FIXED: Extract UUID from target table's AbsType on-the-fly\n",
 					"        spark.sql(\"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW records_to_insert AS\n",
 					"        SELECT s.StaffNumber, s.AbsType, s.SicknessGroup, s.StartDate, s.EndDate,\n",
@@ -527,10 +527,19 @@
 					"               s.AnnualLeaveStart, s.SourceSystemID, s.IngestionDate, s.ValidTo,\n",
 					"               s.RowID, s.IsActive\n",
 					"        FROM final_staging_records s\n",
-					"        LEFT JOIN odw_harmonised_db.sap_hr_absence_all t ON s.RowID = t.RowID\n",
+					"        LEFT JOIN odw_harmonised_db.sap_hr_absence_all t\n",
+					"        ON s.RecordUUID = CASE\n",
+					"            WHEN t.AbsType RLIKE '^[A-Z_]+-[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]+-(.+)$' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '^[A-Z_]+-[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]+-(.+)$', 1)\n",
+					"            WHEN t.AbsType RLIKE '[a-f0-9]{32}' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '([a-f0-9]{32})', 1)\n",
+					"            WHEN t.AbsType RLIKE '.*-([A-Za-z0-9_]{4,})$' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '.*-([A-Za-z0-9_]{4,})$', 1)\n",
+					"            ELSE MD5(t.AbsType)\n",
+					"        END\n",
 					"        WHERE t.RowID IS NULL\n",
 					"        \"\"\")\n",
-					"        \n",
+					"       \n",
 					"        insert_count = spark.sql(\"SELECT COUNT(*) as count FROM records_to_insert\").collect()[0]['count']\n",
 					"        logInfo(f\"Records to insert: {insert_count}\")\n",
 					"\n",
@@ -539,7 +548,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -578,7 +587,7 @@
 					"    logError(error_msg)\n",
 					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -624,7 +633,7 @@
 					"    flushLogging()\n",
 					"    mssparkutils.notebook.exit(json.dumps(result))"
 				],
-				"execution_count": null
+				"execution_count": 28
 			}
 		]
 	}
