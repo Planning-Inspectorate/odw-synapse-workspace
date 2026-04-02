@@ -91,7 +91,7 @@ class TestPurviewAnonymisationIntegration:
         else:
             # Use default ServiceBus service-user entity
         # Note: Double braces {{}} escape to single braces {} in f-strings for Purview placeholders
-            asset_qn = f"https://{storage_host}/odw-raw/ServiceBus/service-user/{{Year}}-{{Month}}-{{Day}}/service-user_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}_{{N}}.json"
+            asset_qn = f"https://{storage_host}/odw-raw/ServiceBus/service-user/{{Year}}-{{Month}}-{{Day}}/service-user_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}.json"
         
         asset_type = os.getenv("PURVIEW_TEST_ASSET_TYPE", "azure_datalake_gen2_resource_set")
         
