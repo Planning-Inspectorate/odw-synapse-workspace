@@ -62,18 +62,14 @@ def test__horizon_standardisation__anonymisation_applied_in_dev_environment():
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         with mock.patch(
-                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                                return_value=mocked_purview_cols,
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
                         ):
                             # Simulate the anonymisation step in process()
                             from odw.core.anonymisation.engine import AnonymisationEngine
 
                             engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
     # Verify anonymisation was applied
     rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date", "Annual Salary").collect()
@@ -183,21 +179,16 @@ def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         with mock.patch(
-                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                                return_value=mocked_purview_cols,
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
                         ):
                             from odw.core.anonymisation.engine import AnonymisationEngine
 
                             engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
     # Verify non-sensitive columns remain unchanged
-    rows = result_df.select("Staff Number", "Department", "Location", "First Name", "Last Name",
-                            "Email Address").collect()
+    rows = result_df.select("Staff Number", "Department", "Location", "First Name", "Last Name", "Email Address").collect()
 
     # Non-sensitive columns should be unchanged
     assert rows[0]["Staff Number"] == "S001"
@@ -236,10 +227,7 @@ def test__horizon_standardisation__anonymisation_handles_column_name_transformat
     df = df.toDF(*cols)
 
     # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
+    df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
 
     # Mock Purview classifications (using normalized column names)
     mocked_purview_cols = [
@@ -254,17 +242,13 @@ def test__horizon_standardisation__anonymisation_handles_column_name_transformat
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         with mock.patch(
-                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                                return_value=mocked_purview_cols,
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
                         ):
                             from odw.core.anonymisation.engine import AnonymisationEngine
 
                             engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
     # Verify anonymisation was applied to transformed column names
     rows = result_df.select("staff_number", "first_name", "last_name", "email_address").collect()
@@ -296,10 +280,7 @@ def test__horizon_standardisation__anonymisation_is_idempotent():
     df = spark.createDataFrame(data)
 
     # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
+    df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
 
     # Mock Purview classifications
     mocked_purview_cols = [
@@ -313,24 +294,16 @@ def test__horizon_standardisation__anonymisation_is_idempotent():
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         with mock.patch(
-                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                                return_value=mocked_purview_cols,
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
                         ):
                             from odw.core.anonymisation.engine import AnonymisationEngine
 
                             # Run anonymisation twice
                             engine = AnonymisationEngine()
-                            result_df_1 = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df_1 = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
-                            result_df_2 = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df_2 = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
     # Verify both runs produce identical results
     rows_1 = result_df_1.select("First Name", "Annual Salary").collect()
@@ -362,10 +335,7 @@ def test__horizon_standardisation__anonymisation_handles_null_values():
     df = spark.createDataFrame(data)
 
     # Add standardised columns
-    df = (
-        df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("input_file", F.lit("test_file.csv"))
-    )
+    df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
 
     # Mock Purview classifications
     mocked_purview_cols = [
@@ -379,17 +349,13 @@ def test__horizon_standardisation__anonymisation_handles_null_values():
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         with mock.patch(
-                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
-                                return_value=mocked_purview_cols,
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
                         ):
                             from odw.core.anonymisation.engine import AnonymisationEngine
 
                             engine = AnonymisationEngine()
-                            result_df = engine.apply_from_purview(
-                                df,
-                                file_name="test_file.csv",
-                                source_folder="Horizon"
-                            )
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
     # Verify anonymisation
     rows = result_df.select("First Name", "Email Address").collect()

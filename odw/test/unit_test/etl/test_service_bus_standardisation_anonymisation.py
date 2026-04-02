@@ -89,16 +89,17 @@ def test__service_bus_standardisation__process_applies_anonymisation_in_non_prod
         "raw_messages": raw_df,
     }
 
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
-         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
-         mock.patch.object(LoggingUtil, "__new__"), \
-         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
-         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
-         mock.patch(
-             "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-             return_value=anonymised_df,
-         ) as mock_apply:
-
+    with (
+        mock.patch.object(Util, "is_non_production_environment", return_value=True),
+        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+        mock.patch.object(LoggingUtil, "__new__"),
+        mock.patch.object(LoggingUtil, "log_info", return_value=None),
+        mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        mock.patch(
+            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
+            return_value=anonymised_df,
+        ) as mock_apply,
+    ):
         data_to_write, etl_result = process.process(
             source_data=source_data.copy(),
             entity_name="service-user",
@@ -130,15 +131,16 @@ def test__service_bus_standardisation__process_skips_anonymisation_in_production
         "raw_messages": raw_df,
     }
 
-    with mock.patch.object(Util, "is_non_production_environment", return_value=False), \
-         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
-         mock.patch.object(LoggingUtil, "__new__"), \
-         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
-         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
-         mock.patch(
-             "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
-         ) as mock_apply:
-
+    with (
+        mock.patch.object(Util, "is_non_production_environment", return_value=False),
+        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+        mock.patch.object(LoggingUtil, "__new__"),
+        mock.patch.object(LoggingUtil, "log_info", return_value=None),
+        mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        mock.patch(
+            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
+        ) as mock_apply,
+    ):
         data_to_write, etl_result = process.process(
             source_data=source_data.copy(),
             entity_name="service-user",
@@ -168,16 +170,17 @@ def test__service_bus_standardisation__process_preserves_standard_write_contract
         "raw_messages": raw_df,
     }
 
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
-         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
-         mock.patch.object(LoggingUtil, "__new__"), \
-         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
-         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
-         mock.patch(
-             "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-             return_value=anonymised_df,
-         ):
-
+    with (
+        mock.patch.object(Util, "is_non_production_environment", return_value=True),
+        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+        mock.patch.object(LoggingUtil, "__new__"),
+        mock.patch.object(LoggingUtil, "log_info", return_value=None),
+        mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        mock.patch(
+            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
+            return_value=anonymised_df,
+        ),
+    ):
         data_to_write, _ = process.process(
             source_data=source_data.copy(),
             entity_name="service-user",
@@ -209,16 +212,17 @@ def test__service_bus_standardisation__process_raises_when_anonymisation_fails()
         "raw_messages": raw_df,
     }
 
-    with mock.patch.object(Util, "is_non_production_environment", return_value=True), \
-         mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"), \
-         mock.patch.object(LoggingUtil, "__new__"), \
-         mock.patch.object(LoggingUtil, "log_info", return_value=None), \
-         mock.patch.object(LoggingUtil, "log_error", return_value=None), \
-         mock.patch(
-             "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-             side_effect=RuntimeError("Purview anonymisation failed"),
-         ):
-
+    with (
+        mock.patch.object(Util, "is_non_production_environment", return_value=True),
+        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+        mock.patch.object(LoggingUtil, "__new__"),
+        mock.patch.object(LoggingUtil, "log_info", return_value=None),
+        mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        mock.patch(
+            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
+            side_effect=RuntimeError("Purview anonymisation failed"),
+        ),
+    ):
         try:
             process.process(
                 source_data=source_data.copy(),

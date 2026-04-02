@@ -73,17 +73,22 @@ class HorizonStandardisationProcess(StandardisationProcess):
             read_options={"multiline": "true"},
         )
         file_map["orchestration_data"] = orchestration_data
-        definition: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"] 
+        definition: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
 
         # Load new raw data files to add to the existing data
         horizon_files = self.get_file_names_in_directory(source_path)
 
         if entity_name:
-            horizon_files = [file for file in horizon_files
-                             if any(d.get("Source_Filename_Start", None) == entity_name 
-                                    and file.startswith(d.get("Source_Filename_Start", ""))
-                                    and d.get("Load_Enable_status", False) == "True"
-                                    for d in definition)]
+            horizon_files = [
+                file
+                for file in horizon_files
+                if any(
+                    d.get("Source_Filename_Start", None) == entity_name
+                    and file.startswith(d.get("Source_Filename_Start", ""))
+                    and d.get("Load_Enable_status", False) == "True"
+                    for d in definition
+                )
+            ]
         for file in horizon_files:
             data = SynapseFileDataIO().read(
                 spark=self.spark,
@@ -91,26 +96,31 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 container_name="odw-raw",
                 blob_path=f"{source_folder}/{last_modified_folder}/{file}",
                 file_format="csv",
-                read_options={"quote": '"',
-                              "escape": "\\",
-                              "encoding": "utf8",
-                              "header": True,
-                              "multiLine": True,
-                              "columnNameOfCorruptRecord": "corrupted_records",
-                              "mode": "PERMISSIVE"
-                              },
+                read_options={
+                    "quote": '"',
+                    "escape": "\\",
+                    "encoding": "utf8",
+                    "header": True,
+                    "multiLine": True,
+                    "columnNameOfCorruptRecord": "corrupted_records",
+                    "mode": "PERMISSIVE",
+                },
             )
             if "corrupted_records" in data.columns:
                 raise RuntimeError(f"Failed to load file '{file}': The file had corrupt records after being read")
             file_map[file] = data
 
         for file in horizon_files:
-            definition= next(
-                (d for d in definition 
-                 if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name) 
-                 and file.startswith(d.get("Source_Filename_Start", None)) 
-                 and d.get("Load_Enable_status", False) == "True"
-                 ), None)
+            definition = next(
+                (
+                    d
+                    for d in definition
+                    if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
+                    and file.startswith(d.get("Source_Filename_Start", None))
+                    and d.get("Load_Enable_status", False) == "True"
+                ),
+                None,
+            )
             if definition:
                 table_name = definition.get("Standardised_Table_Name", None)
                 if not table_name:
@@ -118,10 +128,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 new_entry_name = f"odw_standardised_db.{table_name}"
                 try:
                     data = SynapseTableDataIO().read(
-                        spark=self.spark,
-                        database_name="odw_standardised_db",
-                        table_name=table_name,
-                        file_format="delta"
+                        spark=self.spark, database_name="odw_standardised_db", table_name=table_name, file_format="delta"
                     )
                     file_map[new_entry_name] = data
                 except AnalysisException:
@@ -133,7 +140,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 else:
                     standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
                 file_map[f"{table_name}_standardised_table_schema"] = standardised_table_schema
-        return(file_map)
+        return file_map
 
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
@@ -229,11 +236,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                             )
                         )
                         LoggingUtil().log_info(f"Applying anonymisation to Horizon file: {file}")
-                        data = engine.apply_from_purview(
-                            data,
-                            file_name=file,
-                            source_folder="Horizon"
-                        )
+                        data = engine.apply_from_purview(data, file_name=file, source_folder="Horizon")
                     except Exception as e:
                         LoggingUtil().log_error(f"Anonymisation failed for {file}: {str(e)}")
                         raise

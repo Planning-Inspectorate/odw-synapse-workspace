@@ -177,11 +177,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
                     )
                 )
                 LoggingUtil().log_info(f"Applying anonymisation to Service Bus entity: {entity_name}")
-                new_raw_messages = engine.apply_from_purview(
-                    new_raw_messages,
-                    entity_name=entity_name,
-                    source_folder="ServiceBus"
-                )
+                new_raw_messages = engine.apply_from_purview(new_raw_messages, entity_name=entity_name, source_folder="ServiceBus")
             except Exception as e:
                 LoggingUtil().log_error(f"Anonymisation failed for {entity_name}: {str(e)}")
                 raise

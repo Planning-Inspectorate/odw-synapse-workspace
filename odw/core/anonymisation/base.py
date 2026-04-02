@@ -115,9 +115,7 @@ class EmailMaskStrategy(BaseStrategy):
         masked_local = F.regexp_replace(local_part, r"(?<=.).(?=.)", "*")
         email_result = F.concat(masked_local, F.lit("@"), domain_part)
         non_email_result = F.regexp_replace(col_expr, r"(?<=.).(?=.)", "*")
-        result = F.when(F.col(column).isNull(), None).otherwise(
-            F.when(has_at, email_result).otherwise(non_email_result)
-        )
+        result = F.when(F.col(column).isNull(), None).otherwise(F.when(has_at, email_result).otherwise(non_email_result))
         return df.withColumn(column, result)
 
 
@@ -165,16 +163,12 @@ class NameMaskStrategy(BaseStrategy):
         classes = set(context.get("classifications") or [])
         if classes.intersection(self.classification_names):
             result = F.when(F.col(column).isNull(), None).otherwise(
-                F.when(col_expr.rlike(r"\s+"), self._mask_fullname_expr(col_expr)).otherwise(
-                    self._mask_first_only_expr(col_expr)
-                )
+                F.when(col_expr.rlike(r"\s+"), self._mask_fullname_expr(col_expr)).otherwise(self._mask_first_only_expr(col_expr))
             )
         else:
             cname = column.lower()
             if "name" in cname and "first" not in cname and "last" not in cname:
-                result = F.when(F.col(column).isNull(), None).otherwise(
-                    self._mask_fullname_expr(col_expr)
-                )
+                result = F.when(F.col(column).isNull(), None).otherwise(self._mask_fullname_expr(col_expr))
             else:
                 result = BaseStrategy.mask_keep_first_last(F.col(column))
         return df.withColumn(column, result)

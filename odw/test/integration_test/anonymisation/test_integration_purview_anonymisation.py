@@ -23,8 +23,7 @@ class TestPurviewAnonymisationIntegration:
 
         if not tenant_id or not client_id:
             pytest.skip(
-                "Purview integration tests require ODW_TENANT_ID and ODW_CLIENT_ID. "
-                "Set ODW_CLIENT_SECRET or configure DefaultAzureCredential."
+                "Purview integration tests require ODW_TENANT_ID and ODW_CLIENT_ID. Set ODW_CLIENT_SECRET or configure DefaultAzureCredential."
             )
 
         return {
@@ -201,21 +200,13 @@ class TestPurviewAnonymisationIntegration:
         for original, result in zip(original_rows, result_rows):
             for col_name in df.columns:
                 classifications = live_mapping.get(col_name, set())
-                should_change = (
-                    original[col_name] is not None
-                    and len(classifications) > 0
-                    and self._is_supported_by_strategy(classifications)
-                )
+                should_change = original[col_name] is not None and len(classifications) > 0 and self._is_supported_by_strategy(classifications)
 
                 if should_change:
-                    assert original[col_name] != result[col_name], (
-                        f"Expected '{col_name}' to change. "
-                        f"Classifications: {sorted(classifications)}"
-                    )
+                    assert original[col_name] != result[col_name], f"Expected '{col_name}' to change. Classifications: {sorted(classifications)}"
                 else:
                     assert original[col_name] == result[col_name], (
-                        f"Expected '{col_name}' to stay unchanged. "
-                        f"Classifications: {sorted(classifications)}"
+                        f"Expected '{col_name}' to stay unchanged. Classifications: {sorted(classifications)}"
                     )
 
     def test_apply_from_purview_preserves_null_values(
