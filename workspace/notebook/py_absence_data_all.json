@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a4111d0a-e575-4672-be6c-08522fd528f0"
+				"spark.autotune.trackingId": "e16acb88-42d7-40e9-aa24-4c981b1d3b0b"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -259,8 +259,8 @@
 					"            AttendanceorAbsenceType,\n",
 					"            ROUND(CAST(REPLACE(Days, ',', '') AS DOUBLE), 2) AS Days,\n",
 					"            ROUND(CAST(REPLACE(Hrs, ',', '') AS DOUBLE), 2) AS Hrs,\n",
-					"            TO_DATE('31/12/1899','dd/MM/yyyy') AS Start,\n",
-					"            TO_DATE('31/12/1899','dd/MM/yyyy') AS Endtime,  \n",
+					"            TO_DATE('01/01/1900','dd/MM/yyyy') AS Start,\n",
+					"            TO_DATE('01/01/1900','dd/MM/yyyy') AS Endtime,  \n",
 					"            Caldays,\n",
 					"            WorkScheduleRule,\n",
 					"            ROUND(TRY_CAST(REPLACE(Wkhrs, ',', '') AS DOUBLE), 2) AS Wkhrs,  \n",
@@ -517,8 +517,8 @@
 					"try:\n",
 					"    if incremental_source_count > 0:\n",
 					"        logInfo(\"Identifying records to insert\")\n",
-					"        \n",
-					"        # Records to insert - new RowIDs that don't exist in harmonised\n",
+					"       \n",
+					"        # FIXED: Extract UUID from target table's AbsType on-the-fly\n",
 					"        spark.sql(\"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW records_to_insert AS\n",
 					"        SELECT s.StaffNumber, s.AbsType, s.SicknessGroup, s.StartDate, s.EndDate,\n",
@@ -527,10 +527,19 @@
 					"               s.AnnualLeaveStart, s.SourceSystemID, s.IngestionDate, s.ValidTo,\n",
 					"               s.RowID, s.IsActive\n",
 					"        FROM final_staging_records s\n",
-					"        LEFT JOIN odw_harmonised_db.sap_hr_absence_all t ON s.RowID = t.RowID\n",
+					"        LEFT JOIN odw_harmonised_db.sap_hr_absence_all t\n",
+					"        ON s.RecordUUID = CASE\n",
+					"            WHEN t.AbsType RLIKE '^[A-Z_]+-[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]+-(.+)$' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '^[A-Z_]+-[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]+-(.+)$', 1)\n",
+					"            WHEN t.AbsType RLIKE '[a-f0-9]{32}' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '([a-f0-9]{32})', 1)\n",
+					"            WHEN t.AbsType RLIKE '.*-([A-Za-z0-9_]{4,})$' THEN\n",
+					"                REGEXP_EXTRACT(t.AbsType, '.*-([A-Za-z0-9_]{4,})$', 1)\n",
+					"            ELSE MD5(t.AbsType)\n",
+					"        END\n",
 					"        WHERE t.RowID IS NULL\n",
 					"        \"\"\")\n",
-					"        \n",
+					"       \n",
 					"        insert_count = spark.sql(\"SELECT COUNT(*) as count FROM records_to_insert\").collect()[0]['count']\n",
 					"        logInfo(f\"Records to insert: {insert_count}\")\n",
 					"\n",
