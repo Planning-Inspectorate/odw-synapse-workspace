@@ -122,7 +122,7 @@ class EmailMaskStrategy(BaseStrategy):
 
 
 class NameMaskStrategy(BaseStrategy):
-    classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}
+    classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name", "All Full Names"}
 
     @staticmethod
     def _mask_first_only_expr(col: Column) -> Column:
