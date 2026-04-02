@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c094917-5ff4-4ee1-b305-0288ac26fe0d"
+				"spark.autotune.trackingId": "dc23f557-f434-4106-b136-a4c2ed4f2f18"
 			}
 		},
 		"metadata": {
@@ -34,19 +34,19 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -120,7 +120,7 @@
 					]
 				},
 				"source": [
-					"entity_name='appeal-has' \r\n",
+					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
 				"execution_count": null
@@ -133,10 +133,9 @@
 					"from pyspark.sql import SparkSession\r\n",
 					"from notebookutils import mssparkutils\r\n",
 					"from datetime import datetime, date\r\n",
-					"from pyspark.sql.functions import current_timestamp, expr, to_timestamp, lit, input_file_name\r\n",
 					"from pyspark.sql import DataFrame\r\n",
 					"from pyspark.sql.types import StructType,TimestampType\r\n",
-					"from pyspark.sql.functions import *\r\n",
+					"import pyspark.sql.functions as F\r\n",
 					"import re"
 				],
 				"execution_count": null
@@ -248,7 +247,7 @@
 					"        max_value: the maximum value from the table column\r\n",
 					"    \"\"\"\r\n",
 					"    df = spark.table(target_table)\r\n",
-					"    max_value = df.agg(max(column_name)).collect()[0][0]\r\n",
+					"    max_value = df.agg(F.max(column_name)).collect()[0][0]\r\n",
 					"\r\n",
 					"    if max_value is None:\r\n",
 					"       return None\r\n",
@@ -285,14 +284,14 @@
 					"\r\n",
 					"    df_with_date = df.withColumn(\r\n",
 					"        \"file_date\",\r\n",
-					"        regexp_extract(df[\"input_file\"], date_pattern, 1)\r\n",
+					"        F.regexp_extract(df[\"input_file\"], date_pattern, 1)\r\n",
 					"    )\r\n",
 					"    df_with_date = df_with_date.withColumn(\r\n",
 					"        \"file_date\",\r\n",
 					"        df_with_date[\"file_date\"].cast(TimestampType())\r\n",
 					"    )\r\n",
 					"\r\n",
-					"    result = df_with_date.agg(max(\"file_date\")).collect()\r\n",
+					"    result = df_with_date.agg(F.max(\"file_date\")).collect()\r\n",
 					"\r\n",
 					"    if not result or result[0][0] is None:\r\n",
 					"        print(\"Warning: No valid dates found in input_file column.\")\r\n",
@@ -333,7 +332,6 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
 					"def get_all_files_recursive(source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
 					"    Lists all files in a given source path.\r\n",
@@ -391,7 +389,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"@logging_to_appins\r\n",
 					"def get_missing_files(target_table: str, source_path: str) -> list:\r\n",
 					"    \"\"\"\r\n",
 					"    Gets the difference between the files in the source path and the files in the table.\r\n",
@@ -422,7 +419,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"@logging_to_appins\r\n",
 					"def extract_and_filter_paths(files: list, filter_date: str):\r\n",
 					"    \"\"\"\r\n",
 					"    Takes a list of file paths and filters them to return the file paths greater than the filter_date\r\n",
@@ -476,7 +472,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"@logging_to_appins\r\n",
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
 					"    Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
@@ -498,10 +493,10 @@
 					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
 					"\r\n",
 					"    df = (\r\n",
-					"        df.withColumn(\"expected_from\", current_timestamp())\r\n",
-					"          .withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
-					"          .withColumn(\"ingested_datetime\", to_timestamp(\"message_enqueued_time_utc\"))\r\n",
-					"          .withColumn(\"input_file\", input_file_name())\r\n",
+					"        df.withColumn(\"expected_from\", F.current_timestamp())\r\n",
+					"          .withColumn(\"expected_to\", F.expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"          .withColumn(\"ingested_datetime\", F.to_timestamp(\"message_enqueued_time_utc\"))\r\n",
+					"          .withColumn(\"input_file\", F.input_file_name())\r\n",
 					"    )\r\n",
 					"\r\n",
 					"    return df\r\n",
@@ -533,7 +528,6 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
 					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\r\n",
 					"    \"\"\"\r\n",
 					"    Dedupes a DataFrame based on certain columns\r\n",
@@ -563,7 +557,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"@logging_to_appins\r\n",
 					"def append_df_to_table(df: DataFrame, target_table: str) -> None:\r\n",
 					"    \"\"\"\r\n",
 					"    Appends the new rows to the target table.\r\n",

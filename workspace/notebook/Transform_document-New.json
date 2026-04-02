@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "51d2ab2b-2960-4f52-b6a1-7bc037d11968"
+				"spark.autotune.trackingId": "daac2185-8db6-42bc-b62b-210190835dda"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 32,
@@ -353,9 +353,9 @@
 					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^4\\s+decision\\b\"), \"Decision\")\n",
 					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^5\\s+start\\s*&\\s*site\\s+notice\\b\"), \"Notices and order documents\")\n",
 					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^forms\\s+for\\s+inspector\\b\"), \"Other\")\n",
-					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^1\\s+relevant\\s+authority\\b\"), \"Other\")\n",
-					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^2\\s+other\\s+statutory\\s+parties\\b\"), \"Other\")\n",
-					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^3\\s+interested\\s+party\\b\"), \"Other\")\n",
+					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^1\\s+relevant\\s+authority\\b\"), \"Submissions\")\n",
+					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^2\\s+other\\s+statutory\\s+parties\\b\"), \"Submissions\")\n",
+					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^3\\s+interested\\s+party\\b\"), \"Submissions\")\n",
 					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^4\\s+internal\\s+correspondence\\b\"), \"Internal correspondence\")\n",
 					"         .when(F.col(\"horizonFolder_lc\").rlike(r\"^5\\s+decision\\b\"), \"Decision\")\n",
 					"         .otherwise(\"Other\")   # DEFAULT\n",
@@ -609,13 +609,49 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"docs_with_mime = (\n",
+					"    docs_filtered\n",
+					"    .withColumn(\n",
+					"        \"fileExtensionClean\",\n",
+					"        F.lower(\n",
+					"            F.regexp_extract(F.col(\"filename\").cast(\"string\"), r\"\\.([A-Za-z0-9]+)$\", 1)\n",
+					"        )\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"mime\",\n",
+					"        F.when(F.col(\"fileExtensionClean\") == \"pdf\", \"application/pdf\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"doc\", \"application/msword\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"docx\", \"application/vnd.openxmlformats-officedocument.wordprocessingml.document\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"xls\", \"application/vnd.ms-excel\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"xlsx\", \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"csv\", \"text/csv\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"txt\", \"text/plain\")\n",
+					"        .when(F.col(\"fileExtensionClean\") == \"msg\", \"application/vnd.ms-outlook\")\n",
+					"        .otherwise(F.col(\"mime\"))  # 👈 fallback to original\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    docs_with_mime.select(\"filename\", \"fileExtensionClean\", \"mime\").limit(20)\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"\n",
 					"DOCUMENT_OUTPUT_PATH = f\"{mpesc_base_path}/MPESC-TRANSFORM/Document\"\n",
 					"FOLDER_OUTPUT_PATH = f\"{mpesc_base_path}/MPESC-TRANSFORM/Folder\"\n",
 					"\n",
 					"(\n",
-					"    docs_filtered\n",
+					"    docs_with_mime\n",
 					"    .coalesce(1)\n",
 					"    .write\n",
 					"    .mode(\"overwrite\")\n",
