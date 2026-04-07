@@ -1,6 +1,6 @@
 import logging
 from unittest import mock
-import pytest
+
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
 
