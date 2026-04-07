@@ -9,7 +9,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 import requests
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
-from azure.identity import DefaultAzureCredential  # type: ignore
 
 from .base import (
     BaseStrategy,
@@ -239,6 +238,8 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
                 return token
         except Exception:
             pass
+        # Lazy import to avoid typing_extensions.Sentinel import error in Synapse
+        from azure.identity import DefaultAzureCredential  # type: ignore
         return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
