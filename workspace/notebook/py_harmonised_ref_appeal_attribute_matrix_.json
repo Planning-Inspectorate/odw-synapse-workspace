@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "432ed404-a1ec-4506-8c4a-568da98c5d88"
+				"spark.autotune.trackingId": "a33136f0-7e11-4eb9-916c-c3133e162b05"
 			}
 		},
 		"metadata": {
@@ -183,7 +183,26 @@
 					"else:\n",
 					"   print(f\"Table '{table_name}' already exists. If new schema changes have been added, the table has been updated.\")\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(table_name)\n",
+					"try:\n",
+					"\n",
+					"\t# Resolve storage path of the target table\n",
+					"\tdf_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"\ttable_path = (\n",
+					"\t\tdf_table_path\n",
+					"\t\t.where(\"col_name == 'Location'\")\n",
+					"\t\t.select(\"data_type\")\n",
+					"\t\t.collect()[0][0]\n",
+					"\t)\n",
+					"\n",
+					"\t(df.write \\\n",
+					"\t\t.format(\"delta\") \\\n",
+					"\t\t.mode(\"overwrite\") \\\n",
+					"\t\t.option(\"path\", table_path) \\\n",
+					"\t\t.saveAsTable(table_name))\n",
+					"\n",
+					"except Exception as e:\n",
+					"\terror_message = f\"Error when writing the final data for {table_name}: {str(e)[:800]}\"\n",
+					"\tprint(error_message)\n",
 					"\n",
 					"display(spark.table(table_name).limit(50))"
 				],
