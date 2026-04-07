@@ -13,13 +13,9 @@ def _build_logging_util_instance():
     return inst
 
 
-def test_save_pipeline_logs__success_path_currently_raises_typeerror_because_log_info_is_called_with_two_args():
+def test_save_pipeline_logs__success_path_logs_status_code():
     """
-    Proves the current implementation is broken even when requests.post succeeds
-    Root cause:
-        self.log_info("Telemetry sent:", response.status_code)
-    log_info only accepts one message argument so this raises
-        TypeError: ... takes 2 positional arguments but 3 were given
+    Verifies that when requests.post succeeds, the status code is logged correctly
     """
     logging_util = _build_logging_util_instance()
 
@@ -27,17 +23,18 @@ def test_save_pipeline_logs__success_path_currently_raises_typeerror_because_log
     mock_response.status_code = 200
 
     with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response):
-        with pytest.raises(TypeError, match="positional arguments"):
+        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={"table_name": "sb_service_user", "insert_count": 10},
                 event_name="Master_Pipeline_Logs_v2",
             )
 
+        mock_log_info.assert_called_once_with("Telemetry sent: 200")
 
-def test_save_pipeline_logs__success_path_proves_log_info_is_called_with_two_arguments():
+
+def test_save_pipeline_logs__success_path_calls_requests_post():
     """
-    Proves exactly how the success path is currently calling log_info
-    We patch log_info with a Mock so the call does not fail then assert the incorrect call signature
+    Verifies that requests.post is called correctly when saving pipeline logs
     """
     logging_util = _build_logging_util_instance()
 
@@ -52,17 +49,13 @@ def test_save_pipeline_logs__success_path_proves_log_info_is_called_with_two_arg
             )
 
     mock_post.assert_called_once()
-
-    # This proves the current implementation is passing two arguments to log_info
-    mock_log_info.assert_called_once_with("Telemetry sent:", 200)
+    mock_log_info.assert_called_once_with("Telemetry sent: 200")
 
 
-def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_triggers_serialisation_failure_path():
+def test_save_pipeline_logs__dataframe_payload_triggers_exception_handling():
     """
-    Proves a DF in the payload can be the thing that breaks telemetry submission
-    We simulate what requests/json serialisation would do when a Spark DF is in the payload
-    Then we assert that the except block currently tries to log using the same broken two arg style
-        self.log_info("Failed to send telemetry:", e)
+    Verifies that when a DataFrame causes telemetry submission to fail,
+    the exception is logged correctly as a single formatted string
     """
     logging_util = _build_logging_util_instance()
     spark = PytestSparkSessionUtil().get_spark_session()
@@ -75,14 +68,8 @@ def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_trigger
     )
 
     def fake_post(*args, **kwargs):
-        # Prove the DataFrame really is in the telemetry payload path
-        assert "json" in kwargs
-        request_payload = kwargs["json"]
-
-        properties = request_payload["data"]["baseData"]["properties"]
-        assert "bad_dataframe" in properties
-        assert str(type(properties["bad_dataframe"])).endswith("DataFrame'>")
-
+        # The DataFrame would be sanitised to a string representation
+        # but we simulate an exception being raised
         raise TypeError("Object of type DataFrame is not JSON serializable")
 
     with mock.patch("odw.core.util.logging_util.requests.post", side_effect=fake_post):
@@ -95,21 +82,18 @@ def test_save_pipeline_logs__dataframe_payload_reaches_requests_post_and_trigger
                 event_name="Master_Pipeline_Logs_v2",
             )
 
-    # This proves the failure path is also using the broken two argument call style
     assert mock_log_info.call_count == 1
     call_args = mock_log_info.call_args[0]
+    logged_message = call_args[0]
 
-    assert call_args[0] == "Failed to send telemetry:"
-    assert isinstance(call_args[1], TypeError)
-    assert "DataFrame is not JSON serializable" in str(call_args[1])
+    assert logged_message.startswith("Failed to send telemetry:")
+    assert "DataFrame is not JSON serializable" in logged_message
 
 
-def test_save_pipeline_logs__dataframe_payload_with_real_log_info_raises_typeerror_from_except_block():
+def test_save_pipeline_logs__dataframe_payload_handles_exception_gracefully():
     """
-    Proves that when a DF causes telemetry submission to fail
-    the except block then makes things worse by calling log_info incorrectly
-    So instead of cleanly logging the serialisation problem
-    the method raises TypeError because of the bad log_info call
+    Verifies that when a DataFrame causes telemetry submission to fail,
+    the exception is handled gracefully without raising additional errors
     """
     logging_util = _build_logging_util_instance()
     spark = PytestSparkSessionUtil().get_spark_session()
@@ -120,11 +104,11 @@ def test_save_pipeline_logs__dataframe_payload_with_real_log_info_raises_typeerr
         "odw.core.util.logging_util.requests.post",
         side_effect=TypeError("Object of type DataFrame is not JSON serializable"),
     ):
-        with pytest.raises(TypeError, match="positional arguments"):
-            logging_util.save_pipeline_logs(
-                payload={"bad_dataframe": df},
-                event_name="Master_Pipeline_Logs_v2",
-            )
+        # Should not raise an exception - it should be caught and logged
+        logging_util.save_pipeline_logs(
+            payload={"bad_dataframe": df},
+            event_name="Master_Pipeline_Logs_v2",
+        )
 
 
 def test_save_pipeline_logs__serialisable_payload_is_fine_once_log_info_is_not_the_real_method():
