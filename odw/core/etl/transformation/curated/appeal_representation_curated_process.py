@@ -52,6 +52,59 @@ def load_data(self, **kwargs) -> Dict[str, DataFrame]:
             """
         )
 
+
+
+    def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
+        """
+        Curated step for appeal representation.
+        Currently no extra business rules, just SELECT DISTINCT from the
+        harmonised view and prepare write metadata for the curated table.
+        """
+        start_exec_time = datetime.now()
+
+        source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
+        harmonised_representations: DataFrame = self.load_parameter(
+            "harmonised_representations", source_data
+        )
+        df = harmonised_representations.distinct()
+
+        insert_count = df.count()
+        LoggingUtil().log_info(
+            f"Curated Appeal Representation row count: {insert_count}"
+        )
+
+        end_exec_time = datetime.now()
+
+        data_to_write = {
+            self.OUTPUT_TABLE: {
+                "data": df,
+                "storage_kind": "ADLSG2-Table",
+                "database_name": "odw_curated_db",
+                "table_name": "appeal_representation",
+                "storage_endpoint": Util.get_storage_account(),
+                "container_name": "odw-curated",
+                "blob_path": "appeal_representation",
+                "file_format": "parquet",
+                "write_mode": "overwrite",
+                "write_options": {},
+            }
+        }
+
+        return data_to_write, ETLSuccessResult(
+            metadata=ETLResult.ETLResultMetadata(
+                start_execution_time=start_exec_time,
+                end_execution_time=end_exec_time,
+                table_name=self.OUTPUT_TABLE,
+                insert_count=insert_count,
+                update_count=0,
+                delete_count=0,
+                activity_type=self.__class__.__name__,
+                duration_seconds=(
+                    end_exec_time - start_exec_time
+                ).total_seconds(),
+            )
+        )
+
         return {
             "harmonised_representations": harmonised_representations,
         }
