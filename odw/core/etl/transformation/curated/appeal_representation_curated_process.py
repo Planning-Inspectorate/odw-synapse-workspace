@@ -18,3 +18,40 @@ class AppealRepresentationCuratedProcess(CurationProcess):
     @classmethod
     def get_name(cls) -> str:
         return "appeal-representation-curated"
+
+
+def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        """
+        Load source data for appeal representation from the harmonised layer.
+        No transformations here, only the basic filter IsActive = 'Y'.
+        """
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}"
+        )
+
+        harmonised_representations = self.spark.sql(
+            f"""
+            SELECT
+                representationId,
+                caseId,
+                caseReference,
+                representationStatus,
+                originalRepresentation,
+                redacted,
+                redactedRepresentation,
+                redactedBy,
+                invalidOrIncompleteDetails,
+                otherInvalidOrIncompleteDetails,
+                source,
+                serviceUserId,
+                representationType,
+                dateReceived,
+                documentIds
+            FROM {self.HARMONISED_TABLE}
+            WHERE IsActive = 'Y'
+            """
+        )
+
+        return {
+            "harmonised_representations": harmonised_representations,
+        }
