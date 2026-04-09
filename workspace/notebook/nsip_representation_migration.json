@@ -189,8 +189,26 @@
 					}
 				},
 				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"table_name = 'odw_curated_migration_db.nsip_representation'\n",
+					"\n",
+					"# Get external table path\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"table_path = (\n",
+					"    df_table_path\n",
+					"    .where(\"col_name == 'Location'\")\n",
+					"    .select(\"data_type\")\n",
+					"    .collect()[0][0]\n",
+					")\n",
+					"\n",
 					"data = spark.sql(\"SELECT * FROM vw_nsip_representation\")\n",
-					"data.write.mode(\"overwrite\").saveAsTable(\"odw_curated_migration_db.nsip_representation\")"
+					"\n",
+					"data.write \\\n",
+					"    .format(\"parquet\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"path\", table_path) \\\n",
+					"    .saveAsTable(table_name)"
 				],
 				"execution_count": null
 			}
