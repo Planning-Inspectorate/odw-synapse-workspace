@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3259063e-990d-40d1-9a5c-a391b98d17a0"
+				"spark.autotune.trackingId": "9bc3d9c6-7210-4ed8-b120-a215153288ae"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -139,36 +139,24 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_service_user_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"table_name = \"odw_curated_db.appeal_service_user_curated_mipins\"\n",
+					"\n",
+					"# Get existing external table location\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"\n",
+					"table_path = (\n",
+					"    df_table_path\n",
+					"        .filter(\"col_name = 'Location'\")\n",
+					"        .select(\"data_type\")\n",
+					"        .collect()[0][0]\n",
+					")\n",
+					"\n",
+					"# Read data from view\n",
 					"df = spark.sql(\"\"\"\n",
 					"   SELECT\n",
 					"    id\n",
@@ -203,7 +191,14 @@
 					"    vw_Appeal_Service_User_curated_mipins\n",
 					"    \"\"\")\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user_curated_mipins\")"
+					"# Overwrite Delta data at the existing table location\n",
+					"(\n",
+					"    df.write\n",
+					"        .format(\"delta\")\n",
+					"        .mode(\"overwrite\")\n",
+					"        .option(\"path\", table_path)\n",
+					"        .saveAsTable(table_name)\n",
+					")"
 				],
 				"execution_count": null
 			},
