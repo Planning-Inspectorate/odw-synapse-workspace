@@ -31,9 +31,7 @@ def test__appeal_attribute_matrix_curated_process__run__filters_active_and_match
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -82,9 +80,7 @@ def test__appeal_attribute_matrix_curated_process__run__isactive_branch_takes_pr
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -133,9 +129,7 @@ def test__appeal_attribute_matrix_curated_process__run__selects_latest_per_temp_
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -181,9 +175,7 @@ def test__appeal_attribute_matrix_curated_process__run__passes_through_when_no_i
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -228,9 +220,7 @@ def test__appeal_attribute_matrix_curated_process__run__adds_missing_standardise
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()

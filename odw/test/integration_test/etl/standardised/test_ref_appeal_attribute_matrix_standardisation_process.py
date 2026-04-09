@@ -4,6 +4,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import pyspark.sql.types as T
 
+
 def test__appeal_attribute_matrix_standardisation_process__run__standardises_end_to_end_and_matches_legacy():
     spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -36,9 +37,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__standardises_end
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -54,10 +53,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__standardises_end
     data_to_write = mock_write.call_args[0][0]
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference").collect()
-    ]
+    rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001", "1"),
@@ -99,9 +95,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__handles_missing_
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -117,10 +111,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__handles_missing_
     data_to_write = mock_write.call_args[0][0]
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference").collect()
-    ]
+    rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001"),
@@ -164,9 +155,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__filters_invalid_
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -221,9 +210,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__preserves_duplic
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -239,10 +226,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__preserves_duplic
     data_to_write = mock_write.call_args[0][0]
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference", "attribute").collect()
-    ]
+    rows = [tuple(row) for row in actual_df.orderBy("appealReference", "attribute").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001", "1"),
@@ -282,9 +266,7 @@ def test__appeal_attribute_matrix_standardisation_process__run__handles_multiple
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()

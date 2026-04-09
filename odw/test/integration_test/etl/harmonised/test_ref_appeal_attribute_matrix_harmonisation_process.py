@@ -32,9 +32,7 @@ def test__appeal_attribute_matrix_harmonisation_process__run__end_to_end_matches
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -84,9 +82,7 @@ def test__appeal_attribute_matrix_harmonisation_process__run__handles_missing_op
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -131,9 +127,7 @@ def test__appeal_attribute_matrix_harmonisation_process__run__preserves_existing
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -180,9 +174,7 @@ def test__appeal_attribute_matrix_harmonisation_process__run__preserves_duplicat
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()

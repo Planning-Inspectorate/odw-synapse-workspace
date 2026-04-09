@@ -151,18 +151,13 @@ def test__appeal_attribute_matrix_standardisation_process__process__drops__c_col
         ),
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixStandardisationProcess(spark)
         data_to_write, result = inst.process(source_data={"raw_data": raw_data})
 
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    actual_rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference").collect()
-    ]
+    actual_rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001", "1"),
@@ -194,18 +189,13 @@ def test__appeal_attribute_matrix_standardisation_process__process__does_not_fai
         ),
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixStandardisationProcess(spark)
         data_to_write, result = inst.process(source_data={"raw_data": raw_data})
 
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    actual_rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference").collect()
-    ]
+    actual_rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001"),
@@ -236,18 +226,13 @@ def test__appeal_attribute_matrix_standardisation_process__process__preserves_du
         ),
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixStandardisationProcess(spark)
         data_to_write, result = inst.process(source_data={"raw_data": raw_data})
 
     actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    actual_rows = [
-        tuple(row)
-        for row in actual_df.orderBy("appealReference", "attribute").collect()
-    ]
+    actual_rows = [tuple(row) for row in actual_df.orderBy("appealReference", "attribute").collect()]
 
     expected_rows = [
         ("Housing Need", "APP-001", "1"),
@@ -275,9 +260,7 @@ def test__appeal_attribute_matrix_standardisation_process__process__is_case_sens
         ),
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixStandardisationProcess(spark)
 
         try:

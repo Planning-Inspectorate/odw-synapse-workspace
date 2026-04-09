@@ -19,9 +19,7 @@ def test__appeal_attribute_matrix_curated_process__process__filters_only_active_
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
@@ -53,9 +51,7 @@ def test__appeal_attribute_matrix_curated_process__process__isactive_branch_take
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
@@ -86,9 +82,7 @@ def test__appeal_attribute_matrix_curated_process__process__selects_latest_recor
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
@@ -117,9 +111,7 @@ def test__appeal_attribute_matrix_curated_process__process__passes_through_when_
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
@@ -147,9 +139,7 @@ def test__appeal_attribute_matrix_curated_process__process__adds_missing_standar
         ["attribute", "appealReference"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
@@ -178,9 +168,7 @@ def test__appeal_attribute_matrix_curated_process__process__orders_columns_std_f
         ["attribute", "appealReference"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
@@ -214,9 +202,7 @@ def test__appeal_attribute_matrix_curated_process__process__casts_s78_to_string_
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
@@ -243,9 +229,7 @@ def test__appeal_attribute_matrix_curated_process__process__uses_overwrite_write
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={

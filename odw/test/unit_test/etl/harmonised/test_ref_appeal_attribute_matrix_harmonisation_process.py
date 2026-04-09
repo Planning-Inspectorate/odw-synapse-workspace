@@ -14,9 +14,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_stri
         ["attribute", "appealReference", "s78", "ODTSourceSystem", "IsActive"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
@@ -47,9 +45,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__generates_temp
         .collect()[0]["TEMP_PK"]
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -69,9 +65,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__adds_default_c
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -93,9 +87,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__preserves_exis
         ["attribute", "ODTSourceSystem", "IsActive"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -116,9 +108,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing
         ["attribute", "IngestionDate"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -137,9 +127,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original
         ["attribute", "appealReference"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -165,9 +153,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original
         ["attribute", "appealReference", "IngestionDate"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -193,9 +179,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__casts_s78_to_s
         ["attribute", "s78"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -215,9 +199,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__preserves_dupl
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
@@ -237,9 +219,7 @@ def test__appeal_attribute_matrix_harmonisation_process__process__uses_overwrite
         ["attribute"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
         inst = AppealAttributeMatrixHarmonisationProcess(spark)
         data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
