@@ -2,7 +2,6 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
-import pyspark.sql.types as T
 
 
 def test__appeal_attribute_matrix_curated_process__run__filters_active_and_matches_legacy():

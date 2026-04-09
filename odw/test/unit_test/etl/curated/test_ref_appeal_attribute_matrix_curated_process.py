@@ -1,7 +1,6 @@
 from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
-import pyspark.sql.types as T
 
 
 def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present():
