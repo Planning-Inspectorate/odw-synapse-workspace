@@ -9,6 +9,7 @@ from typing import Dict, Tuple
 
 
 class AppealRepresentationCuratedProcess(CurationProcess):
+
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
 
@@ -19,12 +20,7 @@ class AppealRepresentationCuratedProcess(CurationProcess):
     def get_name(cls) -> str:
         return "appeal-representation-curated"
 
-
-def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        """
-        Load source data for appeal representation from the harmonised layer.
-        No transformations here, only the basic filter IsActive = 'Y'.
-        """
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         LoggingUtil().log_info(
             f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}"
         )
@@ -52,21 +48,19 @@ def load_data(self, **kwargs) -> Dict[str, DataFrame]:
             """
         )
 
-
+        return {
+            "harmonised_representations": harmonised_representations,
+        }
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
-        """
-        Curated step for appeal representation.
-        Currently no extra business rules, just SELECT DISTINCT from the
-        harmonised view and prepare write metadata for the curated table.
-        """
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_representations: DataFrame = self.load_parameter(
             "harmonised_representations", source_data
         )
-        df = harmonised_representations.distinct()
+
+        df = harmonised_representations
 
         insert_count = df.count()
         LoggingUtil().log_info(
@@ -99,12 +93,6 @@ def load_data(self, **kwargs) -> Dict[str, DataFrame]:
                 update_count=0,
                 delete_count=0,
                 activity_type=self.__class__.__name__,
-                duration_seconds=(
-                    end_exec_time - start_exec_time
-                ).total_seconds(),
+                duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )
-
-        return {
-            "harmonised_representations": harmonised_representations,
-        }
