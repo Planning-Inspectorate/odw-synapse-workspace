@@ -118,7 +118,7 @@ class ETLProcess(ABC):
             if data:
                 if isinstance(data, DataFrame):
                     Util.display_dataframe(data)
-                if isinstance(data, dict):
+                elif isinstance(data, dict):
                     print(json.dumps(data, indent=4, default=str))
                 else:
                     LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")

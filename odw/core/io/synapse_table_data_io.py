@@ -111,7 +111,10 @@ class SynapseTableDataIO(SynapseDataIO):
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
         write_options = write_options | {"path": data_path}
+        partition_by = kwargs.get("partition_by", None)
         writer = data.write.format(file_format).mode(write_mode)
         for option_name, option_value in write_options.items():
             writer.option(option_name, option_value)
+        if partition_by:
+            writer = writer.partitionBy(*partition_by) if isinstance(partition_by, list) else writer.partitionBy(partition_by)
         writer.saveAsTable(table_path)

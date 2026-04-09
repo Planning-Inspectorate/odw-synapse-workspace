@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "05466517-bfd4-4c15-91e8-04d65460612a"
+				"spark.autotune.trackingId": "a56d4247-2c88-4279-a123-1650369aae23"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 32,
@@ -315,8 +315,17 @@
 					"    )\n",
 					"\n",
 					"def step_initial_load():\n",
+					"    \n",
+					"    \n",
 					"    logInfo(f\"Initial load row count: {final_df.count()}\")\n",
-					"    final_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(target_table)\n",
+					"\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\n",
+					"    \n",
+					"    table_path = df_table_path.where(\"col_name == 'Location'\").select(\"data_type\").collect()[0][0] \n",
+					"        \n",
+					"\n",
+					"    final_df.write.format(\"delta\").mode(\"overwrite\").option(\"path\", table_path).saveAsTable(target_table)\n",
+					"\n",
 					"if target_exists:\n",
 					"    deltaTable = DeltaTable.forName(spark, target_table)\n",
 					"\n",

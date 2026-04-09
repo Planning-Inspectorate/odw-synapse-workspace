@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Set
+from typing import Dict, Optional, Set
 
 import yaml
 
@@ -11,6 +11,19 @@ class AnonymisationConfig:
     """Configuration loaded from YAML for anonymisation behaviour."""
 
     classification_allowlist: Optional[Set[str]] = None
+    seed_column: Optional[str] = None
+    entity_seed_columns: Optional[Dict[str, str]] = None
+
+    def get_seed_column(self, entity_name: Optional[str] = None) -> Optional[str]:
+        """Return the seed column for the given entity.
+
+        Checks entity_seed_columns first, then falls back to seed_column.
+        """
+        if entity_name and self.entity_seed_columns:
+            entity_col = self.entity_seed_columns.get(entity_name)
+            if entity_col:
+                return entity_col
+        return self.seed_column
 
 
 def load_config(path: Optional[str] = None, text: Optional[str] = None) -> AnonymisationConfig:
@@ -18,6 +31,8 @@ def load_config(path: Optional[str] = None, text: Optional[str] = None) -> Anony
 
     Schema:
     - classification_allowlist: [list of Purview classification names]
+    - seed_column: default column name used as the anonymisation seed
+    - entity_seed_columns: per-entity overrides mapping entity name to seed column
     """
     if not path and not text:
         return AnonymisationConfig()
@@ -29,7 +44,15 @@ def load_config(path: Optional[str] = None, text: Optional[str] = None) -> Anony
     if allowlist is not None:
         allowlist = set(allowlist)
 
-    return AnonymisationConfig(classification_allowlist=allowlist)
+    entity_seed_columns = data.get("entity_seed_columns")
+    if entity_seed_columns is not None:
+        entity_seed_columns = dict(entity_seed_columns)
+
+    return AnonymisationConfig(
+        classification_allowlist=allowlist,
+        seed_column=data.get("seed_column"),
+        entity_seed_columns=entity_seed_columns,
+    )
 
 
 def _load_yaml_file(path: str) -> dict:
