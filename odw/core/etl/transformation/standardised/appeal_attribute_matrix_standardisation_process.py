@@ -22,6 +22,9 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         self.spark = spark
         self.logger = LoggingUtil(self.__class__.__name__)
 
+    def get_name(self) -> str:
+        return "appeal_attribute_matrix_standardisation_process"
+
     def _get_latest_ingestion_date(self, entry_names: list[str]) -> str:
         date_dirs = [entry.strip("/").split("/")[-1] for entry in entry_names if re.fullmatch(r"\d{4}-\d{2}-\d{2}", entry.strip("/").split("/")[-1])]
 

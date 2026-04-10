@@ -12,6 +12,9 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
         self.spark = spark
         self.logger = LoggingUtil(self.__class__.__name__)
 
+    def get_name(self) -> str:
+        return "appeal_attribute_matrix_curated_process"
+
     def load_data(self) -> dict[str, Any]:
         _ = Util.get_storage_account()
         raise NotImplementedError("AppealAttributeMatrixCuratedProcess.load_data() has not been implemented yet.")
