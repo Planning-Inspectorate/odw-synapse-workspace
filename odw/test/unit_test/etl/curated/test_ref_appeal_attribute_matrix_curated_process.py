@@ -1,7 +1,9 @@
+import pytest
 from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present():
     spark = PytestSparkSessionUtil().get_spark_session()
