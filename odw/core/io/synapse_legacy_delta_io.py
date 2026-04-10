@@ -44,18 +44,16 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
         :param str storage_name: The name of the storage account to write to. Expects either storage_name or storage_endpoint but not both
         :param str storage_endpoint: The endpoint of the storage account to write to. Expects either storage_name or storage_endpoint but not both
         :param str container_name: The container to write to
-        :param str blob_path: The path to the blob (in the container) to write
-        :param str merge_keys: A list of primary keys in the data
         """
         spark: SparkSession = kwargs.get("spark", None)
         spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", "true")
         storage_name = kwargs.get("storage_name", None)
         storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
-        blob_path = kwargs.get("blob_path", None)
         database_name = kwargs.get("database_name", None)
         table_name = kwargs.get("table_name", None)
-        merge_keys = kwargs.get("merge_keys", None)
+        write_options = kwargs.get("write_options", dict())
+        partition_cols = kwargs.get("partition_cols", [])
         if not spark:
             raise ValueError("SynapseLegacyDeltaIO.write requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -64,15 +62,19 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
             raise ValueError("SynapseLegacyDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if not container_name:
             raise ValueError("SynapseLegacyDeltaIO.write requires a container_name to be provided, but was missing")
-        if not blob_path:
-            raise ValueError("SynapseLegacyDeltaIO.write requires a blob_path to be provided, but was missing")
         if bool(database_name) ^ bool(table_name):
-            raise ValueError("SynapseTableDataIO.write requires both database_name and table_name to be provided, or neither")
-        if not merge_keys:
-            raise ValueError("SynapseLegacyDeltaIO.write requires a merge_keys to be provided, but was missing")
+            raise ValueError("SynapseLegacyDeltaIO.write requires both database_name and table_name to be provided, or neither")
+        if not isinstance(write_options, dict):
+            raise ValueError(f"SynapseLegacyDeltaIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}")
+        if not isinstance(partition_cols, list):
+            raise ValueError(f"SynapseLegacyDeltaIO.write requires the partition_cols to be a list of strings, but was a {type(partition_cols)}")
         temp_table_name = f"{table_name}_tmp"
         TableUtil().delete_table_contents(spark, database_name, temp_table_name)
         writer = data.write.format("delta").mode("overwrite")
+        for option_name, option_value in write_options.items():
+            writer.option(option_name, option_value)
+        if partition_cols:
+            writer.partitionBy(partition_cols)
         writer.saveAsTable(f"{database_name}.{temp_table_name}")
         TableUtil().delete_table_contents(spark, database_name, table_name)
         spark.sql(f"ALTER TABLE {database_name}.{temp_table_name} RENAME TO {database_name}.{table_name}")
