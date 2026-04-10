@@ -50,6 +50,7 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
         storage_name = kwargs.get("storage_name", None)
         storage_endpoint = kwargs.get("storage_endpoint", None)
         container_name = kwargs.get("container_name", None)
+        blob_path = kwargs.get("blob_path", None)
         database_name = kwargs.get("database_name", None)
         table_name = kwargs.get("table_name", None)
         write_options = kwargs.get("write_options", dict())
@@ -62,12 +63,19 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
             raise ValueError("SynapseLegacyDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
         if not container_name:
             raise ValueError("SynapseLegacyDeltaIO.write requires a container_name to be provided, but was missing")
+        if not blob_path:
+            raise ValueError("SynapseFileDataIO.write requires a blob_path to be provided, but was missing")
         if bool(database_name) ^ bool(table_name):
             raise ValueError("SynapseLegacyDeltaIO.write requires both database_name and table_name to be provided, or neither")
         if not isinstance(write_options, dict):
             raise ValueError(f"SynapseLegacyDeltaIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}")
         if not isinstance(partition_cols, list):
             raise ValueError(f"SynapseLegacyDeltaIO.write requires the partition_cols to be a list of strings, but was a {type(partition_cols)}")
+        if storage_name:
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+        else:
+            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
+        write_options = write_options | {"path": data_path}
         temp_table_name = f"{table_name}_tmp"
         TableUtil().delete_table_contents(spark, database_name, temp_table_name)
         writer = data.write.format("delta").mode("overwrite")
