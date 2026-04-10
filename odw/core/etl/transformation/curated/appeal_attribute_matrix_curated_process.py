@@ -14,11 +14,7 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
 
     def load_data(self) -> dict[str, Any]:
         _ = Util.get_storage_account()
-        raise NotImplementedError(
-            "AppealAttributeMatrixCuratedProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealAttributeMatrixCuratedProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError(
-            "AppealAttributeMatrixCuratedProcess.process() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealAttributeMatrixCuratedProcess.process() has not been implemented yet.")

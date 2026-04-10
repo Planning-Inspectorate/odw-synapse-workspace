@@ -14,11 +14,7 @@ class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
 
     def load_data(self) -> dict[str, Any]:
         _ = Util.get_storage_account()
-        raise NotImplementedError(
-            "AppealAttributeMatrixHarmonisationProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealAttributeMatrixHarmonisationProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError(
-            "AppealAttributeMatrixHarmonisationProcess.process() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealAttributeMatrixHarmonisationProcess.process() has not been implemented yet.")

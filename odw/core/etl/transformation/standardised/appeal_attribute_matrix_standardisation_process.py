@@ -23,11 +23,7 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         self.logger = LoggingUtil(self.__class__.__name__)
 
     def _get_latest_ingestion_date(self, entry_names: list[str]) -> str:
-        date_dirs = [
-            entry.strip("/").split("/")[-1]
-            for entry in entry_names
-            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", entry.strip("/").split("/")[-1])
-        ]
+        date_dirs = [entry.strip("/").split("/")[-1] for entry in entry_names if re.fullmatch(r"\d{4}-\d{2}-\d{2}", entry.strip("/").split("/")[-1])]
 
         if not date_dirs:
             raise FileNotFoundError("No YYYY-MM-DD folders found")
@@ -58,6 +54,4 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         return {"raw_data": raw_data}
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError(
-            "AppealAttributeMatrixStandardisationProcess.process() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealAttributeMatrixStandardisationProcess.process() has not been implemented yet.")
