@@ -200,8 +200,7 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 isMaterialChange
 
             FROM {self.service_bus_table}
-            """
-        )
+            """)
 
     def _load_first_seen_service_bus_record(self):
         return self.spark.sql(
@@ -451,13 +450,13 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
         first_seen_service_bus_data = self._load_first_seen_service_bus_record()
         horizon_data = self._load_horizon_data()
         return {"service_bus_data": service_bus_data, "horizon_data": horizon_data, "first_seen_service_bus_data": first_seen_service_bus_data}
-    
+
     def _parse_col_into_json(self, data: DataFrame, col_name: str, schema: T.DataType):
         """
         Convert a string column into JSON using the provided schema
         """
         return data.withColumn(col_name, F.from_json(F.regexp_replace(F.col("invoices").cast("string"), "'", '"'), schema))
-    
+
     def _clean_json_cols(self, data: DataFrame):
         """
         Convert string columns in the horizon data into JSON
@@ -489,102 +488,48 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 ]
             )
         )
-        return self._parse_col_into_json(
-            self._parse_col_into_json(data, "invoices", invoices_schema),
-            "meetings",
-            meetings_schema
-        )
+        return self._parse_col_into_json(self._parse_col_into_json(data, "invoices", invoices_schema), "meetings", meetings_schema)
 
-    def process(self, **kwargs):
-        start_exec_time = datetime.now()
-        source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
-        first_seen_service_bus_data: DataFrame = self.load_parameter("first_seen_service_bus_data", source_data)
-        horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
-        # Join horizon and service bus data
-        horizon_data = horizon_data.join(
-            service_bus_data,
-            on=(
-                first_seen_service_bus_data["caseId"]
-                == horizon_data["HorizonCaseNumber"] & first_seen_service_bus_data["ingested"]
-                == horizon_data["ingested_datetime"]
-            ),
-            how="left",
-        ).filter(F.col("caseId").isNull())
-
-        # Build Ids
-        horizon_data_grouped = horizon_data.groupBy("caseid", "IngestionDate")
-        grouping_cols = (
-            "nsipOfficerIds",
-            "nsipAdministrationOfficerIds",
-            "inspectorIds",
-            "operationsManagerIds",
-            "legalOfficerIds",
-            "operationsLeadIds",
-            "caseManagerIds",
-            "leadInspectorIds",
-            "environmentalServicesOfficerIds",
-        )
-        grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
-        for col, alias in grouping_cols_map.items():
-            sub_grouping = horizon_data_grouped.agg(F.collect_list(col).alias(alias))
-            horizon_data = horizon_data.drop(col).join(sub_grouping, on=["caseid", "IngestionDate"], how="inner")
-
-        # Sort columns into same order as service bus
-        horizon_data = horizon_data.select(service_bus_data.columns)
-
-        # Clean the columns that contain json strings
-        horizon_data = self._clean_json_cols(horizon_data)
-
-        results = service_bus_data.unionByName(horizon_data, allowMissingColumns=True)
-
-        end_exec_time = datetime.now()
-
-        # After writing logic
+    def _clean_data(self, service_bus_data: DataFrame, combined_data: DataFrame):
+        """
+        Need to work out what this is actually doing
+        """
         # Need to read the original table
         w_reverse_per_case = Window.partitionBy("caseid").orderBy(F.col("IngestionDate").desc())
         w_internal_id = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseid").asc())
 
-        out_df = results.select(
+        out_df = combined_data.select(
             F.row_number().over(w_reverse_per_case).alias("ReverseOrderProcessed"),
             F.row_number().over(w_internal_id).alias("NSIPProjectInfoInternalID"),
             F.col("caseid"),
             F.col("IngestionDate"),
             F.col("ValidTo"),
             F.lit("0").alias("migrated"),
-            F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit("Y"))
-            .otherwise(F.lit("N"))
-            .alias("IsActive"),
+            F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit("Y")).otherwise(F.lit("N")).alias("IsActive"),
         )
 
-        df_calcs = out_df.alias("current").join(
-            out_df.alias("next"),
-            on=(
-                F.col("current.caseid") == F.col("next.caseid") &
-                F.col("current.ReverseOrderProcessed") == F.col("next.ReverseOrderProcessed")
-            ),
-            how="left"
-        ).join(
-            service_bus_data.select(F.col("caseid")).alias("raw"),
-            on=F.col("current.caseid") == F.col("raw.caseid"),
-            how="left"
-        ).select(
-            F.col("current.NSIPProjectInfoInternalID"),
-            F.col("current.caseid").alias("temp_caseid"),
-            F.col("current.IngestionDate").alias("temp_IngestionDate"),
-            F.coalesce(F.col("current.ValidTo"), F.col("next.IngestionDate")).alias("ValidTo"),
-            F.when(
-                F.col("raw.caseid").isNotNull(),
-                F.lit("1")
-            ).otherwise(F.lit("0")).alias("migrated"),
-            F.col("current.IsActive")
+        df_calcs = (
+            out_df.alias("current")
+            .join(
+                out_df.alias("next"),
+                on=(F.col("current.caseid") == F.col("next.caseid") & F.col("current.ReverseOrderProcessed") == F.col("next.ReverseOrderProcessed")),
+                how="left",
+            )
+            .join(service_bus_data.select(F.col("caseid")).alias("raw"), on=F.col("current.caseid") == F.col("raw.caseid"), how="left")
+            .select(
+                F.col("current.NSIPProjectInfoInternalID"),
+                F.col("current.caseid").alias("temp_caseid"),
+                F.col("current.IngestionDate").alias("temp_IngestionDate"),
+                F.coalesce(F.col("current.ValidTo"), F.col("next.IngestionDate")).alias("ValidTo"),
+                F.when(F.col("raw.caseid").isNotNull(), F.lit("1")).otherwise(F.lit("0")).alias("migrated"),
+                F.col("current.IsActive"),
+            )
         )
 
-
-        results = results.select(
+        cleaned_data = combined_data.select(
             [
                 F.col("NSIPProjectInfoInternalID"),
-                F.cast(T.IntegerType, F.col("caseid")).alias("caseid"),
+                F.col("caseid").cast(T.IntegerType).alias("caseid"),
                 F.col("casereference"),
                 F.col("projectname"),
                 F.col("projectNameWelsh"),
@@ -602,10 +547,10 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 F.col("projectLocationWelsh"),
                 F.col("projectEmailAddress"),
                 F.col("Regions"),
-                F.cast(T.BooleanType, F.col("transboundary")).alias("transboundary"),
-                F.cast(T.IntegerType, F.col("easting")).alias("easting"),
-                F.cast(T.IntegerType, F.col("northing")).alias("northing"),
-                F.cast(T.BooleanType, F.col("welshLanguage")).alias("welshLanguage"),
+                F.col("transboundary").cast(T.BooleanType).alias("transboundary"),
+                F.col("easting").cast(T.IntegerType).alias("easting"),
+                F.col("northing").cast(T.IntegerType).alias("northing"),
+                F.col("welshLanguage").cast(T.BooleanType).alias("welshLanguage"),
                 F.col("mapZoomLevel"),
                 F.col("secretaryOfState"),
                 F.col("datePINSFirstNotifiedOfProject"),
@@ -632,7 +577,7 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 F.col("notificationDateForEventsDeveloper"),
                 F.col("dateSection58NoticeReceived"),
                 F.col("confirmedStartOfExamination"),
-                F.cast(T.DateType, F.lit(None)).alias("rule8LetterPublishDate"),
+                F.lit(None).cast(T.DateType).alias("rule8LetterPublishDate"),
                 F.col("deadlineForCloseOfExamination"),
                 F.col("dateTimeExaminationEnds"),
                 F.col("stage4ExtensionToExamCloseDate"),
@@ -832,71 +777,121 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                         F.ifnull(F.cast(T.StringType, F.col("applicantdescriptionofproject")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("HorizonCaseNumber")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("isMaterialChange")), F.lit(".")),
-                        F.ifnull(F.cast(T.StringType, F.col("inceptionMeetingDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("draftDocumentSubmissionDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("programmeDocumentSubmissionDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("estimatedScopingSubmissionDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("consultationMilestoneAdequacyDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("principalAreaDisagreementSummaryStmtSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("policyComplianceDocumentSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("designApproachDocumentSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("caAndTpEvidenceSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("caseTeamIssuedCommentsDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("fastTrackAdmissionDocumentSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("matureOutlineControlDocumentSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("memLastUpdated")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("multipartyApplicationCheckDocumentSubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("programmeDocumentReviewedByEstDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("publicSectorEqualityDutySubmittedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("statutoryConsultationPeriodEndDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("submissionOfDraftDocumentsDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("updatedProgrammeDocumentReceivedDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("courtDecisionDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("decisionChallengeSubmissionDate")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("courtDecisionOutcomeText")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("recommendation")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("additionalComments")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("caAndTpEvidence")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("fastTrackAdmissionDocument")), F.lit(".")), 
+                        F.ifnull(F.cast(T.StringType, F.col("inceptionMeetingDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("draftDocumentSubmissionDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("programmeDocumentSubmissionDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("estimatedScopingSubmissionDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("consultationMilestoneAdequacyDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("principalAreaDisagreementSummaryStmtSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("policyComplianceDocumentSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("designApproachDocumentSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("caAndTpEvidenceSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("caseTeamIssuedCommentsDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("fastTrackAdmissionDocumentSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("matureOutlineControlDocumentSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("memLastUpdated")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("multipartyApplicationCheckDocumentSubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("programmeDocumentReviewedByEstDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("publicSectorEqualityDutySubmittedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("statutoryConsultationPeriodEndDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("submissionOfDraftDocumentsDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("updatedProgrammeDocumentReceivedDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("courtDecisionDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("decisionChallengeSubmissionDate")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("courtDecisionOutcomeText")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("recommendation")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("additionalComments")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("caAndTpEvidence")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("fastTrackAdmissionDocument")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("meetings")), F.lit(".")),
-                        F.ifnull(F.cast(T.StringType, F.col("multipartyApplicationCheckDocument")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("newMaturity")), F.lit(".")), 
+                        F.ifnull(F.cast(T.StringType, F.col("multipartyApplicationCheckDocument")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("newMaturity")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("numberBand2Inspectors")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("numberBand3Inspectors")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("programmeDocumentURI")), F.lit(".")),
-                        F.ifnull(F.cast(T.StringType, F.col("publicSectorEqualityDuty")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("subProjectType")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("tier")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("s61SummaryURI")), F.lit(".")), 
+                        F.ifnull(F.cast(T.StringType, F.col("publicSectorEqualityDuty")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("subProjectType")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("tier")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("s61SummaryURI")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("planProcessEvidence")), F.lit(".")),
-                        F.ifnull(F.cast(T.StringType, F.col("issuesTracker")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("essentialFastTrackComponents")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("principalAreaDisagreementSummaryStmt")), F.lit(".")), 
+                        F.ifnull(F.cast(T.StringType, F.col("issuesTracker")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("essentialFastTrackComponents")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("principalAreaDisagreementSummaryStmt")), F.lit(".")),
                         F.ifnull(F.cast(T.StringType, F.col("policyComplianceDocument")), F.lit(".")),
-                        F.ifnull(F.cast(T.StringType, F.col("designApproachDocument")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("matureOutlineControlDocument")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("invoices")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("operationsLeadIds")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("operationsManagerIds")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("caseManagerIds")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("leadInspectorIds")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("environmentalServicesOfficerIds")), F.lit(".")), 
-                        F.ifnull(F.cast(T.StringType, F.col("legalOfficerIds")), F.lit(".")), 
+                        F.ifnull(F.cast(T.StringType, F.col("designApproachDocument")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("matureOutlineControlDocument")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("invoices")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("operationsLeadIds")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("operationsManagerIds")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("caseManagerIds")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("leadInspectorIds")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("environmentalServicesOfficerIds")), F.lit(".")),
+                        F.ifnull(F.cast(T.StringType, F.col("legalOfficerIds")), F.lit(".")),
                     )
                 ).alias("RowID"),
                 F.col("isMaterialChange"),
-                F.col("IsActive")
+                F.col("IsActive"),
             ]
         )
-        
-        columns = results.columns
-        results = results.drop("NSIPProjectInfoInternalID", "ValidTo", "migrated", "IsActive")
-        final_df = results.join(df_calcs, (df_calcs["temp_caseid"] == results["caseid"]) & (df_calcs["temp_IngestionDate"] == results["IngestionDate"])).select(columns)
-        final_df = final_df.drop_duplicates()
+
+        columns = cleaned_data.columns
+        cleaned_data = cleaned_data.drop("NSIPProjectInfoInternalID", "ValidTo", "migrated", "IsActive")
+        final_df = cleaned_data.join(
+            df_calcs, (df_calcs["temp_caseid"] == cleaned_data["caseid"]) & (df_calcs["temp_IngestionDate"] == cleaned_data["IngestionDate"])
+        ).select(columns)
+        return final_df.drop_duplicates()
+
+    def process(self, **kwargs):
+        start_exec_time = datetime.now()
+        source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
+        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        first_seen_service_bus_data: DataFrame = self.load_parameter("first_seen_service_bus_data", source_data)
+        horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
+        # Join horizon and service bus data
+        horizon_data = horizon_data.join(
+            service_bus_data,
+            on=(
+                first_seen_service_bus_data["caseId"]
+                == horizon_data["HorizonCaseNumber"] & first_seen_service_bus_data["ingested"]
+                == horizon_data["ingested_datetime"]
+            ),
+            how="left",
+        ).filter(F.col("caseId").isNull())
+
+        # Build Ids
+        horizon_data_grouped = horizon_data.groupBy("caseid", "IngestionDate")
+        grouping_cols = (
+            "nsipOfficerIds",
+            "nsipAdministrationOfficerIds",
+            "inspectorIds",
+            "operationsManagerIds",
+            "legalOfficerIds",
+            "operationsLeadIds",
+            "caseManagerIds",
+            "leadInspectorIds",
+            "environmentalServicesOfficerIds",
+        )
+        grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
+        for col, alias in grouping_cols_map.items():
+            sub_grouping = horizon_data_grouped.agg(F.collect_list(col).alias(alias))
+            horizon_data = horizon_data.drop(col).join(sub_grouping, on=["caseid", "IngestionDate"], how="inner")
+
+        # Sort columns into same order as service bus
+        horizon_data = horizon_data.select(service_bus_data.columns)
+
+        # Clean the columns that contain json strings
+        horizon_data = self._clean_json_cols(horizon_data)
+
+        results = service_bus_data.unionByName(horizon_data, allowMissingColumns=True)
+
+        end_exec_time = datetime.now()
+
+        # After writing logic
+        final_df = self._clean_data(service_bus_data, results)
 
         data_to_write = {
             self.harmonised_table: {
-                "data": results,
+                "data": final_df,
                 "storage_kind": "ADLSG2-LegacyDelta",
                 "database_name": "odw_harmonised_db",
                 "table_name": self.entity,
@@ -904,9 +899,7 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 "container_name": "odw-harmonised",
                 "blob_path": "nsip_project",
                 "partition_cols": ["IsActive"],
-                "write_options": {
-                    "overwriteSchema": "true"
-                }
+                "write_options": {"overwriteSchema": "true"},
             }
         }
         return data_to_write, ETLSuccessResult(
