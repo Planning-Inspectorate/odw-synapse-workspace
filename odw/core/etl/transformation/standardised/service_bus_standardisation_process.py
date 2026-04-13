@@ -4,6 +4,8 @@ from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
+from odw.core.anonymisation.engine import AnonymisationEngine
+from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
 import pyspark.sql.functions as F
@@ -149,15 +151,37 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         table_path: str = f"{database_name}.{table_name}"
 
         table_df = source_data.pop(table_path, None)
-        if not table_df:
+        if table_df is None:
             raise ValueError("ServiceBusStandardisationProcess.process requires a source_data dataframe to be provided, but was missing")
 
         new_raw_messages = source_data.pop("raw_messages", None)
-        if not new_raw_messages:
-            # todo check
-            raise ValueError()
+        if new_raw_messages is None:
+            raise ValueError("ServiceBusStandardisationProcess.process requires new_raw_messages dataframe to be provided, but was missing")
         table_row_count = table_df.count()
         new_raw_messages = self.remove_data_duplicates(new_raw_messages)
+
+        # Apply anonymisation only in DEV/TEST environments
+        if Util.is_non_production_environment():
+            try:
+                anon_config = AnonymisationConfig()
+                try:
+                    policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
+                    policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+                    anon_config = load_config(text=policy_text)
+                except Exception as config_err:
+                    LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
+                engine = AnonymisationEngine(
+                    config=AnonymisationConfig(
+                        classification_allowlist=anon_config.classification_allowlist,
+                        seed_column=anon_config.get_seed_column(entity_name),
+                    )
+                )
+                LoggingUtil().log_info(f"Applying anonymisation to Service Bus entity: {entity_name}")
+                new_raw_messages = engine.apply_from_purview(new_raw_messages, entity_name=entity_name, source_folder="ServiceBus")
+            except Exception as e:
+                LoggingUtil().log_error(f"Anonymisation failed for {entity_name}: {str(e)}")
+                raise
+
         insert_count = new_raw_messages.count()
         LoggingUtil().log_info(f"Rows to append: {insert_count}")
         expected_new_count = table_row_count + insert_count

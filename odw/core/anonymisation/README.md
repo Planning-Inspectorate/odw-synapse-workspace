@@ -39,8 +39,9 @@ Core modules:
     - `run_id` can be supplied or read from `ODW_RUN_ID` for correlation
 
 - config.py
-  - Dataclass: `AnonymisationConfig(classification_allowlist: Optional[Set[str]])`
-  - Loader: `load_config(path=None, text=None) -> AnonymisationConfig` (YAML keys: `classification_allowlist`)
+  - Dataclass: `AnonymisationConfig(classification_allowlist: Optional[Set[str]], seed_column: Optional[str], entity_seed_columns: Optional[Dict[str, str]])`
+  - Method: `get_seed_column(entity_name=None) -> Optional[str]` — returns an entity-specific seed column when configured, otherwise the default seed column
+  - Loader: `load_config(path=None, text=None) -> AnonymisationConfig` (YAML keys: `classification_allowlist`, `seed_column`, `entity_seed_columns`)
 
 ## Core concepts
 
@@ -56,8 +57,8 @@ Default strategies and their behaviour:
 
 - NI number (`NINumberStrategy`)
   - Triggers: `{"NI Number"}`
-  - Transform: generate a random NI number in the format `AA000000A` (two letters, six digits, final letter A–D)
-  - Determinism: non-deterministic per row and per run (uses Python RNG)
+  - Transform: generate a deterministic fake NI number in the format `AA000000A` (two letters, six digits, final letter A–D)
+  - Determinism: deterministic per row when a seed column is present (uses salted hashes of the seed for each component)
 
 - Email (`EmailMaskStrategy`)
   - Triggers: `{"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}`
@@ -67,7 +68,7 @@ Default strategies and their behaviour:
   - Determinism: deterministic given the input value
 
 - Name (`NameMaskStrategy`)
-  - Triggers: `{"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name"}`
+  - Triggers: `{"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name", "All Full Names"}`
   - Transform: if the value looks like a full name (contains whitespace), keep:
     - first letter of the first name and last letter of the last name; mask the rest
     - otherwise (single token), keep only first letter and mask the rest
@@ -91,9 +92,11 @@ Default strategies and their behaviour:
 
 ### Seed column and determinism
 Some strategies derive pseudo-random values by hashing a “seed column” so the result is stable for a given person/row.
-
-- Seed column candidates (first present is used): `"Staff Number"`, `"PersNo"`, `"PersNo."`, `"Personnel Number"`, `"Employee ID"`, `"EmployeeID"`
-- Fallback: if none are present, a constant seed is used, which makes seeded outputs constant across the entire DataFrame
+- Explicit seed column: can be configured via `AnonymisationConfig.seed_column`
+- Entity-specific override: `AnonymisationConfig.entity_seed_columns` can map an entity name to a different seed column
+- Fallback seed column candidates (first present is used): `"Staff Number"`, `"PersNo"`, `"PersNo."`, `"Personnel Number"`, `"Employee ID"`, `"EmployeeID"`
+- Final fallback: if no configured or known seed column is found, a deterministic full-row hash is computed from all columns; this is stable for a row but not idempotent across schema changes
+- Note: NI numbers are deterministic and derived from the seed column
 - Note: NI numbers are deliberately non-deterministic (generated fresh) and do not use the seed
 
 ### Column name normalisation
@@ -103,9 +106,11 @@ To align classification results with DataFrame columns despite naming difference
 - fixing common typos (e.g. `adress` → `address`)
 
 ### Configuration (`AnonymisationConfig`)
-Optional configuration can restrict which classifications are eligible for anonymisation:
+Optional configuration can restrict which classifications are eligible for anonymisation and control seed column selection:
 
 - `classification_allowlist`: set of classification type names to allow; others are ignored
+- `seed_column`: default column name used as the anonymisation seed
+- `entity_seed_columns`: per-entity overrides mapping entity name to seed column
 - Load from YAML via `load_config(path=..., text=...)`
 
 Example YAML:
@@ -114,6 +119,10 @@ classification_allowlist:
   - MICROSOFT.PERSONAL.NAME
   - MICROSOFT.PERSONAL.EMAIL
   - NI Number
+seed_column: EmployeeID
+entity_seed_columns:
+  employees: Staff Number
+  contractors: PersNo
 ```
 
 ## Engine behaviour
@@ -237,8 +246,8 @@ out = engine.apply(df, cols, classification_allowlist=None)  # engine will use c
 
 ## Assumptions and limitations
 - Operates on PySpark DataFrames; UDFs require Spark
-- If no seed column is found, seeded transforms will be constant across the DataFrame
-- NI number anonymisation is intentionally non-deterministic
+- If no seed column is found, the engine falls back to a full-row hash; results can change if the schema changes
+- Seeded transforms, including NI number anonymisation, are deterministic for a given seed
 - Column-to-classification matching relies on normalised names; if a column cannot be matched, it is ignored
 
 ## Tests

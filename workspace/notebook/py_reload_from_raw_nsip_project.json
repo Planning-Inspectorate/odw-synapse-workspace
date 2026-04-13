@@ -1,13 +1,10 @@
 {
 	"name": "py_reload_from_raw_nsip_project",
 	"properties": {
-		"folder": {
-			"name": ""
-		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cab88caf-aabc-47e7-b0ce-aecf0622e271"
+				"spark.autotune.trackingId": "fb037ebe-0c4e-4014-9a7a-50ef9a85bec1"
 			}
 		},
 		"metadata": {
@@ -34,15 +31,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 32,
@@ -53,11 +50,15 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"outputs_hidden": true
+					}
+				},
 				"source": [
+					"import pyspark.sql.functions as F\r\n",
 					"from pyspark.sql import DataFrame\r\n",
-					"from pyspark.sql.functions import *\r\n",
 					"import pprint\r\n",
-					"from pyspark.sql.functions import col, lit\r\n",
 					"from pyspark.sql.types import LongType"
 				],
 				"execution_count": null
@@ -263,7 +264,7 @@
 					"\r\n",
 					"    # drop corrupt records loaded with bad files and any columns not present in the data model\r\n",
 					"    if '_corrupt_record' in df.columns:\r\n",
-					"        valid_df: DataFrame =  df.filter(col(\"_corrupt_record\").isNull()).drop(*in_current_not_in_existing)\r\n",
+					"        valid_df: DataFrame =  df.filter(F.col(\"_corrupt_record\").isNull()).drop(*in_current_not_in_existing)\r\n",
 					"    else:\r\n",
 					"        valid_df: DataFrame =  df.drop(*in_current_not_in_existing)\r\n",
 					"    \r\n",
@@ -466,9 +467,9 @@
 					"collapsed": false
 				},
 				"source": [
-					"joined_df: DataFrame = joined_df.withColumn(\"expected_from\", current_timestamp())\r\n",
-					"joined_df: DataFrame = joined_df.withColumn(\"expected_to\", expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
-					"joined_df: DataFrame = joined_df.withColumn(\"ingested_datetime\", to_timestamp(col(\"historical.message_enqueued_time_utc\")))"
+					"joined_df: DataFrame = joined_df.withColumn(\"expected_from\", F.current_timestamp())\r\n",
+					"joined_df: DataFrame = joined_df.withColumn(\"expected_to\", F.expr(\"current_timestamp() + INTERVAL 1 DAY\"))\r\n",
+					"joined_df: DataFrame = joined_df.withColumn(\"ingested_datetime\", F.to_timestamp(F.col(\"historical.message_enqueued_time_utc\")))"
 				],
 				"execution_count": null
 			},
@@ -544,7 +545,7 @@
 				"source": [
 					"def cast_columns(df: DataFrame, schema: StructType) -> DataFrame:\r\n",
 					"    for field in schema.fields:\r\n",
-					"        df = df.withColumn(field.name, col(field.name).cast(field.dataType))\r\n",
+					"        df = df.withColumn(field.name, F.col(field.name).cast(field.dataType))\r\n",
 					"    return df"
 				],
 				"execution_count": null
@@ -564,7 +565,7 @@
 				},
 				"source": [
 					"final_df = cast_columns(joined_df, table_schema)\r\n",
-					"final_df = final_df.withColumn(\"input_file_reversed\", reverse(final_df['input_file']))"
+					"final_df = final_df.withColumn(\"input_file_reversed\", F.reverse(final_df['input_file']))"
 				],
 				"execution_count": null
 			},

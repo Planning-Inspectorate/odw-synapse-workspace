@@ -1,6 +1,6 @@
 from notebookutils import mssparkutils
 from notebookutils import visualization
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 import re
 
 
@@ -8,6 +8,45 @@ class Util:
     """
     Class that defines utility functions
     """
+
+    @classmethod
+    def get_environment(cls) -> str:
+        """
+        Return the current environment (DEV, TEST, or PROD).
+
+        Resolution order:
+        1. Spark configuration 'spark.executorEnv.environment' (set by the attached SparkConfiguration artifact).
+        2. Synapse workspace name — looks for 'dev', 'test', 'preprod' or 'prod' as a substring.
+        3. Defaults to PROD as a fail-safe.
+        """
+        try:
+            spark = SparkSession.builder.getOrCreate()
+            env = spark.sparkContext.getConf().get("spark.executorEnv.environment", "")
+            if env:
+                return env.upper()
+        except Exception:
+            pass
+        # Fallback: infer from the Synapse workspace name
+        try:
+            workspace_name = mssparkutils.env.getWorkspaceName().lower()
+            if "dev" in workspace_name:
+                return "DEV"
+            if "preprod" in workspace_name:
+                return "PREPROD"
+            if "test" in workspace_name:
+                return "TEST"
+            if "prod" in workspace_name:
+                return "PROD"
+        except Exception:
+            pass
+        return "PROD"  # Fail-safe default
+
+    @classmethod
+    def is_non_production_environment(cls) -> bool:
+        """
+        Return True if the current environment is DEV only.
+        """
+        return cls.get_environment() == "DEV"
 
     @classmethod
     def get_storage_account(cls) -> str:

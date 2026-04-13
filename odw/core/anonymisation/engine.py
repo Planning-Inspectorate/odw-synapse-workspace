@@ -93,30 +93,82 @@ def _norm_col_name(s: Optional[str]) -> str:
     return cleaned
 
 
-def _resolve_client_secret() -> str:
-    """Resolve client secret via KeyVault when available, else fall back to Azure Identity sentinel.
+# Default Key Vault secret names used to retrieve Purview service-principal credentials.
+# Override via environment variables if a different secret name is used.
+_DEFAULT_PURVIEW_CLIENT_ID_SECRET = "synapse-graph-client-id"
+_DEFAULT_PURVIEW_CLIENT_SECRET_SECRET = "synapse-graph-client-secret"
 
-    - If env ODW_CLIENT_SECRET is set, use it.
-    - Else try (KeyVaultName, SecretName) from Spark conf 'keyVaultName' and env ODW_PURVIEW_SECRET_NAME.
-    - Else return 'AZURE_IDENTITY' to trigger DefaultAzureCredential.
+
+def _kv_secret_via_linked_service(secret_name: str) -> Optional[str]:
+    """Retrieve a secret from Key Vault via the 'ls_kv' Synapse linked service.
+
+    Returns the secret string, or None if unavailable.
+    Works in Synapse without IMDS or direct vault network access.
+    """
+    try:
+        from notebookutils import mssparkutils  # type: ignore
+
+        val = mssparkutils.credentials.getSecretWithLS("ls_kv", secret_name)
+        if isinstance(val, str) and val:
+            return val
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_client_id() -> str:
+    """Resolve the Purview service-principal client ID.
+
+    Resolution order:
+    1. ODW_CLIENT_ID environment variable.
+    2. Key Vault via the 'ls_kv' Synapse linked service (secret ODW_CLIENT_ID_SECRET_NAME,
+       defaulting to 'synapse-graph-client-id').
+    3. Hardcoded DEFAULT_CLIENT_ID constant.
+    """
+    val = os.getenv("ODW_CLIENT_ID")
+    if val:
+        return val
+    secret_name = os.getenv("ODW_CLIENT_ID_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_ID_SECRET)
+    kv_val = _kv_secret_via_linked_service(secret_name)
+    if kv_val:
+        return kv_val
+    return DEFAULT_CLIENT_ID
+
+
+def _resolve_client_secret() -> str:
+    """Resolve the Purview service-principal client secret.
+
+    Resolution order:
+    1. ODW_CLIENT_SECRET environment variable.
+    2. Key Vault via the 'ls_kv' Synapse linked service (secret ODW_PURVIEW_SECRET_NAME,
+       defaulting to 'synapse-graph-client-secret').
+    3. Key Vault via direct vault name from Spark conf / ODW_KEYVAULT_NAME env var.
+    4. Return 'AZURE_IDENTITY' sentinel to trigger mssparkutils.getToken /
+       DefaultAzureCredential as a last resort.
     """
     val = os.getenv("ODW_CLIENT_SECRET")
     if val:
         return val
+    secret_name = os.getenv("ODW_PURVIEW_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET)
+    # Primary: linked service (does not require IMDS or direct vault network access)
+    kv_val = _kv_secret_via_linked_service(secret_name)
+    if kv_val:
+        return kv_val
+    # Fallback: direct vault access via vault name from Spark conf or env
     try:
         from notebookutils import mssparkutils  # type: ignore
 
         try:
-            # Try Spark conf first
             from pyspark.sql import SparkSession  # type: ignore
 
-            sc = SparkSession.builder.getOrCreate().sparkContext
-            vault_name = sc.getConf("keyVaultName", None)
+            vault_name = SparkSession.builder.getOrCreate().sparkContext.getConf().get("spark.executorEnv.keyVaultName", None)
         except Exception:
-            vault_name = os.getenv("ODW_KEYVAULT_NAME")
-        secret_name = os.getenv("ODW_PURVIEW_SECRET_NAME")
-        if vault_name and secret_name:
-            return mssparkutils.credentials.getSecret(vault_name, secret_name)
+            vault_name = None
+        vault_name = vault_name or os.getenv("ODW_KEYVAULT_NAME")
+        if vault_name:
+            direct_val = mssparkutils.credentials.getSecret(vault_name, secret_name)
+            if isinstance(direct_val, str) and direct_val:
+                return direct_val
     except Exception:
         pass
     return "AZURE_IDENTITY"
@@ -137,11 +189,11 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
         # Example:
         # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
-        #   <entity>_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}:{N}.json
+        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}.json
         return (
             f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
             f"{{Year}}-{{Month}}-{{Day}}/"
-            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}:{{N}}.json"
+            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}.json"
         )
     if source_folder == "Horizon":
         if not file_name:
@@ -172,9 +224,21 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
     """Acquire an access token for Purview.
 
     Prefers client-credential flow when client_secret is provided. If client_secret is blank
-    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}, use DefaultAzureCredential.
+    or equals one of {AZURE_IDENTITY, USE_AZURE_IDENTITY, DEFAULT}:
+    1. Try mssparkutils.credentials.getToken (Synapse workspace identity — works on Spark pools).
+    2. Fall back to DefaultAzureCredential (works locally with az login or env vars).
     """
     if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
+        try:
+            from notebookutils import mssparkutils  # type: ignore
+
+            token = mssparkutils.credentials.getToken("https://purview.azure.net/.default")
+            # Validate the token is a real JWT string (all JWTs start with 'eyJ').
+            # Guarded against test environments where notebookutils is a Mock.
+            if isinstance(token, str) and token.startswith("eyJ"):
+                return token
+        except Exception:
+            pass
         return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
@@ -377,7 +441,7 @@ class AnonymisationEngine:
         """
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         out = df
-        seed = BaseStrategy.seed_col(df)
+        seed = BaseStrategy.seed_col(df, self.config.seed_column)
         # Case-insensitive + trimmed mapping from normalised name -> actual df column
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
 
@@ -577,12 +641,13 @@ class AnonymisationEngine:
             file_name=file_name,
         )
         client_secret = _resolve_client_secret()
+        client_id = _resolve_client_id()
 
         return self._apply_from_purview_explicit(
             df,
             purview_name=DEFAULT_PURVIEW_NAME,
             tenant_id=DEFAULT_TENANT_ID,
-            client_id=DEFAULT_CLIENT_ID,
+            client_id=client_id,
             client_secret=client_secret,
             asset_type_name="azure_datalake_gen2_resource_set",
             asset_qualified_name=asset_qualified_name,
