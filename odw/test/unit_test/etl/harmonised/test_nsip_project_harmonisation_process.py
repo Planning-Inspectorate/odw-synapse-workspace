@@ -504,34 +504,6 @@ def _default_first_seen_rows(service_bus_rows):
     return [(case_id, ingested) for case_id, ingested in grouped.items()]
 
 
-def _run_process(service_bus_rows, horizon_rows, first_seen_rows=None):
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
-    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
-
-    if first_seen_rows is None:
-        first_seen_rows = _default_first_seen_rows(service_bus_rows)
-
-    first_seen_service_bus_data = spark.createDataFrame(
-        first_seen_rows,
-        ["caseId", "ingested"],
-    )
-
-    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-        inst = NsipProjectHarmonisationProcess(spark)
-        data_to_write, result = inst.process(
-            source_data={
-                "service_bus_data": service_bus_data,
-                "horizon_data": horizon_data,
-                "first_seen_service_bus_data": first_seen_service_bus_data,
-            }
-        )
-
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    return spark, inst, df, data_to_write, result
-
-
 def test__nsip_project_harmonisation_process__get_name__returns_expected_name():
     spark = PytestSparkSessionUtil().get_spark_session()
     inst = NsipProjectHarmonisationProcess(spark)
@@ -540,28 +512,46 @@ def test__nsip_project_harmonisation_process__get_name__returns_expected_name():
 
 
 def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_cases_and_keeps_non_migrated_history():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, caseReference="EN010001", IngestionDate="2025-01-10 09:00:00"),
-        ],
-        horizon_rows=[
-            _horizon_row(
-                caseNodeId=1001,
-                HorizonCaseNumber="1001",
-                casereference="EN010001",
-                projectname="Migrated Horizon Copy",
-                ingested_datetime="2025-02-01 10:00:00",
-            ),
-            _horizon_row(
-                caseNodeId=3003,
-                HorizonCaseNumber="3003",
-                casereference="EN030003",
-                projectname="Kept Horizon Record",
-                ingested_datetime="2025-03-01 10:00:00",
-            ),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, caseReference="EN010001", IngestionDate="2025-01-10 09:00:00"),
+    ]
+    horizon_rows = [
+        _horizon_row(
+            caseNodeId=1001,
+            HorizonCaseNumber="1001",
+            casereference="EN010001",
+            projectname="Migrated Horizon Copy",
+            ingested_datetime="2025-02-01 10:00:00",
+        ),
+        _horizon_row(
+            caseNodeId=3003,
+            HorizonCaseNumber="3003",
+            casereference="EN030003",
+            projectname="Kept Horizon Record",
+            ingested_datetime="2025-03-01 10:00:00",
+        ),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     output_case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
 
     assert 1001 in output_case_ids
@@ -572,28 +562,44 @@ def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_
 
 
 def test__nsip_project_harmonisation_process__process__filters_horizon_rows_using_first_seen_service_bus_data():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
-        ],
-        horizon_rows=[
-            _horizon_row(
-                caseNodeId=1001,
-                HorizonCaseNumber="1001",
-                projectname="Should Be Filtered",
-                ingested_datetime="2025-02-01 10:00:00",
-            ),
-            _horizon_row(
-                caseNodeId=3003,
-                HorizonCaseNumber="3003",
-                projectname="Should Remain",
-                ingested_datetime="2025-03-01 10:00:00",
-            ),
-        ],
-        first_seen_rows=[
-            (1001, "2025-01-10 09:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
+    ]
+    horizon_rows = [
+        _horizon_row(
+            caseNodeId=1001,
+            HorizonCaseNumber="1001",
+            projectname="Should Be Filtered",
+            ingested_datetime="2025-02-01 10:00:00",
+        ),
+        _horizon_row(
+            caseNodeId=3003,
+            HorizonCaseNumber="3003",
+            projectname="Should Remain",
+            ingested_datetime="2025-03-01 10:00:00",
+        ),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        [(1001, "2025-01-10 09:00:00")],
+        ["caseId", "ingested"],
     )
+
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
     filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
     kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
@@ -603,19 +609,37 @@ def test__nsip_project_harmonisation_process__process__filters_horizon_rows_usin
 
 
 def test__nsip_project_harmonisation_process__process__normalises_horizon_publish_status_and_zoom_level():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[
-            _horizon_row(
-                caseNodeId=3003,
-                Region="wales",
-                projectstatus="Not Published",
-                mapZoomLevel="HIGH",
-                ingested_datetime="2025-03-01 10:00:00",
-            ),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [
+        _horizon_row(
+            caseNodeId=3003,
+            Region="wales",
+            projectstatus="Not Published",
+            mapZoomLevel="HIGH",
+            ingested_datetime="2025-03-01 10:00:00",
+        ),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("publishStatus", "mapZoomLevel").collect()[0]
 
     assert row["publishStatus"] == "unpublished"
@@ -623,28 +647,64 @@ def test__nsip_project_harmonisation_process__process__normalises_horizon_publis
 
 
 def test__nsip_project_harmonisation_process__process__aggregates_regions_using_collect_list():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003, Region="wales", ingested_datetime="2025-03-01 10:00:00"),
-            _horizon_row(caseNodeId=3003, Region="north west", ingested_datetime="2025-03-01 10:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [
+        _horizon_row(caseNodeId=3003, Region="wales", ingested_datetime="2025-03-01 10:00:00"),
+        _horizon_row(caseNodeId=3003, Region="north west", ingested_datetime="2025-03-01 10:00:00"),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("regions").collect()[0]
 
     assert sorted(row["regions"]) == ["north west", "wales"]
 
 
 def test__nsip_project_harmonisation_process__process__aggregates_horizon_array_like_id_fields():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003, Region="wales", ingested_datetime="2025-03-01 10:00:00"),
-            _horizon_row(caseNodeId=3003, Region="north west", ingested_datetime="2025-03-01 10:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [
+        _horizon_row(caseNodeId=3003, Region="wales", ingested_datetime="2025-03-01 10:00:00"),
+        _horizon_row(caseNodeId=3003, Region="north west", ingested_datetime="2025-03-01 10:00:00"),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = (
         df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
         .select(
@@ -673,13 +733,29 @@ def test__nsip_project_harmonisation_process__process__aggregates_horizon_array_
 
 
 def test__nsip_project_harmonisation_process__process__parses_invoices_and_meetings_json_from_horizon():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("invoices", "meetings").collect()[0]
 
     assert row["invoices"] is not None
@@ -694,11 +770,29 @@ def test__nsip_project_harmonisation_process__process__parses_invoices_and_meeti
 
 
 def test__nsip_project_harmonisation_process__process__sets_horizon_source_system_and_odt_source_system_to_horizon():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.where(F.col("caseId") == 3003).select("sourceSystem", "ODTSourceSystem").collect()[0]
 
     assert row["sourceSystem"] == "Horizon"
@@ -706,19 +800,37 @@ def test__nsip_project_harmonisation_process__process__sets_horizon_source_syste
 
 
 def test__nsip_project_harmonisation_process__process__preserves_service_bus_metadata_fields():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(
-                caseId=1001,
-                sourceSystem="ODT",
-                ODTSourceSystem="LegacyODT",
-                SourceSystemID="SRC-123",
-                IngestionDate="2025-01-10 09:00:00",
-            )
-        ],
-        horizon_rows=[_horizon_row(caseNodeId=3003)],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(
+            caseId=1001,
+            sourceSystem="ODT",
+            ODTSourceSystem="LegacyODT",
+            SourceSystemID="SRC-123",
+            IngestionDate="2025-01-10 09:00:00",
+        )
+    ]
+    horizon_rows = [_horizon_row(caseNodeId=3003)]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = (
         df.where(F.col("caseId") == 1001)
         .select("sourceSystem", "ODTSourceSystem", "SourceSystemID", "IngestionDate")
@@ -733,11 +845,29 @@ def test__nsip_project_harmonisation_process__process__preserves_service_bus_met
 
 
 def test__nsip_project_harmonisation_process__process__populates_horizon_default_null_columns_like_legacy():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = (
         df.where(F.col("caseId") == 3003)
         .select(
@@ -766,11 +896,29 @@ def test__nsip_project_harmonisation_process__process__populates_horizon_default
 
 
 def test__nsip_project_harmonisation_process__process__preserves_horizon_only_fields_after_column_alignment():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = (
         df.where(F.col("caseId") == 3003)
         .select(
@@ -813,11 +961,29 @@ def test__nsip_project_harmonisation_process__process__preserves_horizon_only_fi
 
 
 def test__nsip_project_harmonisation_process__process__keeps_service_bus_and_horizon_rows_via_union_by_name():
-    _, _, df, _, result = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[_horizon_row(caseNodeId=3003)],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = [_horizon_row(caseNodeId=3003)]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, result = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
 
     assert case_ids == {1001, 3003}
@@ -825,14 +991,32 @@ def test__nsip_project_harmonisation_process__process__keeps_service_bus_and_hor
 
 
 def test__nsip_project_harmonisation_process__process__drops_duplicate_rows_in_final_output():
-    _, _, df, _, result = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, projectName="Same", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="Same", IngestionDate="2025-01-10 09:00:00"),
-        ],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, projectName="Same", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="Same", IngestionDate="2025-01-10 09:00:00"),
+    ]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, result = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     case_rows = df.where(F.col("caseId") == 1001).collect()
 
     assert len(case_rows) == 1
@@ -840,38 +1024,90 @@ def test__nsip_project_harmonisation_process__process__drops_duplicate_rows_in_f
 
 
 def test__nsip_project_harmonisation_process__process__uses_overwrite_write_mode():
-    _, inst, _, data_to_write, result = _run_process(
-        service_bus_rows=[_service_bus_row(caseId=1001)],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [_service_bus_row(caseId=1001)]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
+
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, result = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
 
     assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
     assert result.metadata.insert_count == 1
 
 
 def test__nsip_project_harmonisation_process__process__sets_insert_count_to_final_output_row_count():
-    _, _, df, _, result = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001),
-            _service_bus_row(caseId=2002, caseReference="EN020002"),
-        ],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001),
+        _service_bus_row(caseId=2002, caseReference="EN020002"),
+    ]
+    horizon_rows = [_horizon_row(caseNodeId=3003)]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
+
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, result = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
     assert result.metadata.insert_count == df.count()
 
 
 def test__nsip_project_harmonisation_process__process__rowid_changes_when_hashed_business_fields_change():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, projectName="Version A", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="Version B", IngestionDate="2025-02-10 09:00:00"),
-        ],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, projectName="Version A", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="Version B", IngestionDate="2025-02-10 09:00:00"),
+    ]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     rows = df.where(F.col("caseId") == 1001).select("projectName", "RowID").orderBy("projectName").collect()
 
     assert rows[0]["RowID"]
@@ -880,15 +1116,33 @@ def test__nsip_project_harmonisation_process__process__rowid_changes_when_hashed
 
 
 def test__nsip_project_harmonisation_process__process__sets_migrated_to_1_only_for_caseids_present_in_service_bus():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
-        ],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003, HorizonCaseNumber="3003", ingested_datetime="2025-03-01 10:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
+    ]
+    horizon_rows = [
+        _horizon_row(caseNodeId=3003, HorizonCaseNumber="3003", ingested_datetime="2025-03-01 10:00:00"),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     sb_row = df.where(F.col("caseId") == 1001).select("migrated").collect()[0]
     horizon_row = df.where(F.col("caseId") == 3003).select("migrated").collect()[0]
 
@@ -897,17 +1151,34 @@ def test__nsip_project_harmonisation_process__process__sets_migrated_to_1_only_f
 
 
 def test__nsip_project_harmonisation_process__process__derives_valid_to_from_next_ingestion_date_per_case_only():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, projectName="V1", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="V2", IngestionDate="2025-02-10 09:00:00"),
-            _service_bus_row(caseId=2002, projectName="Other Case", IngestionDate="2025-01-15 09:00:00"),
-        ],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, projectName="V1", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="V2", IngestionDate="2025-02-10 09:00:00"),
+        _service_bus_row(caseId=2002, projectName="Other Case", IngestionDate="2025-01-15 09:00:00"),
+    ]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
-    case_1001_rows = df.where(F.col("caseId") == 1001).select("projectName", "IngestionDate", "ValidTo").orderBy("IngestionDate").collect()
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
 
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
+    case_1001_rows = df.where(F.col("caseId") == 1001).select("projectName", "IngestionDate", "ValidTo").orderBy("IngestionDate").collect()
     case_2002_row = df.where(F.col("caseId") == 2002).select("ValidTo").collect()[0]
 
     assert case_1001_rows[0]["ValidTo"] == case_1001_rows[1]["IngestionDate"]
@@ -916,15 +1187,33 @@ def test__nsip_project_harmonisation_process__process__derives_valid_to_from_nex
 
 
 def test__nsip_project_harmonisation_process__process__assigns_internal_ids_globally_by_ingestiondate_then_caseid():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=2002, projectName="Later CaseId", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="Earlier CaseId", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=3003, projectName="Latest", IngestionDate="2025-02-10 09:00:00"),
-        ],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=2002, projectName="Later CaseId", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="Earlier CaseId", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=3003, projectName="Latest", IngestionDate="2025-02-10 09:00:00"),
+    ]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     rows = df.select("caseId", "IngestionDate", "NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()
 
     assert rows[0]["caseId"] == 1001
@@ -933,14 +1222,32 @@ def test__nsip_project_harmonisation_process__process__assigns_internal_ids_glob
 
 
 def test__nsip_project_harmonisation_process__process__marks_only_latest_row_per_case_as_active():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, projectName="Old", IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="New", IngestionDate="2025-02-10 09:00:00"),
-        ],
-        horizon_rows=[],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, projectName="Old", IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="New", IngestionDate="2025-02-10 09:00:00"),
+    ]
+    horizon_rows = []
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     rows = df.where(F.col("caseId") == 1001).select("projectName", "IsActive").orderBy("projectName").collect()
 
     is_active_by_name = {row["projectName"]: row["IsActive"] for row in rows}
@@ -950,38 +1257,69 @@ def test__nsip_project_harmonisation_process__process__marks_only_latest_row_per
 
 
 def test__nsip_project_harmonisation_process__process__uses_min_horizon_ingested_datetime_for_grouped_rows():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[],
-        horizon_rows=[
-            _horizon_row(
-                caseNodeId=3003,
-                Region="wales",
-                ingested_datetime="2025-03-02 10:00:00",
-            ),
-            _horizon_row(
-                caseNodeId=3003,
-                Region="north west",
-                ingested_datetime="2025-03-01 09:00:00",
-            ),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = []
+    horizon_rows = [
+        _horizon_row(caseNodeId=3003, Region="wales", ingested_datetime="2025-03-02 10:00:00"),
+        _horizon_row(caseNodeId=3003, Region="north west", ingested_datetime="2025-03-01 09:00:00"),
+    ]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        [],
+        StructType(
+            [
+                StructField("caseId", LongType(), True),
+                StructField("ingested", StringType(), True),
+            ]
+        ),
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.where(F.col("caseId") == 3003).select("IngestionDate").collect()[0]
 
     assert str(row["IngestionDate"]).startswith("2025-03-01 09:00:00")
 
 
 def test__nsip_project_harmonisation_process__process__populates_rowid_for_each_output_row():
-    _, _, df, _, _ = _run_process(
-        service_bus_rows=[
-            _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
-            _service_bus_row(caseId=1001, projectName="Changed Name", IngestionDate="2025-02-10 09:00:00"),
-        ],
-        horizon_rows=[
-            _horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00"),
-        ],
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    service_bus_rows = [
+        _service_bus_row(caseId=1001, IngestionDate="2025-01-10 09:00:00"),
+        _service_bus_row(caseId=1001, projectName="Changed Name", IngestionDate="2025-02-10 09:00:00"),
+    ]
+    horizon_rows = [_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")]
+
+    service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+    horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
+    first_seen_service_bus_data = spark.createDataFrame(
+        _default_first_seen_rows(service_bus_rows),
+        ["caseId", "ingested"],
     )
 
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
+        inst = NsipProjectHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "first_seen_service_bus_data": first_seen_service_bus_data,
+            }
+        )
+
+    df = data_to_write[inst.OUTPUT_TABLE]["data"]
     rows = df.select("caseId", "IngestionDate", "RowID").orderBy("caseId", "IngestionDate").collect()
 
     assert all(row["RowID"] for row in rows)
