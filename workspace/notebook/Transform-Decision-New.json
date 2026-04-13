@@ -1,8 +1,8 @@
 {
-	"name": "Transform-Decision",
+	"name": "Transform-Decision-New",
 	"properties": {
 		"folder": {
-			"name": "Horizon-Migration/Horizon-Transform"
+			"name": "Horizon-Migration/MPESC_Archive"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8f5df86e-ddb7-4877-ad1e-60a28a3dc73f"
+				"spark.autotune.trackingId": "3fa5bd51-c09d-4cc4-b99b-b5ba90014a24"
 			}
 		},
 		"metadata": {
@@ -42,7 +42,7 @@
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -142,6 +142,7 @@
 					"    .load(case_dates_path)\n",
 					"    .select(\n",
 					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"\n",
 					"        F.when(\n",
 					"            F.col(\"14\").isNull() |\n",
 					"            (F.trim(F.col(\"14\")) == \"\") |\n",
@@ -149,14 +150,38 @@
 					"            F.lit(None).cast(\"timestamp\")\n",
 					"        ).otherwise(\n",
 					"            F.to_timestamp(F.col(\"14\"), \"yyyy-MM-dd HH:mm:ss\")\n",
-					"        ).alias(\"caseDecisionDate\")\n",
+					"        ).alias(\"caseDecisionDate\"),\n",
+					"\n",
+					"        F.when(\n",
+					"            F.col(\"23\").isNull() |\n",
+					"            (F.trim(F.col(\"23\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"23\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"23\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"decisionReceivedDate\"),\n",
+					"\n",
+					"        F.when(\n",
+					"            F.col(\"26\").isNull() |\n",
+					"            (F.trim(F.col(\"26\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"26\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"26\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"decisionPublishedDate\")\n",
 					"    )\n",
 					"    .filter(F.col(\"legacyCaseId\").isNotNull() & (F.col(\"legacyCaseId\") != \"\"))\n",
 					"    .dropDuplicates([\"legacyCaseId\"])\n",
 					")\n",
 					"\n",
 					"print(\"case_decision_dates rows:\", case_decision_dates.count())\n",
-					"display(case_decision_dates.filter(F.col(\"caseDecisionDate\").isNotNull()).limit(20))"
+					"display(\n",
+					"    case_decision_dates.filter(\n",
+					"        F.col(\"caseDecisionDate\").isNotNull() |\n",
+					"        F.col(\"decisionReceivedDate\").isNotNull() |\n",
+					"        F.col(\"decisionPublishedDate\").isNotNull()\n",
+					"    ).limit(20)\n",
+					")"
 				],
 				"execution_count": null
 			},
@@ -209,6 +234,8 @@
 					"        F.col(\"d.attr1\").alias(\"attr1\"),\n",
 					"        F.col(\"d.decisionIssue\").alias(\"decisionIssue\"),\n",
 					"        F.col(\"cd.caseDecisionDate\").alias(\"outcomeDate\"),\n",
+					"        F.col(\"cd.decisionReceivedDate\").alias(\"decisionReceivedDate\"),\n",
+					"        F.col(\"cd.decisionPublishedDate\").alias(\"decisionPublishedDate\"),\n",
 					"        F.col(\"d.casePublishFlag\").alias(\"casePublishFlag\"),\n",
 					"        F.col(\"d.decisionType\").alias(\"decisionType\"),\n",
 					"        F.col(\"d.decisionBranch\").alias(\"decisionBranch\")\n",
@@ -539,6 +566,8 @@
 					"        F.col(\"caseId\"),\n",
 					"        F.col(\"outcomeGuid\"),\n",
 					"        F.col(\"outcomeDate\"),\n",
+					"        F.col(\"decisionReceivedDate\"),\n",
+					"        F.col(\"decisionPublishedDate\"),\n",
 					"        F.col(\"DecisionDespatched\"),\n",
 					"        F.col(\"decisionIssue\"),\n",
 					"        F.col(\"decisionMakerType\"),\n",
@@ -558,7 +587,7 @@
 					"    )\n",
 					")\n",
 					"\n",
-					"display(decision_final.limit(50))\n",
+					"display(decision_final)\n",
 					"print(\"Final rows:\", decision_final.count())"
 				],
 				"execution_count": null
