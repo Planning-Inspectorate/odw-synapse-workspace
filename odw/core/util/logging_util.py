@@ -12,6 +12,7 @@ import threading
 import requests
 from datetime import datetime, timezone
 from typing import Dict, Any
+import json
 
 
 class LoggingUtil:
@@ -81,17 +82,20 @@ class LoggingUtil:
         This is a copy/paste from the `py_applicationinsights` notebook - further refactoring would be beneficial
         """
         endpoint = "https://uksouth-1.in.applicationinsights.azure.com/v2/track"
-        payload = {
+        # Sanitise the payload to ensure all values are JSON-serialisable.
+        # DataFrames and other non-serialisable objects are replaced with their string representation.
+        safe_properties = json.loads(json.dumps(payload, default=str))
+        body = {
             "name": "Microsoft.ApplicationInsights.Event",
             "time": datetime.now(timezone.utc).isoformat() + "Z",
             "iKey": self.instrumentation_key,
-            "data": {"baseType": "EventData", "baseData": {"name": event_name, "properties": payload}},
+            "data": {"baseType": "EventData", "baseData": {"name": event_name, "properties": safe_properties}},
         }
         try:
-            response = requests.post(endpoint, json=payload)
-            self.log_info("Telemetry sent:", response.status_code)
+            response = requests.post(endpoint, json=body)
+            self.log_info(f"Telemetry sent: {response.status_code}")
         except Exception as e:
-            self.log_info("Failed to send telemetry:", e)
+            self.log_info(f"Failed to send telemetry: {e}")
 
     @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep_nothing)
     def setup_logging(self, force=False):

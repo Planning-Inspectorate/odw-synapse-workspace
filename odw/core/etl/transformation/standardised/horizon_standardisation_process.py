@@ -5,6 +5,8 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
+from odw.core.anonymisation.engine import AnonymisationEngine
+from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -62,9 +64,31 @@ class HorizonStandardisationProcess(StandardisationProcess):
             source_path += f"/{last_modified_folder}"
 
         file_map = dict()
+        orchestration_data = SynapseFileDataIO().read(
+            spark=self.spark,
+            storage_endpoint=Util.get_storage_account(),
+            container_name="odw-config",
+            blob_path="orchestration/orchestration.json",
+            file_format="json",
+            read_options={"multiline": "true"},
+        )
+        file_map["orchestration_data"] = orchestration_data
+        definition: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
 
         # Load new raw data files to add to the existing data
         horizon_files = self.get_file_names_in_directory(source_path)
+
+        if entity_name:
+            horizon_files = [
+                file
+                for file in horizon_files
+                if any(
+                    d.get("Source_Filename_Start", None) == entity_name
+                    and file.startswith(d.get("Source_Filename_Start", ""))
+                    and d.get("Load_Enable_status", False) == "True"
+                    for d in definition
+                )
+            ]
         for file in horizon_files:
             data = SynapseFileDataIO().read(
                 spark=self.spark,
@@ -86,24 +110,11 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 raise RuntimeError(f"Failed to load file '{file}': The file had corrupt records after being read")
             file_map[file] = data
 
-        # Load orchestration file
-        orchestration_data = SynapseFileDataIO().read(
-            spark=self.spark,
-            storage_endpoint=Util.get_storage_account(),
-            container_name="odw-config",
-            blob_path="orchestration/orchestration.json",
-            file_format="json",
-            read_options={"multiline": "true"},
-        )
-        file_map["orchestration_data"] = orchestration_data
-
-        # Load existing data (if any)
-        definitions: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
         for file in horizon_files:
             definition = next(
                 (
                     d
-                    for d in definitions
+                    for d in definition
                     if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
                     and file.startswith(d.get("Source_Filename_Start", None))
                     and d.get("Load_Enable_status", False) == "True"
@@ -206,6 +217,29 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
                     if table_field is not None and field.dataType != table_field.dataType:
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
+
+                # Apply anonymisation only in DEV/TEST environments
+                if Util.is_non_production_environment():
+                    try:
+                        anon_config = AnonymisationConfig()
+                        try:
+                            policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
+                            policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+                            anon_config = load_config(text=policy_text)
+                        except Exception as config_err:
+                            LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
+                        entity_name_for_seed = definition.get("Source_Filename_Start", "")
+                        engine = AnonymisationEngine(
+                            config=AnonymisationConfig(
+                                classification_allowlist=anon_config.classification_allowlist,
+                                seed_column=anon_config.get_seed_column(entity_name_for_seed),
+                            )
+                        )
+                        LoggingUtil().log_info(f"Applying anonymisation to Horizon file: {file}")
+                        data = engine.apply_from_purview(data, file_name=file, source_folder="Horizon")
+                    except Exception as e:
+                        LoggingUtil().log_error(f"Anonymisation failed for {file}: {str(e)}")
+                        raise
 
                 table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
                 write_mode = "append" if table_exists else "overwrite"

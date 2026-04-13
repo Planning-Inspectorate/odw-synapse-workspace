@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6efbda03-8ef5-4cc9-b39b-0c23762693c1"
+				"spark.autotune.trackingId": "afe21626-689f-4836-b516-5dff1e899f1e"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 32,
@@ -67,6 +67,19 @@
 					"The functionality of this notebook is to ingest data into odw_curated_db.appeal_event_estimate external table reading from odw_harmonised_db.appeal_event_estimate delta table.The addtitional functionality has been added to log the audit information to Application Insight by creating a Json dump at notebook exit.\n",
 					"\n",
 					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version \t\t- 3.10, Delta Lake Version \t- 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
 				]
 			},
 			{
@@ -120,22 +133,9 @@
 				"execution_count": null
 			},
 			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Import Packages"
-				]
-			},
-			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import *\n",
+					"import pyspark.sql.functions as F\n",
 					"from pyspark.sql.types import *\n",
 					"from pyspark.sql import DataFrame\n",
 					"import json"
@@ -232,16 +232,36 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"       \n",
 					"        insert_count = df.count()\n",
 					"        print(insert_count)\n",
 					"\n",
-					"        df.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(table_name)\n",
+					"      \n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
+					"\n",
+					"       \n",
+					"        df.write \\\n",
+					"            .format(\"parquet\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"path\", table_path) \\\n",
+					"            .saveAsTable(table_name)\n",
+					"\n",
 					"        print(f\"Written to {table_name}\")\n",
 					"\n",
+					"       \n",
 					"        end_exec_time = datetime.now()\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error appending data to the curated layer {table_name} table : {str(e)[:800]}\"\n",
+					"        error_message = (\n",
+					"            f\"Error appending data to the curated layer {table_name} table : \"\n",
+					"            f\"{str(e)[:800]}\"\n",
+					"        )\n",
 					"        end_exec_time = datetime.now()"
 				],
 				"execution_count": null
