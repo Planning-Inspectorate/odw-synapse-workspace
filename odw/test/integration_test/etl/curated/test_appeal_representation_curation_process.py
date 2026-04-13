@@ -12,6 +12,9 @@ import mock
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+
+
 class TestAppealRepresentationCurationProcess(ETLTestCase):
     ACTIVE_HARMONISED_DATA = [
         (

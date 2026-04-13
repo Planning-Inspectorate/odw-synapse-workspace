@@ -5,8 +5,12 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal
 import pyspark.sql.types as T
 from datetime import datetime
+import pytest
 import mock
 import pytest
+
+
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
