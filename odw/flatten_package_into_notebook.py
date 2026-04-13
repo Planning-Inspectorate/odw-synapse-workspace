@@ -281,7 +281,7 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
         if not os.path.exists(root):
             raise FileNotFoundError(f"Root file '{root}' does not exist")
         root_as_module = root.replace(".py", "").replace(os.sep, ".")
-        relations_to_explore = list(dag.get(root_as_module, None))
+        relations_to_explore = list(dag.get(root_as_module, []))
         if not relations_to_explore:
             raise ValueError(f"No modules could be found for '{root}'")
         seen_dependencies = {root_as_module}
