@@ -767,9 +767,7 @@ def test__nsip_project_harmonisation_process__run__end_to_end_matches_legacy():
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -790,9 +788,7 @@ def test__nsip_project_harmonisation_process__run__end_to_end_matches_legacy():
     case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
     assert case_ids == {1001, 3003}
 
-    migrated_horizon_count = (
-        df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
-    )
+    migrated_horizon_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
     assert migrated_horizon_count == 0
 
     horizon_row = (
@@ -838,9 +834,7 @@ def test__nsip_project_harmonisation_process__run__derives_valid_to_is_active_in
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -890,10 +884,7 @@ def test__nsip_project_harmonisation_process__run__derives_valid_to_is_active_in
     assert second_row["RowID"]
     assert first_row["RowID"] != second_row["RowID"]
 
-    all_ids = [
-        row["NSIPProjectInfoInternalID"]
-        for row in df.select("NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()
-    ]
+    all_ids = [row["NSIPProjectInfoInternalID"] for row in df.select("NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()]
     assert len(all_ids) == len(set(all_ids))
     assert min(all_ids) == 1
 
@@ -916,9 +907,7 @@ def test__nsip_project_harmonisation_process__run__parses_horizon_json_and_prese
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -993,9 +982,7 @@ def test__nsip_project_harmonisation_process__run__filters_horizon_rows_using_fi
             return_value="test_storage",
         ),
         mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
-        ) as MockProcessLogging,
+        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
     ):
         MockEtlLogging.return_value = mock.Mock()
         MockProcessLogging.return_value = mock.Mock()
@@ -1011,12 +998,8 @@ def test__nsip_project_harmonisation_process__run__filters_horizon_rows_using_fi
     data_to_write = mock_write.call_args[0][0]
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    filtered_count = df.where(
-        (F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")
-    ).count()
-    kept_count = df.where(
-        (F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")
-    ).count()
+    filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
+    kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
 
     assert filtered_count == 0
     assert kept_count == 1

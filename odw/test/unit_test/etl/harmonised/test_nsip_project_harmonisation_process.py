@@ -518,9 +518,7 @@ def _run_process(service_bus_rows, horizon_rows, first_seen_rows=None):
         ["caseId", "ingested"],
     )
 
-    with mock.patch(
-        "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
-    ):
+    with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
         inst = NsipProjectHarmonisationProcess(spark)
         data_to_write, result = inst.process(
             source_data={
@@ -569,9 +567,7 @@ def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_
     assert 1001 in output_case_ids
     assert 3003 in output_case_ids
 
-    migrated_horizon_count = (
-        df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
-    )
+    migrated_horizon_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
     assert migrated_horizon_count == 0
 
 
@@ -599,12 +595,8 @@ def test__nsip_project_harmonisation_process__process__filters_horizon_rows_usin
         ],
     )
 
-    filtered_count = df.where(
-        (F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")
-    ).count()
-    kept_count = df.where(
-        (F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")
-    ).count()
+    filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
+    kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
 
     assert filtered_count == 0
     assert kept_count == 1
@@ -624,11 +616,7 @@ def test__nsip_project_harmonisation_process__process__normalises_horizon_publis
         ],
     )
 
-    row = (
-        df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
-        .select("publishStatus", "mapZoomLevel")
-        .collect()[0]
-    )
+    row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("publishStatus", "mapZoomLevel").collect()[0]
 
     assert row["publishStatus"] == "unpublished"
     assert row["mapZoomLevel"] == "high"
@@ -643,11 +631,7 @@ def test__nsip_project_harmonisation_process__process__aggregates_regions_using_
         ],
     )
 
-    row = (
-        df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
-        .select("regions")
-        .collect()[0]
-    )
+    row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("regions").collect()[0]
 
     assert sorted(row["regions"]) == ["north west", "wales"]
 
@@ -696,11 +680,7 @@ def test__nsip_project_harmonisation_process__process__parses_invoices_and_meeti
         ],
     )
 
-    row = (
-        df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
-        .select("invoices", "meetings")
-        .collect()[0]
-    )
+    row = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("invoices", "meetings").collect()[0]
 
     assert row["invoices"] is not None
     assert len(row["invoices"]) == 1
@@ -719,11 +699,7 @@ def test__nsip_project_harmonisation_process__process__sets_horizon_source_syste
         horizon_rows=[_horizon_row(caseNodeId=3003, ingested_datetime="2025-03-01 10:00:00")],
     )
 
-    row = (
-        df.where(F.col("caseId") == 3003)
-        .select("sourceSystem", "ODTSourceSystem")
-        .collect()[0]
-    )
+    row = df.where(F.col("caseId") == 3003).select("sourceSystem", "ODTSourceSystem").collect()[0]
 
     assert row["sourceSystem"] == "Horizon"
     assert row["ODTSourceSystem"] == "Horizon"
@@ -896,12 +872,7 @@ def test__nsip_project_harmonisation_process__process__rowid_changes_when_hashed
         horizon_rows=[],
     )
 
-    rows = (
-        df.where(F.col("caseId") == 1001)
-        .select("projectName", "RowID")
-        .orderBy("projectName")
-        .collect()
-    )
+    rows = df.where(F.col("caseId") == 1001).select("projectName", "RowID").orderBy("projectName").collect()
 
     assert rows[0]["RowID"]
     assert rows[1]["RowID"]
@@ -935,12 +906,7 @@ def test__nsip_project_harmonisation_process__process__derives_valid_to_from_nex
         horizon_rows=[],
     )
 
-    case_1001_rows = (
-        df.where(F.col("caseId") == 1001)
-        .select("projectName", "IngestionDate", "ValidTo")
-        .orderBy("IngestionDate")
-        .collect()
-    )
+    case_1001_rows = df.where(F.col("caseId") == 1001).select("projectName", "IngestionDate", "ValidTo").orderBy("IngestionDate").collect()
 
     case_2002_row = df.where(F.col("caseId") == 2002).select("ValidTo").collect()[0]
 
@@ -959,11 +925,7 @@ def test__nsip_project_harmonisation_process__process__assigns_internal_ids_glob
         horizon_rows=[],
     )
 
-    rows = (
-        df.select("caseId", "IngestionDate", "NSIPProjectInfoInternalID")
-        .orderBy("NSIPProjectInfoInternalID")
-        .collect()
-    )
+    rows = df.select("caseId", "IngestionDate", "NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()
 
     assert rows[0]["caseId"] == 1001
     assert rows[1]["caseId"] == 2002
@@ -979,12 +941,7 @@ def test__nsip_project_harmonisation_process__process__marks_only_latest_row_per
         horizon_rows=[],
     )
 
-    rows = (
-        df.where(F.col("caseId") == 1001)
-        .select("projectName", "IsActive")
-        .orderBy("projectName")
-        .collect()
-    )
+    rows = df.where(F.col("caseId") == 1001).select("projectName", "IsActive").orderBy("projectName").collect()
 
     is_active_by_name = {row["projectName"]: row["IsActive"] for row in rows}
 
@@ -1025,11 +982,7 @@ def test__nsip_project_harmonisation_process__process__populates_rowid_for_each_
         ],
     )
 
-    rows = (
-        df.select("caseId", "IngestionDate", "RowID")
-        .orderBy("caseId", "IngestionDate")
-        .collect()
-    )
+    rows = df.select("caseId", "IngestionDate", "RowID").orderBy("caseId", "IngestionDate").collect()
 
     assert all(row["RowID"] for row in rows)
 
