@@ -1,6 +1,7 @@
 import pytest
 from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
 from pyspark.sql import functions as F
@@ -752,256 +753,254 @@ def _first_seen_service_bus_df(spark):
     )
 
 
-def test__nsip_project_harmonisation_process__run__end_to_end_matches_legacy():
-    spark = PytestSparkSessionUtil().get_spark_session()
+class TestNsipProjectHarmonisationProcess(ETLTestCase):
+    def test__nsip_project_harmonisation_process__run__end_to_end_matches_legacy(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-    source_data = {
-        "service_bus_data": _service_bus_df(spark),
-        "horizon_data": _horizon_df(spark),
-        "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
-    }
-
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectHarmonisationProcess(spark)
+        source_data = {
+            "service_bus_data": _service_bus_df(spark),
+            "horizon_data": _horizon_df(spark),
+            "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
+            inst = NsipProjectHarmonisationProcess(spark)
 
-    assert df.count() == 3
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
 
-    case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
-    assert case_ids == {1001, 3003}
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-    migrated_horizon_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
-    assert migrated_horizon_count == 0
+        assert df.count() == 3
 
-    horizon_row = (
-        df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
-        .select(
-            "projectName",
-            "summary",
-            "publishStatus",
-            "mapZoomLevel",
-            "regions",
-            "migrated",
-            "IsActive",
-            "isMaterialChange",
+        case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
+        assert case_ids == {1001, 3003}
+
+        migrated_horizon_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
+        assert migrated_horizon_count == 0
+
+        horizon_row = (
+            df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
+            .select(
+                "projectName",
+                "summary",
+                "publishStatus",
+                "mapZoomLevel",
+                "regions",
+                "migrated",
+                "IsActive",
+                "isMaterialChange",
+            )
+            .collect()[0]
         )
-        .collect()[0]
-    )
 
-    assert horizon_row["projectName"] == "Horizon Project"
-    assert horizon_row["summary"] == "Horizon summary"
-    assert horizon_row["publishStatus"] == "unpublished"
-    assert horizon_row["mapZoomLevel"] == "high"
-    assert sorted(horizon_row["regions"]) == ["north west", "wales"]
-    assert str(horizon_row["migrated"]) == "0"
-    assert horizon_row["IsActive"] == "Y"
-    assert horizon_row["isMaterialChange"] is True
+        assert horizon_row["projectName"] == "Horizon Project"
+        assert horizon_row["summary"] == "Horizon summary"
+        assert horizon_row["publishStatus"] == "unpublished"
+        assert horizon_row["mapZoomLevel"] == "high"
+        assert sorted(horizon_row["regions"]) == ["north west", "wales"]
+        assert str(horizon_row["migrated"]) == "0"
+        assert horizon_row["IsActive"] == "Y"
+        assert horizon_row["isMaterialChange"] is True
 
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 3
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 3
 
+    def test__nsip_project_harmonisation_process__run__derives_valid_to_is_active_internal_ids_and_rowids_like_legacy(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-def test__nsip_project_harmonisation_process__run__derives_valid_to_is_active_internal_ids_and_rowids_like_legacy():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    source_data = {
-        "service_bus_data": _service_bus_df(spark),
-        "horizon_data": _horizon_df(spark).where(F.col("caseNodeId") == 3003),
-        "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
-    }
-
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectHarmonisationProcess(spark)
+        source_data = {
+            "service_bus_data": _service_bus_df(spark),
+            "horizon_data": _horizon_df(spark).where(F.col("caseNodeId") == 3003),
+            "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
+            inst = NsipProjectHarmonisationProcess(spark)
 
-    case_1001_rows = (
-        df.where(F.col("caseId") == 1001)
-        .select(
-            "caseId",
-            "projectName",
-            "IngestionDate",
-            "ValidTo",
-            "IsActive",
-            "migrated",
-            "NSIPProjectInfoInternalID",
-            "RowID",
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+
+        case_1001_rows = (
+            df.where(F.col("caseId") == 1001)
+            .select(
+                "caseId",
+                "projectName",
+                "IngestionDate",
+                "ValidTo",
+                "IsActive",
+                "migrated",
+                "NSIPProjectInfoInternalID",
+                "RowID",
+            )
+            .orderBy("IngestionDate")
+            .collect()
         )
-        .orderBy("IngestionDate")
-        .collect()
-    )
 
-    assert len(case_1001_rows) == 2
+        assert len(case_1001_rows) == 2
 
-    first_row = case_1001_rows[0]
-    second_row = case_1001_rows[1]
+        first_row = case_1001_rows[0]
+        second_row = case_1001_rows[1]
 
-    assert first_row["projectName"] == "SB Project V1"
-    assert second_row["projectName"] == "SB Project V2"
-    assert first_row["IsActive"] == "N"
-    assert second_row["IsActive"] == "Y"
-    assert first_row["ValidTo"] == second_row["IngestionDate"]
-    assert second_row["ValidTo"] is None
-    assert str(first_row["migrated"]) == "1"
-    assert str(second_row["migrated"]) == "1"
-    assert first_row["NSIPProjectInfoInternalID"] < second_row["NSIPProjectInfoInternalID"]
-    assert first_row["RowID"]
-    assert second_row["RowID"]
-    assert first_row["RowID"] != second_row["RowID"]
+        assert first_row["projectName"] == "SB Project V1"
+        assert second_row["projectName"] == "SB Project V2"
+        assert first_row["IsActive"] == "N"
+        assert second_row["IsActive"] == "Y"
+        assert first_row["ValidTo"] == second_row["IngestionDate"]
+        assert second_row["ValidTo"] is None
+        assert str(first_row["migrated"]) == "1"
+        assert str(second_row["migrated"]) == "1"
+        assert first_row["NSIPProjectInfoInternalID"] < second_row["NSIPProjectInfoInternalID"]
+        assert first_row["RowID"]
+        assert second_row["RowID"]
+        assert first_row["RowID"] != second_row["RowID"]
 
-    all_ids = [row["NSIPProjectInfoInternalID"] for row in df.select("NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()]
-    assert len(all_ids) == len(set(all_ids))
-    assert min(all_ids) == 1
+        all_ids = [row["NSIPProjectInfoInternalID"] for row in df.select("NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()]
+        assert len(all_ids) == len(set(all_ids))
+        assert min(all_ids) == 1
 
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 3
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 3
 
+    def test__nsip_project_harmonisation_process__run__parses_horizon_json_and_preserves_horizon_only_fields(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-def test__nsip_project_harmonisation_process__run__parses_horizon_json_and_preserves_horizon_only_fields():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    source_data = {
-        "service_bus_data": _service_bus_df(spark).limit(1),
-        "horizon_data": _horizon_df(spark).where(F.col("caseNodeId") == 3003),
-        "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
-    }
-
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectHarmonisationProcess(spark)
+        source_data = {
+            "service_bus_data": _service_bus_df(spark).limit(1),
+            "horizon_data": _horizon_df(spark).where(F.col("caseNodeId") == 3003),
+            "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
+            inst = NsipProjectHarmonisationProcess(spark)
 
-    row = (
-        df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
-        .select(
-            "examTimetablePublishStatus",
-            "twitteraccountname",
-            "promotername",
-            "applicantfirstname",
-            "applicantlastname",
-            "addressLine1",
-            "Postcode",
-            "applicantemailaddress",
-            "HorizonCaseNumber",
-            "meetings",
-            "invoices",
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+
+        row = (
+            df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
+            .select(
+                "examTimetablePublishStatus",
+                "twitteraccountname",
+                "promotername",
+                "applicantfirstname",
+                "applicantlastname",
+                "addressLine1",
+                "Postcode",
+                "applicantemailaddress",
+                "HorizonCaseNumber",
+                "meetings",
+                "invoices",
+            )
+            .collect()[0]
         )
-        .collect()[0]
-    )
 
-    assert row["examTimetablePublishStatus"] == "published"
-    assert row["twitteraccountname"] == "@hzproject"
-    assert row["promotername"] == "Promoter Ltd"
-    assert row["applicantfirstname"] == "Jane"
-    assert row["applicantlastname"] == "Doe"
-    assert row["addressLine1"] == "1 High Street"
-    assert row["Postcode"] == "CF10 1AA"
-    assert row["applicantemailaddress"] == "applicant@example.com"
-    assert row["HorizonCaseNumber"] == "3003"
+        assert row["examTimetablePublishStatus"] == "published"
+        assert row["twitteraccountname"] == "@hzproject"
+        assert row["promotername"] == "Promoter Ltd"
+        assert row["applicantfirstname"] == "Jane"
+        assert row["applicantlastname"] == "Doe"
+        assert row["addressLine1"] == "1 High Street"
+        assert row["Postcode"] == "CF10 1AA"
+        assert row["applicantemailaddress"] == "applicant@example.com"
+        assert row["HorizonCaseNumber"] == "3003"
 
-    assert row["meetings"] is not None
-    assert len(row["meetings"]) == 1
-    assert row["meetings"][0]["meetingId"] == "m-1"
-    assert row["meetings"][0]["meetingAgenda"] == "Agenda 1"
-    assert row["meetings"][0]["meetingType"] == "Intro"
+        assert row["meetings"] is not None
+        assert len(row["meetings"]) == 1
+        assert row["meetings"][0]["meetingId"] == "m-1"
+        assert row["meetings"][0]["meetingAgenda"] == "Agenda 1"
+        assert row["meetings"][0]["meetingType"] == "Intro"
 
-    assert row["invoices"] is not None
-    assert len(row["invoices"]) == 1
-    assert row["invoices"][0]["invoiceNumber"] == "INV-1"
-    assert float(row["invoices"][0]["amountDue"]) == 123.45
-    assert float(row["invoices"][0]["refundAmount"]) == 12.0
+        assert row["invoices"] is not None
+        assert len(row["invoices"]) == 1
+        assert row["invoices"][0]["invoiceNumber"] == "INV-1"
+        assert float(row["invoices"][0]["amountDue"]) == 123.45
+        assert float(row["invoices"][0]["refundAmount"]) == 12.0
 
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 2
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 2
 
+    def test__nsip_project_harmonisation_process__run__filters_horizon_rows_using_first_seen_service_bus_data(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-def test__nsip_project_harmonisation_process__run__filters_horizon_rows_using_first_seen_service_bus_data():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    source_data = {
-        "service_bus_data": _service_bus_df(spark).limit(1),
-        "horizon_data": _horizon_df(spark),
-        "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
-    }
-
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectHarmonisationProcess(spark)
+        source_data = {
+            "service_bus_data": _service_bus_df(spark).limit(1),
+            "horizon_data": _horizon_df(spark),
+            "first_seen_service_bus_data": _first_seen_service_bus_df(spark),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
+            inst = NsipProjectHarmonisationProcess(spark)
 
-    filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
-    kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
 
-    assert filtered_count == 0
-    assert kept_count == 1
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 2
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+
+        filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
+        kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
+
+        assert filtered_count == 0
+        assert kept_count == 1
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 2

@@ -2,6 +2,7 @@ import mock
 import pytest
 from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -199,200 +200,199 @@ def _service_user_row(**overrides):
     return row
 
 
-def test__nsip_project_curated_process__run__end_to_end_matches_legacy():
-    spark = PytestSparkSessionUtil().get_spark_session()
+class TestNsipProjectCuratedProcess(ETLTestCase):
+    def test__nsip_project_curated_process__run__end_to_end_matches_legacy(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-    source_data = {
-        "harmonised_data": spark.createDataFrame(
-            [
-                _harmonised_row(
-                    caseId=1001,
-                    caseReference="EN010001",
-                    projectName="Project Old",
-                    ODTSourceSystem="Horizon",
-                    IngestionDate="2025-01-01 10:00:00",
-                ),
-                _harmonised_row(
-                    caseId=1001,
-                    caseReference="EN010001",
-                    projectName="Project Latest",
-                    projectType="WW01 - Waste Water treatment Plants",
-                    ODTSourceSystem="ODT",
-                    stage="Pre-Application Stage",
-                    IngestionDate="2025-02-01 10:00:00",
-                ),
-                _harmonised_row(
-                    caseId=2002,
-                    caseReference="EN020002",
-                    projectName="Back Office Project",
-                    publishStatus="published",
-                    projectType="Normal Type",
-                    ODTSourceSystem="ODT",
-                    stage="Post-Decision Stage",
-                    projectLocation="Cardiff",
-                    projectEmailAddress="bo@example.com",
-                    regions=["wales"],
-                    transboundary=True,
-                    easting=30.0,
-                    northing=40.0,
-                    welshLanguage=True,
-                    mapZoomLevel="high",
-                    secretaryOfState="SoS 2",
-                    SourceSystemID="SRC-3",
-                    IngestionDate="2025-03-01 10:00:00",
-                ),
-                _harmonised_row(
-                    caseId=3003,
-                    caseReference="EN030003",
-                    projectName="Non Applicant Match",
-                    ODTSourceSystem="Horizon",
-                    IngestionDate="2025-04-01 10:00:00",
-                ),
-            ],
-            schema=_harmonised_schema(),
-        ),
-        "service_user_data": spark.createDataFrame(
-            [
-                _service_user_row(caseReference="EN010001", id="service-user-applicant-1"),
-                _service_user_row(caseReference="EN020002", id="service-user-applicant-2"),
-                _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
-            ],
-            schema=_service_user_schema(),
-        ),
-    }
-
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectCuratedProcess(spark)
+        source_data = {
+            "harmonised_data": spark.createDataFrame(
+                [
+                    _harmonised_row(
+                        caseId=1001,
+                        caseReference="EN010001",
+                        projectName="Project Old",
+                        ODTSourceSystem="Horizon",
+                        IngestionDate="2025-01-01 10:00:00",
+                    ),
+                    _harmonised_row(
+                        caseId=1001,
+                        caseReference="EN010001",
+                        projectName="Project Latest",
+                        projectType="WW01 - Waste Water treatment Plants",
+                        ODTSourceSystem="ODT",
+                        stage="Pre-Application Stage",
+                        IngestionDate="2025-02-01 10:00:00",
+                    ),
+                    _harmonised_row(
+                        caseId=2002,
+                        caseReference="EN020002",
+                        projectName="Back Office Project",
+                        publishStatus="published",
+                        projectType="Normal Type",
+                        ODTSourceSystem="ODT",
+                        stage="Post-Decision Stage",
+                        projectLocation="Cardiff",
+                        projectEmailAddress="bo@example.com",
+                        regions=["wales"],
+                        transboundary=True,
+                        easting=30.0,
+                        northing=40.0,
+                        welshLanguage=True,
+                        mapZoomLevel="high",
+                        secretaryOfState="SoS 2",
+                        SourceSystemID="SRC-3",
+                        IngestionDate="2025-03-01 10:00:00",
+                    ),
+                    _harmonised_row(
+                        caseId=3003,
+                        caseReference="EN030003",
+                        projectName="Non Applicant Match",
+                        ODTSourceSystem="Horizon",
+                        IngestionDate="2025-04-01 10:00:00",
+                    ),
+                ],
+                schema=_harmonised_schema(),
+            ),
+            "service_user_data": spark.createDataFrame(
+                [
+                    _service_user_row(caseReference="EN010001", id="service-user-applicant-1"),
+                    _service_user_row(caseReference="EN020002", id="service-user-applicant-2"),
+                    _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
+                ],
+                schema=_service_user_schema(),
+            ),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    rows = {row["caseId"]: row.asDict(recursive=True) for row in df.collect()}
+            inst = NsipProjectCuratedProcess(spark)
 
-    assert df.count() == 2
-    assert set(rows.keys()) == {1001, 2002}
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
 
-    assert rows[1001]["projectName"] == "Project Latest"
-    assert rows[1001]["publishStatus"] == "published"
-    assert rows[1001]["projectType"] == "WW01 - Waste Water Treatment Plants"
-    assert rows[1001]["sourceSystem"] == "back-office-applications"
-    assert rows[1001]["stage"] == "pre_application_stage"
-    assert rows[1001]["applicantId"] == "service-user-applicant-1"
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        rows = {row["caseId"]: row.asDict(recursive=True) for row in df.collect()}
 
-    assert rows[2002]["sourceSystem"] == "back-office-applications"
-    assert rows[2002]["stage"] == "post_decision_stage"
-    assert rows[2002]["applicantId"] == "service-user-applicant-2"
+        assert df.count() == 2
+        assert set(rows.keys()) == {1001, 2002}
 
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 2
+        assert rows[1001]["projectName"] == "Project Latest"
+        assert rows[1001]["publishStatus"] == "published"
+        assert rows[1001]["projectType"] == "WW01 - Waste Water Treatment Plants"
+        assert rows[1001]["sourceSystem"] == "back-office-applications"
+        assert rows[1001]["stage"] == "pre_application_stage"
+        assert rows[1001]["applicantId"] == "service-user-applicant-1"
 
+        assert rows[2002]["sourceSystem"] == "back-office-applications"
+        assert rows[2002]["stage"] == "post_decision_stage"
+        assert rows[2002]["applicantId"] == "service-user-applicant-2"
 
-def test__nsip_project_curated_process__run__keeps_only_latest_horizon_record_per_case():
-    spark = PytestSparkSessionUtil().get_spark_session()
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 2
 
-    source_data = {
-        "harmonised_data": spark.createDataFrame(
-            [
-                _harmonised_row(caseId=1001, projectName="Project Old", IngestionDate="2025-01-01 10:00:00"),
-                _harmonised_row(caseId=1001, projectName="Project Latest", IngestionDate="2025-02-01 10:00:00"),
-            ],
-            schema=_harmonised_schema(),
-        ),
-        "service_user_data": spark.createDataFrame(
-            [_service_user_row(caseReference="EN010001", id="service-user-applicant-1")],
-            schema=_service_user_schema(),
-        ),
-    }
+    def test__nsip_project_curated_process__run__keeps_only_latest_horizon_record_per_case(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectCuratedProcess(spark)
+        source_data = {
+            "harmonised_data": spark.createDataFrame(
+                [
+                    _harmonised_row(caseId=1001, projectName="Project Old", IngestionDate="2025-01-01 10:00:00"),
+                    _harmonised_row(caseId=1001, projectName="Project Latest", IngestionDate="2025-02-01 10:00:00"),
+                ],
+                schema=_harmonised_schema(),
+            ),
+            "service_user_data": spark.createDataFrame(
+                [_service_user_row(caseReference="EN010001", id="service-user-applicant-1")],
+                schema=_service_user_schema(),
+            ),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    rows = df.where(F.col("caseId") == 1001).collect()
+            inst = NsipProjectCuratedProcess(spark)
 
-    assert len(rows) == 1
-    assert rows[0]["projectName"] == "Project Latest"
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 1
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
 
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        rows = df.where(F.col("caseId") == 1001).collect()
 
-def test__nsip_project_curated_process__run__filters_to_horizon_and_applicant_service_users_only():
-    spark = PytestSparkSessionUtil().get_spark_session()
+        assert len(rows) == 1
+        assert rows[0]["projectName"] == "Project Latest"
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 1
 
-    source_data = {
-        "harmonised_data": spark.createDataFrame(
-            [
-                _harmonised_row(caseId=1001, caseReference="EN010001", ODTSourceSystem="Horizon"),
-                _harmonised_row(caseId=2002, caseReference="EN020002", ODTSourceSystem="LegacyODT"),
-                _harmonised_row(caseId=3003, caseReference="EN030003", ODTSourceSystem="Horizon"),
-            ],
-            schema=_harmonised_schema(),
-        ),
-        "service_user_data": spark.createDataFrame(
-            [
-                _service_user_row(caseReference="EN010001", serviceUserType="Applicant", id="service-user-applicant-1"),
-                _service_user_row(caseReference="EN020002", serviceUserType="Applicant", id="service-user-applicant-2"),
-                _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
-            ],
-            schema=_service_user_schema(),
-        ),
-    }
+    def test__nsip_project_curated_process__run__filters_to_horizon_and_applicant_service_users_only(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-    with (
-        mock.patch(
-            "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-            return_value="test_storage",
-        ),
-        mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-        mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-    ):
-        MockEtlLogging.return_value = mock.Mock()
-        MockProcessLogging.return_value = mock.Mock()
-
-        inst = NsipProjectCuratedProcess(spark)
+        source_data = {
+            "harmonised_data": spark.createDataFrame(
+                [
+                    _harmonised_row(caseId=1001, caseReference="EN010001", ODTSourceSystem="Horizon"),
+                    _harmonised_row(caseId=2002, caseReference="EN020002", ODTSourceSystem="LegacyODT"),
+                    _harmonised_row(caseId=3003, caseReference="EN030003", ODTSourceSystem="Horizon"),
+                ],
+                schema=_harmonised_schema(),
+            ),
+            "service_user_data": spark.createDataFrame(
+                [
+                    _service_user_row(caseReference="EN010001", serviceUserType="Applicant", id="service-user-applicant-1"),
+                    _service_user_row(caseReference="EN020002", serviceUserType="Applicant", id="service-user-applicant-2"),
+                    _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
+                ],
+                schema=_service_user_schema(),
+            ),
+        }
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
+            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
         ):
-            result = inst.run()
+            MockEtlLogging.return_value = mock.Mock()
+            MockProcessLogging.return_value = mock.Mock()
 
-    data_to_write = mock_write.call_args[0][0]
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    case_ids = {row["caseId"] for row in df.select("caseId").collect()}
+            inst = NsipProjectCuratedProcess(spark)
 
-    assert case_ids == {1001}
-    assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-    assert result.metadata.insert_count == 1
+            with (
+                mock.patch.object(inst, "load_data", return_value=source_data),
+                mock.patch.object(inst, "write_data") as mock_write,
+            ):
+                result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        case_ids = {row["caseId"] for row in df.select("caseId").collect()}
+
+        assert case_ids == {1001}
+        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert result.metadata.insert_count == 1
