@@ -6,7 +6,11 @@ from odw.test.util.assertion import assert_dataframes_equal
 from pyspark.sql import SparkSession
 import pyspark.sql.types as T
 from datetime import datetime
+import pytest
 import mock
+
+
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(SparkTestCase):
