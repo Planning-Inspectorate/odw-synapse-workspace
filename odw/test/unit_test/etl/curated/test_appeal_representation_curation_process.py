@@ -1,5 +1,4 @@
 from odw.core.etl.transformation.curated.appeal_representation_curation_process import AppealRepresentationCurationProcess
-from odw.core.etl.etl_result import ETLResult
 from odw.core.util.util import Util
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
