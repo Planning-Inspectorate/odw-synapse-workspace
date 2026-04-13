@@ -3,6 +3,9 @@ from typing import Any
 
 
 class AppealRepresentationCurationProcess(CurationProcess):
+    HARMONISED_TABLE = "sb_appeal_representation"
+    CURATED_TABLE = "appeal_representation"
+
     def get_name(self) -> str:
         return "Appeal Representation Curation"
 
