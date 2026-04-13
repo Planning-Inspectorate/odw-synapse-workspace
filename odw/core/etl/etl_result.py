@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from abc import ABC, abstractmethod
-from typing import Type, ClassVar, Optional
+from typing import ClassVar
 from datetime import datetime
 
 
@@ -8,9 +8,9 @@ class ETLResult(BaseModel, ABC):
     class ETLResultMetadata(BaseModel):
         start_execution_time: datetime
         end_execution_time: datetime
-        exception: Optional[str] = None
-        exception_trace: Optional[str] = None
-        table_name: Optional[str] = None
+        exception: str | None = None
+        exception_trace: str | None = None
+        table_name: str | None = None
         insert_count: int = Field(default=0)
         update_count: int = Field(default=0)
         delete_count: int = Field(default=0)
@@ -58,7 +58,7 @@ class ETLResultFactory:
     """
 
     @classmethod
-    def get(cls, result_outcome: str) -> Type[ETLResult]:
+    def get(cls, result_outcome: str) -> type[ETLResult]:
         result_map = {result_class.outcome: result_class for result_class in (ETLSuccessResult, ETLFailResult)}
         if result_outcome not in result_map:
             raise ValueError(f"No ETLResult could be found for outcome '{result_outcome}'")
