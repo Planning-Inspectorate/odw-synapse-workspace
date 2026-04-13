@@ -4,8 +4,7 @@ from typing import Type, ClassVar, Optional
 from datetime import datetime
 
 
-class ETLResult(BaseModel, ABC):
-    class ETLResultMetadata(BaseModel):
+class ETLResultMetadata(BaseModel):
         start_execution_time: datetime
         end_execution_time: datetime
         exception: Optional[str] = None
@@ -17,6 +16,7 @@ class ETLResult(BaseModel, ABC):
         activity_type: str
         duration_seconds: float
 
+class ETLResult(Basemodel, ABC):
     """
     Holds the details of the execution of an ETLProcess, for use in logging
     """
