@@ -25,16 +25,16 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
         NSIPProjectHarmonisationProcess(spark).run(**params)
         ```
     """
+    HARMONISED_TABLE = "sb_nsip_project"
     OUTPUT_TABLE = "nsip_project"
 
     def __init__(self, spark, debug: bool = False):
         super().__init__(spark, debug)
         self.std_db: str = "odw_standardised_db"
         self.hrm_db: str = "odw_harmonised_db"
-        self.entity = "nsip_project"
-        self.service_bus_table = f"{self.hrm_db}.sb_nsip_project"
+        self.service_bus_table = f"{self.hrm_db}.{self.HARMONISED_TABLE}"
         self.horizon_table = f"{self.std_db}.horizon_nsip_data"
-        self.harmonised_table = f"{self.hrm_db}.{self.entity}"
+        self.harmonised_table = f"{self.hrm_db}.{self.OUTPUT_TABLE}"
 
     @classmethod
     def get_name(cls):
@@ -894,7 +894,7 @@ class NSIPProjectHarmonisationProcess(HarmonisationProcess):
                 "data": final_df,
                 "storage_kind": "ADLSG2-LegacyDelta",
                 "database_name": "odw_harmonised_db",
-                "table_name": self.entity,
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
                 "blob_path": "nsip_project",
