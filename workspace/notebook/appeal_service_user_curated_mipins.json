@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3259063e-990d-40d1-9a5c-a391b98d17a0"
+				"spark.autotune.trackingId": "0a489b55-ef49-4aa0-a69d-5c44b1e56f0f"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -139,71 +139,67 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_service_user_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"   SELECT\n",
-					"    id\n",
-					"    ,caseReference\n",
-					"    ,salutation\n",
-					"    ,FirstName\n",
-					"    ,lastName\n",
-					"    ,addressLine1\n",
-					"    ,addressLine2\n",
-					"    ,addressTown\n",
-					"    ,addressCounty\n",
-					"    ,postcode\n",
-					"    ,addressCountry\n",
-					"    ,organisation\n",
-					"    ,organisationType\n",
-					"    ,role\n",
-					"    ,telephoneNumber\n",
-					"    ,otherPhoneNumber\n",
-					"    ,faxNumber\n",
-					"    ,emailAddress\n",
-					"    ,webAddress\n",
-					"    ,serviceUserType\n",
-					"    ,sourceSystem\n",
-					"    ,sourceSUID\n",
-					"    ,ODTSourceSystem\n",
-					"    ,ingestionDate\n",
-					"    ,ValidTo\n",
-					"    ,RowID\n",
-					"    ,IsActive\n",
-					"    \n",
-					"FROM \n",
-					"    vw_Appeal_Service_User_curated_mipins\n",
-					"    \"\"\")\n",
+					"from notebookutils import mssparkutils\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user_curated_mipins\")"
+					"# Drop existing table metadata (external-safe)\n",
+					"spark.sql(\n",
+					"    \"DROP TABLE IF EXISTS odw_curated_db.appeal_service_user_curated_mipins\"\n",
+					")\n",
+					"\n",
+					"# Read from the view\n",
+					"df = spark.sql(\"\"\"\n",
+					"    SELECT\n",
+					"        id,\n",
+					"        caseReference,\n",
+					"        salutation,\n",
+					"        FirstName,\n",
+					"        lastName,\n",
+					"        addressLine1,\n",
+					"        addressLine2,\n",
+					"        addressTown,\n",
+					"        addressCounty,\n",
+					"        postcode,\n",
+					"        addressCountry,\n",
+					"        organisation,\n",
+					"        organisationType,\n",
+					"        role,\n",
+					"        telephoneNumber,\n",
+					"        otherPhoneNumber,\n",
+					"        faxNumber,\n",
+					"        emailAddress,\n",
+					"        webAddress,\n",
+					"        serviceUserType,\n",
+					"        sourceSystem,\n",
+					"        sourceSUID,\n",
+					"        ODTSourceSystem,\n",
+					"        ingestionDate,\n",
+					"        ValidTo,\n",
+					"        RowID,\n",
+					"        IsActive\n",
+					"    FROM vw_Appeal_Service_User_curated_mipins\n",
+					"\"\"\")\n",
+					"\n",
+					"\n",
+					"storage_account = mssparkutils.notebook.run(\n",
+					"    \"/utils/py_utils_get_storage_account\"\n",
+					")\n",
+					"\n",
+					"\n",
+					"curated_container = f\"abfss://odw-curated@{storage_account}\"\n",
+					"target_path = f\"{curated_container}/appeal_service_user_curated_mipins\"\n",
+					"\n",
+					"\n",
+					"df.write \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .format(\"delta\") \\\n",
+					"    .save(target_path)\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"    CREATE TABLE odw_curated_db.appeal_service_user_curated_mipins\n",
+					"    USING delta\n",
+					"    LOCATION '{target_path}'\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
