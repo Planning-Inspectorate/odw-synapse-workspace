@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0772e6f8-a935-429c-aebb-e836c229bc5b"
+				"spark.autotune.trackingId": "394e64e3-44de-42be-894a-412c71208bb4"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -372,14 +372,29 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeals_s78_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"storage_account = mssparkutils.notebook.run(\n",
+					"    \"/utils/py_utils_get_storage_account\"\n",
+					")\n",
+					"\n",
+					"curated_container = f\"abfss://odw-curated@{storage_account}\"\n",
+					"target_path = f\"{curated_container}/appeals_s78_curated_mipins\"\n",
+					"\n",
+					"spark.sql(\n",
+					"    \"DROP TABLE IF EXISTS odw_curated_db.appeals_s78_curated_mipins\"\n",
+					")\n",
+					"\n",
+					"final_view_df.write \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .format(\"delta\") \\\n",
+					"    .save(target_path)\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"    CREATE TABLE odw_curated_db.appeals_s78_curated_mipins\n",
+					"    USING delta\n",
+					"    LOCATION '{target_path}'\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
