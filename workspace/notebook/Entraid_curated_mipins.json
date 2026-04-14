@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d200e297-e4f1-4374-819d-b5b2a8583eac"
+				"spark.autotune.trackingId": "73da4441-e8f7-4dcb-8ddb-048353caf7ec"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -106,22 +106,37 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"from pyspark.sql import SparkSession\r\n",
+					"from notebookutils import mssparkutils\r\n",
+					"\r\n",
 					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Entraid_curated_mipins\")\r\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.Entraid_curated_mipins\")"
+					"\r\n",
+					"view_df = spark.sql(\r\n",
+					"    \"SELECT * FROM odw_curated_db.vw_Entraid_curated_mipins\"\r\n",
+					")\r\n",
+					"\r\n",
+					"storage_account = mssparkutils.notebook.run(\r\n",
+					"    \"/utils/py_utils_get_storage_account\"\r\n",
+					")\r\n",
+					"\r\n",
+					"curated_container = f\"abfss://odw-curated@{storage_account}\"\r\n",
+					"target_path = f\"{curated_container}/Entraid_curated_mipins\"\r\n",
+					"\r\n",
+					"spark.sql(\r\n",
+					"    \"DROP TABLE IF EXISTS odw_curated_db.Entraid_curated_mipins\"\r\n",
+					")\r\n",
+					"\r\n",
+					"view_df.write \\\r\n",
+					"    .mode(\"overwrite\") \\\r\n",
+					"    .format(\"delta\") \\\r\n",
+					"    .save(target_path)\r\n",
+					"\r\n",
+					"spark.sql(f\"\"\"\r\n",
+					"    CREATE TABLE odw_curated_db.Entraid_curated_mipins\r\n",
+					"    USING delta\r\n",
+					"    LOCATION '{target_path}'\r\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
