@@ -7,7 +7,6 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from datetime import datetime
 import pyspark.sql.types as T
 import mock
-from uuid import uuid4
 
 
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
@@ -17,9 +16,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
     ACTIVE_HARMONISED_DATA = [
         (
             1,
-            2,
+            "2",
             3,
-            603,
+            "603",
             "published",
             "Some description",
             False,
@@ -31,7 +30,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             None,
             "statement",
             datetime(2025, 1, 1, 0, 0, 0, 0).isoformat(),
-            [str(uuid4())],
+            ["aaaaa"],
             1,
             "ODT",
             5,
@@ -43,9 +42,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         ),
         (
             2,
-            3,
+            "3",
             4,
-            604,
+            "604",
             "published",
             "Another description",
             False,
@@ -59,7 +58,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             datetime(2025, 1, 2, 0, 0, 0, 0).isoformat(),
             None,
             None,
-            [str(uuid4())],
+            ["bbbbb"],
             1,
             "ODT",
             5,
@@ -69,9 +68,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         ),
         (
             5,
-            6,
+            "6",
             7,
-            607,
+            "607",
             "published",
             "Another description 3",
             False,
@@ -85,7 +84,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             datetime(2025, 1, 4, 0, 0, 0, 0).isoformat(),
             None,
             None,
-            [str(uuid4())],
+            ["ddddd"],
             1,
             "ODT",
             5,
@@ -102,9 +101,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             + [
                 (
                     3,
-                    4,
+                    "4",
                     5,
-                    605,
+                    "605",
                     "published",
                     "Another description 2",
                     False,
@@ -241,7 +240,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         """
         - Given I a have an existing appeal representation table and some new appeal representation data in the harmonised layer
         - When I run the appeal representation curation process
-        - Then the new data should be added to the existing table
+        - Then the new data should be overwritten
         """
         spark = PytestSparkSessionUtil().get_spark_session()
         existing_harmonised_data = self.generate_harmonised_table()
@@ -254,7 +253,64 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             "sb_appeal_representation",
             "overwrite",
         )
-        existing_curated_data = spark.createDataFrame([], self.generate_curated_data_schema())
+        # Existing data should be overwritten
+        existing_curated_data = spark.createDataFrame(
+            [
+                (
+                    10,
+                    11,
+                    12,
+                    612,
+                    "published",
+                    "Some description",
+                    False,
+                    None,
+                    None,
+                    [],
+                    [],
+                    "lpa",
+                    None,
+                    "statement",
+                    datetime(2025, 1, 1, 0, 0, 0, 0).isoformat(),
+                    ["xxxxx"],
+                    1,
+                    "ODT",
+                    5,
+                    datetime(2025, 1, 1, 0, 0, 0, 0).isoformat(),
+                    None,
+                    None,
+                    "Y",
+                    "xxxxx",
+                ),
+                (
+                    11,
+                    12,
+                    13,
+                    613,
+                    "published",
+                    "Some description",
+                    False,
+                    None,
+                    None,
+                    [],
+                    [],
+                    "lpa",
+                    None,
+                    "statement",
+                    datetime(2026, 1, 1, 0, 0, 0, 0).isoformat(),
+                    ["yyyyy"],
+                    1,
+                    "ODT",
+                    5,
+                    datetime(2026, 1, 1, 0, 0, 0, 0).isoformat(),
+                    None,
+                    None,
+                    "Y",
+                    "yyyyy",
+                ),
+            ],
+            self.generate_curated_data_schema(),
+        )
         # Create curated table
         self.write_existing_table(
             spark,
