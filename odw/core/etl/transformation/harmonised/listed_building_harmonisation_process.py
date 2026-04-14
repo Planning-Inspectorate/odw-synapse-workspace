@@ -1,6 +1,7 @@
 from typing import Any
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 
+
 class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "listed_building"
 

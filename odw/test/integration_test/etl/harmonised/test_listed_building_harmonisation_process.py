@@ -251,9 +251,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -339,9 +337,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -357,16 +353,8 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        old_row = (
-            df.where((F.col("entity") == "1001") & (F.col("isActive") == "N"))
-            .select("name", "validTo", "rowID")
-            .collect()[0]
-        )
-        new_row = (
-            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y"))
-            .select("name", "validTo", "rowID")
-            .collect()[0]
-        )
+        old_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).select("name", "validTo", "rowID").collect()[0]
+        new_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).select("name", "validTo", "rowID").collect()[0]
 
         assert old_row["name"] == "Old Building One"
         assert old_row["validTo"] is not None
@@ -394,9 +382,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -428,9 +414,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -465,9 +449,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -500,9 +482,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -536,9 +516,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()

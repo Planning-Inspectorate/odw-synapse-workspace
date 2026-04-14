@@ -214,9 +214,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -256,9 +254,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -319,9 +315,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -354,9 +348,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -389,9 +381,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()

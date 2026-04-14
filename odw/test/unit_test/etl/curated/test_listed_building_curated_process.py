@@ -115,9 +115,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -144,9 +142,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -170,9 +166,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -197,9 +191,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -225,9 +217,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -250,9 +240,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -277,9 +265,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -304,9 +290,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -331,9 +315,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -366,9 +348,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -404,9 +384,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
             inst = ListedBuildingCuratedProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
