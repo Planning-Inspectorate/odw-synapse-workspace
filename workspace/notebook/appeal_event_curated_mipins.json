@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b1204876-8cf3-4f98-858b-1b397164e61a"
+				"spark.autotune.trackingId": "9f5074c8-9da2-4ecd-a577-05ea15c562f0"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -109,66 +109,57 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_event_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"df = spark.sql(\"\"\"\n",
-					"                SELECT\n",
-					"                    eventId\n",
-					"                    ,caseReference\n",
-					"                    ,eventType\n",
-					"                    ,eventName\n",
-					"                    ,eventStatus\n",
-					"                    ,isUrgent\n",
-					"                    ,eventPublished\n",
-					"                    ,eventStartDateTime\n",
-					"                    ,eventEndDateTime\n",
-					"                    ,NotificationOfSiteVisit\n",
-					"                    ,addressLine1\n",
-					"                    ,addressLine2\n",
-					"                    ,addressTown\n",
-					"                    ,addressCounty\n",
-					"                    ,addressPostcode\n",
-					"                    ,Migrated\n",
-					"                    ,ODTSourceSystem\n",
-					"                    ,SourceSystemID\n",
-					"                    ,IngestionDate\n",
-					"                    ,ValidTo\n",
-					"                    ,RowID\n",
-					"                    ,IsActive\n",
-					"                FROM\n",
-					"                    vw_Appeal_event_curated_mipins\n",
-					"            \"\"\")\n",
+					"from notebookutils import mssparkutils\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_event_curated_mipins\")"
+					"spark.sql(\n",
+					"    \"DROP TABLE IF EXISTS odw_curated_db.appeal_event_curated_mipins\"\n",
+					")\n",
+					"\n",
+					"df = spark.sql(\"\"\"\n",
+					"    SELECT\n",
+					"        eventId,\n",
+					"        caseReference,\n",
+					"        eventType,\n",
+					"        eventName,\n",
+					"        eventStatus,\n",
+					"        isUrgent,\n",
+					"        eventPublished,\n",
+					"        eventStartDateTime,\n",
+					"        eventEndDateTime,\n",
+					"        NotificationOfSiteVisit,\n",
+					"        addressLine1,\n",
+					"        addressLine2,\n",
+					"        addressTown,\n",
+					"        addressCounty,\n",
+					"        addressPostcode,\n",
+					"        Migrated,\n",
+					"        ODTSourceSystem,\n",
+					"        SourceSystemID,\n",
+					"        IngestionDate,\n",
+					"        ValidTo,\n",
+					"        RowID,\n",
+					"        IsActive\n",
+					"    FROM vw_Appeal_event_curated_mipins\n",
+					"\"\"\")\n",
+					"\n",
+					"storage_account = mssparkutils.notebook.run(\n",
+					"    \"/utils/py_utils_get_storage_account\"\n",
+					")\n",
+					"\n",
+					"curated_container = f\"abfss://odw-curated@{storage_account}\"\n",
+					"target_path = f\"{curated_container}/appeal_event_curated_mipins\"\n",
+					"\n",
+					"df.write \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .format(\"delta\") \\\n",
+					"    .save(target_path)\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"    CREATE TABLE odw_curated_db.appeal_event_curated_mipins\n",
+					"    USING delta\n",
+					"    LOCATION '{target_path}'\n",
+					"\"\"\")"
 				],
 				"execution_count": null
 			},
