@@ -336,7 +336,7 @@ class TestListedBuildingCuratedProcess(ETLTestCase):
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
 
-    def test__listed_building_curated_process__run__drops_duplicate_source_rows_and_filters_inactive_rows(
+    def test__listed_building_curated_process__run__drops_duplicate_source_rows(
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()

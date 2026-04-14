@@ -34,6 +34,10 @@ def _harmonised_schema():
     )
 
 
+def _harmonised_schema_with_extra_source_column():
+    return StructType(_harmonised_schema().fields + [StructField("sourceOnlyColumn", StringType(), True)])
+
+
 def _curated_schema():
     return StructType(
         [
@@ -106,8 +110,20 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _harmonised_row(entity="1001", reference="LB-001", name="Building One", listedBuildingGrade="II", isActive="Y"),
-            _harmonised_row(entity="1002", reference="LB-002", name="Building Two", listedBuildingGrade="I", isActive="N"),
+            _harmonised_row(
+                entity="1001",
+                reference="LB-001",
+                name="Building One",
+                listedBuildingGrade="II",
+                isActive="Y",
+            ),
+            _harmonised_row(
+                entity="1002",
+                reference="LB-002",
+                name="Building Two",
+                listedBuildingGrade="I",
+                isActive="N",
+            ),
         ]
 
         source_data = {
@@ -209,7 +225,12 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
 
         source_rows = [
             _harmonised_row(entity="1001", reference="LB-001"),
-            _harmonised_row(entity="1002", reference="LB-002", name="Building Two", listedBuildingGrade="I"),
+            _harmonised_row(
+                entity="1002",
+                reference="LB-002",
+                name="Building Two",
+                listedBuildingGrade="I",
+            ),
         ]
 
         source_data = {
@@ -256,7 +277,14 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_rows = [_harmonised_row(entity="1002", reference="LB-002", name="Building Two", listedBuildingGrade="I")]
+        source_rows = [
+            _harmonised_row(
+                entity="1002",
+                reference="LB-002",
+                name="Building Two",
+                listedBuildingGrade="I",
+            )
+        ]
         target_rows = [_curated_row(entity=1001, reference="LB-001")]
 
         source_data = {
@@ -344,7 +372,10 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
 
         source_data = {
             "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
-            "target_data": spark.createDataFrame(target_rows, schema=_curated_schema_with_extra_target_column()),
+            "target_data": spark.createDataFrame(
+                target_rows,
+                schema=_curated_schema_with_extra_target_column(),
+            ),
             "target_exists": True,
         }
 
@@ -364,18 +395,38 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
+        source_rows = [
+            {
+                "dataset": "listed-building",
+                "endDate": None,
+                "entity": "1001",
+                "entryDate": "2024-01-01",
+                "geometry": "POLYGON((1 1,2 2,3 3,1 1))",
+                "listedBuildingGrade": "II",
+                "name": "Building One Updated",
+                "organisationEntity": "org-1",
+                "point": "POINT(1 1)",
+                "prefix": "listed-building",
+                "reference": "LB-001",
+                "startDate": "2020-01-01",
+                "typology": "grade-ii",
+                "documentationUrl": "https://example.com/lb-001",
+                "dateReceived": "2025-01-01",
+                "rowID": "row-1",
+                "validTo": None,
+                "isActive": "Y",
+                "sourceOnlyColumn": "source-only",
+            }
+        ]
+
         source_df = spark.createDataFrame(
-            [
-                (1001, "LB-001", "Building One Updated", "II", "source-only"),
-            ],
-            ["entity", "reference", "name", "listedBuildingGrade", "sourceOnlyColumn"],
+            source_rows,
+            schema=_harmonised_schema_with_extra_source_column(),
         )
 
         target_df = spark.createDataFrame(
-            [
-                (1001, "LB-001", "Building One", "II"),
-            ],
-            ["entity", "reference", "name", "listedBuildingGrade"],
+            [_curated_row(entity=1001, reference="LB-001", name="Building One", listedBuildingGrade="II")],
+            schema=_curated_schema(),
         )
 
         source_data = {

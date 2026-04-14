@@ -120,7 +120,7 @@ def _changed_standardised_df(spark):
     )
 
 
-def _identical_standardised_df(spark):
+def _unchanged_standardised_df(spark):
     return spark.createDataFrame(
         [
             (
@@ -407,7 +407,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
-            "source_data": _identical_standardised_df(spark),
+            "source_data": _unchanged_standardised_df(spark),
             "target_data": _existing_harmonised_df(spark),
             "target_exists": True,
         }
@@ -532,6 +532,8 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
+        # Legacy Notebook behaviour: the harmonisation merge/deactivation logic is keyed on entity, not reference
+        # So when entity 9999 reuses reference LB-001 existing entity 1001 remains untouched
         assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
         assert df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count() == 1
         assert result.metadata.insert_count == 0

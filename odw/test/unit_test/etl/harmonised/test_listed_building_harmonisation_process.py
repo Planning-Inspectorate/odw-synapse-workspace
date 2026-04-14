@@ -487,6 +487,8 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
+        # Legacy Notebook behaviour: the harmonisation merge/deactivation logic is keyed on entity, not reference
+        # So when entity 9999 reuses reference LB-001 existing entity 1001 remains untouched
         assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
         assert df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count() == 1
         assert result.metadata.insert_count == 0
