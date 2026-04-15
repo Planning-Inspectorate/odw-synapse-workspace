@@ -97,7 +97,7 @@ def _curated_row(**overrides):
         "caseReference": "EN010001",
         "invoiceStage": "Submitted",
         "invoiceNumber": "INV-001",
-        "amountDue": "100.50",
+        "amountDue": 100.50,
         "paymentDueDate": "2025-01-20",
         "invoicedDate": "2025-01-10",
         "paymentDate": None,
