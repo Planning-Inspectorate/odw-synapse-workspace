@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5621838e-be42-49b0-85b9-5b33d4cbbed7"
+				"spark.autotune.trackingId": "db5a9580-6040-4de6-841e-dd9036828efa"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -70,7 +70,7 @@
 					"\n",
 					"print(\"Using:\", mpesc_base_path)"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -97,7 +97,7 @@
 					"print(\"Column count:\", len(df.columns))\n",
 					"display(df.limit(5))"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -275,18 +275,34 @@
 					"        )\n",
 					"\n",
 					"    elif defid == 95506:\n",
-					"        # keep existing repeated-row logic for this one\n",
-					"        w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.monotonically_increasing_id())\n",
-					"\n",
-					"        d_occ = d.withColumn(\"row_instance\", F.row_number().over(w))\n",
-					"\n",
-					"        wide = (\n",
-					"            d_occ\n",
-					"            .groupBy(\"ID\", \"row_instance\")\n",
-					"            .pivot(\"AttrID\")\n",
-					"            .agg(F.first(\"Value\", ignorenulls=True))\n",
-					"            .orderBy(\"ID\", \"row_instance\")\n",
+					"        parentkey_populated = (\n",
+					"            d\n",
+					"            .filter(F.col(\"ParentKeyID\").isNotNull())\n",
+					"            .limit(1)\n",
+					"            .count() > 0\n",
 					"        )\n",
+					"\n",
+					"        if parentkey_populated:\n",
+					"            wide = (\n",
+					"                d\n",
+					"                .filter(F.col(\"ParentKeyID\").isNotNull())\n",
+					"                .groupBy(\"ID\", \"ParentKeyID\")\n",
+					"                .pivot(\"AttrID\")\n",
+					"                .agg(F.first(\"Value\", ignorenulls=True))\n",
+					"                .orderBy(\"ID\", \"ParentKeyID\")\n",
+					"            )\n",
+					"        else:\n",
+					"            w = Window.partitionBy(\"ID\", \"AttrID\").orderBy(F.monotonically_increasing_id())\n",
+					"\n",
+					"            d_occ = d.withColumn(\"row_instance\", F.row_number().over(w))\n",
+					"\n",
+					"            wide = (\n",
+					"                d_occ\n",
+					"                .groupBy(\"ID\", \"row_instance\")\n",
+					"                .pivot(\"AttrID\")\n",
+					"                .agg(F.first(\"Value\", ignorenulls=True))\n",
+					"                .orderBy(\"ID\", \"row_instance\")\n",
+					"            )\n",
 					"\n",
 					"    else:\n",
 					"        wide = (\n",
@@ -365,7 +381,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"extract_one_defid(95501)"
+					"extract_one_defid(95502)"
 				],
 				"execution_count": null
 			},
