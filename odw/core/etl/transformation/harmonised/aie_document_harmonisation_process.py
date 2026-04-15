@@ -175,9 +175,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         # Step 1: Compute RowID while AIEDocumentDataID is still NULL.
         # This mirrors the notebook, where RowID is generated from the intermediate
         # table before the calcs view is applied.
-        row_id_expr = F.md5(
-            F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _AIE_DOCUMENT_ROW_ID_COLUMNS])
-        )
+        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _AIE_DOCUMENT_ROW_ID_COLUMNS]))
         data_with_row_id = horizon_data.withColumn("RowID", row_id_expr)
 
         # Step 2: Window-function calculations (replaces the SQL view pattern from the notebook)
@@ -186,8 +184,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
 
         LoggingUtil().log_info("Computing AIEDocumentDataID and IsActive flags")
         combined = (
-            data_with_row_id
-            .withColumn("ReverseOrderProcessed", F.row_number().over(win_pk_desc))
+            data_with_row_id.withColumn("ReverseOrderProcessed", F.row_number().over(win_pk_desc))
             .withColumn("AIEDocumentDataID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",

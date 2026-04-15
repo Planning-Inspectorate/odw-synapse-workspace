@@ -94,9 +94,7 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d.get("Source_Filename_Start")), None)
         if not definition:
-            raise RuntimeError(
-                f"No orchestration definition found for 'Source_Filename_Start' == '{entity_name}'"
-            )
+            raise RuntimeError(f"No orchestration definition found for 'Source_Filename_Start' == '{entity_name}'")
 
         std_table = definition["Standardised_Table_Name"]
         full_std_table = f"{self.STD_DB}.{std_table}"
@@ -125,9 +123,7 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d.get("Source_Filename_Start")), None)
         if not definition:
-            raise RuntimeError(
-                f"No orchestration definition found for 'Source_Filename_Start' == '{entity_name}'"
-            )
+            raise RuntimeError(f"No orchestration definition found for 'Source_Filename_Start' == '{entity_name}'")
 
         hrm_table: str = definition["Harmonised_Table_Name"]
         primary_key: str = definition["Entity_Primary_Key"]
@@ -177,14 +173,10 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         )
 
         # Tie-breaking helpers for deterministic ordering within the same key + timestamp.
-        norm_row_id = F.when(
-            F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")
-        ).otherwise(F.col("RowID"))
+        norm_row_id = F.when(F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")).otherwise(F.col("RowID"))
         fallback_hash = state_hash_expr
 
-        w_tie = Window.partitionBy(primary_key, "IngestionDate", "ODTSourceSystem").orderBy(
-            norm_row_id.asc(), fallback_hash.asc()
-        )
+        w_tie = Window.partitionBy(primary_key, "IngestionDate", "ODTSourceSystem").orderBy(norm_row_id.asc(), fallback_hash.asc())
         data = (
             data.withColumn("_state_hash", state_hash_expr)
             .withColumn("_norm_row_id", norm_row_id)
@@ -196,11 +188,7 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         w_dup = Window.partitionBy(primary_key, "IngestionDate", "ODTSourceSystem", "_state_hash").orderBy(
             F.col("_norm_row_id").asc(), F.col("_fallback_hash").asc()
         )
-        data = (
-            data.withColumn("_dup_rn", F.row_number().over(w_dup))
-            .filter(F.col("_dup_rn") == 1)
-            .drop("_dup_rn")
-        )
+        data = data.withColumn("_dup_rn", F.row_number().over(w_dup)).filter(F.col("_dup_rn") == 1).drop("_dup_rn")
 
         # Step 7: Keep only rows where the business state has changed (SCD-2 change detection).
         w_ing = Window.partitionBy(primary_key).orderBy(

@@ -16,14 +16,14 @@ def _make_horizon_row(
     """Return a tuple matching the schema produced by _load_horizon_data()."""
     return (
         temp_pk,
-        None,           # AIEDocumentDataID – always NULL from load
+        None,  # AIEDocumentDataID – always NULL from load
         document_id,
         case_ref,
         "DOC-REF",
         version,
         "EXAM-1",
         filename,
-        filename,       # originalFilename
+        filename,  # originalFilename
         "1000",
         "application/pdf",
         "http://example.com/doc",
@@ -48,56 +48,58 @@ def _make_horizon_row(
         "stage1",
         "f1",
         "f2",
-        "0",            # Migrated
-        "Horizon",      # ODTSourceSystem
-        ingestion_date, # IngestionDate (timestamp string)
-        None,           # ValidTo
-        "",             # RowID
-        "Y",            # IsActive
+        "0",  # Migrated
+        "Horizon",  # ODTSourceSystem
+        ingestion_date,  # IngestionDate (timestamp string)
+        None,  # ValidTo
+        "",  # RowID
+        "Y",  # IsActive
     )
 
 
-_HORIZON_SCHEMA = T.StructType([
-    T.StructField("TEMP_PK", T.StringType(), True),
-    T.StructField("AIEDocumentDataID", T.LongType(), True),
-    T.StructField("documentId", T.StringType(), True),
-    T.StructField("caseRef", T.StringType(), True),
-    T.StructField("documentReference", T.StringType(), True),
-    T.StructField("version", T.StringType(), True),
-    T.StructField("examinationRefNo", T.StringType(), True),
-    T.StructField("filename", T.StringType(), True),
-    T.StructField("originalFilename", T.StringType(), True),
-    T.StructField("size", T.StringType(), True),
-    T.StructField("mime", T.StringType(), True),
-    T.StructField("documentUri", T.StringType(), True),
-    T.StructField("path", T.StringType(), True),
-    T.StructField("virusCheckStatus", T.StringType(), True),
-    T.StructField("fileMD5", T.StringType(), True),
-    T.StructField("dateCreated", T.StringType(), True),
-    T.StructField("lastModified", T.StringType(), True),
-    T.StructField("caseType", T.StringType(), True),
-    T.StructField("documentStatus", T.StringType(), True),
-    T.StructField("redactedStatus", T.StringType(), True),
-    T.StructField("publishedStatus", T.StringType(), True),
-    T.StructField("datePublished", T.StringType(), True),
-    T.StructField("documentType", T.StringType(), True),
-    T.StructField("securityClassification", T.StringType(), True),
-    T.StructField("sourceSystem", T.StringType(), True),
-    T.StructField("origin", T.StringType(), True),
-    T.StructField("owner", T.StringType(), True),
-    T.StructField("author", T.StringType(), True),
-    T.StructField("representative", T.StringType(), True),
-    T.StructField("description", T.StringType(), True),
-    T.StructField("stage", T.StringType(), True),
-    T.StructField("filter1", T.StringType(), True),
-    T.StructField("filter2", T.StringType(), True),
-    T.StructField("Migrated", T.StringType(), True),
-    T.StructField("ODTSourceSystem", T.StringType(), True),
-    T.StructField("IngestionDate", T.StringType(), True),
-    T.StructField("ValidTo", T.StringType(), True),
-    T.StructField("RowID", T.StringType(), True),
-    T.StructField("IsActive", T.StringType(), True),
-])
+_HORIZON_SCHEMA = T.StructType(
+    [
+        T.StructField("TEMP_PK", T.StringType(), True),
+        T.StructField("AIEDocumentDataID", T.LongType(), True),
+        T.StructField("documentId", T.StringType(), True),
+        T.StructField("caseRef", T.StringType(), True),
+        T.StructField("documentReference", T.StringType(), True),
+        T.StructField("version", T.StringType(), True),
+        T.StructField("examinationRefNo", T.StringType(), True),
+        T.StructField("filename", T.StringType(), True),
+        T.StructField("originalFilename", T.StringType(), True),
+        T.StructField("size", T.StringType(), True),
+        T.StructField("mime", T.StringType(), True),
+        T.StructField("documentUri", T.StringType(), True),
+        T.StructField("path", T.StringType(), True),
+        T.StructField("virusCheckStatus", T.StringType(), True),
+        T.StructField("fileMD5", T.StringType(), True),
+        T.StructField("dateCreated", T.StringType(), True),
+        T.StructField("lastModified", T.StringType(), True),
+        T.StructField("caseType", T.StringType(), True),
+        T.StructField("documentStatus", T.StringType(), True),
+        T.StructField("redactedStatus", T.StringType(), True),
+        T.StructField("publishedStatus", T.StringType(), True),
+        T.StructField("datePublished", T.StringType(), True),
+        T.StructField("documentType", T.StringType(), True),
+        T.StructField("securityClassification", T.StringType(), True),
+        T.StructField("sourceSystem", T.StringType(), True),
+        T.StructField("origin", T.StringType(), True),
+        T.StructField("owner", T.StringType(), True),
+        T.StructField("author", T.StringType(), True),
+        T.StructField("representative", T.StringType(), True),
+        T.StructField("description", T.StringType(), True),
+        T.StructField("stage", T.StringType(), True),
+        T.StructField("filter1", T.StringType(), True),
+        T.StructField("filter2", T.StringType(), True),
+        T.StructField("Migrated", T.StringType(), True),
+        T.StructField("ODTSourceSystem", T.StringType(), True),
+        T.StructField("IngestionDate", T.StringType(), True),
+        T.StructField("ValidTo", T.StringType(), True),
+        T.StructField("RowID", T.StringType(), True),
+        T.StructField("IsActive", T.StringType(), True),
+    ]
+)
 
 
 class TestAieDocumentHarmonisationProcess(SparkTestCase):
@@ -292,5 +294,6 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
 
     def test__aie_document_harmonisation_process__is_registered_in_factory(self):
         from odw.core.etl.etl_process_factory import ETLProcessFactory
+
         process_class = ETLProcessFactory.get("aie-document-harmonised")
         assert process_class is AieDocumentHarmonisationProcess
