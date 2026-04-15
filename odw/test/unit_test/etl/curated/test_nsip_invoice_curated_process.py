@@ -7,6 +7,7 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
+    FloatType,
 )
 
 from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
@@ -50,12 +51,12 @@ def _curated_schema():
             StructField("caseReference", StringType(), True),
             StructField("invoiceStage", StringType(), True),
             StructField("invoiceNumber", StringType(), True),
-            StructField("amountDue", StringType(), True),
+            StructField("amountDue", FloatType(), True),
             StructField("paymentDueDate", StringType(), True),
             StructField("invoicedDate", StringType(), True),
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
-            StructField("refundAmount", StringType(), True),
+            StructField("refundAmount", FloatType(), True),
             StructField("refundIssueDate", StringType(), True),
         ]
     )
