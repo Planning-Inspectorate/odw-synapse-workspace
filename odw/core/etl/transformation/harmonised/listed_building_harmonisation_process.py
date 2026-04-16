@@ -15,7 +15,7 @@ from pyspark.sql.functions import md5, concat, coalesce, lit, col
 # ------------------------------------------------------------------ #
 # Columns used to build RowID hash
 # ------------------------------------------------------------------ #
-_ROWID_COLUMNS = [
+_DOCUMENT_ROW_ID_COLUMNS = [
     "entity",
     "dataset",
     "endDate",
@@ -97,7 +97,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         hash_expr = concat(*[
             coalesce(col(c), lit("."))
-            for c in _ROWID_COLUMNS
+            for c in _DOCUMENT_ROW_ID_COLUMNS
         ])
 
         return (
@@ -226,22 +226,3 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             rows_updated=self.update_count,
             rows_deleted=self.delete_count,
         )
-
-
-# ------------------------------------------------------------------ #
-# Standalone execution
-# ------------------------------------------------------------------ #
-if __name__ == "__main__":
-    spark = (
-        SparkSession.builder
-        .appName("ListedBuildingsToHarmonised")
-        .getOrCreate()
-    )
-
-    process = ListedBuildingHarmonisationProcess(
-        spark=spark,
-        params={}
-    )
-
-    result = process.process()
-    print(result)
