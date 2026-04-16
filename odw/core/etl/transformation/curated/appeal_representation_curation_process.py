@@ -3,6 +3,8 @@ from typing import Any
 
 
 class AppealRepresentationCurationProcess(CurationProcess):
+    HARMONISED_DB = "odw_harmonised_db"
+    CURATED_DB = "odw_curated_db"
     HARMONISED_TABLE = "sb_appeal_representation"
     CURATED_TABLE = "appeal_representation"
 
