@@ -1,0 +1,623 @@
+{
+	"name": "Transform-Decision-New-ff",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration/Horizon-Transform"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "3113dcd4-6065-46c3-964c-a8f6ff9daafc"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"print(\"Using:\", mpesc_base_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"def clean_str(col_expr):\n",
+					"    return (\n",
+					"        F.when(\n",
+					"            col_expr.isNull() |\n",
+					"            (F.trim(col_expr) == \"\") |\n",
+					"            (F.lower(F.trim(col_expr)) == \"undefined\"),\n",
+					"            F.lit(None)\n",
+					"        ).otherwise(F.trim(col_expr))\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"cases_path = f\"{mpesc_base_path}/config/Cases/Cases.csv\"\n",
+					"\n",
+					"cases_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .load(cases_path)\n",
+					")\n",
+					"\n",
+					"cases_key = (\n",
+					"    cases_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"Case ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.trim(F.col(\"GUID\")).alias(\"caseId\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.col(\"legacyCaseId\").isNotNull() &\n",
+					"        (F.col(\"legacyCaseId\") != \"\") &\n",
+					"        F.col(\"caseId\").isNotNull() &\n",
+					"        (F.col(\"caseId\") != \"\")\n",
+					"    )\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"cases_key rows:\", cases_key.count())\n",
+					"display(cases_key.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_dates_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_Dates_95499/*.csv\"\n",
+					"\n",
+					"case_decision_dates = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"multiLine\", \"true\")\n",
+					"    .load(case_dates_path)\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"\n",
+					"        F.when(\n",
+					"            F.col(\"14\").isNull() |\n",
+					"            (F.trim(F.col(\"14\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"14\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"14\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"caseDecisionDate\"),\n",
+					"\n",
+					"        F.when(\n",
+					"            F.col(\"23\").isNull() |\n",
+					"            (F.trim(F.col(\"23\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"23\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"23\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"decisionReceivedDate\"),\n",
+					"\n",
+					"        F.when(\n",
+					"            F.col(\"26\").isNull() |\n",
+					"            (F.trim(F.col(\"26\")) == \"\") |\n",
+					"            (F.lower(F.trim(F.col(\"26\"))) == \"undefined\"),\n",
+					"            F.lit(None).cast(\"timestamp\")\n",
+					"        ).otherwise(\n",
+					"            F.to_timestamp(F.col(\"26\"), \"yyyy-MM-dd HH:mm:ss\")\n",
+					"        ).alias(\"decisionPublishedDate\")\n",
+					"    )\n",
+					"    .filter(F.col(\"legacyCaseId\").isNotNull() & (F.col(\"legacyCaseId\") != \"\"))\n",
+					"    .dropDuplicates([\"legacyCaseId\"])\n",
+					")\n",
+					"\n",
+					"print(\"case_decision_dates rows:\", case_decision_dates.count())\n",
+					"display(\n",
+					"    case_decision_dates.filter(\n",
+					"        F.col(\"caseDecisionDate\").isNotNull() |\n",
+					"        F.col(\"decisionReceivedDate\").isNotNull() |\n",
+					"        F.col(\"decisionPublishedDate\").isNotNull()\n",
+					"    ).limit(20)\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_decision_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Case_95498/*.csv\"\n",
+					"\n",
+					"case_decision_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"multiLine\", \"false\")\n",
+					"    .load(case_decision_path)\n",
+					")\n",
+					"\n",
+					"print(\"case_decision_raw rows:\", case_decision_raw.count())\n",
+					"display(case_decision_raw.limit(10))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"case_decision_ready = (\n",
+					"    case_decision_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        clean_str(F.col(\"1\").cast(\"string\")).alias(\"attr1\"),\n",
+					"        F.to_timestamp(clean_str(F.col(\"46\").cast(\"string\")), \"yyyy-MM-dd HH:mm:ss\").alias(\"decisionIssue\"),\n",
+					"        clean_str(F.col(\"52\").cast(\"string\")).alias(\"casePublishFlag\"),\n",
+					"        clean_str(F.col(\"74\").cast(\"string\")).alias(\"decisionType\"),\n",
+					"        clean_str(F.col(\"79\").cast(\"string\")).alias(\"decisionBranch\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"case_decision_ready = (\n",
+					"    case_decision_ready.alias(\"d\")\n",
+					"    .join(case_decision_dates.alias(\"cd\"), on=\"legacyCaseId\", how=\"left\")\n",
+					"    .select(\n",
+					"        F.col(\"legacyCaseId\"),\n",
+					"        F.col(\"d.attr1\").alias(\"attr1\"),\n",
+					"        F.col(\"d.decisionIssue\").alias(\"decisionIssue\"),\n",
+					"        F.col(\"cd.caseDecisionDate\").alias(\"outcomeDate\"),\n",
+					"        F.col(\"cd.decisionReceivedDate\").alias(\"decisionReceivedDate\"),\n",
+					"        F.col(\"cd.decisionPublishedDate\").alias(\"decisionPublishedDate\"),\n",
+					"        F.col(\"d.casePublishFlag\").alias(\"casePublishFlag\"),\n",
+					"        F.col(\"d.decisionType\").alias(\"decisionType\"),\n",
+					"        F.col(\"d.decisionBranch\").alias(\"decisionBranch\")\n",
+					"    )\n",
+					"    .withColumn(\"decisionMakerType\", F.lit(\"inspector\"))\n",
+					"    .withColumn(\"dtypeId\", F.lit(\"decision\"))\n",
+					"    .withColumn(\"sourceDataset\", F.lit(\"case\"))\n",
+					")\n",
+					"\n",
+					"print(\"case_decision_ready rows:\", case_decision_ready.count())\n",
+					"display(case_decision_ready.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"sos_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Secretary_Of_State_Decision_19674254/*.csv\"\n",
+					"\n",
+					"sos_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"multiLine\", \"false\")\n",
+					"    .load(sos_path)\n",
+					")\n",
+					"\n",
+					"print(\"sos_raw rows:\", sos_raw.count())\n",
+					"display(sos_raw.limit(10))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"sos_ready = (\n",
+					"    sos_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.lit(None).cast(\"string\").alias(\"attr1\"),\n",
+					"        F.to_timestamp(clean_str(F.col(\"13\").cast(\"string\")), \"yyyy-MM-dd HH:mm:ss\").alias(\"decisionIssue\"),\n",
+					"        clean_str(F.col(\"15\").cast(\"string\")).alias(\"casePublishFlag\"),\n",
+					"        clean_str(F.col(\"14\").cast(\"string\")).alias(\"decisionType\"),\n",
+					"        clean_str(F.col(\"1\").cast(\"string\")).alias(\"decisionBranch\")\n",
+					"    )\n",
+					"    .withColumn(\"decisionMakerType\", F.lit(\"secretary-of-state\"))\n",
+					"    .withColumn(\"dtypeId\", F.lit(\"secretary-of-state\"))\n",
+					")\n",
+					"\n",
+					"print(\"sos_ready rows:\", sos_ready.count())\n",
+					"display(sos_ready.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"mod_path = f\"{mpesc_base_path}/MPESC-EXTRACT/LLAttr/Modification_15809003/*.csv\"\n",
+					"\n",
+					"mod_raw = (\n",
+					"    spark.read.format(\"csv\")\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"sep\", \"|\")\n",
+					"    .option(\"quote\", \"\\\"\")\n",
+					"    .option(\"escape\", \"\\\"\")\n",
+					"    .option(\"multiLine\", \"false\")\n",
+					"    .load(mod_path)\n",
+					")\n",
+					"\n",
+					"print(\"mod_raw rows:\", mod_raw.count())\n",
+					"display(mod_raw.limit(10))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"print(\"Modification columns:\", mod_raw.columns)\n",
+					"\n",
+					"display(mod_raw.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"mod_ready = (\n",
+					"    mod_raw\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"ID\").cast(\"string\")).alias(\"legacyCaseId\"),\n",
+					"        F.lit(None).cast(\"string\").alias(\"attr1\"),\n",
+					"\n",
+					"        \n",
+					"        F.to_timestamp(clean_str(F.col(\"12\").cast(\"string\")), \"yyyy-MM-dd HH:mm:ss\").alias(\"decisionIssue\"),\n",
+					"        F.to_timestamp(clean_str(F.col(\"13\").cast(\"string\")), \"yyyy-MM-dd HH:mm:ss\").alias(\"DecisionDespatched\"),\n",
+					"        F.lit(None).cast(\"string\").alias(\"casePublishFlag\"),\n",
+					"        clean_str(F.col(\"15\").cast(\"string\")).alias(\"decisionType\"),\n",
+					"        clean_str(F.col(\"1\").cast(\"string\")).alias(\"decisionBranch\")\n",
+					"    )\n",
+					"    .withColumn(\"decisionMakerType\", F.lit(\"inspector\"))\n",
+					"    .withColumn(\"dtypeId\", F.lit(\"decision\"))\n",
+					"    .withColumn(\"sourceDataset\", F.lit(\"modification\"))\n",
+					")\n",
+					"\n",
+					"display(mod_ready.limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_all = (\n",
+					"    case_decision_ready\n",
+					"        .unionByName(sos_ready, allowMissingColumns=True)\n",
+					"        .unionByName(mod_ready, allowMissingColumns=True)\n",
+					")\n",
+					"\n",
+					"print(\"Total decision rows:\", decision_all.count())\n",
+					"display(decision_all.limit(50))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"print(\"ALL decision types combined\")\n",
+					"display(\n",
+					"    decision_all\n",
+					"    .groupBy(\"decisionType\")\n",
+					"    .count()\n",
+					"    .orderBy(F.desc(\"count\"))\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"decision_with_guid = (\n",
+					"    decision_all\n",
+					"    .join(cases_key, on=\"legacyCaseId\", how=\"inner\")\n",
+					")\n",
+					"\n",
+					"print(\"Decision rows with GUID:\", decision_with_guid.count())\n",
+					"display(decision_with_guid)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"dt = F.lower(F.trim(F.col(\"decisionType\")))\n",
+					"\n",
+					"decision_mapped = (\n",
+					"    decision_with_guid\n",
+					"    .withColumn(\"decisionTypeNorm\", dt)\n",
+					"    .withColumn(\n",
+					"        \"outcomeId\",\n",
+					"        F.when(\n",
+					"            F.col(\"decisionType\").isNull() |\n",
+					"            (F.trim(F.col(\"decisionType\")) == \"\") |\n",
+					"            (dt == \"undefined\"),\n",
+					"            F.lit(\"other\")\n",
+					"        )\n",
+					"\n",
+					"        # -----------------------------\n",
+					"        # Rights of Way (exact names)\n",
+					"        # -----------------------------\n",
+					"        .when(dt == \"allow\", F.lit(\"allow\"))\n",
+					"        .when(dt == \"confirmed\", F.lit(\"confirmed\"))\n",
+					"        .when(dt.isin(\"confirmed with modifications\", \"confirmed-with-modifications\", \"confirmed with mods\"), F.lit(\"confirmed-with-modifications\"))\n",
+					"        .when(dt == \"directed\", F.lit(\"directed\"))\n",
+					"        .when(dt.isin(\"not allowed\", \"not-allowed\"), F.lit(\"not-allowed\"))\n",
+					"        .when(dt.isin(\"not confirmed\", \"not-confirmed\"), F.lit(\"not-confirmed\"))\n",
+					"        .when(dt.isin(\"not directed\", \"not-directed\"), F.lit(\"not-directed\"))\n",
+					"        .when(dt.isin(\"not granted\", \"not-granted\"), F.lit(\"not-granted\"))\n",
+					"        .when(dt.isin(\"partially allow\", \"partially-allow\"), F.lit(\"partially-allow\"))\n",
+					"        .when(dt.isin(\"propose not to confirm\", \"propose-not-to-confirm\"), F.lit(\"propose-not-to-confirm\"))\n",
+					"        .when(dt.isin(\"propose to confirm\", \"propose-to-confirm\"), F.lit(\"propose-to-confirm\"))\n",
+					"        .when(dt.isin(\"modified (adv)\", \"modified adv\"), F.lit(\"modified-adv\"))\n",
+					"        .when(dt.isin(\"modified (not adv)\", \"modified not adv\"), F.lit(\"modified-not-adv\"))\n",
+					"\n",
+					"        # -----------------------------\n",
+					"        # SOS / planning-style decisions\n",
+					"        # -----------------------------\n",
+					"        .when(dt == \"allowed\", F.lit(\"allow\"))\n",
+					"        .when(dt == \"appeal allowed\", F.lit(\"allow\"))\n",
+					"\n",
+					"        .when(dt == \"allowed with conditions\", F.lit(\"granted-with-conditions\"))\n",
+					"        .when(dt == \"allowed subject to conditions\", F.lit(\"granted-with-conditions\"))\n",
+					"\n",
+					"        .when(dt == \"dismissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt == \"dimissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt == \"dismiss\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt == \"appeal dismissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt == \"all dismissed\", F.lit(\"not-allowed\"))\n",
+					"        .when(dt.contains(\"dismiss\"), F.lit(\"not-allowed\"))\n",
+					"\n",
+					"        # planning refusals\n",
+					"        .when(dt.isin(\"refused\", \"permission refused\", \"application refused\"), F.lit(\"not-granted\"))\n",
+					"\n",
+					"        # granted outcomes\n",
+					"        .when(dt.contains(\"granted\") & dt.contains(\"condition\"), F.lit(\"granted-with-conditions\"))\n",
+					"        .when(dt.isin(\"granted\", \"permission granted\", \"planning permission granted\", \"approval granted\"), F.lit(\"granted\"))\n",
+					"        .when(dt == \"granted in part\", F.lit(\"partially-granted\"))\n",
+					"\n",
+					"        # split / partial\n",
+					"        .when(dt.isin(\"allowed in part\", \"split decision\"), F.lit(\"partially-allow\"))\n",
+					"\n",
+					"        # notice outcomes\n",
+					"        .when(dt == \"notice upheld\", F.lit(\"confirmed\"))\n",
+					"        .when(dt == \"notice varied and upheld\", F.lit(\"confirmed-with-modifications\"))\n",
+					"        .when(dt.isin(\"notice quashed\", \"quashed on legal grounds\"), F.lit(\"not-confirmed\"))\n",
+					"\n",
+					"        # order outcomes\n",
+					"        .when(dt == \"order made with modifications\", F.lit(\"order-made-with-modifications\"))\n",
+					"        .when((dt.contains(\"made\") & dt.contains(\"modification\")), F.lit(\"order-made-with-modifications\"))\n",
+					"        .when(dt == \"order made\", F.lit(\"order-made\"))\n",
+					"        .when(dt.contains(\"order made\"), F.lit(\"order-made\"))\n",
+					"        .when(dt == \"order not made\", F.lit(\"order-not-made\"))\n",
+					"        .when(dt == \"not made\", F.lit(\"order-not-made\"))\n",
+					"        .when(dt.contains(\"not made\"), F.lit(\"order-not-made\"))\n",
+					"\n",
+					"        # free-text / mixed outcomes\n",
+					"        .when(dt.rlike(r\"appeal [a-z]\"), F.lit(\"other\"))\n",
+					"        .when(dt.rlike(r\"app/\"), F.lit(\"other\"))\n",
+					"        .when(dt.rlike(r\"//\"), F.lit(\"other\"))\n",
+					"        .when(dt.rlike(r\";\"), F.lit(\"other\"))\n",
+					"        .when(dt.rlike(r\",\"), F.lit(\"other\"))\n",
+					"        .when(dt.rlike(r\"the supply and delivery\"), F.lit(\"other\"))\n",
+					"\n",
+					"        # ambiguous / non-target values\n",
+					"        .when(dt.isin(\"invalid\", \"appeal withdrawn\", \"reject\", \"turned away\"), F.lit(\"other\"))\n",
+					"\n",
+					"        .otherwise(F.lit(\"other\"))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(\n",
+					"    decision_mapped\n",
+					"    .select(\"decisionType\", \"decisionTypeNorm\", \"outcomeId\")\n",
+					"    .dropDuplicates()\n",
+					"    .orderBy(\"decisionType\")\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(\n",
+					"    decision_mapped\n",
+					"    .groupBy(\"decisionType\", \"outcomeId\")\n",
+					"    .count()\n",
+					"    .orderBy(F.desc(\"count\"))\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"outcome_guid_map = (\n",
+					"    decision_mapped\n",
+					"    .select(\"caseId\")\n",
+					"    .dropDuplicates([\"caseId\"])\n",
+					"    .withColumn(\"outcomeGuid\", F.expr(\"uuid()\"))\n",
+					")\n",
+					"\n",
+					"decision_with_defaults = (\n",
+					"    decision_mapped\n",
+					"    .withColumn(\n",
+					"        \"outcomeDate\",\n",
+					"        F.when(\n",
+					"            F.col(\"outcomeDate\").isNull(),\n",
+					"            F.col(\"decisionIssue\")\n",
+					"        ).otherwise(F.col(\"outcomeDate\"))\n",
+					"    )\n",
+					"    .withColumn(\n",
+					"        \"decisionType\",\n",
+					"        F.when(\n",
+					"            (\n",
+					"                F.col(\"outcomeDate\").isNotNull()\n",
+					"            ) &\n",
+					"            (\n",
+					"                F.col(\"decisionType\").isNull() |\n",
+					"                F.lower(F.trim(F.col(\"decisionType\"))).isin(\"undefined\", \"null\", \"none\", \"\")\n",
+					"            ),\n",
+					"            F.lit(\"Other\")\n",
+					"        ).otherwise(F.col(\"decisionType\"))\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"decision_final = (\n",
+					"    decision_with_defaults\n",
+					"    .join(outcome_guid_map, on=\"caseId\", how=\"left\")\n",
+					"    .select(\n",
+					"        F.col(\"caseId\"),\n",
+					"        F.col(\"outcomeGuid\"),\n",
+					"        F.col(\"outcomeDate\"),\n",
+					"        F.col(\"decisionReceivedDate\"),\n",
+					"        F.col(\"decisionPublishedDate\"),\n",
+					"        F.col(\"DecisionDespatched\"),\n",
+					"        F.col(\"decisionIssue\"),\n",
+					"        F.col(\"decisionMakerType\"),\n",
+					"        F.col(\"outcomeId\"),\n",
+					"        F.col(\"decisionType\").alias(\"outcomeRaw\"),\n",
+					"        F.col(\"decisionBranch\"),\n",
+					"        F.col(\"casePublishFlag\"),\n",
+					"        F.col(\"dtypeId\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        (\n",
+					"            F.col(\"outcomeRaw\").isNotNull() &\n",
+					"            (~F.lower(F.trim(F.col(\"outcomeRaw\"))).isin(\"undefined\", \"null\", \"none\", \"\"))\n",
+					"        )\n",
+					"        |\n",
+					"        F.col(\"outcomeDate\").isNotNull()\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"display(decision_final)\n",
+					"print(\"Final rows:\", decision_final.count())"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"output_path = f\"{mpesc_base_path}/MPESC-TRANSFORM/Decision\"\n",
+					"\n",
+					"(\n",
+					"    decision_final   \n",
+					"        .coalesce(1)           \n",
+					"        .write\n",
+					"        .mode(\"overwrite\")      \n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\", \"|\")     \n",
+					"        .csv(output_path)\n",
+					")\n",
+					"\n",
+					"print(\"Decision CSV written to:\", output_path)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d200e297-e4f1-4374-819d-b5b2a8583eac"
+				"spark.autotune.trackingId": "055123aa-8609-49b0-9a90-9cd884c66690"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -88,40 +88,30 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.Entraid_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"from pyspark.sql import SparkSession\r\n",
+					"\r\n",
 					"spark = SparkSession.builder.getOrCreate()\r\n",
-					"view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Entraid_curated_mipins\")\r\n",
-					"view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.Entraid_curated_mipins\")"
+					"\r\n",
+					"view_df = spark.sql(\r\n",
+					"    \"SELECT * FROM odw_curated_db.vw_entraid_curated_mipins\"\r\n",
+					")\r\n",
+					"\r\n",
+					"table_name = 'odw_curated_db.entraid_curated_mipins'\r\n",
+					"\r\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"table_path = (\r\n",
+					"    df_table_path\r\n",
+					"    .where(\"col_name == 'Location'\")\r\n",
+					"    .select(\"data_type\")\r\n",
+					"    .collect()[0][0]\r\n",
+					")\r\n",
+					"\r\n",
+					"view_df.write \\\r\n",
+					"    .format(\"parquet\") \\\r\n",
+					"    .mode(\"overwrite\") \\\r\n",
+					"    .option(\"path\", table_path) \\\r\n",
+					"    .saveAsTable(table_name)"
 				],
 				"execution_count": null
 			},
