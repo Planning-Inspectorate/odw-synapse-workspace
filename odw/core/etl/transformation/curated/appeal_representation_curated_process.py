@@ -8,7 +8,6 @@ from typing import Dict, Tuple
 
 
 class AppealRepresentationCuratedProcess(CurationProcess):
-
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
 
@@ -20,9 +19,7 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         return "appeal-representation-curated"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(
-            f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}"
-        )
+        LoggingUtil().log_info(f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}")
 
         harmonised_representations = self.spark.sql(
             f"""
@@ -55,16 +52,12 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_representations: DataFrame = self.load_parameter(
-            "harmonised_representations", source_data
-        )
+        harmonised_representations: DataFrame = self.load_parameter("harmonised_representations", source_data)
 
         df = harmonised_representations
 
         insert_count = df.count()
-        LoggingUtil().log_info(
-            f"Curated Appeal Representation row count: {insert_count}"
-        )
+        LoggingUtil().log_info(f"Curated Appeal Representation row count: {insert_count}")
 
         end_exec_time = datetime.now()
 

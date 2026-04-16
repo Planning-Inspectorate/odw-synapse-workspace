@@ -5,16 +5,17 @@ from datetime import datetime
 
 
 class ETLResultMetadata(BaseModel):
-        start_execution_time: datetime
-        end_execution_time: datetime
-        exception: Optional[str] = None
-        exception_trace: Optional[str] = None
-        table_name: Optional[str] = None
-        insert_count: int = Field(default=0)
-        update_count: int = Field(default=0)
-        delete_count: int = Field(default=0)
-        activity_type: str
-        duration_seconds: float
+    start_execution_time: datetime
+    end_execution_time: datetime
+    exception: Optional[str] = None
+    exception_trace: Optional[str] = None
+    table_name: Optional[str] = None
+    insert_count: int = Field(default=0)
+    update_count: int = Field(default=0)
+    delete_count: int = Field(default=0)
+    activity_type: str
+    duration_seconds: float
+
 
 class ETLResult(BaseModel, ABC):
     """
