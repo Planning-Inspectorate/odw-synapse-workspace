@@ -6,8 +6,6 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
 from pyspark.sql import functions as F
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
-
 
 def _service_bus_df(spark):
     return spark.createDataFrame(
