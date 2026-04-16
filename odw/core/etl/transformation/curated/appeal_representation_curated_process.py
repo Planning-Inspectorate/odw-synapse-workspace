@@ -85,7 +85,7 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         }
 
         return data_to_write, ETLSuccessResult(
-            metadata=ETLResult.ETLResultMetadata(
+            metadata=ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
                 table_name=self.OUTPUT_TABLE,

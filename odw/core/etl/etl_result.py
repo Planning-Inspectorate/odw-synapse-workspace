@@ -16,7 +16,7 @@ class ETLResultMetadata(BaseModel):
         activity_type: str
         duration_seconds: float
 
-class ETLResult(Basemodel, ABC):
+class ETLResult(BaseModel, ABC):
     """
     Holds the details of the execution of an ETLProcess, for use in logging
     """
