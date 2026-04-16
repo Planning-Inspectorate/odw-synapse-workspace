@@ -9,6 +9,7 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
+    DoubleType,
 )
 from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -22,12 +23,12 @@ def _invoice_struct():
         [
             StructField("invoiceStage", StringType(), True),
             StructField("invoiceNumber", StringType(), True),
-            StructField("amountDue", StringType(), True),
+            StructField("amountDue", DoubleType(), True),
             StructField("paymentDueDate", StringType(), True),
             StructField("invoicedDate", StringType(), True),
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
-            StructField("refundAmount", StringType(), True),
+            StructField("refundAmount", DoubleType(), True),
             StructField("refundIssueDate", StringType(), True),
         ]
     )
@@ -51,25 +52,25 @@ def _harmonised_schema():
     return StructType(
         [
             StructField("NSIPInvoiceID", LongType(), True),
-            StructField("NSIPProjectInfoInternalID", LongType(), True),
             StructField("caseId", LongType(), True),
             StructField("caseReference", StringType(), True),
             StructField("invoiceStage", StringType(), True),
             StructField("invoiceNumber", StringType(), True),
-            StructField("amountDue", StringType(), True),
+            StructField("amountDue", DoubleType(), True),
             StructField("paymentDueDate", StringType(), True),
             StructField("invoicedDate", StringType(), True),
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
-            StructField("refundAmount", StringType(), True),
+            StructField("refundAmount", DoubleType(), True),
             StructField("refundIssueDate", StringType(), True),
+            StructField("Migrated", IntegerType(), True),
             StructField("ODTSourceSystem", StringType(), True),
             StructField("SourceSystemID", StringType(), True),
             StructField("IngestionDate", StringType(), True),
             StructField("ValidTo", StringType(), True),
             StructField("RowID", StringType(), True),
             StructField("IsActive", StringType(), True),
-            StructField("Migrated", IntegerType(), True),
+            StructField("NSIPProjectInfoInternalID", LongType(), True),
         ]
     )
 
@@ -78,7 +79,7 @@ def _invoice(**overrides):
     invoice = {
         "invoiceStage": "Submitted",
         "invoiceNumber": "INV-001",
-        "amountDue": "100.50",
+        "amountDue": 100.50,
         "paymentDueDate": "2025-01-20",
         "invoicedDate": "2025-01-10",
         "paymentDate": None,
@@ -112,7 +113,7 @@ def _harmonised_row(**overrides):
         "caseReference": "EN010001",
         "invoiceStage": "Submitted",
         "invoiceNumber": "INV-001",
-        "amountDue": "100.50",
+        "amountDue": 100.50,
         "paymentDueDate": "2025-01-20",
         "invoicedDate": "2025-01-10",
         "paymentDate": None,
@@ -172,8 +173,8 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         source_rows = [
             _source_row(
                 invoices=[
-                    _invoice(invoiceNumber="INV-001", amountDue="100.50"),
-                    _invoice(invoiceNumber="INV-002", amountDue="200.00"),
+                    _invoice(invoiceNumber="INV-001", amountDue=100.50),
+                    _invoice(invoiceNumber="INV-002", amountDue=200.00),
                 ]
             )
         ]
@@ -281,7 +282,6 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         assert df.columns == [
             "NSIPInvoiceID",
-            "NSIPProjectInfoInternalID",
             "caseId",
             "caseReference",
             "invoiceStage",
@@ -293,13 +293,14 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "refundCreditNoteNumber",
             "refundAmount",
             "refundIssueDate",
+            "Migrated",
             "ODTSourceSystem",
             "SourceSystemID",
             "IngestionDate",
             "ValidTo",
             "RowID",
             "IsActive",
-            "Migrated",
+            "NSIPProjectInfoInternalID",
         ]
 
     def test__nsip_invoice_harmonisation_process__process__assigns_surrogate_keys_starting_from_one_on_initial_load(
@@ -480,7 +481,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 NSIPProjectInfoInternalID=200,
                 caseId=2001,
                 caseReference="EN010001",
-                invoices=[_invoice(invoiceNumber="INV-001", amountDue="120.00")],
+                invoices=[_invoice(invoiceNumber="INV-001", amountDue=120.00)],
                 IngestionDate="2025-01-18T10:00:00.000000+0000",
             )
         ]
@@ -533,7 +534,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 NSIPProjectInfoInternalID=200,
                 caseId=2001,
                 caseReference="EN010001",
-                invoices=[_invoice(invoiceNumber="INV-002", amountDue="300.00")],
+                invoices=[_invoice(invoiceNumber="INV-002", amountDue=300.00)],
                 IngestionDate="2025-01-18T10:00:00.000000+0000",
             )
         ]
@@ -583,7 +584,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 NSIPProjectInfoInternalID=400,
                 caseId=2001,
                 caseReference="EN010001",
-                invoices=[_invoice(invoiceNumber="INV-001", amountDue="120.00")],
+                invoices=[_invoice(invoiceNumber="INV-001", amountDue=120.00)],
                 IngestionDate="2025-01-21T10:00:00.000000+0000",
             )
         ]
@@ -663,7 +664,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 caseId=3001,
                 caseReference="EN030001",
                 invoiceNumber="INV-999",
-                amountDue="999.99",
+                amountDue=999.99,
                 IsActive="Y",
                 ValidTo=None,
             ),
@@ -673,7 +674,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             _source_row(
                 NSIPProjectInfoInternalID=200,
                 caseId=2001,
-                invoices=[_invoice(invoiceNumber="INV-001", amountDue="120.00")],
+                invoices=[_invoice(invoiceNumber="INV-001", amountDue=120.00)],
                 IngestionDate="2025-01-18T10:00:00.000000+0000",
             )
         ]
@@ -699,7 +700,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         assert untouched_row["IsActive"] == "Y"
         assert untouched_row["ValidTo"] is None
-        assert untouched_row["amountDue"] == "999.99"
+        assert untouched_row["amountDue"] == 999.99
 
     def test__nsip_invoice_harmonisation_process__process__calculates_rowid_like_legacy_hash(
         self,
@@ -735,7 +736,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 "caseReference": "EN010001",
                 "invoiceStage": "Submitted",
                 "invoiceNumber": "INV-001",
-                "amountDue": "100.50",
+                "amountDue": 100.50,
                 "paymentDueDate": "2025-01-20",
                 "invoicedDate": "2025-01-10",
                 "paymentDate": None,
@@ -801,7 +802,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 "caseReference": None,
                 "invoiceStage": "Submitted",
                 "invoiceNumber": "INV-001",
-                "amountDue": "100.50",
+                "amountDue": 100.50,
                 "paymentDueDate": "2025-01-20",
                 "invoicedDate": "2025-01-10",
                 "paymentDate": None,
@@ -825,8 +826,8 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _source_row(caseId=2001, invoices=[_invoice(invoiceNumber="INV-001", amountDue="100.50")]),
-            _source_row(caseId=2002, caseReference="EN010002", invoices=[_invoice(invoiceNumber="INV-001", amountDue="200.50")]),
+            _source_row(caseId=2001, invoices=[_invoice(invoiceNumber="INV-001", amountDue=100.50)]),
+            _source_row(caseId=2002, caseReference="EN010002", invoices=[_invoice(invoiceNumber="INV-001", amountDue=200.50)]),
         ]
 
         source_data = {

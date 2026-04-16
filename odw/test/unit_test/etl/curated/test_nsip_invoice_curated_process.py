@@ -7,7 +7,7 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
-    FloatType,
+    DoubleType,
 )
 
 from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
@@ -21,25 +21,25 @@ def _harmonised_schema():
     return StructType(
         [
             StructField("NSIPInvoiceID", LongType(), True),
-            StructField("NSIPProjectInfoInternalID", LongType(), True),
             StructField("caseId", LongType(), True),
             StructField("caseReference", StringType(), True),
             StructField("invoiceStage", StringType(), True),
             StructField("invoiceNumber", StringType(), True),
-            StructField("amountDue", StringType(), True),
+            StructField("amountDue", DoubleType(), True),
             StructField("paymentDueDate", StringType(), True),
             StructField("invoicedDate", StringType(), True),
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
-            StructField("refundAmount", StringType(), True),
+            StructField("refundAmount", DoubleType(), True),
             StructField("refundIssueDate", StringType(), True),
+            StructField("Migrated", IntegerType(), True),
             StructField("ODTSourceSystem", StringType(), True),
             StructField("SourceSystemID", StringType(), True),
             StructField("IngestionDate", StringType(), True),
             StructField("ValidTo", StringType(), True),
             StructField("RowID", StringType(), True),
             StructField("IsActive", StringType(), True),
-            StructField("Migrated", IntegerType(), True),
+            StructField("NSIPProjectInfoInternalID", LongType(), True),
         ]
     )
 
@@ -51,13 +51,13 @@ def _curated_schema():
             StructField("caseReference", StringType(), True),
             StructField("invoiceStage", StringType(), True),
             StructField("invoiceNumber", StringType(), True),
-            StructField("amountDue", FloatType(), True),
+            StructField("amountDue", DoubleType(), True),
             StructField("paymentDueDate", StringType(), True),
             StructField("invoicedDate", StringType(), True),
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
-            StructField("refundAmount", FloatType(), True),
-            StructField("refundIssueDate", StringType(), True),
+            StructField("refundAmount", DoubleType(), True),
+            StructField("IsActive", StringType(), True),
         ]
     )
 
@@ -70,7 +70,7 @@ def _harmonised_row(**overrides):
         "caseReference": "EN010001",
         "invoiceStage": "Submitted",
         "invoiceNumber": "INV-001",
-        "amountDue": "100.50",
+        "amountDue": 100.50,
         "paymentDueDate": "2025-01-20",
         "invoicedDate": "2025-01-10",
         "paymentDate": None,
@@ -153,7 +153,7 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "paymentDate",
             "refundCreditNoteNumber",
             "refundAmount",
-            "refundIssueDate",
+            "IsActive",
         ]
 
     def test__nsip_invoice_curated_process__process__drops_duplicate_active_rows_using_distinct_like_legacy(
@@ -204,13 +204,13 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _harmonised_row(caseId=2001, invoiceNumber="INV-001", amountDue="100.50", IsActive="Y"),
+            _harmonised_row(caseId=2001, invoiceNumber="INV-001", amountDue=100.50, IsActive="Y"),
             _harmonised_row(
                 NSIPInvoiceID=2,
                 NSIPProjectInfoInternalID=200,
                 caseId=2001,
                 invoiceNumber="INV-002",
-                amountDue="200.50",
+                amountDue=200.50,
                 IsActive="Y",
             ),
         ]
@@ -299,7 +299,6 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         assert row["paymentDate"] is None
         assert row["refundCreditNoteNumber"] is None
         assert row["refundAmount"] is None
-        assert row["refundIssueDate"] is None
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
