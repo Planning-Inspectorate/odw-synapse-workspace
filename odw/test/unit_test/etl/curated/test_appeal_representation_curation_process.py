@@ -12,7 +12,7 @@ import pytest
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
-# pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(SparkTestCase):
