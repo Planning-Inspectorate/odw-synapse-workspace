@@ -146,7 +146,7 @@ class ETLProcess(ABC):
         def generate_failure_result(start_time: datetime, exception: str, exception_trace=None, table_name=None):
             end_time = datetime.now()
             return ETLFailResult(
-                metadata=ETLResult.ETLResultMetadata(
+                metadata=ETLResultMetadata(
                     start_execution_time=start_time,
                     end_execution_time=end_time,
                     exception=exception,
