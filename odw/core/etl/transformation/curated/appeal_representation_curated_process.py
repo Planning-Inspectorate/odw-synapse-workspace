@@ -1,7 +1,7 @@
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
-from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult, ETLResultMetadata
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from datetime import datetime

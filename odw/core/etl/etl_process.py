@@ -2,7 +2,7 @@ from odw.core.io.data_io_factory import DataIOFactory
 from odw.core.util.logging_util import LoggingUtil
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
-from odw.core.etl.etl_result import ETLResult, ETLFailResult
+from odw.core.etl.etl_result import ETLResult, ETLFailResult, ETLResultMetadata
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.util.util import Util
 from typing import List, Dict, Any, Tuple
