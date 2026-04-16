@@ -3,100 +3,164 @@ from odw.core.util.util import Util
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal
-from pyspark.sql import SparkSession
 import pyspark.sql.types as T
 from datetime import datetime
-import pytest
 import mock
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(SparkTestCase):
     def test__appeal_representation__load_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        spark_sql_side_effects = [
-            spark.createDataFrame(
-                data=(
-                    (
-                        1,
-                        2,
-                        "a",
-                        "published",
-                        "some description",
-                        False,
-                        "undefined",
-                        "undefined",
-                        [],
-                        [],
-                        "lpa",
-                        "undefined",
-                        "final_comment",
-                        datetime(2025, 1, 22, 13, 48, 35, 847).isoformat(),
-                        ["x"],
-                    ),
-                    (
-                        2,
-                        3,
-                        "b",
-                        "published",
-                        "some description",
-                        False,
-                        "undefined",
-                        "undefined",
-                        [],
-                        [],
-                        "lpa",
-                        "undefined",
-                        "final_comment",
-                        datetime(2025, 1, 23, 13, 48, 35, 847).isoformat(),
-                        ["y"],
-                    ),
+        harmonised_data = spark.createDataFrame(
+            data=(
+                (
+                    1,
+                    2,
+                    "a",
+                    "published",
+                    "some description",
+                    False,
+                    "undefined",
+                    "undefined",
+                    [],
+                    [],
+                    "lpa",
+                    "undefined",
+                    "final_comment",
+                    datetime(2025, 1, 22, 13, 48, 35, 847).isoformat(),
+                    ["x"],
+                    "1",
                 ),
-                schema=T.StructType(
-                    [
-                        T.StructField("representationId", T.StringType(), True),
-                        T.StructField("caseId", T.LongType(), True),
-                        T.StructField("caseReference", T.StringType(), True),
-                        T.StructField("representationStatus", T.StringType(), True),
-                        T.StructField("originalRepresentation", T.StringType(), True),
-                        T.StructField("redacted", T.BooleanType(), True),
-                        T.StructField("redactedRepresentation", T.StringType(), True),
-                        T.StructField("redactedBy", T.StringType(), True),
-                        T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                        T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                        T.StructField("source", T.StringType(), True),
-                        T.StructField("serviceUserId", T.StringType(), True),
-                        T.StructField("representationType", T.StringType(), True),
-                        T.StructField("dateReceived", T.StringType(), True),
-                        T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
-                    ]
+                (
+                    2,
+                    3,
+                    "b",
+                    "published",
+                    "some description",
+                    False,
+                    "undefined",
+                    "undefined",
+                    [],
+                    [],
+                    "lpa",
+                    "undefined",
+                    "final_comment",
+                    datetime(2025, 1, 23, 13, 48, 35, 847).isoformat(),
+                    ["y"],
+                    "1",
                 ),
             ),
-            spark.createDataFrame(
-                data=(("Location", "abfss://odw-curated@pinsstodwdevuks9h80mb.dfs.core.windows.net/appeal_representation", None),),
-                schema=T.StructType(
-                    [
-                        T.StructField("col_name", T.StringType(), False),
-                        T.StructField("data_type", T.StringType(), False),
-                        T.StructField("comment", T.StringType(), True),
-                    ]
+            schema=T.StructType(
+                [
+                    T.StructField("representationId", T.StringType(), True),
+                    T.StructField("caseId", T.LongType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("representationStatus", T.StringType(), True),
+                    T.StructField("originalRepresentation", T.StringType(), True),
+                    T.StructField("redacted", T.BooleanType(), True),
+                    T.StructField("redactedRepresentation", T.StringType(), True),
+                    T.StructField("redactedBy", T.StringType(), True),
+                    T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("source", T.StringType(), True),
+                    T.StructField("serviceUserId", T.StringType(), True),
+                    T.StructField("representationType", T.StringType(), True),
+                    T.StructField("dateReceived", T.StringType(), True),
+                    T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected
+                ]
+            ),
+        )
+        self.write_existing_table(
+            spark,
+            harmonised_data,
+            table_name="tu_ar_ld__harmonised",
+            database_name="odw_harmonised_db",
+            container="odw-harmonised",
+            blob_path="tu_ar_ld__harmonised",
+            mode="overwrite",
+        )
+        curated_data = spark.createDataFrame(((1,),), schema=["colA"])
+        self.write_existing_table(
+            spark,
+            curated_data,
+            table_name="tu_ar_ld__curated",
+            database_name="odw_curated_db",
+            container="odw-curated",
+            blob_path="tu_ar_ld__curated",
+            mode="overwrite",
+        )
+        expected_fetched_harmonised_data = spark.createDataFrame(
+            data=(
+                (
+                    1,
+                    2,
+                    "a",
+                    "published",
+                    "some description",
+                    False,
+                    "undefined",
+                    "undefined",
+                    [],
+                    [],
+                    "lpa",
+                    "undefined",
+                    "final_comment",
+                    datetime(2025, 1, 22, 13, 48, 35, 847).isoformat(),
+                    ["x"],
+                ),
+                (
+                    2,
+                    3,
+                    "b",
+                    "published",
+                    "some description",
+                    False,
+                    "undefined",
+                    "undefined",
+                    [],
+                    [],
+                    "lpa",
+                    "undefined",
+                    "final_comment",
+                    datetime(2025, 1, 23, 13, 48, 35, 847).isoformat(),
+                    ["y"],
                 ),
             ),
-        ]
-        expected_output = {"harmonised_data": spark_sql_side_effects[0], "curated_data_description": spark_sql_side_effects[1]}
-        with mock.patch.object(SparkSession, "sql", side_effect=spark_sql_side_effects):
-            with mock.patch.object(AppealRepresentationCurationProcess, "__init__", return_value=None):
-                inst = AppealRepresentationCurationProcess()
-                actual_output = inst.load_data()
-                expected_keys = set(expected_output.keys())
-                actual_keys = set(actual_output.keys())
-                assert expected_keys == actual_keys, (
-                    f"Expected a dictionary with keys {expected_keys} to be returned by load_data(), but received the keys {actual_keys} instead"
-                )
-                assert_dataframes_equal(expected_output["harmonised_data"], actual_output["harmonised_data"])
-                assert_dataframes_equal(expected_output["curated_data_description"], actual_output["curated_data_description"])
+            schema=T.StructType(
+                [
+                    T.StructField("representationId", T.StringType(), True),
+                    T.StructField("caseId", T.LongType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("representationStatus", T.StringType(), True),
+                    T.StructField("originalRepresentation", T.StringType(), True),
+                    T.StructField("redacted", T.BooleanType(), True),
+                    T.StructField("redactedRepresentation", T.StringType(), True),
+                    T.StructField("redactedBy", T.StringType(), True),
+                    T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("source", T.StringType(), True),
+                    T.StructField("serviceUserId", T.StringType(), True),
+                    T.StructField("representationType", T.StringType(), True),
+                    T.StructField("dateReceived", T.StringType(), True),
+                    T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
+                ]
+            ),
+        )
+        expected_fetched_description = spark.sql("DESCRIBE DETAIL odw_curated_db.tu_ar_ld__curated")
+        expected_output_keys = {"harmonised_data", "curated_data_description"}
+        with mock.patch.object(AppealRepresentationCurationProcess, "__init__", return_value=None):
+            inst = AppealRepresentationCurationProcess()
+            actual_output = inst.load_data()
+            actual_keys = set(actual_output.keys())
+            assert expected_output_keys == actual_keys, (
+                f"Expected a dictionary with keys {expected_output_keys} to be returned by load_data(), but received the keys {actual_keys} instead"
+            )
+            assert_dataframes_equal(expected_fetched_harmonised_data, actual_output["harmonised_data"])
+            assert_dataframes_equal(expected_fetched_description, actual_output["curated_data_description"])
 
     def test__appeal_representation__process(self):
         spark = PytestSparkSessionUtil().get_spark_session()
