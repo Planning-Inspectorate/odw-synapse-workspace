@@ -1,4 +1,5 @@
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame
@@ -38,6 +39,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         return "NSIP Project Harmonisation"
 
     def _load_service_bus_data(self):
+        LoggingUtil().log_info("Extracting service bus NSIP project data from the harmonised layer")
         return self.spark.sql(f"""
             SELECT 
                 NSIPProjectInfoInternalID,
@@ -214,6 +216,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         )
 
     def _load_horizon_data(self):
+        LoggingUtil().log_info("Extracting horizon NSIP project data from the standardised layer")
         return self.spark.sql(f"""
             SELECT
                 CAST(NULL AS Long) AS NSIPProjectInfoInternalID
