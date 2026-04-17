@@ -7,6 +7,7 @@ from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
 
+
 class AppealDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating Appeal Document data from the harmonised layer.
@@ -30,7 +31,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
     @classmethod
     def get_name(cls) -> str:
         return "appeal-document-curated"
-    
+
     # ------------------------------------------------------------------
     # load_data – all reads happen here
     # ------------------------------------------------------------------
@@ -41,10 +42,11 @@ class AppealDocumentCuratedProcess(CurationProcess):
         No joins or transformations are applied here – only reads.
         """
 
-        LoggingUtil().log_info(f"Loading harmonised Appeal Document data from {self.HARMONISED_TABLE}")
-        
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Document data from {self.HARMONISED_TABLE}")
+
         harmonised_appeal_docs = self.spark.sql(f"""
-            SELECT DISTINCT 
+            SELECT DISTINCT
                 documentId,
                 caseId,
                 caseReference,
@@ -86,8 +88,10 @@ class AppealDocumentCuratedProcess(CurationProcess):
         """
 
         start_exec_time = datetime.now()
-        source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_appeal_docs: DataFrame = self.load_parameter("harmonised_appeal_docs", source_data)
+        source_data: Dict[str, DataFrame] = self.load_parameter(
+            "source_data", kwargs)
+        harmonised_appeal_docs: DataFrame = self.load_parameter(
+            "harmonised_appeal_docs", source_data)
 
         # Apply curated column transformations and SELECT DISTINCT
         df = harmonised_appeal_docs.select(
@@ -108,7 +112,10 @@ class AppealDocumentCuratedProcess(CurationProcess):
             F.col("datePublished"),
             F.col("lastModified"),
             # caseType mapping
-            F.when(F.col("caseType") == "Planning Listed Building and Conservation Area Appeal (Y)", F.lit("Y"))
+            F.when(
+                F.col(
+                    "caseType") == "Planning Listed Building and Conservation Area Appeal (Y)",
+                F.lit("Y"))
             .when(F.col("caseType") == "Lawful Development Certificate Appeal", F.lit("X"))
             .when(F.col("caseType") == "Planning Obligation Appeal", F.lit("Q"))
             .when(F.col("caseType") == "Commercial (CAS) Appeal", F.lit("Z"))
@@ -136,7 +143,8 @@ class AppealDocumentCuratedProcess(CurationProcess):
         ).distinct()
 
         insert_count = df.count()
-        LoggingUtil().log_info(f"Curated Appeal Document row count: {insert_count}")
+        LoggingUtil().log_info(
+            f"Curated Appeal Document row count: {insert_count}")
 
         end_exec_time = datetime.now()
         data_to_write = {
@@ -165,4 +173,3 @@ class AppealDocumentCuratedProcess(CurationProcess):
                 duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )
-    
