@@ -1,6 +1,9 @@
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame
 import json
+import inspect
+from uuid import uuid4
+import os
 
 
 """
@@ -8,10 +11,14 @@ This module contains various assertions that are useful for testing
 """
 
 
-def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
+def assert_dataframes_equal(expected: DataFrame, actual: DataFrame, save_local_data: bool = False):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
     """
+    caller = inspect.stack()[2].function
+    if save_local_data:
+        expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_expected"))
+        actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_actual"))
     schema_mismatch = set(expected.schema).symmetric_difference(set(actual.schema))
     exception_message = ""
     if schema_mismatch:
@@ -51,6 +58,9 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             "\nActual dataframe\n"
             f"{actual._jdf.showString(rows_to_show, 20, False)}"
         )
+        if save_local_data:
+            in_expected_but_not_actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_in_expected_but_not_actual"))
+            in_actual_but_not_expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_in_actual_but_not_expected"))
     assert not data_mismatch, exception_message
 
 

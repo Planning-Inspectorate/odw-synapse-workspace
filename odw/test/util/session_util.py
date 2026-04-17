@@ -29,6 +29,9 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
             .config("spark.sql.warehouse.dir", self.get_spark_warehouse_name())
             .config("spark.ui.enabled", False)
+            .config("spark.driver.memory", "2g")
+            .config("spark.sql.jsonGenerator.ignoreNullFields", "false")
+            #.config("spark.python.profile", True)
         ).getOrCreate()
         self._initialise_file_system(self._SPARK_SESSION)
 
@@ -46,6 +49,10 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
         self._create_empty_orchestration_file()
         self._create_main_source_system_fact_table(spark_session)
+        test_output_folder = "testOutput"
+        if os.path.exists(test_output_folder):
+            shutil.rmtree(test_output_folder)
+        os.mkdir(test_output_folder)
 
     def teardown_all_file_systems(self):
         file_systems = [entry for entry in os.listdir(".") if entry.startswith("spark-warehouse") and os.path.isdir(entry)]
