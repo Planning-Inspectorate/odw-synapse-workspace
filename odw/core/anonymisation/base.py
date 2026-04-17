@@ -108,9 +108,7 @@ class EmailMaskStrategy(BaseStrategy):
         different cases across tables produces the same hash, enabling reliable
         joins on the anonymised column. Nulls are preserved.
         """
-        result = F.when(F.col(column).isNull(), None).otherwise(
-            F.sha2(F.lower(F.col(column).cast("string")), 256)
-        )
+        result = F.when(F.col(column).isNull(), None).otherwise(F.sha2(F.lower(F.col(column).cast("string")), 256))
         return df.withColumn(column, result)
 
 
