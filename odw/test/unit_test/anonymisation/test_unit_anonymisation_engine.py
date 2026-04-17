@@ -313,6 +313,45 @@ def test__horizon_standardisation__anonymisation_is_idempotent():
     assert rows_1[0]["Annual Salary"] == rows_2[0]["Annual Salary"]
 
 
+def test__email_mask__case_insensitive_emails_produce_identical_hash():
+    """
+    Test that the same email address in different cases produces the same SHA-256 hash,
+    making it safe to join anonymised email columns across tables with inconsistent casing.
+    e.g. LESLEY.COFFEY@EXAMPLE.COM and lesley.coffey@example.com must hash identically.
+    """
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    data = [
+        {"Staff Number": "S001", "Email Address": "JOHN.DOE@EXAMPLE.COM"},
+        {"Staff Number": "S002", "Email Address": "john.doe@example.com"},
+    ]
+    df = spark.createDataFrame(data)
+    df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+
+    mocked_purview_cols = [{"column_name": "Email Address", "classifications": ["Email Address"]}]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            from odw.core.anonymisation.engine import AnonymisationEngine
+
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("Email Address").collect()
+    expected_hash = "8f32ed66abe5467f6145d0d349c1f358b8325beb7e5ec26f0095f37b436b5bdb"
+
+    assert rows[0]["Email Address"] == expected_hash, "Uppercase email should produce the same hash as lowercase"
+    assert rows[1]["Email Address"] == expected_hash, "Lowercase email should produce the same hash as uppercase"
+    assert rows[0]["Email Address"] == rows[1]["Email Address"], "Both casing variants must hash identically"
+
+
 def test__horizon_standardisation__anonymisation_handles_null_values():
     """
     Test that anonymisation correctly handles null values in sensitive columns
