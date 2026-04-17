@@ -39,7 +39,7 @@ class ETLProcessFactory:
         NsipRepresentationCuratedProcess,
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
-        AppealDocumentCuratedProcess
+        AppealDocumentCuratedProcess,
     }
 
     @classmethod
