@@ -1,17 +1,12 @@
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.util.util import Util
-from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
-from odw.core.util.udf import absolute
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
-from pyspark.errors.exceptions.captured import AnalysisException
 from pyspark.sql import Window
 from datetime import datetime
 from typing import Dict
-import json
 
 
 class NsipProjectHarmonisationProcess(HarmonisationProcess):
@@ -27,15 +22,16 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
     """
 
     HARMONISED_TABLE = "sb_nsip_project"
+    HORIZON_TABLE = "horizon_nsip_data"
     OUTPUT_TABLE = "nsip_project"
 
     def __init__(self, spark, debug: bool = False):
         super().__init__(spark, debug)
         self.std_db: str = "odw_standardised_db"
         self.hrm_db: str = "odw_harmonised_db"
-        self.service_bus_table = f"{self.hrm_db}.{self.HARMONISED_TABLE}"
-        self.horizon_table = f"{self.std_db}.horizon_nsip_data"
-        self.harmonised_table = f"{self.hrm_db}.{self.OUTPUT_TABLE}"
+        self.service_bus_table_path = f"{self.hrm_db}.{self.HARMONISED_TABLE}"
+        self.horizon_table_path = f"{self.std_db}.{self.HORIZON_TABLE}"
+        self.harmonised_table_path = f"{self.hrm_db}.{self.OUTPUT_TABLE}"
 
     @classmethod
     def get_name(cls):
@@ -67,7 +63,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 CAST(easting AS Integer) AS easting,
                 CAST(northing AS Integer) AS northing,
                 welshLanguage,
-                LOWER(mapZoomLevel),
+                mapZoomLevel,
                 secretaryOfState,
                 datePINSFirstNotifiedOfProject,
                 dateProjectAppearsOnWebsite,
@@ -200,7 +196,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 '' AS RowID,
                 isMaterialChange
 
-            FROM {self.service_bus_table}
+            FROM {self.service_bus_table_path}
             """)
 
     def _load_first_seen_service_bus_record(self):
@@ -210,7 +206,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                     caseId
                     ,MIN(IngestionDate) AS ingested
                 FROM
-                    {self.service_bus_table}
+                    {self.service_bus_table_path}
                 GROUP BY
                     caseId
             )
@@ -372,6 +368,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 ,'' AS RowID
                 ,CAST(NULL AS BOOLEAN) As isMaterialChange
                 ,'Y' AS IsActive
+            FROM {self.horizon_table_path} AS Horizon
             GROUP BY
                 CAST(Horizon.caseNodeId AS Long)
                 ,Horizon.casereference
@@ -512,7 +509,10 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
             out_df.alias("current")
             .join(
                 out_df.alias("next"),
-                on=((F.col("current.caseid") == F.col("next.caseid")) & (F.col("current.ReverseOrderProcessed") - 1 == F.col("next.ReverseOrderProcessed"))),
+                on=(
+                    (F.col("current.caseid") == F.col("next.caseid"))
+                    & (F.col("current.ReverseOrderProcessed") - 1 == F.col("next.ReverseOrderProcessed"))
+                ),
                 how="left",
             )
             .join(service_bus_data.select(F.col("caseid")).distinct().alias("raw"), on=F.col("current.caseid") == F.col("raw.caseid"), how="left")
@@ -525,8 +525,6 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 F.col("current.IsActive"),
             )
         )
-        print("df_calcs")
-        df_calcs.show()
 
         cleaned_data = combined_data.select(
             [
@@ -850,14 +848,18 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         first_seen_service_bus_data: DataFrame = self.load_parameter("first_seen_service_bus_data", source_data)
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         # Join horizon and service bus data
-        horizon_data = horizon_data.join(
-            first_seen_service_bus_data,
-            on=(
-                (horizon_data["HorizonCaseNumber"] == first_seen_service_bus_data["caseId"])
-                & (horizon_data["IngestionDate"] >= first_seen_service_bus_data["ingested"])
-            ),
-            how="left",
-        ).filter(first_seen_service_bus_data["caseId"].isNull()).drop(first_seen_service_bus_data["caseid"])
+        horizon_data = (
+            horizon_data.join(
+                first_seen_service_bus_data,
+                on=(
+                    (horizon_data["HorizonCaseNumber"] == first_seen_service_bus_data["caseId"])
+                    & (horizon_data["IngestionDate"] >= first_seen_service_bus_data["ingested"])
+                ),
+                how="left",
+            )
+            .filter(first_seen_service_bus_data["caseId"].isNull())
+            .drop(first_seen_service_bus_data["caseid"])
+        )
 
         # Build Ids
         horizon_data_grouped = horizon_data.groupBy(horizon_data["caseid"], "IngestionDate")
@@ -901,14 +903,14 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 "blob_path": "nsip_project",
                 "partition_cols": ["IsActive"],
                 "write_options": {"overwriteSchema": "true"},
-                "write_mode": "overwrite"
+                "write_mode": "overwrite",
             }
         }
         return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.harmonised_table,
+                table_name=self.harmonised_table_path,
                 insert_count=final_df.count(),
                 update_count=0,
                 delete_count=0,
