@@ -317,7 +317,7 @@ def test__email_mask__case_insensitive_emails_produce_identical_hash():
     """
     Test that the same email address in different cases produces the same SHA-256 hash,
     making it safe to join anonymised email columns across tables with inconsistent casing.
-    e.g. LESLEY.COFFEY@EXAMPLE.COM and lesley.coffey@example.com must hash identically.
+    e.g. JOHN.DOE@EXAMPLE.COM and john.doe@example.com must hash identically.
     """
     spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -344,8 +344,9 @@ def test__email_mask__case_insensitive_emails_produce_identical_hash():
                             engine = AnonymisationEngine()
                             result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
-    rows = result_df.select("Email Address").collect()
-    expected_hash = "8f32ed66abe5467f6145d0d349c1f358b8325beb7e5ec26f0095f37b436b5bdb"
+    rows = result_df.select("Email Address").orderBy("Email Address").collect()
+    # sha256("john.doe@example.com") — both casing variants must produce this
+    expected_hash = "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
 
     assert rows[0]["Email Address"] == expected_hash, "Uppercase email should produce the same hash as lowercase"
     assert rows[1]["Email Address"] == expected_hash, "Lowercase email should produce the same hash as uppercase"
