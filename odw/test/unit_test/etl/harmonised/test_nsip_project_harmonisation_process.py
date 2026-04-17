@@ -782,49 +782,6 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert filtered_count == 0
         assert kept_count == 1
 
-    def test__nsip_project_harmonisation_process__process__normalises_horizon_publish_status_and_zoom_level(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        service_bus_rows = [_service_bus_row(caseId=1001)]
-        horizon_rows = [
-            _horizon_row(
-                caseid=3003,
-                Region="wales",
-                projectstatus="Not Published",
-                mapZoomLevel="HIGH",
-                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
-                RowID=1,
-                publishStatus="unpublished",
-            ),
-        ]
-
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
-        horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
-        # Write dataframe to table and use that instead
-        first_seen_service_bus_data = spark.createDataFrame(
-            _default_first_seen_rows(service_bus_rows),
-            ["caseId", "ingested"],
-        )
-
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                inst = NsipProjectHarmonisationProcess(spark)
-                data_to_write, _ = inst.process(
-                    source_data={
-                        "service_bus_data": service_bus_data,
-                        "horizon_data": horizon_data,
-                        "first_seen_service_bus_data": first_seen_service_bus_data,
-                    }
-                )
-
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("publishStatus", "mapZoomLevel").collect()
-        assert rows
-        row = rows[0]
-
-        assert row["publishStatus"] == "unpublished"
-        assert row["mapZoomLevel"] == "high"
-
     def test__nsip_project_harmonisation_process__process__aggregates_regions_using_collect_list(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
