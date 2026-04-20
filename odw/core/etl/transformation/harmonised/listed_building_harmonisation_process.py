@@ -1,10 +1,10 @@
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
-from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult, ETLFailResult
 
 from datetime import datetime
 from typing import Dict
+import traceback
 
 from delta.tables import DeltaTable
 from pyspark.sql import SparkSession, DataFrame
@@ -35,8 +35,12 @@ _DOCUMENT_ROW_ID_COLUMNS = [
 
 class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     """
-    ETL process for harmonising Listed Building data
-    from the standardised layer to the harmonised layer.
+    Harmonises Listed Building data from the standardised layer
+    to the harmonised layer.
+
+    NOTE:
+    This ETL intentionally bypasses ETLProcess.load_data()
+    and reads directly from Spark tables.
     """
 
     @staticmethod
@@ -49,7 +53,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def __init__(self, spark: SparkSession, params: Dict):
         super().__init__(spark, params)
 
-        # ✅ CORRECT logger initialisation
         self.logging_util = LoggingUtil()
 
         self.source_table = "odw_standardised_db.listed_building"
@@ -60,10 +63,53 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         self.delete_count = 0
 
     # ------------------------------------------------------------------ #
+    # ✅ OVERRIDE RUN (IMPORTANT)
+    # ------------------------------------------------------------------ #
+    def run(self, **kwargs) -> ETLResult:
+        """
+        Override ETLProcess.run()
+
+        This prevents the framework from calling load_data()
+        and requiring `data_to_read`.
+        """
+        start_time = datetime.utcnow()
+
+        try:
+            self.logging_util.log_info(
+                "Starting ListedBuildingHarmonisationProcess"
+            )
+
+            result = self.execute()
+
+            self.logging_util.log_info(result)
+            return result
+
+        except Exception as e:
+            self.logging_util.log_error(str(e))
+            self.logging_util.log_error(traceback.format_exc())
+
+            return ETLFailResult(
+                metadata=ETLResult.ETLResultMetadata(
+                    start_execution_time=start_time,
+                    end_execution_time=datetime.utcnow(),
+                    exception=str(e),
+                    exception_trace=traceback.format_exc(),
+                    table_name=self.target_table,
+                    activity_type=self.__class__.__name__,
+                    duration_seconds=(datetime.utcnow() - start_time).total_seconds(),
+                    insert_count=0,
+                    update_count=0,
+                    delete_count=0,
+                )
+            )
+
+    # ------------------------------------------------------------------ #
     # Step 1: Read
     # ------------------------------------------------------------------ #
     def read_source(self) -> DataFrame:
-        self.logging_util.log_info(f"Reading source table {self.source_table}")
+        self.logging_util.log_info(
+            f"Reading source table {self.source_table}"
+        )
 
         df = self.spark.sql(f"""
             SELECT
@@ -86,7 +132,10 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             "dateReceived", F.current_date()
         )
 
-        self.logging_util.log_info(f"Source row count: {df.count()}")
+        self.logging_util.log_info(
+            f"Source row count: {df.count()}"
+        )
+
         return df
 
     # ------------------------------------------------------------------ #
@@ -95,10 +144,9 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def transform(self, df: DataFrame) -> DataFrame:
         self.logging_util.log_info("Transforming source data")
 
-        hash_expr = concat(*[
-            coalesce(col(c), lit("."))
-            for c in _DOCUMENT_ROW_ID_COLUMNS
-        ])
+        hash_expr = concat(
+            *[coalesce(col(c), lit(".")) for c in _DOCUMENT_ROW_ID_COLUMNS]
+        )
 
         return (
             df
@@ -174,7 +222,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         self._calculate_counts(df, delta_table)
 
     # ------------------------------------------------------------------ #
-    # Helper methods
+    # Helpers
     # ------------------------------------------------------------------ #
     def _initial_load(self, df: DataFrame):
         df.write.format("delta").mode("overwrite").saveAsTable(self.target_table)
@@ -200,17 +248,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         )
 
     # ------------------------------------------------------------------ #
-    # Framework-required entry point
-    # ------------------------------------------------------------------ #
-    def process(self) -> ETLResult:
-        """
-        Required abstract method from HarmonisationProcess.
-        Delegates to execute().
-        """
-        return self.execute()
-
-    # ------------------------------------------------------------------ #
-    # Execute (implementation)
+    # Execute
     # ------------------------------------------------------------------ #
     def execute(self) -> ETLResult:
         start_time = datetime.utcnow()
