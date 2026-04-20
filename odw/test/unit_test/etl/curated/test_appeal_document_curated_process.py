@@ -189,10 +189,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        rows = {
-            row["documentId"]: row["caseType"]
-            for row in df.select("documentId", "caseType").collect()
-        }
+        rows = {row["documentId"]: row["caseType"] for row in df.select("documentId", "caseType").collect()}
 
         assert rows["doc-1"] == "D"
         assert rows["doc-2"] == "W"

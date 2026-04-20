@@ -16,16 +16,10 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         return "appeal_document_harmonisation_process"
 
     def load_data(self) -> dict[str, Any]:
-        raise NotImplementedError(
-            "AppealDocumentHarmonisationProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealDocumentHarmonisationProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError(
-            "AppealDocumentHarmonisationProcess.process() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealDocumentHarmonisationProcess.process() has not been implemented yet.")
 
     def _generate_rowid(self, row: dict[str, Any]) -> str:
-        raise NotImplementedError(
-            "AppealDocumentHarmonisationProcess._generate_rowid() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealDocumentHarmonisationProcess._generate_rowid() has not been implemented yet.")

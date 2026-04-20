@@ -293,9 +293,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -331,9 +329,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -356,9 +352,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -382,9 +376,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
@@ -409,9 +401,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -439,9 +429,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -479,9 +467,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -523,9 +509,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -563,9 +547,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -586,9 +568,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -608,9 +588,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -635,9 +613,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -697,9 +673,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -719,9 +693,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -783,9 +755,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
-        ):
+        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 

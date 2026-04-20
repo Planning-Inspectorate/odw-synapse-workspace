@@ -243,9 +243,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -278,9 +276,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -321,9 +317,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -362,9 +356,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -396,9 +388,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -437,9 +427,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -463,9 +451,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
-            ) as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
