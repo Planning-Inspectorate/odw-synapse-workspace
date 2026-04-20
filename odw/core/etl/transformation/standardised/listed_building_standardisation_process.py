@@ -1,23 +1,34 @@
 from datetime import datetime
 from typing import Dict
+
 from pyspark.sql import DataFrame
-from pyspark.sql.types import (StructType,StructField,StringType,)
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+)
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 
 
 class ListedBuildingsStandardisationProcess(StandardisationProcess):
     """
-    Standardisation process for Listed Buildings and Listed Building Outline
+    Standardisation process for Listed Buildings and Listed Building Outline.
+    Converts raw JSON input into standardised Delta tables.
     """
 
     @classmethod
-    def get_name(cls):
-        return "Listed-Buildings-Standardisation"
+    def get_name(cls) -> str:
+        """
+        Name used by ETLProcessFactory
+        """
+        return "listed-buildings-standardisation"
 
     # ---------------------------------------------------------------------
     # Schemas
@@ -65,7 +76,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         ])
 
     # ---------------------------------------------------------------------
-    # Load data
+    # Load data (RAW → DataFrames)
     # ---------------------------------------------------------------------
     @LoggingUtil.logging_to_appins
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
@@ -87,11 +98,15 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         LoggingUtil().log_info(f"Reading Listed Building Outline from {lbo_path}")
 
         listed_buildings_raw = (
-            self.spark.read.option("multiline", "true").json(lb_path)
+            self.spark.read
+            .option("multiline", "true")
+            .json(lb_path)
         )
 
         listed_building_outline_raw = (
-            self.spark.read.option("multiline", "true").json(lbo_path)
+            self.spark.read
+            .option("multiline", "true")
+            .json(lbo_path)
         )
 
         listed_buildings_df = (
@@ -118,7 +133,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         }
 
     # ---------------------------------------------------------------------
-    # Process
+    # Process (STANDARDISED WRITE)
     # ---------------------------------------------------------------------
     @LoggingUtil.logging_to_appins
     def process(self, **kwargs) -> ETLResult:
@@ -128,57 +143,60 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         if not source_data:
             raise ValueError("process requires source_data dictionary")
 
-        database_name = "odw_standardised_db"
-
         lb_df = source_data.get("listed_building")
         lbo_df = source_data.get("listed_building_outline")
 
         if lb_df is None or lbo_df is None:
-            raise ValueError("Required Listed Buildings dataframes missing")
+            raise ValueError(
+                "Required Listed Buildings dataframes are missing"
+            )
 
+        database_name = "odw_standardised_db"
         lb_table = "listed_building"
         lbo_table = "listed_building_outline"
 
         insert_count = lb_df.count() + lbo_df.count()
-
         end_exec_time = datetime.now()
 
-        return {
-            f"{database_name}.{lb_table}": {
-                "data": lb_df,
-                "storage_kind": "ADLSG2-Table",
-                "database_name": database_name,
-                "table_name": lb_table,
-                "container_name": "odw-standardised",
-                "blob_path": lb_table,
-                "file_format": "delta",
-                "write_mode": "overwrite",
-                "write_options": {"mergeSchema": "true"},
-                "storage_endpoint": Util.get_storage_account(),
+        return (
+            {
+                f"{database_name}.{lb_table}": {
+                    "data": lb_df,
+                    "storage_kind": "ADLSG2-Table",
+                    "database_name": database_name,
+                    "table_name": lb_table,
+                    "container_name": "odw-standardised",
+                    "blob_path": lb_table,
+                    "file_format": "delta",
+                    "write_mode": "overwrite",
+                    "write_options": {"mergeSchema": "true"},
+                    "storage_endpoint": Util.get_storage_account(),
+                },
+                f"{database_name}.{lbo_table}": {
+                    "data": lbo_df,
+                    "storage_kind": "ADLSG2-Table",
+                    "database_name": database_name,
+                    "table_name": lbo_table,
+                    "container_name": "odw-standardised",
+                    "blob_path": lbo_table,
+                    "file_format": "delta",
+                    "write_mode": "overwrite",
+                    "write_options": {"mergeSchema": "true"},
+                    "storage_endpoint": Util.get_storage_account(),
+                },
             },
-            f"{database_name}.{lbo_table}": {
-                "data": lbo_df,
-                "storage_kind": "ADLSG2-Table",
-                "database_name": database_name,
-                "table_name": lbo_table,
-                "container_name": "odw-standardised",
-                "blob_path": lbo_table,
-                "file_format": "delta",
-                "write_mode": "overwrite",
-                "write_options": {"mergeSchema": "true"},
-                "storage_endpoint": Util.get_storage_account(),
-            },
-        }, ETLSuccessResult(
-            metadata=ETLResult.ETLResultMetadata(
-                start_execution_time=start_exec_time,
-                end_execution_time=end_exec_time,
-                table_name="listed_buildings",
-                insert_count=insert_count,
-                update_count=0,
-                delete_count=0,
-                activity_type=self.__class__.__name__,
-                duration_seconds=(
-                    end_exec_time - start_exec_time
-                ).total_seconds(),
-            )
+            ETLSuccessResult(
+                metadata=ETLResult.ETLResultMetadata(
+                    start_execution_time=start_exec_time,
+                    end_execution_time=end_exec_time,
+                    table_name="listed_buildings",
+                    insert_count=insert_count,
+                    update_count=0,
+                    delete_count=0,
+                    activity_type=self.__class__.__name__,
+                    duration_seconds=(
+                        end_exec_time - start_exec_time
+                    ).total_seconds(),
+                )
+            ),
         )
