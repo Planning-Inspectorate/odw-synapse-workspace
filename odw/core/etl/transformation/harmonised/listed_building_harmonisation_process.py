@@ -12,9 +12,9 @@ from pyspark.sql import functions as F
 from pyspark.sql.functions import md5, concat, coalesce, lit, col
 
 
-# ------------------------------------------------------------------ #
+# ------------------------------------------------------------------
 # Columns used to build RowID hash
-# ------------------------------------------------------------------ #
+# ------------------------------------------------------------------
 _DOCUMENT_ROW_ID_COLUMNS = [
     "entity",
     "dataset",
@@ -37,17 +37,10 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     """
     Harmonises Listed Building data from the standardised layer
     to the harmonised layer.
-
-    NOTE:
-    This ETL intentionally bypasses ETLProcess.load_data()
-    and reads directly from Spark tables.
     """
 
     @staticmethod
     def get_name() -> str:
-        """
-        Name used by ETLProcessFactory
-        """
         return "listed-buildings-harmonisation"
 
     def __init__(self, spark: SparkSession, params: Dict):
@@ -62,16 +55,12 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         self.update_count = 0
         self.delete_count = 0
 
-    # ------------------------------------------------------------------ #
-    # ✅ OVERRIDE RUN (IMPORTANT)
-    # ------------------------------------------------------------------ #
-    def run(self, **kwargs) -> ETLResult:
-        """
-        Override ETLProcess.run()
+    # ✅ REQUIRED abstract method
+    def process(self, **kwargs):
+        return self.execute()
 
-        This prevents the framework from calling load_data()
-        and requiring `data_to_read`.
-        """
+    # ✅ Override run to bypass load_data
+    def run(self, **kwargs) -> ETLResult:
         start_time = datetime.utcnow()
 
         try:
@@ -80,7 +69,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             )
 
             result = self.execute()
-
             self.logging_util.log_info(result)
             return result
 
@@ -103,14 +91,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
                 )
             )
 
-    # ------------------------------------------------------------------ #
-    # Step 1: Read
-    # ------------------------------------------------------------------ #
     def read_source(self) -> DataFrame:
-        self.logging_util.log_info(
-            f"Reading source table {self.source_table}"
-        )
-
         df = self.spark.sql(f"""
             SELECT
                 dataset,
@@ -132,18 +113,9 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             "dateReceived", F.current_date()
         )
 
-        self.logging_util.log_info(
-            f"Source row count: {df.count()}"
-        )
-
         return df
 
-    # ------------------------------------------------------------------ #
-    # Step 2: Transform
-    # ------------------------------------------------------------------ #
     def transform(self, df: DataFrame) -> DataFrame:
-        self.logging_util.log_info("Transforming source data")
-
         hash_expr = concat(
             *[coalesce(col(c), lit(".")) for c in _DOCUMENT_ROW_ID_COLUMNS]
         )
@@ -155,22 +127,18 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             .withColumn("isActive", lit("Y"))
         )
 
-    # ------------------------------------------------------------------ #
-    # Step 3: Merge
-    # ------------------------------------------------------------------ #
     def merge(self, df: DataFrame):
         if not self.spark.catalog.tableExists(
             "odw_harmonised_db", "listed_building"
         ):
-            self.logging_util.log_info(
-                "Target table does not exist – performing initial load"
-            )
-            self._initial_load(df)
+            df.write.format("delta") \
+                .mode("overwrite") \
+                .saveAsTable(self.target_table)
+            self.insert_count = df.count()
             return
 
         delta_table = DeltaTable.forName(self.spark, self.target_table)
 
-        # Deactivate changed records
         (
             delta_table.alias("t")
             .merge(
@@ -187,75 +155,20 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             .execute()
         )
 
-        # Insert new or changed records
         (
             delta_table.alias("t")
             .merge(
                 df.alias("s"),
                 "t.entity = s.entity AND t.rowID = s.rowID AND t.isActive = 'Y'"
             )
-            .whenNotMatchedInsert(
-                values={
-                    "dataset": "s.dataset",
-                    "endDate": "s.endDate",
-                    "entity": "s.entity",
-                    "entryDate": "s.entryDate",
-                    "geometry": "s.geometry",
-                    "listedBuildingGrade": "s.listedBuildingGrade",
-                    "name": "s.name",
-                    "organisationEntity": "s.organisationEntity",
-                    "point": "s.point",
-                    "prefix": "s.prefix",
-                    "reference": "s.reference",
-                    "startDate": "s.startDate",
-                    "typology": "s.typology",
-                    "documentationUrl": "s.documentationUrl",
-                    "dateReceived": "s.dateReceived",
-                    "rowID": "s.rowID",
-                    "validTo": "s.validTo",
-                    "isActive": "s.isActive",
-                }
-            )
+            .whenNotMatchedInsertAll()
             .execute()
         )
 
-        self._calculate_counts(df, delta_table)
-
-    # ------------------------------------------------------------------ #
-    # Helpers
-    # ------------------------------------------------------------------ #
-    def _initial_load(self, df: DataFrame):
-        df.write.format("delta").mode("overwrite").saveAsTable(self.target_table)
-        self.insert_count = df.count()
-        self.update_count = 0
-
-    def _calculate_counts(self, df: DataFrame, delta_table: DeltaTable):
-        active_df = delta_table.toDF().filter("isActive = 'Y'")
-
-        self.insert_count = df.join(
-            active_df, "reference", "left_anti"
-        ).count()
-
-        self.update_count = (
-            df.join(active_df, "reference", "inner")
-            .filter(df.rowID != active_df.rowID)
-            .count()
-        )
-
-        self.logging_util.log_info(
-            f"Insert count: {self.insert_count}, "
-            f"Update count: {self.update_count}"
-        )
-
-    # ------------------------------------------------------------------ #
-    # Execute
-    # ------------------------------------------------------------------ #
     def execute(self) -> ETLResult:
         start_time = datetime.utcnow()
-
-        src_df = self.read_source()
-        final_df = self.transform(src_df)
-        self.merge(final_df)
+        df = self.transform(self.read_source())
+        self.merge(df)
 
         return ETLSuccessResult(
             start_time=start_time,
