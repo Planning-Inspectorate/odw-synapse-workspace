@@ -16,7 +16,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal-document-curated",
+        "entity_stage_name": "appeal_document_curated_process",
         "debug": False
     }
     ```
@@ -30,7 +30,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal-document-curated"
+        return "appeal_document_curated_process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
@@ -39,7 +39,6 @@ class AppealDocumentCuratedProcess(CurationProcess):
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
         Load source data, selecting only the columns needed downstream.
-        No joins or transformations are applied here – only reads.
         """
 
         LoggingUtil().log_info(f"Loading harmonised Appeal Document data from {self.HARMONISED_TABLE}")
@@ -123,7 +122,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
             .when(F.col("caseType") == "Call-In Application", F.lit("V"))
             .when(F.col("caseType") == "Affordable Housing Obligation Appeal", F.lit("S"))
             .when(F.col("caseType") == "Householder (HAS) Appeal", F.lit("D"))
-            .otherwise(F.lower(F.col("caseType")))
+            .otherwise(F.col("caseType"))
             .alias("caseType"),
             F.col("redactedStatus"),
             F.col("documentType"),
