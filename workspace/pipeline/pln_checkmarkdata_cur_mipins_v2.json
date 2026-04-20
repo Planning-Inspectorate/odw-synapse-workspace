@@ -1,0 +1,402 @@
+{
+	"name": "pln_checkmarkdata_cur_mipins_v2",
+	"properties": {
+		"description": "Copies 14 checkmarkdata tables from odw_standardised_db.dbo.* (via ls_ssql_builtin) to ODW.* (via ls_sql_mipins) in parallel with audit logging per table.",
+		"activities": [
+			{
+				"name": "Lookup-PipelineLogStart",
+				"description": "Logs pipeline-level start and returns a RunId used by all child activities.",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "checkmarkdata_cur_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "pln_checkmarkdata_cur_mipins_v2"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "ForEach-CopyTables",
+				"description": "Iterates over the table config and runs each copy in parallel.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup-PipelineLogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.TableConfig",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 8,
+					"activities": [
+						{
+							"name": "Copy-Table",
+							"description": "Truncate target and insert all rows from source. Mapping is driven by dataset schema.",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 60,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "SourceTable",
+									"value": "@item().sourceTable"
+								},
+								{
+									"name": "SinkTable",
+									"value": "@item().sinkTable"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT * FROM [odw_standardised_db].[dbo].[@{item().sourceTable}]",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "TRUNCATE TABLE [ODW].[@{item().sinkTable}]",
+										"type": "Expression"
+									},
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false
+							}
+						},
+						{
+							"name": "SP-LogSuccess",
+							"description": "Runs only if the copy succeeded. Logs row count against the pipeline RunId.",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy-Table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.02:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"value": {
+											"value": "@concat('copy_', item().sourceTable, '_succeeded')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"ErrorMessage": {
+										"value": null,
+										"type": "String"
+									},
+									"LogType": {
+										"value": "2",
+										"type": "String"
+									},
+									"Param1Value": {
+										"value": null,
+										"type": "String"
+									},
+									"RowCount": {
+										"value": {
+											"value": "@activity('Copy-Table').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"RunId": {
+										"value": {
+											"value": "@activity('Lookup-PipelineLogStart').output.firstRow.RunId",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"Source": {
+										"value": {
+											"value": "@concat('ODW.', item().sinkTable)",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_sql_mipins",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "SP-LogFailed",
+							"description": "Runs only if the copy failed. Logs the error message against the pipeline RunId.",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy-Table",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.02:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"value": {
+											"value": "@concat('copy_', item().sourceTable, '_failed')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@coalesce(activity('Copy-Table')?.error?.message, 'Unknown error')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"LogType": {
+										"value": "2",
+										"type": "String"
+									},
+									"Param1Value": {
+										"value": null,
+										"type": "String"
+									},
+									"RowCount": {
+										"value": null,
+										"type": "Int32"
+									},
+									"RunId": {
+										"value": {
+											"value": "@activity('Lookup-PipelineLogStart').output.firstRow.RunId",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"Source": {
+										"value": {
+											"value": "@concat('ODW.', item().sinkTable)",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_sql_mipins",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SP-PipelineLogComplete",
+				"description": "Pipeline-level completion log. Per-table failures are already logged inside the loop.",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "ForEach-CopyTables",
+						"dependencyConditions": [
+							"Succeeded",
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "checkmarkdata_cur_mipins_pipeline_completed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": null,
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-PipelineLogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "pln_checkmarkdata_cur_mipins_v2",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"TableConfig": {
+				"type": "Array",
+				"defaultValue": [
+					{
+						"sourceTable": "casemarking",
+						"sinkTable": "case_marking"
+					},
+					{
+						"sourceTable": "commentstatereference",
+						"sinkTable": "comment_state_ref"
+					},
+					{
+						"sourceTable": "commenttypereference",
+						"sinkTable": "comment_type_ref"
+					},
+					{
+						"sourceTable": "casecomment",
+						"sinkTable": "comments"
+					},
+					{
+						"sourceTable": "conditionreference",
+						"sinkTable": "conditions_reference"
+					},
+					{
+						"sourceTable": "coveragereference",
+						"sinkTable": "coverage_reference"
+					},
+					{
+						"sourceTable": "outcomereference",
+						"sinkTable": "outcome_reference"
+					},
+					{
+						"sourceTable": "presentationaccuracydetailreference",
+						"sinkTable": "presentation_accuracy_detail_reference"
+					},
+					{
+						"sourceTable": "procedurereference",
+						"sinkTable": "procedure_reference"
+					},
+					{
+						"sourceTable": "readingcase",
+						"sinkTable": "reading_case"
+					},
+					{
+						"sourceTable": "readingstatusreference",
+						"sinkTable": "reading_status_reference"
+					},
+					{
+						"sourceTable": "readingtypereference",
+						"sinkTable": "reading_type_reference"
+					},
+					{
+						"sourceTable": "sourcereference",
+						"sinkTable": "source_reference"
+					},
+					{
+						"sourceTable": "structurereasoningdetailreference",
+						"sinkTable": "structure_reasoning_detail_reference"
+					}
+				]
+			}
+		},
+		"folder": {
+			"name": "checkmarkdata"
+		},
+		"annotations": []
+	}
+}
