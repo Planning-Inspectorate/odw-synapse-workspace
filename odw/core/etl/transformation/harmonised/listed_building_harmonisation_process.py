@@ -62,7 +62,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         self.delete_count = 0
 
     # ------------------------------------------------------------------
-    # REQUIRED abstract method (framework)
+    # REQUIRED abstract method
     # ------------------------------------------------------------------
     def process(self, **kwargs):
         return self.execute()
@@ -79,7 +79,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             result = self.execute()
             self.logging_util.log_info(result)
             return result
-
         except Exception as e:
             self.logging_util.log_error(str(e))
             self.logging_util.log_error(traceback.format_exc())
@@ -102,25 +101,26 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     # Step 1: Read source
     # ------------------------------------------------------------------
     def read_source(self) -> DataFrame:
-        df = self.spark.sql(f"""
-            SELECT
-                dataset,
-                `end-date` AS endDate,
-                entity,
-                `entry-date` AS entryDate,
-                geometry,
-                `listed-building-grade` AS listedBuildingGrade,
-                name,
-                `organisation-entity` AS organisationEntity,
-                point,
-                prefix,
-                reference,
-                `start-date` AS startDate,
-                typology,
-                `documentation-url` AS documentationUrl
-            FROM {self.source_table}
-        """).withColumn(
-            "dateReceived", F.current_date()
+        df = (
+            self.spark.sql(f"""
+                SELECT
+                    dataset,
+                    `end-date` AS endDate,
+                    entity,
+                    `entry-date` AS entryDate,
+                    geometry,
+                    `listed-building-grade` AS listedBuildingGrade,
+                    name,
+                    `organisation-entity` AS organisationEntity,
+                    point,
+                    prefix,
+                    reference,
+                    `start-date` AS startDate,
+                    typology,
+                    `documentation-url` AS documentationUrl
+                FROM {self.source_table}
+            """)
+            .withColumn("dateReceived", F.current_date())
         )
 
         self.logging_util.log_info(
@@ -129,7 +129,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         return df
 
     # ------------------------------------------------------------------
-    # Step 2: Transform (FIXED md5 logic)
+    # Step 2: Transform (RowID + SCD columns)
     # ------------------------------------------------------------------
     def transform(self, df: DataFrame) -> DataFrame:
         hash_expr = F.md5(
@@ -142,12 +142,12 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         return (
             df
             .withColumn("rowID", hash_expr)
-            .withColumn("validTo", F.lit(None).cast("timestamp"))
+            .withColumn("ValidTo", F.lit(None).cast("timestamp"))
             .withColumn("isActive", F.lit("Y"))
         )
 
     # ------------------------------------------------------------------
-    # Step 3: Merge (CDC)
+    # Step 3: Merge (SCD Type‑2)
     # ------------------------------------------------------------------
     def merge(self, df: DataFrame):
         if not self.spark.catalog.tableExists(
@@ -156,7 +156,9 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             self.logging_util.log_info(
                 "Target does not exist – performing initial load"
             )
-            df.write.format("delta") \
+
+            df.write \
+                .format("delta") \
                 .mode("overwrite") \
                 .saveAsTable(self.target_table)
 
@@ -175,8 +177,8 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             .whenMatchedUpdate(
                 condition="t.rowID <> s.rowID",
                 set={
-                    "validTo": "current_date()",
-                    "isActive": "'N'"
+                    "ValidTo": "current_date()",
+                    "isActive": "'N'",
                 }
             )
             .execute()
