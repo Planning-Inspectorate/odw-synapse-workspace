@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "85822a4b-5208-4a3b-8734-d4b322f1f556"
+				"spark.autotune.trackingId": "38d0235c-2441-4011-91ad-a5344bdec91f"
 			}
 		},
 		"metadata": {
@@ -57,7 +57,7 @@
 				"source": [
 					"%run refactor/combined_odw"
 				],
-				"execution_count": 26
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -71,7 +71,7 @@
 					"# from typing import Dict, Any, Union\n",
 					"# import json"
 				],
-				"execution_count": 27
+				"execution_count": 43
 			},
 			{
 				"cell_type": "markdown",
@@ -98,9 +98,10 @@
 					"    \"entity_stage_name\": \"listed-buildings-harmonisation\",\n",
 					"    # \"entity_name\": \"Listed-Buildings\",\n",
 					"    \"debug\": False\n",
-					"}"
+					"}\n",
+					"print(input_arguments)"
 				],
-				"execution_count": 28
+				"execution_count": 54
 			},
 			{
 				"cell_type": "code",
@@ -108,14 +109,28 @@
 					"if isinstance(input_arguments, str):\n",
 					"    input_arguments = json.loads(input_arguments)"
 				],
-				"execution_count": 29
+				"execution_count": 57
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"  print(input_arguments)"
+				],
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"debug = input_arguments.get(\"debug\", False)"
 				],
-				"execution_count": 30
+				"execution_count": 46
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(debug)"
+				],
+				"execution_count": 59
 			},
 			{
 				"cell_type": "markdown",
@@ -133,10 +148,14 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"print(\"entity_stage_name value:\", input_arguments.get(\"entity_stage_name\"))\n",
+					"\n",
 					"if \"entity_stage_name\" not in input_arguments:\n",
-					"    raise ValueError(\"py_etl_ochestrator expects a 'entity_stage_name' property to be supplied, but this was missing\")"
+					"    raise ValueError(\n",
+					"        \"py_etl_ochestrator expects an 'entity_stage_name' property to be supplied\"\n",
+					"    )"
 				],
-				"execution_count": 31
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -144,7 +163,7 @@
 					"# Initialise spark session\n",
 					"spark = SparkSession.builder.getOrCreate()"
 				],
-				"execution_count": 32
+				"execution_count": 48
 			},
 			{
 				"cell_type": "markdown",
@@ -166,9 +185,10 @@
 					"print(entity_stage_name)\n",
 					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
 					"print(etl_process_class)\n",
-					"etl_process_instance = etl_process_class(spark, debug)"
+					"etl_process_instance = etl_process_class(spark, debug)\n",
+					"print(etl_process_instance)"
 				],
-				"execution_count": 33
+				"execution_count": 49
 			},
 			{
 				"cell_type": "markdown",
@@ -189,7 +209,7 @@
 					"# Flush any pending logs, so that new logs are captured\n",
 					"LoggingUtil().flush_logging()"
 				],
-				"execution_count": 34
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -200,9 +220,10 @@
 					"etl_results = etl_process_instance.run(\n",
 					"    **input_arguments,\n",
 					"    spark=spark\n",
-					")"
+					")\n",
+					"print(etl_results)"
 				],
-				"execution_count": 35
+				"execution_count": 51
 			},
 			{
 				"cell_type": "markdown",
@@ -222,7 +243,7 @@
 				"source": [
 					"LoggingUtil().save_pipeline_logs(json.loads(etl_results.metadata.json()), event_name=\"Master_Pipeline_Logs_v2\")"
 				],
-				"execution_count": 36
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -231,7 +252,7 @@
 					"if isinstance(etl_results, ETLFailResult):\n",
 					"    raise RuntimeError(etl_results.metadata.exception_trace)"
 				],
-				"execution_count": 37
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
