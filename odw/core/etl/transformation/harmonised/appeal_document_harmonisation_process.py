@@ -46,6 +46,10 @@ _APPEAL_DOCUMENT_ROW_ID_COLUMNS = [
     "versionFilename",
     "incomingOutgoingExternal",
     "publishedStatus",
+    "Migrated",
+    "ODTSourceSystem",
+    "IngestionDate",
+    "ValidTo",
 ]
 
 
@@ -57,7 +61,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal-document-harmonised",
+        "entity_stage_name": "appeal_document_harmonised_process",
         "debug": False
     }
     ```
@@ -74,7 +78,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal-document-harmonised"
+        return "appeal_document_harmonised_process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
@@ -86,7 +90,6 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         - Service bus harmonised table (sb_appeal_document)
         - Horizon standardised table (horizon_appeals_document_metadata)
         - AIE extracts table (aie_document_data)
-        No joins or transformations are applied here – only reads.
         """
         try:
             self.spark.catalog.refreshTable(self.HORIZON_TABLE)
@@ -116,11 +119,11 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
     def _load_service_bus_data(self) -> DataFrame:
         """
         Get data out of the service bus with additional fields needed for Horizon data.
-        Computes a primary key: MD5(CONCAT(documentId, filename, version, documentURI))
+        Computes a primary key: MD5(CONCAT(documentId, filename, version))
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                MD5(CONCAT(documentId, filename, version, documentURI)) AS {self.PRIMARY_KEY}
+                MD5(CONCAT(documentId, filename, version)) AS {self.PRIMARY_KEY}
                 ,AppealsDocumentMetadataID
                 ,documentId
                 ,caseId
@@ -229,7 +232,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                MD5(CONCAT(documentId, filename, version, documentURI)) AS {self.PRIMARY_KEY}
+                MD5(CONCAT(documentId, filename, version)) AS {self.PRIMARY_KEY}
             FROM {self.SERVICE_BUS_TABLE}
         """)
 
@@ -325,13 +328,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         combined = service_bus_data.union(horizon_joined)
 
         # ---------------------------------------------------------
-        # Step 3: Compute RowID from the combined (pre-correction) data.
-        # ---------------------------------------------------------
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _APPEAL_DOCUMENT_ROW_ID_COLUMNS]))
-        combined = combined.withColumn("RowID", row_id_expr)
-
-        # ---------------------------------------------------------
-        # Step 4: Window-function calculations (replaces intermediate table + SQL views)
+        # Step 3: Window-function calculations (replaces intermediate table + SQL views)
         # ---------------------------------------------------------
         pk = self.PRIMARY_KEY
         win_pk_desc = Window.partitionBy(pk).orderBy(F.col("IngestionDate").desc())
@@ -347,7 +344,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         )
 
         # ---------------------------------------------------------
-        # Step 5: Compute ValidTo by self-joining on (PK, ReverseOrderProcessed - 1)
+        # Step 4: Compute ValidTo by self-joining on (PK, ReverseOrderProcessed - 1)
         # ---------------------------------------------------------
         current = combined.alias("CurrentRow")
         next_row = combined.alias("NextRow")
@@ -369,7 +366,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         )
 
         # ---------------------------------------------------------
-        # Step 6: Derive Migrated flag (1 if PK exists in SB table, else 0)
+        # Step 5: Derive Migrated flag (1 if PK exists in SB table, else 0)
         # ---------------------------------------------------------
         sb_keys = sb_primary_keys.withColumnRenamed(pk, "sb_pk")
         calcs = (
@@ -379,10 +376,12 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         )
 
         # ---------------------------------------------------------
-        # Step 7: Rejoin calculations back onto the combined dataset.
-        # Mirror the notebook: take SELECT DISTINCT of all columns from the
-        # intermediate data, drop the four columns that calcs will replace,
-        # then join calcs back and .select(columns) to restore the full column set.
+        # Step 6: Rejoin the calculated fields (ValidTo, IsActive,
+        # Migrated, AppealsDocumentMetadataID) back onto the cleaned
+        # base dataset. We first SELECT DISTINCT from the combined
+        # data, drop the four fields that will be replaced, then join
+        # the calculation results to restore the full corrected record
+        # set for each (PK, IngestionDate).
         # ---------------------------------------------------------
 
         all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID"}]
@@ -408,14 +407,19 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
             .dropDuplicates()
         )
 
-        # Ensure final column order: put SourceSystemID where it belongs if present
-        # (The base run() -> write_data() will handle the actual write)
+        # ---------------------------------------------------------
+        # Step 7: Compute RowID from the final_df.
+        # ---------------------------------------------------------
+
+        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _APPEAL_DOCUMENT_ROW_ID_COLUMNS]))
+        final_df = final_df.withColumn("RowID", row_id_expr)
 
         insert_count = final_df.count()
 
         # ---------------------------------------------------------
         # Step 8: Resolve table path
         # ---------------------------------------------------------
+
         df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
         rows = df.filter(df.col_name == "Location").select("data_type").collect()
         table_path = rows[0]["data_type"] if rows else None
