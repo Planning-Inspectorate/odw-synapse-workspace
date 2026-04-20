@@ -1,12 +1,27 @@
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
-from odw.core.etl.etl_result import ETLResult, ETLSuccessResult, ETLResultMetadata
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
 from datetime import datetime
 from typing import Dict, Tuple
 
+try:
+    ETLResultMetadata  # type: ignore[name-defined]
+except NameError:
+    from pydantic import BaseModel, Field
 
+    class ETLResultMetadata(BaseModel):  # fallback, local definition
+        start_execution_time: datetime
+        end_execution_time: datetime
+        exception: str | None = None
+        exception_trace: str | None = None
+        table_name: str | None = None
+        insert_count: int = Field(default=0)
+        update_count: int = Field(default=0)
+        delete_count: int = Field(default=0)
+        activity_type: str
+        duration_seconds: float
 
 class AppealRepresentationCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
