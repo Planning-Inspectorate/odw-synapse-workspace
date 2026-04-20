@@ -1,0 +1,184 @@
+{
+	"name": "pln_checkmarkdata_cur_mipins_v2_copy1",
+	"properties": {
+		"description": "Copies 14 checkmarkdata tables from odw_standardised_db.dbo.* (via ls_ssql_builtin) to ODW.* (via ls_sql_mipins) in parallel with audit logging per table.",
+		"activities": [
+			{
+				"name": "ForEach-CopyTables",
+				"description": "Iterates over the table config and runs each copy in parallel.",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.TableConfig",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 8,
+					"activities": [
+						{
+							"name": "Copy-Table",
+							"description": "Truncate target and insert all rows from source. Mapping is driven by dataset schema.",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 60,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "SourceTable",
+									"value": "@item().sourceTable"
+								},
+								{
+									"name": "SinkTable",
+									"value": "@item().sinkTable"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat('select * from [odw_standardised_db].[dbo].[',item().sourceTable,']')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@concat('TRUNCATE TABLE [odw].[', item().sinkTable, ']')",
+										"type": "Expression"
+									},
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_standardised_generic",
+									"type": "DatasetReference",
+									"parameters": {
+										"schemaName": "dbo",
+										"tableName": {
+											"value": "@item().sourceTable",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_sql_mipins_generic",
+									"type": "DatasetReference",
+									"parameters": {
+										"TableName": {
+											"value": "@item().sinkTable",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"TableConfig": {
+				"type": "array",
+				"defaultValue": [
+					{
+						"sourceTable": "casemarking",
+						"sinkTable": "case_marking",
+						"columns": "ID, case_reference, overall_mark, amendments_timeliness_mark, complexity, conditions_mark, conditions_detail, coverage_mark, coverage_detail, ground_a_mark, ground_a_iit_level, invalid_nullity, invalid_nullity_mark, legal_grounds_mark, legal_grounds_considered, non_legal_grounds_mark, non_legal_grounds_considered, other_grounds_affecting_complexity, outcome, overall_case_level_for_iit_progression, presentation_accuracy_mark, presentation_accuracy_detail, structure_reasoning_mark, structure_reasoning_detail, timeliness_mark, reading_complete_notification_needed"
+					},
+					{
+						"sourceTable": "commentstatereference",
+						"sinkTable": "comment_state_ref",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "commenttypereference",
+						"sinkTable": "comment_type_ref",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "casecomment",
+						"sinkTable": "comments",
+						"columns": "ID, case_reference, type, state, author, timestamp, comment"
+					},
+					{
+						"sourceTable": "conditionreference",
+						"sinkTable": "conditions_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "coveragereference",
+						"sinkTable": "coverage_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "outcomereference",
+						"sinkTable": "outcome_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "presentationaccuracydetailreference",
+						"sinkTable": "presentation_accuracy_detail_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "procedurereference",
+						"sinkTable": "procedure_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "readingcase",
+						"sinkTable": "reading_case",
+						"columns": "case_reference, inspector_email, inspector_name, reader_email, reader_name, case_level, date_submitted_by_inspector, event_date, type_of_reading, procedure, case_target_date, reading_status, able_to_read_decision, advertisement, appeal_against_conditions, bespoke, case_team_officer_email, case_team_officer_name, costs_decision, green_belt, kiosk, linked, neighbourhood_plan, nsi_email, nsi_name, prior_approval, reason_for_delay, redetermination, secretary_of_state_report, spa_sac_eps, special_category_data, specialisms, telecommunications, urgent, amendments_received_notification_needed, able_to_check_amendments, amendments_cycles, amendments_target_date, amendments_timeliness_review_flag, date_amendments_checked, date_amendments_received, date_cleared, date_decision_sent_for_issue, date_read, date_read_started, decision_read, delayed_amendments_submission, delayed_submission, document_version, document_version_needed, final_decision_notification_needed, notification_sent_flag, on_hold_notification_needed, on_hold_status, reading_needed_flag, ready_for_issue, reason_for_amendments_delay, recall_notification_needed, replacement_decision_flag, return_count, revised_decision_notification_needed, skim_read, source, timeliness_review_flag, date_modified"
+					},
+					{
+						"sourceTable": "readingstatusreference",
+						"sinkTable": "reading_status_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "readingtypereference",
+						"sinkTable": "reading_type_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "sourcereference",
+						"sinkTable": "source_reference",
+						"columns": "ID, value"
+					},
+					{
+						"sourceTable": "structurereasoningdetailreference",
+						"sinkTable": "structure_reasoning_detail_reference",
+						"columns": "ID, value"
+					}
+				]
+			}
+		},
+		"folder": {
+			"name": "checkmarkdata"
+		},
+		"annotations": []
+	}
+}
