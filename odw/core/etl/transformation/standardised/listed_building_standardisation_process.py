@@ -3,7 +3,7 @@ from typing import Dict
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (StructType,StructField,StringType,)
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.standardised.standardisation_process import ( StandardisationProcess,)
+from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
@@ -17,7 +17,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls):
-        return "Listed Buildings Standardisation"
+        return "Listed-Buildings-Standardisation"
 
     # ---------------------------------------------------------------------
     # Schemas

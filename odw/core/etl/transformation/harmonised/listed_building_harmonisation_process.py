@@ -44,7 +44,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         """
         Name used by ETLProcessFactory
         """
-        return "listed_buildings_harmonisation"
+        return "listed-buildings-harmonisation"
 
     def __init__(self, spark: SparkSession, params: Dict):
         super().__init__(spark, params)
