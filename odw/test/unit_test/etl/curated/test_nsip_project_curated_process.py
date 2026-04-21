@@ -1,6 +1,6 @@
 import mock
-import pytest
 from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
+from odw.core.util.util import Util
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from pyspark.sql import functions as F
@@ -13,9 +13,6 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
-
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -228,8 +225,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = df.where(F.col("caseId") == 1001).collect()
@@ -258,8 +256,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         case_ids = {row["caseId"] for row in df.select("caseId").collect()}
@@ -280,8 +279,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("applicantId").collect()[0]
@@ -301,8 +301,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -318,8 +319,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -338,8 +340,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("publishStatus").collect()[0]
@@ -361,8 +364,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("projectType").collect()[0]
@@ -382,8 +386,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("projectType").collect()[0]
@@ -400,8 +405,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("sourceSystem").collect()[0]
@@ -421,8 +427,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("sourceSystem").collect()[0]
@@ -448,8 +455,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = {row["caseId"]: row["stage"] for row in df.select("caseId", "stage").collect()}
@@ -467,8 +475,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         dtypes = dict(df.dtypes)
@@ -483,8 +492,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -581,8 +591,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -615,8 +626,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         )
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -703,8 +715,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         ]
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -717,8 +730,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         service_user_df = spark.createDataFrame([_service_user_row()], schema=_service_user_schema())
 
         with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            inst = NsipProjectCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
+            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                inst = NsipProjectCuratedProcess(spark)
+                data_to_write, result = inst.process(source_data={"harmonised_data": harmonised_df, "service_user_data": service_user_df})
 
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_project"
