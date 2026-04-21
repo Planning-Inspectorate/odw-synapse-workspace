@@ -1,261 +1,265 @@
 {
-  "name": "py_purview_create_postcode_classification",
-  "properties": {
-    "nbformat": 4,
-    "nbformat_minor": 2,
-    "bigDataPool": {
-      "referenceName": "pinssynspodw35",
-      "type": "BigDataPoolReference"
-    },
-    "sessionProperties": {
-      "driverMemory": "28g",
-      "driverCores": 4,
-      "executorMemory": "28g",
-      "executorCores": 4,
-      "numExecutors": 2,
-      "conf": {
-        "spark.dynamicAllocation.enabled": "false",
-        "spark.dynamicAllocation.minExecutors": "2",
-        "spark.dynamicAllocation.maxExecutors": "2"
-      }
-    },
-    "metadata": {
-      "saveOutput": true,
-      "enableDebugMode": false,
-      "kernelspec": {
-        "name": "synapse_pyspark",
-        "display_name": "Synapse PySpark"
-      },
-      "language_info": {
-        "name": "python"
-      },
-      "a365ComputeOptions": {
-        "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-        "name": "pinssynspodw35",
-        "type": "Spark",
-        "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
-        "auth": {
-          "type": "AAD",
-          "authResource": "https://dev.azuresynapse.net"
-        },
-        "sparkVersion": "3.5",
-        "nodeCount": 3,
-        "cores": 4,
-        "memory": 32
-      },
-      "sessionKeepAliveTimeout": 30
-    },
-    "cells": [
-      {
-        "cell_type": "markdown",
-        "source": [
-          "# Create Postcode Custom Classification in Purview\n",
-          "\n",
-          "Registers a custom classification type `Postcode` and a regex-based classification rule\n",
-          "in Microsoft Purview so the anonymisation engine can detect and redact postcode columns\n",
-          "to their first block (e.g. `SW1W 9SP` → `SW1W`).\n",
-          "\n",
-          "Run this notebook **once per environment** (dev / preprod / prod) before scanning assets.\n",
-          "It is idempotent — re-running when the classification already exists is safe."
-        ]
-      },
-      {
-        "cell_type": "markdown",
-        "source": ["## Imports & auth"]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "import json\n",
-          "import requests\n",
-          "from notebookutils import mssparkutils\n",
-          "from odw.core.anonymisation.engine import (\n",
-          "    _get_access_token,\n",
-          "    _kv_secret_via_linked_service,\n",
-          "    DEFAULT_PURVIEW_NAME,\n",
-          "    DEFAULT_TENANT_ID,\n",
-          "    _DEFAULT_PURVIEW_CLIENT_ID_SECRET,\n",
-          "    _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET,\n",
-          ")\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": ["## Configuration\n", "\n", "Override `PURVIEW_NAME` if running against preprod or prod."]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "PURVIEW_NAME = DEFAULT_PURVIEW_NAME  # e.g. 'pins-pview'\n",
-          "TENANT_ID    = DEFAULT_TENANT_ID\n",
-          "\n",
-          "CLIENT_ID     = mssparkutils.credentials.getSecretWithLS('ls_kv', _DEFAULT_PURVIEW_CLIENT_ID_SECRET)\n",
-          "CLIENT_SECRET = mssparkutils.credentials.getSecretWithLS('ls_kv', _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET)\n",
-          "\n",
-          "ATLAS_BASE = f'https://{PURVIEW_NAME}.catalog.purview.azure.com/api/atlas/v2'\n",
-          "SCAN_BASE  = f'https://{PURVIEW_NAME}.scan.purview.azure.com'\n",
-          "\n",
-          "CLASSIFICATION_NAME = 'Postcode'\n",
-          "RULE_NAME           = 'pins-postcode-rule'  # no spaces — Purview rule names must be URL-safe\n",
-          "\n",
-          "# Sanitise rule name: replace spaces with hyphens to avoid 400 from URL encoding\n",
-          "RULE_NAME = RULE_NAME.replace(' ', '-')\n",
-          "\n",
-          "# Scan API version — the scan endpoint requires 2022-07-01-preview, not 2023-09-01\n",
-          "SCAN_API_VERSION = '2022-07-01-preview'\n",
-          "\n",
-          "# UK postcode regex — matches both full (SW1W 9SP) and partial (SW1W) formats\n",
-          "UK_POSTCODE_REGEX = r'^[A-Z]{1,2}[0-9][0-9A-Z]?(\\s+[0-9][A-Z]{2})?$'\n",
-          "\n",
-          "print(f'Purview: {PURVIEW_NAME}')\n",
-          "print(f'Classification: {CLASSIFICATION_NAME}')\n",
-          "print(f'Rule: {RULE_NAME}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": ["## Authenticate"]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "token = _get_access_token(TENANT_ID, CLIENT_ID, CLIENT_SECRET)\n",
-          "headers = {\n",
-          "    'Authorization': f'Bearer {token}',\n",
-          "    'Content-Type': 'application/json',\n",
-          "}\n",
-          "print('Token acquired.')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "## Step 1 — Register the classification type (Atlas API)\n",
-          "\n",
-          "Creates the `Postcode` classification type. If it already exists the API returns 200 with no changes."
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "def create_classification_type(name: str, description: str) -> dict:\n",
-          "    payload = {\n",
-          "        'classificationDefs': [\n",
-          "            {\n",
-          "                'name': name,\n",
-          "                'description': description,\n",
-          "                'superTypes': [],\n",
-          "                'attributeDefs': [],\n",
-          "            }\n",
-          "        ]\n",
-          "    }\n",
-          "    url = f'{ATLAS_BASE}/types/typedefs'\n",
-          "    resp = requests.post(url, headers=headers, json=payload, timeout=60)\n",
-          "    if resp.status_code == 409 or (resp.ok and 'classificationDefs' in resp.json()):\n",
-          "        return resp.json()\n",
-          "    resp.raise_for_status()\n",
-          "    return resp.json()\n",
-          "\n",
-          "\n",
-          "result = create_classification_type(\n",
-          "    CLASSIFICATION_NAME,\n",
-          "    'UK postcode — anonymised to the first outward block (e.g. SW1W 9SP becomes SW1W).',\n",
-          ")\n",
-          "defs = result.get('classificationDefs', [])\n",
-          "if defs:\n",
-          "    print(f'Classification type created/confirmed: {defs[0][\"name\"]}')\n",
-          "else:\n",
-          "    print(f'Response: {result}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "## Step 2 — Create a classification rule (Scan API)\n",
-          "\n",
-          "Registers a regex-based scanning rule so Purview auto-tags columns whose values match\n",
-          "the UK postcode pattern with the `Postcode` classification.\n",
-          "\n",
-          "Uses `PUT` so it is safe to re-run — it will update an existing rule with the same name."
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "def upsert_classification_rule(rule_name: str, classification_name: str, regex: str) -> dict:\n",
-          "    payload = {\n",
-          "        'kind': 'Custom',\n",
-          "        'properties': {\n",
-          "            'classificationName': classification_name,\n",
-          "            'ruleStatus': 'Enabled',\n",
-          "            'minimumPercentageMatch': 60,\n",
-          "            'dataPatterns': [\n",
-          "                {\n",
-          "                    'kind': 'Regex',\n",
-          "                    'pattern': regex,\n",
-          "                }\n",
-          "            ],\n",
-          "        },\n",
-          "    }\n",
-          "    url = f'{SCAN_BASE}/classificationrules/{rule_name}?api-version={SCAN_API_VERSION}'\n",
-          "    resp = requests.put(url, headers=headers, json=payload, timeout=60)\n",
-          "    if not resp.ok:\n",
-          "        raise RuntimeError(f'PUT {url} -> {resp.status_code}: {resp.text[:800]}')\n",
-          "    return resp.json()\n",
-          "\n",
-          "\n",
-          "result = upsert_classification_rule(RULE_NAME, CLASSIFICATION_NAME, UK_POSTCODE_REGEX)\n",
-          "print(f'Classification rule upserted: {result.get(\"name\", RULE_NAME)}')\n",
-          "print(f'Status: {result.get(\"properties\", {}).get(\"ruleStatus\")}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "## Step 3 — Verify\n",
-          "\n",
-          "Confirms both the classification type and the rule are visible in Purview."
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "# Verify classification type exists\n",
-          "type_url  = f'{ATLAS_BASE}/types/classificationdef/name/{CLASSIFICATION_NAME}'\n",
-          "type_resp = requests.get(type_url, headers=headers, timeout=60)\n",
-          "type_resp.raise_for_status()\n",
-          "print(f'Classification type confirmed: {type_resp.json().get(\"name\")}')\n",
-          "\n",
-          "# Verify classification rule exists\n",
-          "rule_url  = f'{SCAN_BASE}/classificationrules/{RULE_NAME}?api-version={SCAN_API_VERSION}'\n",
-          "rule_resp = requests.get(rule_url, headers=headers, timeout=60)\n",
-          "rule_resp.raise_for_status()\n",
-          "props = rule_resp.json().get('properties', {})\n",
-          "print(f'Classification rule confirmed: {rule_resp.json().get(\"name\")}')\n",
-          "print(f'  classificationName : {props.get(\"classificationName\")}')\n",
-          "print(f'  ruleStatus         : {props.get(\"ruleStatus\")}')\n",
-          "print(f'  minimumPercentage  : {props.get(\"minimumPercentageMatch\")}%')\n",
-          "print(f'  pattern            : {props.get(\"dataPatterns\", [{}])[0].get(\"pattern\")}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      }
-    ]
-  }
+	"name": "py_purview_create_postcode_classification",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "6df19779-62f7-4670-9121-2bd0e3e4bcc3"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Create Postcode Custom Classification in Purview\n",
+					"\n",
+					"Registers a custom classification type `Postcode` and a regex-based classification rule\n",
+					"in Microsoft Purview so the anonymisation engine can detect and redact postcode columns\n",
+					"to their first block (e.g. `SW1W 9SP` → `SW1W`).\n",
+					"\n",
+					"Run this notebook **once per environment** (dev / preprod / prod) before scanning assets.\n",
+					"It is idempotent — re-running when the classification already exists is safe."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Imports & auth"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"import requests\n",
+					"from notebookutils import mssparkutils\n",
+					"from odw.core.anonymisation.engine import (\n",
+					"    _get_access_token,\n",
+					"    _kv_secret_via_linked_service,\n",
+					"    DEFAULT_PURVIEW_NAME,\n",
+					"    DEFAULT_TENANT_ID,\n",
+					"    _DEFAULT_PURVIEW_CLIENT_ID_SECRET,\n",
+					"    _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET,\n",
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Configuration\n",
+					"\n",
+					"Override `PURVIEW_NAME` if running against preprod or prod."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PURVIEW_NAME = DEFAULT_PURVIEW_NAME  # e.g. 'pins-pview'\n",
+					"TENANT_ID    = DEFAULT_TENANT_ID\n",
+					"\n",
+					"CLIENT_ID     = mssparkutils.credentials.getSecretWithLS('ls_kv', _DEFAULT_PURVIEW_CLIENT_ID_SECRET)\n",
+					"CLIENT_SECRET = mssparkutils.credentials.getSecretWithLS('ls_kv', _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET)\n",
+					"\n",
+					"ATLAS_BASE = f'https://{PURVIEW_NAME}.catalog.purview.azure.com/api/atlas/v2'\n",
+					"SCAN_BASE  = f'https://{PURVIEW_NAME}.scan.purview.azure.com'\n",
+					"\n",
+					"CLASSIFICATION_NAME = 'UK Postcode'\n",
+					"RULE_NAME           = 'UK Postcode'  # no spaces — Purview rule names must be URL-safe\n",
+					"\n",
+					"# Sanitise rule name: replace spaces with hyphens to avoid 400 from URL encoding\n",
+					"RULE_NAME = RULE_NAME.replace(' ', '-')\n",
+					"\n",
+					"# Scan API version — the scan endpoint requires 2022-07-01-preview, not 2023-09-01\n",
+					"SCAN_API_VERSION = '2022-07-01-preview'\n",
+					"\n",
+					"# UK postcode regex — matches both full (SW1W 9SP) and partial (SW1W) formats\n",
+					"UK_POSTCODE_REGEX = r'^[A-Z]{1,2}[0-9][0-9A-Z]?(\\s+[0-9][A-Z]{2})?$'\n",
+					"\n",
+					"print(f'Purview: {PURVIEW_NAME}')\n",
+					"print(f'Classification: {CLASSIFICATION_NAME}')\n",
+					"print(f'Rule: {RULE_NAME}')\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Authenticate"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"token = _get_access_token(TENANT_ID, CLIENT_ID, CLIENT_SECRET)\n",
+					"headers = {\n",
+					"    'Authorization': f'Bearer {token}',\n",
+					"    'Content-Type': 'application/json',\n",
+					"}\n",
+					"print('Token acquired.')\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 1 — Register the classification type (Atlas API)\n",
+					"\n",
+					"Creates the `Postcode` classification type. If it already exists the API returns 200 with no changes."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def create_classification_type(name: str, description: str) -> dict:\n",
+					"    payload = {\n",
+					"        'classificationDefs': [\n",
+					"            {\n",
+					"                'name': name,\n",
+					"                'description': description,\n",
+					"                'superTypes': [],\n",
+					"                'attributeDefs': [],\n",
+					"            }\n",
+					"        ]\n",
+					"    }\n",
+					"    url = f'{ATLAS_BASE}/types/typedefs'\n",
+					"    resp = requests.post(url, headers=headers, json=payload, timeout=60)\n",
+					"    if resp.status_code == 409 or (resp.ok and 'classificationDefs' in resp.json()):\n",
+					"        return resp.json()\n",
+					"    resp.raise_for_status()\n",
+					"    return resp.json()\n",
+					"\n",
+					"\n",
+					"result = create_classification_type(\n",
+					"    CLASSIFICATION_NAME,\n",
+					"    'UK postcode — anonymised to the first outward block (e.g. SW1W 9SP becomes SW1W).',\n",
+					")\n",
+					"defs = result.get('classificationDefs', [])\n",
+					"if defs:\n",
+					"    print(f'Classification type created/confirmed: {defs[0][\"name\"]}')\n",
+					"else:\n",
+					"    print(f'Response: {result}')\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 2 — Create a classification rule (Scan API)\n",
+					"\n",
+					"Registers a regex-based scanning rule so Purview auto-tags columns whose values match\n",
+					"the UK postcode pattern with the `Postcode` classification.\n",
+					"\n",
+					"Uses `PUT` so it is safe to re-run — it will update an existing rule with the same name."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def upsert_classification_rule(rule_name: str, classification_name: str, regex: str) -> dict:\n",
+					"    payload = {\n",
+					"        'kind': 'Custom',\n",
+					"        'properties': {\n",
+					"            'classificationName': classification_name,\n",
+					"            'ruleStatus': 'Enabled',\n",
+					"            'minimumPercentageMatch': 60,\n",
+					"            'dataPatterns': [\n",
+					"                {\n",
+					"                    'kind': 'Regex',\n",
+					"                    'pattern': regex,\n",
+					"                }\n",
+					"            ],\n",
+					"        },\n",
+					"    }\n",
+					"    url = f'{SCAN_BASE}/classificationrules/{rule_name}?api-version={SCAN_API_VERSION}'\n",
+					"    resp = requests.put(url, headers=headers, json=payload, timeout=60)\n",
+					"    if not resp.ok:\n",
+					"        raise RuntimeError(f'PUT {url} -> {resp.status_code}: {resp.text[:800]}')\n",
+					"    return resp.json()\n",
+					"\n",
+					"\n",
+					"result = upsert_classification_rule(RULE_NAME, CLASSIFICATION_NAME, UK_POSTCODE_REGEX)\n",
+					"print(f'Classification rule upserted: {result.get(\"name\", RULE_NAME)}')\n",
+					"print(f'Status: {result.get(\"properties\", {}).get(\"ruleStatus\")}')\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 3 — Verify\n",
+					"\n",
+					"Confirms both the classification type and the rule are visible in Purview."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Verify classification type exists\n",
+					"type_url  = f'{ATLAS_BASE}/types/classificationdef/name/{CLASSIFICATION_NAME}'\n",
+					"type_resp = requests.get(type_url, headers=headers, timeout=60)\n",
+					"type_resp.raise_for_status()\n",
+					"print(f'Classification type confirmed: {type_resp.json().get(\"name\")}')\n",
+					"\n",
+					"# Verify classification rule exists\n",
+					"rule_url  = f'{SCAN_BASE}/classificationrules/{RULE_NAME}?api-version={SCAN_API_VERSION}'\n",
+					"rule_resp = requests.get(rule_url, headers=headers, timeout=60)\n",
+					"rule_resp.raise_for_status()\n",
+					"props = rule_resp.json().get('properties', {})\n",
+					"print(f'Classification rule confirmed: {rule_resp.json().get(\"name\")}')\n",
+					"print(f'  classificationName : {props.get(\"classificationName\")}')\n",
+					"print(f'  ruleStatus         : {props.get(\"ruleStatus\")}')\n",
+					"print(f'  minimumPercentage  : {props.get(\"minimumPercentageMatch\")}%')\n",
+					"print(f'  pattern            : {props.get(\"dataPatterns\", [{}])[0].get(\"pattern\")}')\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
 }
