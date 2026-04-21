@@ -156,6 +156,42 @@ class PostcodeStrategy(BaseStrategy):
         return df.withColumn(column, result)
 
 
+class AddressStrategy(BaseStrategy):
+    classification_names = {
+        "Address Line 1",
+        "Address Line 2",
+        "Street Address",
+        "Postcode",
+        "All Physical Addresses",
+        "MICROSOFT.PERSONAL.PHYSICALADDRESS",  # Microsoft Purview classification
+    }
+
+    def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        """Redact address fields in non-production environments.
+
+        Handles both simple string columns and struct (nested) columns.
+        For struct columns (e.g. 'address' with fields like addressLine1, addressLine2),
+        all nested fields are redacted.
+        """
+        from pyspark.sql.types import StructType
+
+        col_type = dict(df.dtypes).get(column)
+
+        if col_type and col_type.startswith("struct"):
+            schema = df.schema[column].dataType
+            if isinstance(schema, StructType):
+                redacted_fields = []
+                for field in schema.fields:
+                    if field.name.lower() == "postcode":
+                        redacted_fields.append(F.col(f"{column}.{field.name}").alias(field.name))
+                    else:
+                        redacted_fields.append(F.lit("REDACTED").alias(field.name))
+                redacted_struct = F.struct(*redacted_fields)
+                return df.withColumn(column, F.when(F.col(column).isNotNull(), redacted_struct).otherwise(None))
+
+        return df.withColumn(column, F.when(F.col(column).isNotNull(), F.lit("REDACTED")).otherwise(None))
+
+
 def default_strategies() -> List[BaseStrategy]:
     return [
         NINumberStrategy(),
@@ -165,4 +201,5 @@ def default_strategies() -> List[BaseStrategy]:
         BirthDateStrategy(),
         AgeStrategy(),
         SalaryStrategy(),
+        AddressStrategy(),
     ]

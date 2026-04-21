@@ -400,3 +400,215 @@ def test__anonymisation__postcode_keeps_first_block():
     assert rows[0]["Postcode"] == "E17"
     assert rows[1]["Postcode"] == "SW1W"
     assert rows[2]["Postcode"] is None
+
+
+def test__address_strategy__redacts_struct_fields_preserving_postcode():
+    """
+    Test that AddressStrategy redacts struct address fields but preserves postcode
+    """
+    spark = PytestSparkSessionUtil().get_spark_session()
+    from pyspark.sql.types import StructType, StructField, StringType
+
+    address_schema = StructType(
+        [
+            StructField("addressLine1", StringType(), True),
+            StructField("addressLine2", StringType(), True),
+            StructField("townCity", StringType(), True),
+            StructField("county", StringType(), True),
+            StructField("postcode", StringType(), True),
+        ]
+    )
+
+    data = [
+        {
+            "sapId": "123",
+            "firstName": "John",
+            "address": {
+                "addressLine1": "123 Main St",
+                "addressLine2": "Apt 4B",
+                "townCity": "London",
+                "county": "Greater London",
+                "postcode": "SW1A 1AA",
+            },
+        },
+        {
+            "sapId": "456",
+            "firstName": "Jane",
+            "address": {
+                "addressLine1": "456 Oak Ave",
+                "addressLine2": None,
+                "townCity": "Manchester",
+                "county": "Greater Manchester",
+                "postcode": "M1 1AA",
+            },
+        },
+    ]
+
+    schema = StructType(
+        [
+            StructField("sapId", StringType(), True),
+            StructField("firstName", StringType(), True),
+            StructField("address", address_schema, True),
+        ]
+    )
+    df = spark.createDataFrame(data, schema)
+
+    mocked_purview_cols = [
+        {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+    ]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            from odw.core.anonymisation.engine import AnonymisationEngine
+
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("sapId", "firstName", "address").collect()
+
+    assert rows[0]["sapId"] == "123"
+    assert rows[0]["firstName"] == "John"
+    assert rows[0]["address"].addressLine1 == "REDACTED"
+    assert rows[0]["address"].addressLine2 == "REDACTED"
+    assert rows[0]["address"].townCity == "REDACTED"
+    assert rows[0]["address"].county == "REDACTED"
+    assert rows[0]["address"].postcode == "SW1A 1AA"
+
+    assert rows[1]["sapId"] == "456"
+    assert rows[1]["firstName"] == "Jane"
+    assert rows[1]["address"].addressLine1 == "REDACTED"
+    assert rows[1]["address"].addressLine2 == "REDACTED"
+    assert rows[1]["address"].townCity == "REDACTED"
+    assert rows[1]["address"].county == "REDACTED"
+    assert rows[1]["address"].postcode == "M1 1AA"
+
+
+def test__address_strategy__redacts_simple_string_address_fields():
+    """
+    Test that AddressStrategy redacts simple string address fields
+    """
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    data = [
+        {
+            "Staff Number": "S001",
+            "Address Line 1": "123 Main Street",
+            "Address Line 2": "Apartment 4B",
+            "Postcode": "SW1A 1AA",
+        },
+        {
+            "Staff Number": "S002",
+            "Address Line 1": "456 Oak Avenue",
+            "Address Line 2": None,
+            "Postcode": "M1 1AA",
+        },
+    ]
+    df = spark.createDataFrame(data)
+
+    mocked_purview_cols = [
+        {"column_name": "Address Line 1", "classifications": ["Address Line 1"]},
+        {"column_name": "Address Line 2", "classifications": ["Address Line 2"]},
+        {"column_name": "Postcode", "classifications": ["Postcode"]},
+    ]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            from odw.core.anonymisation.engine import AnonymisationEngine
+
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("Staff Number", "Address Line 1", "Address Line 2", "Postcode").collect()
+
+    assert rows[0]["Staff Number"] == "S001"
+    assert rows[0]["Address Line 1"] == "REDACTED"
+    assert rows[0]["Address Line 2"] == "REDACTED"
+    assert rows[0]["Postcode"] == "REDACTED"
+
+    assert rows[1]["Staff Number"] == "S002"
+    assert rows[1]["Address Line 1"] == "REDACTED"
+    assert rows[1]["Address Line 2"] is None
+    assert rows[1]["Postcode"] == "REDACTED"
+
+
+def test__address_strategy__handles_null_struct_address():
+    """
+    Test that AddressStrategy correctly handles null struct address values
+    """
+    spark = PytestSparkSessionUtil().get_spark_session()
+    from pyspark.sql.types import StructType, StructField, StringType
+
+    address_schema = StructType(
+        [
+            StructField("addressLine1", StringType(), True),
+            StructField("addressLine2", StringType(), True),
+            StructField("postcode", StringType(), True),
+        ]
+    )
+
+    data = [
+        {
+            "sapId": "123",
+            "firstName": "John",
+            "address": {
+                "addressLine1": "123 Main St",
+                "addressLine2": "Apt 4B",
+                "postcode": "SW1A 1AA",
+            },
+        },
+        {
+            "sapId": "456",
+            "firstName": "Jane",
+            "address": None,
+        },
+    ]
+
+    schema = StructType(
+        [
+            StructField("sapId", StringType(), True),
+            StructField("firstName", StringType(), True),
+            StructField("address", address_schema, True),
+        ]
+    )
+    df = spark.createDataFrame(data, schema)
+
+    mocked_purview_cols = [
+        {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+    ]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            from odw.core.anonymisation.engine import AnonymisationEngine
+
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("sapId", "firstName", "address").collect()
+
+    assert rows[0]["sapId"] == "123"
+    assert rows[0]["address"].addressLine1 == "REDACTED"
+    assert rows[0]["address"].postcode == "SW1A 1AA"
+
+    assert rows[1]["sapId"] == "456"
+    assert rows[1]["address"] is None
