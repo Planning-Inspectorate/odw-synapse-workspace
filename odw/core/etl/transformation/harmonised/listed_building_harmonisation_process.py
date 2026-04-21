@@ -56,7 +56,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         start_time = datetime.utcnow()
         try:
             self.logging_util.log_info("Starting ListedBuildingHarmonisationProcess")
-            result = self.execute()
+            result = self.execute(start_time=start_time)
             self.logging_util.log_info(result)
             return result
         except Exception as e:
@@ -107,7 +107,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         hash_expr = F.md5(
             F.concat_ws(
                 "||",
-                *[F.coalesce(F.col(c), F.lit("")) for c in _DOCUMENT_ROW_ID_COLUMNS]
+                *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in _DOCUMENT_ROW_ID_COLUMNS]
             )
         )
 
@@ -137,11 +137,14 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         changed_keys = (
             df.select("entity", "rowID")
               .join(
-                  active_target.select("entity", "rowID").alias("t"),
-                  on="entity",
+                  active_target.select(
+                      F.col("entity").alias("t_entity"),
+                      F.col("rowID").alias("t_rowID")
+                  ),
+                  on=df["entity"] == F.col("t_entity"),
                   how="inner"
               )
-              .where(F.col("rowID") != F.col("t.rowID"))
+              .where(F.col("rowID") != F.col("t_rowID"))
               .select(df["entity"])
               .distinct()
         )
@@ -188,17 +191,25 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             f"Insert count: {self.insert_count}, Update count: {self.update_count}"
         )
 
-    def execute(self) -> ETLResult:
-        start_time = datetime.utcnow()
+    def execute(self, start_time=None) -> ETLResult:
+        if start_time is None:
+            start_time = datetime.utcnow()
 
         df = self.read_source()
         df = self.transform(df)
         self.merge(df)
 
         return ETLSuccessResult(
-            start_time=start_time,
-            end_time=datetime.utcnow(),
-            rows_inserted=self.insert_count,
-            rows_updated=self.update_count,
-            rows_deleted=self.delete_count,
+            metadata=ETLResult.ETLResultMetadata(
+                start_execution_time=start_time,
+                end_execution_time=datetime.utcnow(),
+                exception=None,
+                exception_trace=None,
+                table_name=self.target_table,
+                activity_type=self.__class__.__name__,
+                duration_seconds=(datetime.utcnow() - start_time).total_seconds(),
+                insert_count=self.insert_count,
+                update_count=self.update_count,
+                delete_count=self.delete_count,
+            )
         )

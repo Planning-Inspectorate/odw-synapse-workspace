@@ -80,7 +80,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
     # ---------------------------------------------------------------------
     @LoggingUtil.logging_to_appins
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        date_folder: str = kwargs.get("date_folder")
+        date_folder: str = kwargs.get("date_folder") or kwargs.get("run_date")
         if not date_folder:
             raise ValueError("load_data requires 'date_folder' parameter")
 
@@ -147,9 +147,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         lbo_df = source_data.get("listed_building_outline")
 
         if lb_df is None or lbo_df is None:
-            raise ValueError(
-                "Required Listed Buildings dataframes are missing"
-            )
+            raise ValueError("Required Listed Buildings dataframes are missing")
 
         database_name = "odw_standardised_db"
         lb_table = "listed_building"
@@ -194,9 +192,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
                     update_count=0,
                     delete_count=0,
                     activity_type=self.__class__.__name__,
-                    duration_seconds=(
-                        end_exec_time - start_exec_time
-                    ).total_seconds(),
+                    duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
                 )
             ),
         )
