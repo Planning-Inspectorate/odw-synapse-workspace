@@ -18,7 +18,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
         harmonised_data = spark.createDataFrame(
             data=(
                 (
-                    1,
+                    "1",
                     2,
                     "a",
                     "published",
@@ -34,9 +34,10 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     datetime(2025, 1, 22, 13, 48, 35, 847).isoformat(),
                     ["x"],
                     "1",
+                    "Y",
                 ),
                 (
-                    2,
+                    "2",
                     3,
                     "b",
                     "published",
@@ -52,6 +53,26 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     datetime(2025, 1, 23, 13, 48, 35, 847).isoformat(),
                     ["y"],
                     "1",
+                    "Y",
+                ),
+                (  # This row will be dropped
+                    "3",
+                    4,
+                    "c",
+                    "published",
+                    "another description",
+                    False,
+                    "undefined",
+                    "undefined",
+                    [],
+                    [],
+                    "lpa",
+                    "undefined",
+                    "final_comment",
+                    datetime(2025, 1, 23, 13, 48, 35, 847).isoformat(),
+                    ["y"],
+                    "1",
+                    "N",
                 ),
             ),
             schema=T.StructType(
@@ -71,7 +92,8 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     T.StructField("representationType", T.StringType(), True),
                     T.StructField("dateReceived", T.StringType(), True),
                     T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected
+                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected,
+                    T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
         )
@@ -97,7 +119,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
         expected_fetched_harmonised_data = spark.createDataFrame(
             data=(
                 (
-                    1,
+                    "1",
                     2,
                     "a",
                     "published",
@@ -114,7 +136,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     ["x"],
                 ),
                 (
-                    2,
+                    "2",
                     3,
                     "b",
                     "published",
@@ -169,7 +191,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
             "harmonised_data": spark.createDataFrame(
                 data=(
                     (
-                        1,
+                        "1",
                         2,
                         "a",
                         "published",
@@ -186,7 +208,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                         ["x"],
                     ),
                     (
-                        2,
+                        "2",
                         3,
                         "b",
                         "published",

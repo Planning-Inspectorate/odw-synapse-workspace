@@ -182,9 +182,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         return spark.createDataFrame(
             data=(
                 (
-                    2,
+                    "2",
                     3,
-                    603,
+                    "603",
                     "published",
                     "Some description",
                     False,
@@ -199,9 +199,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                     ["aaaaa"],
                 ),
                 (
-                    3,
+                    "3",
                     4,
-                    604,
+                    "604",
                     "published",
                     "Another description",
                     False,
@@ -257,9 +257,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         existing_curated_data = spark.createDataFrame(
             [
                 (
-                    11,
+                    "11",
                     12,
-                    612,
+                    "612",
                     "published",
                     "Some description",
                     False,
@@ -274,9 +274,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                     ["xxxxx"],
                 ),
                 (
-                    12,
+                    "12",
                     13,
-                    613,
+                    "613",
                     "published",
                     "Some description",
                     False,
