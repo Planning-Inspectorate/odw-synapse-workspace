@@ -116,9 +116,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                     "statement",
                     datetime(2025, 1, 3, 0, 0, 0, 0).isoformat(),
                     ["ccccc"],
-                    1,
+                    "1",
                     "ODT",
-                    5,
+                    "5",
                     datetime(2025, 1, 3, 0, 0, 0, 0).isoformat(),
                     None,
                     None,
@@ -128,7 +128,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             ],
             schema=T.StructType(
                 [
-                    T.StructField("appealRepresentaionID", T.LongType(), True),
+                    T.StructField("appealRepresentationID", T.LongType(), True),
                     T.StructField("representationId", T.StringType(), True),
                     T.StructField("caseId", T.LongType(), True),
                     T.StructField("caseReference", T.StringType(), True),
@@ -216,9 +216,9 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                     ["bbbbb"],
                 ),
                 (
-                    6,
+                    "6",
                     7,
-                    607,
+                    "607",
                     "published",
                     "Another description 3",
                     False,
