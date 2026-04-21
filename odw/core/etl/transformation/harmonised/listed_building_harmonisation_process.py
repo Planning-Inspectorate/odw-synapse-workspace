@@ -11,9 +11,6 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult, ETLFailResult
 from odw.core.util.logging_util import LoggingUtil
 
 
-# ------------------------------------------------------------------
-# Columns used to build deterministic RowID hash (CDC)
-# ------------------------------------------------------------------
 _DOCUMENT_ROW_ID_COLUMNS = [
     "entity",
     "dataset",
@@ -35,47 +32,30 @@ _DOCUMENT_ROW_ID_COLUMNS = [
 class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     """
     Harmonises Listed Building data from the standardised layer
-    to the harmonised layer using SCD Type‑2 semantics.
+    to the harmonised layer using SCD Type-2 semantics.
     """
 
-    # ------------------------------------------------------------------
-    # Factory name
-    # ------------------------------------------------------------------
     @staticmethod
     def get_name() -> str:
         return "listed-buildings-harmonisation"
 
-    # ------------------------------------------------------------------
-    # Init
-    # ------------------------------------------------------------------
     def __init__(self, spark: SparkSession, params: Dict):
         super().__init__(spark, params)
-
         self.spark = spark
         self.logging_util = LoggingUtil()
-
         self.source_table = "odw_standardised_db.listed_building"
         self.target_table = "odw_harmonised_db.listed_building"
-
         self.insert_count = 0
         self.update_count = 0
         self.delete_count = 0
 
-    # ------------------------------------------------------------------
-    # REQUIRED abstract method
-    # ------------------------------------------------------------------
     def process(self, **kwargs):
         return self.execute()
 
-    # ------------------------------------------------------------------
-    # Override run() to bypass load_data()
-    # ------------------------------------------------------------------
     def run(self, **kwargs) -> ETLResult:
         start_time = datetime.utcnow()
         try:
-            self.logging_util.log_info(
-                "Starting ListedBuildingHarmonisationProcess"
-            )
+            self.logging_util.log_info("Starting ListedBuildingHarmonisationProcess")
             result = self.execute()
             self.logging_util.log_info(result)
             return result
@@ -97,9 +77,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
                 )
             )
 
-    # ------------------------------------------------------------------
-    # Step 1: Read source
-    # ------------------------------------------------------------------
     def read_source(self) -> DataFrame:
         df = (
             self.spark.sql(f"""
@@ -123,14 +100,9 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             .withColumn("dateReceived", F.current_date())
         )
 
-        self.logging_util.log_info(
-            f"Source row count: {df.count()}"
-        )
+        self.logging_util.log_info(f"Source row count: {df.count()}")
         return df
 
-    # ------------------------------------------------------------------
-    # Step 2: Transform (RowID + SCD columns)
-    # ------------------------------------------------------------------
     def transform(self, df: DataFrame) -> DataFrame:
         hash_expr = F.md5(
             F.concat_ws(
@@ -140,51 +112,56 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         )
 
         return (
-            df
-            .withColumn("rowID", hash_expr)
-            .withColumn("ValidTo", F.lit(None).cast("timestamp"))
-            .withColumn("isActive", F.lit("Y"))
+            df.withColumn("rowID", hash_expr)
+              .withColumn("ValidTo", F.lit(None).cast("timestamp"))
+              .withColumn("isActive", F.lit("Y").cast("string"))
         )
 
-    # ------------------------------------------------------------------
-    # Step 3: Merge (SCD Type‑2)
-    # ------------------------------------------------------------------
     def merge(self, df: DataFrame):
-        if not self.spark.catalog.tableExists(
-            "odw_harmonised_db", "listed_building"
-        ):
-            self.logging_util.log_info(
-                "Target does not exist – performing initial load"
+        if not self.spark.catalog.tableExists("odw_harmonised_db", "listed_building"):
+            self.logging_util.log_info("Target does not exist – performing initial load")
+            (
+                df.write
+                  .format("delta")
+                  .mode("overwrite")
+                  .option("overwriteSchema", "true")
+                  .saveAsTable(self.target_table)
             )
-
-            df.write \
-                .format("delta") \
-                .mode("overwrite") \
-                .saveAsTable(self.target_table)
-
             self.insert_count = df.count()
             return
 
         delta_table = DeltaTable.forName(self.spark, self.target_table)
 
-        # Deactivate changed records
-        (
-            delta_table.alias("t")
-            .merge(
-                df.alias("s"),
-                "t.entity = s.entity AND t.isActive = 'Y'"
-            )
-            .whenMatchedUpdate(
-                condition="t.rowID <> s.rowID",
-                set={
-                    "ValidTo": "current_date()",
-                    "isActive": "'N'",
-                }
-            )
-            .execute()
+        active_target = delta_table.toDF().filter(F.col("isActive") == "Y")
+
+        changed_keys = (
+            df.select("entity", "rowID")
+              .join(
+                  active_target.select("entity", "rowID").alias("t"),
+                  on="entity",
+                  how="inner"
+              )
+              .where(F.col("rowID") != F.col("t.rowID"))
+              .select(df["entity"])
+              .distinct()
         )
 
-        # Insert new / changed records
+        if changed_keys.count() > 0:
+            (
+                delta_table.alias("t")
+                .merge(
+                    changed_keys.alias("s"),
+                    "t.entity = s.entity AND t.isActive = 'Y'"
+                )
+                .whenMatchedUpdate(
+                    set={
+                        "ValidTo": "current_date()",
+                        "isActive": "'N'",
+                    }
+                )
+                .execute()
+            )
+
         (
             delta_table.alias("t")
             .merge(
@@ -197,30 +174,20 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         self._calculate_counts(df, delta_table)
 
-    # ------------------------------------------------------------------
-    # Counts
-    # ------------------------------------------------------------------
     def _calculate_counts(self, df: DataFrame, delta_table: DeltaTable):
-        active_df = delta_table.toDF().filter("isActive = 'Y'")
+        active_df = delta_table.toDF().filter(F.col("isActive") == "Y")
 
-        self.insert_count = (
-            df.join(active_df, "reference", "left_anti").count()
-        )
-
+        self.insert_count = df.join(active_df, "reference", "left_anti").count()
         self.update_count = (
             df.join(active_df, "reference")
-              .filter(df.rowID != active_df.rowID)
+              .filter(df["rowID"] != active_df["rowID"])
               .count()
         )
 
         self.logging_util.log_info(
-            f"Insert count: {self.insert_count}, "
-            f"Update count: {self.update_count}"
+            f"Insert count: {self.insert_count}, Update count: {self.update_count}"
         )
 
-    # ------------------------------------------------------------------
-    # Execute
-    # ------------------------------------------------------------------
     def execute(self) -> ETLResult:
         start_time = datetime.utcnow()
 
