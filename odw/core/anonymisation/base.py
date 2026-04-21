@@ -183,7 +183,10 @@ class AddressStrategy(BaseStrategy):
                 redacted_fields = []
                 for field in schema.fields:
                     if field.name.lower() == "postcode":
-                        redacted_fields.append(F.col(f"{column}.{field.name}").alias(field.name))
+                        pc = F.col(f"{column}.{field.name}")
+                        redacted_fields.append(
+                            F.when(pc.isNull(), None).otherwise(F.split(pc.cast("string"), " ").getItem(0)).alias(field.name)
+                        )
                     else:
                         redacted_fields.append(F.lit("REDACTED").alias(field.name))
                 redacted_struct = F.struct(*redacted_fields)

@@ -479,7 +479,7 @@ def test__address_strategy__redacts_struct_fields_preserving_postcode():
     assert rows[0]["address"].addressLine2 == "REDACTED"
     assert rows[0]["address"].townCity == "REDACTED"
     assert rows[0]["address"].county == "REDACTED"
-    assert rows[0]["address"].postcode == "SW1A 1AA"
+    assert rows[0]["address"].postcode == "SW1A"
 
     assert rows[1]["sapId"] == "456"
     assert rows[1]["firstName"] == "Jane"
@@ -487,7 +487,7 @@ def test__address_strategy__redacts_struct_fields_preserving_postcode():
     assert rows[1]["address"].addressLine2 == "REDACTED"
     assert rows[1]["address"].townCity == "REDACTED"
     assert rows[1]["address"].county == "REDACTED"
-    assert rows[1]["address"].postcode == "M1 1AA"
+    assert rows[1]["address"].postcode == "M1"
 
 
 def test__address_strategy__redacts_simple_string_address_fields():
@@ -608,7 +608,7 @@ def test__address_strategy__handles_null_struct_address():
 
     assert rows[0]["sapId"] == "123"
     assert rows[0]["address"].addressLine1 == "REDACTED"
-    assert rows[0]["address"].postcode == "SW1A 1AA"
+    assert rows[0]["address"].postcode == "SW1A"
 
     assert rows[1]["sapId"] == "456"
     assert rows[1]["address"] is None
