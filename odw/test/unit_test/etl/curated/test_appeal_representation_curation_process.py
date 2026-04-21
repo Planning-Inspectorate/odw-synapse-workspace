@@ -277,7 +277,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                 expected_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()}
                 actual_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()}
                 assert expected_data_to_write_without_data == actual_data_to_write_without_data
-                assert (
-                    expected_data_to_write["odw_curated_db.appeal_representation"]["data"]
-                    == actual_data_to_write["odw_curated_db.appeal_representation"]["data"]
+                assert_dataframes_equal(
+                    expected_data_to_write["odw_curated_db.appeal_representation"]["data"],
+                    actual_data_to_write["odw_curated_db.appeal_representation"]["data"],
                 )
