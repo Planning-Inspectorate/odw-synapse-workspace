@@ -74,11 +74,10 @@ def test__horizon_standardisation__anonymisation_applied_in_dev_environment():
     # Verify anonymisation was applied
     rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date", "Annual Salary").collect()
 
-    # Names should be masked (first letter only)
-    assert rows[0]["First Name"] == "J***"
-    assert rows[0]["Last Name"] == "D**"
-    assert rows[1]["First Name"] == "J***"
-    assert rows[1]["Last Name"] == "S****"
+    assert rows[0]["First Name"] == "REDACTED"
+    assert rows[0]["Last Name"] == "REDACTED"
+    assert rows[1]["First Name"] == "REDACTED"
+    assert rows[1]["Last Name"] == "REDACTED"
 
     # Email should be masked
     assert rows[0]["Email Address"] == "j******e@example.com"
@@ -196,8 +195,8 @@ def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns
     assert rows[0]["Location"] == "London"
 
     # Sensitive columns should be anonymised
-    assert rows[0]["First Name"] == "J***"
-    assert rows[0]["Last Name"] == "D**"
+    assert rows[0]["First Name"] == "REDACTED"
+    assert rows[0]["Last Name"] == "REDACTED"
     assert rows[0]["Email Address"] == "j******e@example.com"
 
 
@@ -257,8 +256,8 @@ def test__horizon_standardisation__anonymisation_handles_column_name_transformat
     assert rows[0]["staff_number"] == "S001"
 
     # Classified columns should be anonymised
-    assert rows[0]["first_name"] == "J***"
-    assert rows[0]["last_name"] == "D**"
+    assert rows[0]["first_name"] == "REDACTED"
+    assert rows[0]["last_name"] == "REDACTED"
     assert rows[0]["email_address"] == "j******e@example.com"
 
 
@@ -361,9 +360,43 @@ def test__horizon_standardisation__anonymisation_handles_null_values():
     rows = result_df.select("First Name", "Email Address").collect()
 
     # First row should be anonymised
-    assert rows[0]["First Name"] == "J***"
+    assert rows[0]["First Name"] == "REDACTED"
     assert rows[0]["Email Address"] == "j******e@example.com"
 
     # Second row nulls should remain null
     assert rows[1]["First Name"] is None
     assert rows[1]["Email Address"] is None
+
+
+def test__anonymisation__postcode_keeps_first_block():
+    from odw.core.anonymisation.engine import AnonymisationEngine
+
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    data = [
+        {"id": "1", "Postcode": "E17 4NT"},
+        {"id": "2", "Postcode": "SW1W 9SP"},
+        {"id": "3", "Postcode": None},
+    ]
+    df = spark.createDataFrame(data)
+
+    mocked_purview_cols = [
+        {"column_name": "Postcode", "classifications": ["Postcode"]},
+    ]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("Postcode").collect()
+    assert rows[0]["Postcode"] == "E17"
+    assert rows[1]["Postcode"] == "SW1W"
+    assert rows[2]["Postcode"] is None

@@ -58,8 +58,8 @@ def test_engine_apply_from_purview_with_mocked_classifications():
 
     rows = out.select("full_name", "emailAddress", "Age", "NINumber", "BirthDate", "AnnualSalary").collect()
 
-    assert rows[0]["full_name"] == "J*** **e"
-    assert rows[1]["full_name"] == "J*** ****h"
+    assert rows[0]["full_name"] == "REDACTED"
+    assert rows[1]["full_name"] == "REDACTED"
 
     assert rows[0]["emailAddress"] == "j******e@example.com"
     assert rows[1]["emailAddress"] == "j********h@example.com"

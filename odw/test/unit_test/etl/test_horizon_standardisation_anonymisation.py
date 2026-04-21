@@ -62,8 +62,8 @@ def _build_anonymised_df(spark):
     data = [
         {
             "staff_number": "S001",
-            "first_name": "J***",
-            "last_name": "D**",
+            "first_name": "REDACTED",
+            "last_name": "REDACTED",
             "email_address": "j******e@example.com",
             "birth_date": "1980-06-01",
             "annual_salary": "65000",
@@ -125,8 +125,8 @@ def test__horizon_standardisation__process_applies_anonymisation_in_non_producti
     written_df = data_to_write["odw_standardised_db.test_table"]["data"]
     row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
 
-    assert row["first_name"] == "J***"
-    assert row["last_name"] == "D**"
+    assert row["first_name"] == "REDACTED"
+    assert row["last_name"] == "REDACTED"
     assert row["email_address"] == "j******e@example.com"
     assert etl_result.metadata.table_name == "test_table"
 

@@ -122,56 +122,8 @@ class EmailMaskStrategy(BaseStrategy):
 class NameMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name", "All Full Names"}
 
-    @staticmethod
-    def _mask_first_only_expr(col: Column) -> Column:
-        """Keep the first character, replace the rest with '*'.
-        Uses a lookbehind so any character that has a preceding character is replaced.
-        """
-        return F.regexp_replace(col, r"(?<=.).", "*")
-
-    @staticmethod
-    def _mask_last_only_expr(col: Column) -> Column:
-        """Keep the last character, replace the rest with '*'.
-        Uses a lookahead so any character that has a following character is replaced.
-        """
-        return F.regexp_replace(col, r".(?=.)", "*")
-
-    @staticmethod
-    def _mask_fullname_expr(col: Column) -> Column:
-        """Mask a full name: keep first char of first token and last char of last token.
-        Single-token names fall back to mask_keep_first_last (first and last char).
-        """
-        tokens = F.split(col, r"\s+")
-        n = F.size(tokens)
-        first_token = tokens.getItem(0)
-        last_token = tokens.getItem(n - 1)
-        masked_first = NameMaskStrategy._mask_first_only_expr(first_token)
-        masked_last = NameMaskStrategy._mask_last_only_expr(last_token)
-        middle_masked = F.transform(
-            F.slice(tokens, 2, n - 2),
-            lambda t: F.regexp_replace(t, ".", "*"),
-        )
-        return F.when(n == 1, BaseStrategy.mask_keep_first_last(col)).otherwise(
-            F.array_join(
-                F.concat(F.array(masked_first), middle_masked, F.array(masked_last)),
-                " ",
-            )
-        )
-
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        col_expr = F.col(column).cast("string")
-        classes = set(context.get("classifications") or [])
-        if classes.intersection(self.classification_names):
-            result = F.when(F.col(column).isNull(), None).otherwise(
-                F.when(col_expr.rlike(r"\s+"), self._mask_fullname_expr(col_expr)).otherwise(self._mask_first_only_expr(col_expr))
-            )
-        else:
-            cname = column.lower()
-            if "name" in cname and "first" not in cname and "last" not in cname:
-                result = F.when(F.col(column).isNull(), None).otherwise(self._mask_fullname_expr(col_expr))
-            else:
-                result = BaseStrategy.mask_keep_first_last(F.col(column))
-        return df.withColumn(column, result)
+        return df.withColumn(column, F.when(F.col(column).isNull(), None).otherwise(F.lit("REDACTED")))
 
 
 class BirthDateStrategy(BaseStrategy):
@@ -195,11 +147,21 @@ class SalaryStrategy(BaseStrategy):
         return df.withColumn(column, BaseStrategy.random_int_from_seed(seed, 20000, 100000).cast("int"))
 
 
+class PostcodeStrategy(BaseStrategy):
+    classification_names = {"Postcode"}
+
+    def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        col_expr = F.col(column).cast("string")
+        result = F.when(F.col(column).isNull(), None).otherwise(F.split(col_expr, " ").getItem(0))
+        return df.withColumn(column, result)
+
+
 def default_strategies() -> List[BaseStrategy]:
     return [
         NINumberStrategy(),
         EmailMaskStrategy(),
         NameMaskStrategy(),
+        PostcodeStrategy(),
         BirthDateStrategy(),
         AgeStrategy(),
         SalaryStrategy(),

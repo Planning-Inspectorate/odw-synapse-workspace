@@ -55,13 +55,13 @@ def _build_anonymised_df(spark):
     data = [
         {
             "EmployeeID": "E1",
-            "full_name": "J*** **e",
+            "full_name": "REDACTED",
             "emailAddress": "j******e@example.com",
             "message_enqueued_time_utc": "2025-01-02T00:00:00.000000+0000",
         },
         {
             "EmployeeID": "E2",
-            "full_name": "J*** ****h",
+            "full_name": "REDACTED",
             "emailAddress": "j********h@example.com",
             "message_enqueued_time_utc": "2025-01-03T00:00:00.000000+0000",
         },
@@ -113,7 +113,7 @@ def test__service_bus_standardisation__process_applies_anonymisation_in_non_prod
     written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
     rows = written_df.select("full_name", "emailAddress").collect()
 
-    assert rows[0]["full_name"] == "J*** **e"
+    assert rows[0]["full_name"] == "REDACTED"
     assert rows[0]["emailAddress"] == "j******e@example.com"
     assert etl_result.metadata.table_name == "sb_service_user"
 
