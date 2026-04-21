@@ -7,7 +7,14 @@
 				"name": "ForEach-CopyTables",
 				"description": "Iterates over the table config and runs each copy in parallel.",
 				"type": "ForEach",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Lookup-PipelineLogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
@@ -94,8 +101,204 @@
 									}
 								}
 							]
+						},
+						{
+							"name": "SP-LogSuccess",
+							"description": "Runs only if the copy succeeded. Logs row count against the pipeline RunId.",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy-Table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.02:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"value": {
+											"value": "@concat('copy_', item().sourceTable, '_succeeded')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"ErrorMessage": {
+										"value": null,
+										"type": "String"
+									},
+									"LogType": {
+										"value": "2",
+										"type": "String"
+									},
+									"Param1Value": {
+										"value": null,
+										"type": "String"
+									},
+									"RowCount": {
+										"value": {
+											"value": "@activity('Copy-Table').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"RunId": {
+										"value": {
+											"value": "@activity('Lookup-PipelineLogStart').output.firstRow.RunId",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"Source": {
+										"value": {
+											"value": "@concat('ODW.', item().sinkTable)",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_sql_mipins",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "SP-LogFailed",
+							"description": "Runs only if the copy failed. Logs the error message against the pipeline RunId.",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy-Table",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.02:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[Audit].[usp_addETLLog]",
+								"storedProcedureParameters": {
+									"Description": {
+										"value": {
+											"value": "@concat('copy_', item().sourceTable, '_failed')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"ErrorMessage": {
+										"value": {
+											"value": "@coalesce(activity('Copy-Table')?.error?.message, 'Unknown error')",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"LogType": {
+										"value": "2",
+										"type": "String"
+									},
+									"Param1Value": {
+										"value": null,
+										"type": "String"
+									},
+									"RowCount": {
+										"value": null,
+										"type": "Int32"
+									},
+									"RunId": {
+										"value": {
+											"value": "@activity('Lookup-PipelineLogStart').output.firstRow.RunId",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"Source": {
+										"value": {
+											"value": "@concat('ODW.', item().sinkTable)",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_sql_mipins",
+								"type": "LinkedServiceReference"
+							}
 						}
 					]
+				}
+			},
+			{
+				"name": "Lookup-PipelineLogStart",
+				"description": "Logs pipeline-level start and returns a RunId used by all child activities.",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "checkmarkdata_cur_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "pln_checkmarkdata_cur_mipins_v2"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
 				}
 			}
 		],
