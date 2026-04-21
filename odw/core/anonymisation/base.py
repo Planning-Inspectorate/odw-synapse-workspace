@@ -148,7 +148,7 @@ class SalaryStrategy(BaseStrategy):
 
 
 class PostcodeStrategy(BaseStrategy):
-    classification_names = {"Postcode"}
+    classification_names = {"UK Postcode"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         col_expr = F.col(column).cast("string")

@@ -381,7 +381,7 @@ def test__anonymisation__postcode_keeps_first_block():
     df = spark.createDataFrame(data)
 
     mocked_purview_cols = [
-        {"column_name": "Postcode", "classifications": ["Postcode"]},
+        {"column_name": "Postcode", "classifications": ["UK Postcode"]},
     ]
 
     with mock.patch.object(Util, "is_non_production_environment", return_value=True):
