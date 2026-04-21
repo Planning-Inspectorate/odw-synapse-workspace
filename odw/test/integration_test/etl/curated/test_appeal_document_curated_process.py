@@ -1,9 +1,10 @@
+import uuid
 import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import DataFrame
-from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -14,7 +15,7 @@ pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 def _harmonised_schema():
     return StructType(
         [
-            StructField("AppealsDocumentMetadataID", LongType(), True),
+            StructField("AppealsDocumentMetadataID", IntegerType(), True),
             StructField("documentId", StringType(), True),
             StructField("caseId", IntegerType(), True),
             StructField("caseReference", StringType(), True),
@@ -170,6 +171,9 @@ def _curated_row(**overrides):
 
 
 class TestAppealDocumentCuratedProcess(ETLTestCase):
+    def setup(self):
+        self.test_suffix = uuid.uuid4().hex
+
     def compare_curated_data(self, expected_df: DataFrame, actual_df: DataFrame):
         assert_dataframes_equal(expected_df, actual_df)
 
@@ -180,7 +184,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             "appeal_document",
             "odw_harmonised_db",
             "odw-harmonised",
-            "appeal_document",
+            f"appeal_document/{self.test_suffix}",
             "overwrite",
         )
 
@@ -191,7 +195,7 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             "appeal_document",
             "odw_curated_db",
             "odw-curated",
-            "appeal_document",
+            f"appeal_document/{self.test_suffix}",
             "overwrite",
         )
 
@@ -202,6 +206,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__initial_load_matches_legacy(
         self,
     ):
+        """
+        Given active harmonised appeal document rows
+        When the curated appeal document process runs
+        Then it should write the expected curated rows matching legacy behaviour
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
@@ -258,6 +267,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__filters_out_inactive_rows(
         self,
     ):
+        """
+        Given active and inactive harmonised appeal document rows
+        When the curated appeal document process runs
+        Then only active rows should be written to curated
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
@@ -291,6 +305,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__coalesces_mime_and_documenturi_to_empty_string(
         self,
     ):
+        """
+        Given active harmonised rows with null mime and documentURI
+        When the curated appeal document process runs
+        Then mime and documentURI should be written as empty strings
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
@@ -332,6 +351,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__preserves_null_publisheddocumenturi(
         self,
     ):
+        """
+        Given active harmonised rows with null publishedDocumentURI
+        When the curated appeal document process runs
+        Then publishedDocumentURI should remain null
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
@@ -371,6 +395,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__deduplicates_distinct_rows(
         self,
     ):
+        """
+        Given duplicate active harmonised appeal document rows
+        When the curated appeal document process runs
+        Then duplicate rows should collapse to one curated row
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         duplicate_row = _harmonised_row(documentId="doc-dup", IsActive="Y")
@@ -403,6 +432,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__unmapped_casetype_is_preserved(
         self,
     ):
+        """
+        Given active harmonised rows with an unmapped caseType
+        When the curated appeal document process runs
+        Then the caseType should be preserved as is
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
@@ -442,6 +476,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
     def test__appeal_document_curated_process__run__empty_source_returns_empty_output(
         self,
     ):
+        """
+        Given no harmonised appeal document rows
+        When the curated appeal document process runs
+        Then the curated output should be empty
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self.write_source_table(spark, spark.createDataFrame([], _harmonised_schema()))
