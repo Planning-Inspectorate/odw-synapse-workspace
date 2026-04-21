@@ -1,45 +1,43 @@
+import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
 import pytest
 from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
+from odw.core.util.logging_util import LoggingUtil
+from odw.core.util.util import Util
+from odw.test.util.util import generate_local_path, format_to_adls_path
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    ArrayType,
-    BooleanType,
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, StringType, StructField, StructType, DateType, TimestampType
+from datetime import datetime, date
 
 
 def _harmonised_schema():
     return StructType(
         [
+            StructField("NSIPProjectInfoInternalID", IntegerType(), True),
             StructField("caseId", IntegerType(), True),
-            StructField("caseReference", StringType(), True),
-            StructField("projectName", StringType(), True),
+            StructField("casereference", StringType(), True),
+            StructField("projectname", StringType(), True),
             StructField("projectNameWelsh", StringType(), True),
             StructField("projectDescription", StringType(), True),
+            StructField("summary", StringType(), True),
             StructField("projectDescriptionWelsh", StringType(), True),
+            StructField("caseCreatedDate", StringType(), True),
             StructField("decision", StringType(), True),
             StructField("publishStatus", StringType(), True),
             StructField("sector", StringType(), True),
             StructField("projectType", StringType(), True),
-            StructField("ODTSourceSystem", StringType(), True),
+            StructField("sourceSystem", StringType(), True),
             StructField("stage", StringType(), True),
             StructField("projectLocation", StringType(), True),
             StructField("projectLocationWelsh", StringType(), True),
             StructField("projectEmailAddress", StringType(), True),
-            StructField("regions", ArrayType(StringType()), True),
+            StructField("Regions", ArrayType(StringType(), True), True),
             StructField("transboundary", BooleanType(), True),
-            StructField("easting", DoubleType(), True),
-            StructField("northing", DoubleType(), True),
+            StructField("easting", IntegerType(), True),
+            StructField("northing", IntegerType(), True),
             StructField("welshLanguage", BooleanType(), True),
             StructField("mapZoomLevel", StringType(), True),
             StructField("secretaryOfState", StringType(), True),
@@ -67,7 +65,7 @@ def _harmonised_schema():
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
-            StructField("rule8LetterPublishDate", StringType(), True),
+            StructField("rule8LetterPublishDate", DateType(), True),
             StructField("deadlineForCloseOfExamination", StringType(), True),
             StructField("dateTimeExaminationEnds", StringType(), True),
             StructField("stage4ExtensionToExamCloseDate", StringType(), True),
@@ -82,317 +80,613 @@ def _harmonised_schema():
             StructField("operationsLeadId", StringType(), True),
             StructField("operationsManagerId", StringType(), True),
             StructField("caseManagerId", StringType(), True),
-            StructField("nsipOfficerIds", ArrayType(StringType()), True),
-            StructField("nsipAdministrationOfficerIds", ArrayType(StringType()), True),
+            StructField("nsipOfficerIds", ArrayType(StringType(), True), True),
+            StructField("nsipAdministrationOfficerIds", ArrayType(StringType(), True), True),
             StructField("leadInspectorId", StringType(), True),
-            StructField("inspectorIds", ArrayType(StringType()), True),
+            StructField("inspectorIds", ArrayType(StringType(), True), True),
             StructField("environmentalServicesOfficerId", StringType(), True),
             StructField("legalOfficerId", StringType(), True),
             StructField("applicantId", StringType(), True),
             StructField("migrationStatus", BooleanType(), True),
             StructField("dateOfReOpenRelevantRepresentationStart", StringType(), True),
             StructField("dateOfReOpenRelevantRepresentationClose", StringType(), True),
-            StructField("ValidTo", StringType(), True),
+            StructField("examTimetablePublishStatus", StringType(), True),
+            StructField("twitteraccountname", StringType(), True),
+            StructField("exasize", StringType(), True),
+            StructField("tene", StringType(), True),
+            StructField("promotername", StringType(), True),
+            StructField("applicantfirstname", StringType(), True),
+            StructField("applicantlastname", StringType(), True),
+            StructField("addressLine1", StringType(), True),
+            StructField("addressLine2", StringType(), True),
+            StructField("addressTown", StringType(), True),
+            StructField("addressCounty", StringType(), True),
+            StructField("Postcode", StringType(), True),
+            StructField("applicantemailaddress", StringType(), True),
+            StructField("applicantwebaddress", StringType(), True),
+            StructField("applicantphonenumber", StringType(), True),
+            StructField("applicantdescriptionofproject", StringType(), True),
+            StructField("HorizonCaseNumber", StringType(), True),
+            StructField("inceptionMeetingDate", StringType(), True),
+            StructField("draftDocumentSubmissionDate", StringType(), True),
+            StructField("programmeDocumentSubmissionDate", StringType(), True),
+            StructField("estimatedScopingSubmissionDate", StringType(), True),
+            StructField("consultationMilestoneAdequacyDate", StringType(), True),
+            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
+            StructField("designApproachDocumentSubmittedDate", StringType(), True),
+            StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
+            StructField("caseTeamIssuedCommentsDate", StringType(), True),
+            StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
+            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField("memLastUpdated", StringType(), True),
+            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField("programmeDocumentReviewedByEstDate", StringType(), True),
+            StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
+            StructField("statutoryConsultationPeriodEndDate", StringType(), True),
+            StructField("submissionOfDraftDocumentsDate", StringType(), True),
+            StructField("updatedProgrammeDocumentReceivedDate", StringType(), True),
+            StructField("courtDecisionDate", StringType(), True),
+            StructField("decisionChallengeSubmissionDate", StringType(), True),
+            StructField("courtDecisionOutcomeText", StringType(), True),
+            StructField("recommendation", StringType(), True),
+            StructField("additionalComments", StringType(), True),
+            StructField("caAndTpEvidence", StringType(), True),
+            StructField("fastTrackAdmissionDocument", StringType(), True),
+            StructField(
+                "meetings",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("meetingId", StringType(), True),
+                            StructField("meetingAgenda", StringType(), True),
+                            StructField("planningInspectorateRole", StringType(), True),
+                            StructField("meetingDate", StringType(), True),
+                            StructField("meetingType", StringType(), True),
+                            StructField("estimatedPrelimMeetingDate", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("multipartyApplicationCheckDocument", StringType(), True),
+            StructField("newMaturity", StringType(), True),
+            StructField("numberBand2Inspectors", DoubleType(), True),
+            StructField("numberBand3Inspectors", DoubleType(), True),
+            StructField("programmeDocumentURI", StringType(), True),
+            StructField("publicSectorEqualityDuty", StringType(), True),
+            StructField("subProjectType", StringType(), True),
+            StructField("tier", StringType(), True),
+            StructField("s61SummaryURI", StringType(), True),
+            StructField("planProcessEvidence", BooleanType(), True),
+            StructField("issuesTracker", StringType(), True),
+            StructField("essentialFastTrackComponents", BooleanType(), True),
+            StructField("principalAreaDisagreementSummaryStmt", StringType(), True),
+            StructField("policyComplianceDocument", StringType(), True),
+            StructField("designApproachDocument", StringType(), True),
+            StructField("matureOutlineControlDocument", StringType(), True),
+            StructField(
+                "invoices",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("invoiceStage", StringType(), True),
+                            StructField("invoiceNumber", StringType(), True),
+                            StructField("amountDue", DoubleType(), True),
+                            StructField("paymentDueDate", StringType(), True),
+                            StructField("invoicedDate", StringType(), True),
+                            StructField("paymentDate", StringType(), True),
+                            StructField("refundCreditNoteNumber", StringType(), True),
+                            StructField("refundAmount", DoubleType(), True),
+                            StructField("refundIssueDate", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("operationsLeadIds", ArrayType(StringType(), True), True),
+            StructField("operationsManagerIds", ArrayType(StringType(), True), True),
+            StructField("caseManagerIds", ArrayType(StringType(), True), True),
+            StructField("leadInspectorIds", ArrayType(StringType(), True), True),
+            StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
+            StructField("legalOfficerIds", ArrayType(StringType(), True), True),
+            StructField("migrated", StringType(), True),
+            StructField("ODTSourceSystem", StringType(), True),
             StructField("SourceSystemID", StringType(), True),
-            StructField("IngestionDate", StringType(), True),
-        ]
-    )
-
-
-def _service_user_schema():
-    return StructType(
-        [
-            StructField("caseReference", StringType(), True),
-            StructField("serviceUserType", StringType(), True),
-            StructField("id", StringType(), True),
+            StructField("IngestionDate", TimestampType(), True),
+            StructField("ValidTo", StringType(), True),
+            StructField("RowID", StringType(), True),
+            StructField("isMaterialChange", BooleanType(), True),
+            StructField("IsActive", StringType(), True),
         ]
     )
 
 
 def _harmonised_row(**overrides):
     row = {
-        "caseId": 1001,
-        "caseReference": "EN010001",
-        "projectName": "Project Latest",
-        "projectNameWelsh": None,
-        "projectDescription": "Latest desc",
-        "projectDescriptionWelsh": None,
-        "decision": "approved",
-        "publishStatus": "Published",
-        "sector": "energy",
-        "projectType": "Normal Type",
-        "ODTSourceSystem": "Horizon",
-        "stage": "Pre-Application Stage",
-        "projectLocation": "London",
-        "projectLocationWelsh": None,
-        "projectEmailAddress": "latest@example.com",
-        "regions": ["east"],
-        "transboundary": False,
-        "easting": 11.0,
-        "northing": 21.0,
-        "welshLanguage": False,
-        "mapZoomLevel": "medium",
-        "secretaryOfState": "SoS",
-        "datePINSFirstNotifiedOfProject": None,
-        "dateProjectAppearsOnWebsite": None,
-        "anticipatedSubmissionDateNonSpecific": None,
-        "anticipatedDateOfSubmission": None,
-        "screeningOpinionSought": None,
-        "screeningOpinionIssued": None,
-        "scopingOpinionSought": None,
-        "scopingOpinionIssued": None,
-        "section46Notification": None,
-        "dateOfDCOSubmission": None,
-        "deadlineForAcceptanceDecision": None,
-        "dateOfDCOAcceptance": None,
-        "dateOfNonAcceptance": None,
-        "dateOfRepresentationPeriodOpen": None,
-        "dateOfRelevantRepresentationClose": None,
-        "extensionToDateRelevantRepresentationsClose": None,
-        "dateRRepAppearOnWebsite": None,
-        "dateIAPIDue": None,
-        "rule6LetterPublishDate": None,
-        "preliminaryMeetingStartDate": None,
-        "notificationDateForPMAndEventsDirectlyFollowingPM": None,
-        "notificationDateForEventsDeveloper": None,
-        "dateSection58NoticeReceived": None,
-        "confirmedStartOfExamination": None,
-        "rule8LetterPublishDate": None,
-        "deadlineForCloseOfExamination": None,
-        "dateTimeExaminationEnds": None,
-        "stage4ExtensionToExamCloseDate": None,
-        "deadlineForSubmissionOfRecommendation": None,
-        "dateOfRecommendations": None,
-        "stage5ExtensionToRecommendationDeadline": None,
-        "deadlineForDecision": None,
-        "confirmedDateOfDecision": None,
-        "stage5ExtensionToDecisionDeadline": None,
-        "jRPeriodEndDate": None,
-        "dateProjectWithdrawn": None,
-        "operationsLeadId": "lead-1",
-        "operationsManagerId": "mgr-1",
-        "caseManagerId": "case-1",
-        "nsipOfficerIds": ["officer-1"],
-        "nsipAdministrationOfficerIds": ["admin-1"],
-        "leadInspectorId": "lead-inspector-1",
-        "inspectorIds": ["inspector-1"],
-        "environmentalServicesOfficerId": "env-1",
-        "legalOfficerId": "legal-1",
-        "applicantId": "legacy-applicant-id",
-        "migrationStatus": False,
-        "dateOfReOpenRelevantRepresentationStart": None,
-        "dateOfReOpenRelevantRepresentationClose": None,
-        "ValidTo": None,
-        "SourceSystemID": "SRC-1",
-        "IngestionDate": "2025-02-01 10:00:00",
+        "NSIPProjectInfoInternalID": 1,
+        "caseId": 1,
+        "casereference": "",
+        "projectname": "",
+        "projectNameWelsh": "",
+        "projectDescription": "",
+        "summary": "",
+        "projectDescriptionWelsh": "",
+        "caseCreatedDate": "",
+        "decision": "",
+        "publishStatus": "",
+        "sector": "",
+        "projectType": "",
+        "sourceSystem": "",
+        "stage": "",
+        "projectLocation": "",
+        "projectLocationWelsh": "",
+        "projectEmailAddress": "",
+        "Regions": [],
+        "transboundary": True,
+        "easting": 1,
+        "northing": 1,
+        "welshLanguage": True,
+        "mapZoomLevel": "",
+        "secretaryOfState": "",
+        "datePINSFirstNotifiedOfProject": "",
+        "dateProjectAppearsOnWebsite": "",
+        "anticipatedSubmissionDateNonSpecific": "",
+        "anticipatedDateOfSubmission": "",
+        "screeningOpinionSought": "",
+        "screeningOpinionIssued": "",
+        "scopingOpinionSought": "",
+        "scopingOpinionIssued": "",
+        "section46Notification": "",
+        "dateOfDCOSubmission": "",
+        "deadlineForAcceptanceDecision": "",
+        "dateOfDCOAcceptance": "",
+        "dateOfNonAcceptance": "",
+        "dateOfRepresentationPeriodOpen": "",
+        "dateOfRelevantRepresentationClose": "",
+        "extensionToDateRelevantRepresentationsClose": "",
+        "dateRRepAppearOnWebsite": "",
+        "dateIAPIDue": "",
+        "rule6LetterPublishDate": "",
+        "preliminaryMeetingStartDate": "",
+        "notificationDateForPMAndEventsDirectlyFollowingPM": "",
+        "notificationDateForEventsDeveloper": "",
+        "dateSection58NoticeReceived": "",
+        "confirmedStartOfExamination": "",
+        "rule8LetterPublishDate": date(2025, 1, 1),
+        "deadlineForCloseOfExamination": "",
+        "dateTimeExaminationEnds": "",
+        "stage4ExtensionToExamCloseDate": "",
+        "deadlineForSubmissionOfRecommendation": "",
+        "dateOfRecommendations": "",
+        "stage5ExtensionToRecommendationDeadline": "",
+        "deadlineForDecision": "",
+        "confirmedDateOfDecision": "",
+        "stage5ExtensionToDecisionDeadline": "",
+        "jRPeriodEndDate": "",
+        "dateProjectWithdrawn": "",
+        "operationsLeadId": "",
+        "operationsManagerId": "",
+        "caseManagerId": "",
+        "nsipOfficerIds": [],
+        "nsipAdministrationOfficerIds": [],
+        "leadInspectorId": "",
+        "inspectorIds": [],
+        "environmentalServicesOfficerId": "",
+        "legalOfficerId": "",
+        "applicantId": "",
+        "migrationStatus": True,
+        "dateOfReOpenRelevantRepresentationStart": "",
+        "dateOfReOpenRelevantRepresentationClose": "",
+        "examTimetablePublishStatus": "",
+        "twitteraccountname": "",
+        "exasize": "",
+        "tene": "",
+        "promotername": "",
+        "applicantfirstname": "",
+        "applicantlastname": "",
+        "addressLine1": "",
+        "addressLine2": "",
+        "addressTown": "",
+        "addressCounty": "",
+        "Postcode": "",
+        "applicantemailaddress": "",
+        "applicantwebaddress": "",
+        "applicantphonenumber": "",
+        "applicantdescriptionofproject": "",
+        "HorizonCaseNumber": "",
+        "inceptionMeetingDate": "",
+        "draftDocumentSubmissionDate": "",
+        "programmeDocumentSubmissionDate": "",
+        "estimatedScopingSubmissionDate": "",
+        "consultationMilestoneAdequacyDate": "",
+        "principalAreaDisagreementSummaryStmtSubmittedDate": "",
+        "policyComplianceDocumentSubmittedDate": "",
+        "designApproachDocumentSubmittedDate": "",
+        "caAndTpEvidenceSubmittedDate": "",
+        "caseTeamIssuedCommentsDate": "",
+        "fastTrackAdmissionDocumentSubmittedDate": "",
+        "matureOutlineControlDocumentSubmittedDate": "",
+        "memLastUpdated": "",
+        "multipartyApplicationCheckDocumentSubmittedDate": "",
+        "programmeDocumentReviewedByEstDate": "",
+        "publicSectorEqualityDutySubmittedDate": "",
+        "statutoryConsultationPeriodEndDate": "",
+        "submissionOfDraftDocumentsDate": "",
+        "updatedProgrammeDocumentReceivedDate": "",
+        "courtDecisionDate": "",
+        "decisionChallengeSubmissionDate": "",
+        "courtDecisionOutcomeText": "",
+        "recommendation": "",
+        "additionalComments": "",
+        "caAndTpEvidence": "",
+        "fastTrackAdmissionDocument": "",
+        "meetings": [],
+        "multipartyApplicationCheckDocument": "",
+        "newMaturity": "",
+        "numberBand2Inspectors": 0.0,
+        "numberBand3Inspectors": 0.0,
+        "programmeDocumentURI": "",
+        "publicSectorEqualityDuty": "",
+        "subProjectType": "",
+        "tier": "",
+        "s61SummaryURI": "",
+        "planProcessEvidence": True,
+        "issuesTracker": "",
+        "essentialFastTrackComponents": True,
+        "principalAreaDisagreementSummaryStmt": "",
+        "policyComplianceDocument": "",
+        "designApproachDocument": "",
+        "matureOutlineControlDocument": "",
+        "invoices": [],
+        "operationsLeadIds": [],
+        "operationsManagerIds": [],
+        "caseManagerIds": [],
+        "leadInspectorIds": [],
+        "environmentalServicesOfficerIds": [],
+        "legalOfficerIds": [],
+        "migrated": "",
+        "ODTSourceSystem": "",
+        "SourceSystemID": "",
+        "IngestionDate": datetime(2025, 1, 1, 0, 0, 0),
+        "ValidTo": "",
+        "RowID": "",
+        "isMaterialChange": True,
+        "IsActive": "Y",
     }
     row.update(overrides)
     return row
 
 
-def _service_user_row(**overrides):
+def _curated_schema():
+    return StructType(
+        [
+            StructField("caseId", IntegerType(), True),
+            StructField("caseReference", StringType(), True),
+            StructField("projectName", StringType(), True),
+            StructField("projectNameWelsh", StringType(), True),
+            StructField("projectDescription", StringType(), True),
+            StructField("projectDescriptionWelsh", StringType(), True),
+            StructField("decision", StringType(), True),
+            StructField("publishStatus", StringType(), True),
+            StructField("sector", StringType(), True),
+            StructField("projectType", StringType(), True),
+            StructField("sourceSystem", StringType(), True),
+            StructField("stage", StringType(), True),
+            StructField("projectLocation", StringType(), True),
+            StructField("projectLocationWelsh", StringType(), True),
+            StructField("projectEmailAddress", StringType(), True),
+            StructField("regions", ArrayType(StringType(), True), True),
+            StructField("transboundary", BooleanType(), True),
+            StructField("easting", IntegerType(), True),
+            StructField("northing", IntegerType(), True),
+            StructField("welshLanguage", BooleanType(), True),
+            StructField("mapZoomLevel", StringType(), True),
+            StructField("secretaryOfState", StringType(), True),
+            StructField("datePINSFirstNotifiedOfProject", StringType(), True),
+            StructField("dateProjectAppearsOnWebsite", StringType(), True),
+            StructField("anticipatedSubmissionDateNonSpecific", StringType(), True),
+            StructField("anticipatedDateOfSubmission", StringType(), True),
+            StructField("screeningOpinionSought", StringType(), True),
+            StructField("screeningOpinionIssued", StringType(), True),
+            StructField("scopingOpinionSought", StringType(), True),
+            StructField("scopingOpinionIssued", StringType(), True),
+            StructField("section46Notification", StringType(), True),
+            StructField("dateOfDCOSubmission", StringType(), True),
+            StructField("deadlineForAcceptanceDecision", StringType(), True),
+            StructField("dateOfDCOAcceptance", StringType(), True),
+            StructField("dateOfNonAcceptance", StringType(), True),
+            StructField("dateOfRepresentationPeriodOpen", StringType(), True),
+            StructField("dateOfRelevantRepresentationClose", StringType(), True),
+            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField("dateRRepAppearOnWebsite", StringType(), True),
+            StructField("dateIAPIDue", StringType(), True),
+            StructField("rule6LetterPublishDate", StringType(), True),
+            StructField("preliminaryMeetingStartDate", StringType(), True),
+            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField("notificationDateForEventsDeveloper", StringType(), True),
+            StructField("dateSection58NoticeReceived", StringType(), True),
+            StructField("confirmedStartOfExamination", StringType(), True),
+            StructField("rule8LetterPublishDate", DateType(), True),
+            StructField("deadlineForCloseOfExamination", StringType(), True),
+            StructField("dateTimeExaminationEnds", StringType(), True),
+            StructField("stage4ExtensionToExamCloseDate", StringType(), True),
+            StructField("deadlineForSubmissionOfRecommendation", StringType(), True),
+            StructField("dateOfRecommendations", StringType(), True),
+            StructField("stage5ExtensionToRecommendationDeadline", StringType(), True),
+            StructField("deadlineForDecision", StringType(), True),
+            StructField("confirmedDateOfDecision", StringType(), True),
+            StructField("stage5ExtensionToDecisionDeadline", StringType(), True),
+            StructField("jRPeriodEndDate", StringType(), True),
+            StructField("dateProjectWithdrawn", StringType(), True),
+            StructField("operationsLeadId", StringType(), True),
+            StructField("operationsManagerId", StringType(), True),
+            StructField("caseManagerId", StringType(), True),
+            StructField("nsipOfficerIds", ArrayType(StringType(), True), True),
+            StructField("nsipAdministrationOfficerIds", ArrayType(StringType(), True), True),
+            StructField("leadInspectorId", StringType(), True),
+            StructField("inspectorIds", ArrayType(StringType(), True), True),
+            StructField("environmentalServicesOfficerId", StringType(), True),
+            StructField("legalOfficerId", StringType(), True),
+            StructField("applicantId", StringType(), True),
+            StructField("migrationStatus", BooleanType(), True),
+            StructField("dateOfReOpenRelevantRepresentationStart", StringType(), True),
+            StructField("dateOfReOpenRelevantRepresentationClose", StringType(), True),
+            StructField("isMaterialChange", BooleanType(), True),
+            StructField("inceptionMeetingDate", StringType(), True),
+            StructField("draftDocumentSubmissionDate", StringType(), True),
+            StructField("programmeDocumentSubmissionDate", StringType(), True),
+            StructField("estimatedScopingSubmissionDate", StringType(), True),
+            StructField("consultationMilestoneAdequacyDate", StringType(), True),
+            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
+            StructField("designApproachDocumentSubmittedDate", StringType(), True),
+            StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
+            StructField("caseTeamIssuedCommentsDate", StringType(), True),
+            StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
+            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField("memLastUpdated", StringType(), True),
+            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField("programmeDocumentReviewedByEstDate", StringType(), True),
+            StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
+            StructField("statutoryConsultationPeriodEndDate", StringType(), True),
+            StructField("submissionOfDraftDocumentsDate", StringType(), True),
+            StructField("updatedProgrammeDocumentReceivedDate", StringType(), True),
+            StructField("courtDecisionDate", StringType(), True),
+            StructField("decisionChallengeSubmissionDate", StringType(), True),
+            StructField("courtDecisionOutcomeText", StringType(), True),
+            StructField("recommendation", StringType(), True),
+            StructField("additionalComments", StringType(), True),
+            StructField("caAndTpEvidence", StringType(), True),
+            StructField("fastTrackAdmissionDocument", StringType(), True),
+            StructField(
+                "meetings",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("meetingId", StringType(), True),
+                            StructField("meetingAgenda", StringType(), True),
+                            StructField("planningInspectorateRole", StringType(), True),
+                            StructField("meetingDate", StringType(), True),
+                            StructField("meetingType", StringType(), True),
+                            StructField("estimatedPrelimMeetingDate", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("multipartyApplicationCheckDocument", StringType(), True),
+            StructField("newMaturity", StringType(), True),
+            StructField("numberBand2Inspectors", DoubleType(), True),
+            StructField("numberBand3Inspectors", DoubleType(), True),
+            StructField("programmeDocumentURI", StringType(), True),
+            StructField("publicSectorEqualityDuty", StringType(), True),
+            StructField("subProjectType", StringType(), True),
+            StructField("tier", StringType(), True),
+            StructField("s61SummaryURI", StringType(), True),
+            StructField("planProcessEvidence", BooleanType(), True),
+            StructField("issuesTracker", StringType(), True),
+            StructField("essentialFastTrackComponents", BooleanType(), True),
+            StructField("principalAreaDisagreementSummaryStmt", StringType(), True),
+            StructField("policyComplianceDocument", StringType(), True),
+            StructField("designApproachDocument", StringType(), True),
+            StructField("matureOutlineControlDocument", StringType(), True),
+            StructField(
+                "invoices",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("invoiceStage", StringType(), True),
+                            StructField("invoiceNumber", StringType(), True),
+                            StructField("amountDue", DoubleType(), True),
+                            StructField("paymentDueDate", StringType(), True),
+                            StructField("invoicedDate", StringType(), True),
+                            StructField("paymentDate", StringType(), True),
+                            StructField("refundCreditNoteNumber", StringType(), True),
+                            StructField("refundAmount", DoubleType(), True),
+                            StructField("refundIssueDate", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("operationsLeadIds", ArrayType(StringType(), True), True),
+            StructField("operationsManagerIds", ArrayType(StringType(), True), True),
+            StructField("caseManagerIds", ArrayType(StringType(), True), True),
+            StructField("leadInspectorIds", ArrayType(StringType(), True), True),
+            StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
+            StructField("legalOfficerIds", ArrayType(StringType(), True), True),
+        ]
+    )
+
+
+def _curated_row(**overrides):
     row = {
-        "caseReference": "EN010001",
-        "serviceUserType": "Applicant",
-        "id": "service-user-applicant-1",
+        "caseId": 1,
+        "caseReference": "",
+        "projectName": "",
+        "projectNameWelsh": "",
+        "projectDescription": "",
+        "projectDescriptionWelsh": "",
+        "decision": "",
+        "publishStatus": "",
+        "sector": "",
+        "projectType": "",
+        "sourceSystem": "",
+        "stage": "",
+        "projectLocation": "",
+        "projectLocationWelsh": "",
+        "projectEmailAddress": "",
+        "regions": [],
+        "transboundary": True,
+        "easting": 1,
+        "northing": 1,
+        "welshLanguage": True,
+        "mapZoomLevel": "",
+        "secretaryOfState": "",
+        "datePINSFirstNotifiedOfProject": "",
+        "dateProjectAppearsOnWebsite": "",
+        "anticipatedSubmissionDateNonSpecific": "",
+        "anticipatedDateOfSubmission": "",
+        "screeningOpinionSought": "",
+        "screeningOpinionIssued": "",
+        "scopingOpinionSought": "",
+        "scopingOpinionIssued": "",
+        "section46Notification": "",
+        "dateOfDCOSubmission": "",
+        "deadlineForAcceptanceDecision": "",
+        "dateOfDCOAcceptance": "",
+        "dateOfNonAcceptance": "",
+        "dateOfRepresentationPeriodOpen": "",
+        "dateOfRelevantRepresentationClose": "",
+        "extensionToDateRelevantRepresentationsClose": "",
+        "dateRRepAppearOnWebsite": "",
+        "dateIAPIDue": "",
+        "rule6LetterPublishDate": "",
+        "preliminaryMeetingStartDate": "",
+        "notificationDateForPMAndEventsDirectlyFollowingPM": "",
+        "notificationDateForEventsDeveloper": "",
+        "dateSection58NoticeReceived": "",
+        "confirmedStartOfExamination": "",
+        "rule8LetterPublishDate": date(2025, 1, 1),
+        "deadlineForCloseOfExamination": "",
+        "dateTimeExaminationEnds": "",
+        "stage4ExtensionToExamCloseDate": "",
+        "deadlineForSubmissionOfRecommendation": "",
+        "dateOfRecommendations": "",
+        "stage5ExtensionToRecommendationDeadline": "",
+        "deadlineForDecision": "",
+        "confirmedDateOfDecision": "",
+        "stage5ExtensionToDecisionDeadline": "",
+        "jRPeriodEndDate": "",
+        "dateProjectWithdrawn": "",
+        "operationsLeadId": "",
+        "operationsManagerId": "",
+        "caseManagerId": "",
+        "nsipOfficerIds": [],
+        "nsipAdministrationOfficerIds": [],
+        "leadInspectorId": "",
+        "inspectorIds": [],
+        "environmentalServicesOfficerId": "",
+        "legalOfficerId": "",
+        "applicantId": "",
+        "migrationStatus": True,
+        "dateOfReOpenRelevantRepresentationStart": "",
+        "dateOfReOpenRelevantRepresentationClose": "",
+        "isMaterialChange": True,
+        "inceptionMeetingDate": "",
+        "draftDocumentSubmissionDate": "",
+        "programmeDocumentSubmissionDate": "",
+        "estimatedScopingSubmissionDate": "",
+        "consultationMilestoneAdequacyDate": "",
+        "principalAreaDisagreementSummaryStmtSubmittedDate": "",
+        "policyComplianceDocumentSubmittedDate": "",
+        "designApproachDocumentSubmittedDate": "",
+        "caAndTpEvidenceSubmittedDate": "",
+        "caseTeamIssuedCommentsDate": "",
+        "fastTrackAdmissionDocumentSubmittedDate": "",
+        "matureOutlineControlDocumentSubmittedDate": "",
+        "memLastUpdated": "",
+        "multipartyApplicationCheckDocumentSubmittedDate": "",
+        "programmeDocumentReviewedByEstDate": "",
+        "publicSectorEqualityDutySubmittedDate": "",
+        "statutoryConsultationPeriodEndDate": "",
+        "submissionOfDraftDocumentsDate": "",
+        "updatedProgrammeDocumentReceivedDate": "",
+        "courtDecisionDate": "",
+        "decisionChallengeSubmissionDate": "",
+        "courtDecisionOutcomeText": "",
+        "recommendation": "",
+        "additionalComments": "",
+        "caAndTpEvidence": "",
+        "fastTrackAdmissionDocument": "",
+        "meetings": [],
+        "multipartyApplicationCheckDocument": "",
+        "newMaturity": "",
+        "numberBand2Inspectors": 0.0,
+        "numberBand3Inspectors": 0.0,
+        "programmeDocumentURI": "",
+        "publicSectorEqualityDuty": "",
+        "subProjectType": "",
+        "tier": "",
+        "s61SummaryURI": "",
+        "planProcessEvidence": True,
+        "issuesTracker": "",
+        "essentialFastTrackComponents": True,
+        "principalAreaDisagreementSummaryStmt": "",
+        "policyComplianceDocument": "",
+        "designApproachDocument": "",
+        "matureOutlineControlDocument": "",
+        "invoices": [],
+        "operationsLeadIds": [],
+        "operationsManagerIds": [],
+        "caseManagerIds": [],
+        "leadInspectorIds": [],
+        "environmentalServicesOfficerIds": [],
+        "legalOfficerIds": [],
     }
     row.update(overrides)
     return row
 
 
 class TestNsipProjectCuratedProcess(ETLTestCase):
-    def test__nsip_project_curated_process__run__end_to_end_matches_legacy(self):
+    @pytest.fixture(scope="module", autouse=True)
+    def setup(self, request):
+        with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
+            with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
+                with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                        with mock.patch.object(LoggingUtil, "__new__"):
+                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                    yield
+
+    def test__nsip_project_curated_process__run__with_no_existing_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = {
-            "harmonised_data": spark.createDataFrame(
-                [
-                    _harmonised_row(
-                        caseId=1001,
-                        caseReference="EN010001",
-                        projectName="Project Old",
-                        ODTSourceSystem="Horizon",
-                        IngestionDate="2025-01-01 10:00:00",
-                    ),
-                    _harmonised_row(
-                        caseId=1001,
-                        caseReference="EN010001",
-                        projectName="Project Latest",
-                        projectType="WW01 - Waste Water treatment Plants",
-                        ODTSourceSystem="ODT",
-                        stage="Pre-Application Stage",
-                        IngestionDate="2025-02-01 10:00:00",
-                    ),
-                    _harmonised_row(
-                        caseId=2002,
-                        caseReference="EN020002",
-                        projectName="Back Office Project",
-                        publishStatus="published",
-                        projectType="Normal Type",
-                        ODTSourceSystem="ODT",
-                        stage="Post-Decision Stage",
-                        projectLocation="Cardiff",
-                        projectEmailAddress="bo@example.com",
-                        regions=["wales"],
-                        transboundary=True,
-                        easting=30.0,
-                        northing=40.0,
-                        welshLanguage=True,
-                        mapZoomLevel="high",
-                        secretaryOfState="SoS 2",
-                        SourceSystemID="SRC-3",
-                        IngestionDate="2025-03-01 10:00:00",
-                    ),
-                    _harmonised_row(
-                        caseId=3003,
-                        caseReference="EN030003",
-                        projectName="Non Applicant Match",
-                        ODTSourceSystem="Horizon",
-                        IngestionDate="2025-04-01 10:00:00",
-                    ),
-                ],
-                schema=_harmonised_schema(),
+        source_data = spark.createDataFrame(
+            (
+                _harmonised_row(caseId=1, projectname="projectA"),
+                _harmonised_row(caseId=2, projectname="projectB"),
             ),
-            "service_user_data": spark.createDataFrame(
-                [
-                    _service_user_row(caseReference="EN010001", id="service-user-applicant-1"),
-                    _service_user_row(caseReference="EN020002", id="service-user-applicant-2"),
-                    _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
-                ],
-                schema=_service_user_schema(),
+            schema=_harmonised_schema(),
+        )
+        self.write_existing_table(spark, source_data, "t_npcp_r_wned", "odw_harmonised_db", "odw-harmonised-db", "t_npcp_r_wned", "overwrite")
+        expected_output_table = spark.createDataFrame(
+            (
+                _curated_row(caseId=1, projectName="projectA"),
+                _curated_row(caseId=2, projectName="projectB"),
             ),
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = NsipProjectCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = {row["caseId"]: row.asDict(recursive=True) for row in df.collect()}
-
-        assert df.count() == 2
-        assert set(rows.keys()) == {1001, 2002}
-
-        assert rows[1001]["projectName"] == "Project Latest"
-        assert rows[1001]["publishStatus"] == "published"
-        assert rows[1001]["projectType"] == "WW01 - Waste Water Treatment Plants"
-        assert rows[1001]["sourceSystem"] == "back-office-applications"
-        assert rows[1001]["stage"] == "pre_application_stage"
-        assert rows[1001]["applicantId"] == "service-user-applicant-1"
-
-        assert rows[2002]["sourceSystem"] == "back-office-applications"
-        assert rows[2002]["stage"] == "post_decision_stage"
-        assert rows[2002]["applicantId"] == "service-user-applicant-2"
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
-
-    def test__nsip_project_curated_process__run__keeps_only_latest_horizon_record_per_case(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "harmonised_data": spark.createDataFrame(
-                [
-                    _harmonised_row(caseId=1001, projectName="Project Old", IngestionDate="2025-01-01 10:00:00"),
-                    _harmonised_row(caseId=1001, projectName="Project Latest", IngestionDate="2025-02-01 10:00:00"),
-                ],
-                schema=_harmonised_schema(),
-            ),
-            "service_user_data": spark.createDataFrame(
-                [_service_user_row(caseReference="EN010001", id="service-user-applicant-1")],
-                schema=_service_user_schema(),
-            ),
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = NsipProjectCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.where(F.col("caseId") == 1001).collect()
-
-        assert len(rows) == 1
-        assert rows[0]["projectName"] == "Project Latest"
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
-
-    def test__nsip_project_curated_process__run__filters_to_horizon_and_applicant_service_users_only(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "harmonised_data": spark.createDataFrame(
-                [
-                    _harmonised_row(caseId=1001, caseReference="EN010001", ODTSourceSystem="Horizon"),
-                    _harmonised_row(caseId=2002, caseReference="EN020002", ODTSourceSystem="LegacyODT"),
-                    _harmonised_row(caseId=3003, caseReference="EN030003", ODTSourceSystem="Horizon"),
-                ],
-                schema=_harmonised_schema(),
-            ),
-            "service_user_data": spark.createDataFrame(
-                [
-                    _service_user_row(caseReference="EN010001", serviceUserType="Applicant", id="service-user-applicant-1"),
-                    _service_user_row(caseReference="EN020002", serviceUserType="Applicant", id="service-user-applicant-2"),
-                    _service_user_row(caseReference="EN030003", serviceUserType="Agent", id="service-user-agent-3"),
-                ],
-                schema=_service_user_schema(),
-            ),
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_project_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = NsipProjectCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        case_ids = {row["caseId"] for row in df.select("caseId").collect()}
-
-        assert case_ids == {1001}
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
+            schema=_curated_schema(),
+        )
+        with mock.patch.object(NsipProjectCuratedProcess, "HARMONISED_TABLE", "t_npcp_r_wned"):
+            with mock.patch.object(NsipProjectCuratedProcess, "OUTPUT_TABLE", "t_npcp_r_wned"):
+                inst = NsipProjectCuratedProcess(spark)
+                etl_result = inst.run()
+                assert_etl_result_successful(etl_result)
+                actual_output_table = spark.table("odw_curated_db.t_npcp_r_wned")
+                assert_dataframes_equal(expected_output_table, actual_output_table, True)

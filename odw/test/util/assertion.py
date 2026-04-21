@@ -2,7 +2,6 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame
 import json
 import inspect
-from uuid import uuid4
 import os
 
 
@@ -11,11 +10,18 @@ This module contains various assertions that are useful for testing
 """
 
 
+def _get_test_function_caller():
+    for x in inspect.stack():
+        if x.function.startswith("test") or x.function.endswith("test"):
+            return x.function
+
+
 def assert_dataframes_equal(expected: DataFrame, actual: DataFrame, save_local_data: bool = False):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
     """
-    caller = inspect.stack()[2].function
+    caller = _get_test_function_caller()
+    print(f"assert frames equal caller: '{caller}'")
     if save_local_data:
         expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_expected"))
         actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_actual"))
