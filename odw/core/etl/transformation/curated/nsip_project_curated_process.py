@@ -12,6 +12,7 @@ from typing import Dict
 
 class NsipProjectCuratedProcess(CurationProcess):
     # Based on the nsip_data notebook
+    HARMONISED_TABLE = "nsip_project"
     OUTPUT_TABLE = "nsip_project"
 
     def get_name(self) -> str:
@@ -19,7 +20,7 @@ class NsipProjectCuratedProcess(CurationProcess):
 
     def _load_nsip_data(self):
         LoggingUtil().log_info("Loading data from curated NSIP prject table")
-        return self.spark.sql("""
+        return self.spark.sql(f"""
             SELECT
                 Project.caseId
                 ,Project.caseReference
@@ -154,7 +155,7 @@ class NsipProjectCuratedProcess(CurationProcess):
                 ,Project.environmentalServicesOfficerIds
                 ,Project.legalOfficerIds
             FROM 
-                odw_harmonised_db.nsip_project AS Project
+                odw_harmonised_db.{self.HARMONISED_TABLE} AS Project
             WHERE 
                 Project.IsActive='Y'
             """)
@@ -175,11 +176,12 @@ class NsipProjectCuratedProcess(CurationProcess):
             .withColumn(
                 "sourceSystem",
                 F.lower(F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))),
-            ).drop("ODTSourceSystem")
+            )
+            .drop("ODTSourceSystem")
             .withColumn("easting", F.col("easting").cast(IntegerType()))
             .withColumn("northing", F.col("northing").cast(IntegerType()))
-            .withColumn("welshLanguage", F.col("WelshLanguage")).drop("WelshLanguage")
-            .withColumn("secretaryOfState", F.col("SecretaryOfState")).drop("SecretaryOfState")
+            .withColumnRenamed("WelshLanguage", "welshLanguage")
+            .withColumnRenamed("SecretaryOfState", "secretaryOfState")
             .withColumn("rule8LetterPublishDate", F.col("rule8LetterPublishDate").cast(DateType()))
         )
         end_exec_time = datetime.now()
@@ -187,13 +189,15 @@ class NsipProjectCuratedProcess(CurationProcess):
         data_to_write = {
             self.OUTPUT_TABLE: {
                 "data": nsip_project_data,
-                "storage_kind": "ADLSG2-File",
+                "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
                 "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
                 "blob_path": self.OUTPUT_TABLE,
+                "file_format": "parquet",
                 "write_mode": "overwrite",
+                "write_options": {},
             }
         }
         return data_to_write, ETLSuccessResult(

@@ -106,4 +106,4 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
             data_after = data_after.drop(col)
             if col in expected_data_after.columns:
                 expected_data_after = expected_data_after.drop(col)
-        assert_dataframes_equal(expected_data_after, data_after)
+        assert_dataframes_equal(expected_data_after, data_after, True)
