@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3339be91-dbb5-4e06-91c9-2f802963a805"
+				"spark.autotune.trackingId": "57032eb8-45a7-4a7f-9809-ee5cf4f83261"
 			}
 		},
 		"metadata": {
@@ -1792,6 +1792,38 @@
 					"    .csv(f\"{mpesc_base_path}/MPESC-TRANSFORM/case-merged-sample-row\")\n",
 					"\n",
 					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# write to case history table\n",
+					" \n",
+					"his_folder = f\"{mpesc_base_path}/config/CasesHistory\"\n",
+					" \n",
+					"his_tb = (\n",
+					"    cases_df2\n",
+					"    .select(\n",
+					"        F.trim(F.col(\"GUID\")).alias(\"GUID\")\n",
+					"    )\n",
+					"    .withColumn(\"action\", F.lit(\"CASE_MIGRATED\"))\n",
+					"    .withColumn(\"metadata\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"userid\", F.lit(None).cast(\"string\"))\n",
+					"    .withColumn(\"createdAt\", F.current_timestamp())\n",
+					")\n",
+					" \n",
+					"#display(his_tb)\n",
+					" \n",
+					"(\n",
+					"    his_tb\n",
+					"        .coalesce(1)\n",
+					"        .write\n",
+					"        .mode(\"overwrite\")\n",
+					"        .option(\"sep\", \"|\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .csv(his_folder)\n",
+					")"
 				],
 				"execution_count": null
 			}
