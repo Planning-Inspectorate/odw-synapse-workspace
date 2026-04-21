@@ -175,11 +175,11 @@ class NsipProjectCuratedProcess(CurationProcess):
             .withColumn(
                 "sourceSystem",
                 F.lower(F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))),
-            )
+            ).drop("ODTSourceSystem")
             .withColumn("easting", F.col("easting").cast(IntegerType()))
             .withColumn("northing", F.col("northing").cast(IntegerType()))
-            .withColumn("welshLanguage", F.col("WelshLanguage"))
-            .withColumn("secretaryOfState", F.col("SecretaryOfState"))
+            .withColumn("welshLanguage", F.col("WelshLanguage")).drop("WelshLanguage")
+            .withColumn("secretaryOfState", F.col("SecretaryOfState")).drop("SecretaryOfState")
             .withColumn("rule8LetterPublishDate", F.col("rule8LetterPublishDate").cast(DateType()))
         )
         end_exec_time = datetime.now()
