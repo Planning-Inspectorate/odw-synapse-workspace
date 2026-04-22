@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a0fb1591-3af7-4f83-a9e6-88c881fd973e"
+				"spark.autotune.trackingId": "5e41402f-af05-400d-aa67-88e176b3dc2d"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -261,9 +261,10 @@
 					"AH.lpaAppealInvalidReasons                  AS lpaAppealInvalidReasons,\n",
 					"AH.applicationElbAppealGroundsDetails       AS applicationElbAppealGroundsDetails,\n",
 					"AH.extraConditionsDetails                   AS extraConditionsDetails,\n",
-					"AH.discontinuanceNoticeServedReason         AS discontinuanceNoticeServedReason,\n",
-					"AH.discontinuanceNoticeServedOtherReason    AS discontinuanceNoticeServedOtherReason,\n",
-					"AH.wasRetrospectivePlanningApplicationMade  AS wasRetrospectivePlanningApplicationMade\n",
+					"AH.reasonForAppealAppellant                 AS reasonForAppealAppellant,\n",
+					"AH.significantChangesAffectingApplicationAppellant AS significantChangesAffectingApplicationAppellant,\n",
+					"AH.screeningOpinionIndicatesEiaRequired      AS screeningOpinionIndicatesEiaRequired,\n",
+					"AH.significantChangesAffectingApplicationLpa AS significantChangesAffectingApplicationLpa\n",
 					"FROM odw_harmonised_db.appeal_s78 AS AH\n",
 					"where AH.lpaCode NOT in ('Q9999', 'Q1111') and AH.caseReference > '6000000' and AH.ODTSourceSystem='ODT'\n",
 					" AND (caseSubmittedDate IS NULL OR caseSubmittedDate >= TIMESTAMP('1900-01-01'))\n",
@@ -375,14 +376,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeals_s78_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeals_s78_curated_mipins\")"
+					"table_name = 'odw_curated_db.appeals_s78_curated_mipins'\n",
+					"\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"table_path = (\n",
+					"    df_table_path\n",
+					"    .where(\"col_name == 'Location'\")\n",
+					"    .select(\"data_type\")\n",
+					"    .collect()[0][0]\n",
+					")\n",
+					"\n",
+					"final_view_df.write \\\n",
+					"    .format(\"parquet\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"path\", table_path) \\\n",
+					"    .saveAsTable(table_name)"
 				],
 				"execution_count": null
 			},
@@ -393,10 +401,7 @@
 				},
 				"source": [
 					"#%%sql\n",
-					"#select * from odw_curated_db.appeals_s78_curated_mipins\n",
-					"#SELECT COUNT(1) FROM odw_curated_db.appeals_S78_curated_mipins \n",
-					"#select hasLandownersPermission,wasApplicationRefusedDueToHighwayOrTraffic,didAppellantSubmitCompletePhotosAndPlans,\n",
-					"#isSiteInAreaOfSpecialControlAdverts,advertDetails from odw_curated_db.appeals_s78_curated_mipins"
+					"#select * from odw_curated_db.appeals_s78_curated_mipins"
 				],
 				"execution_count": null
 			}
