@@ -2,6 +2,7 @@ from unittest import mock
 import json
 import pyspark.sql.functions as F
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
+from odw.test.util.test_case import SparkTestCase
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -83,175 +84,175 @@ def _build_anonymised_df(spark):
     )
 
 
-def test__horizon_standardisation__process_applies_anonymisation_in_non_production():
-    spark = PytestSparkSessionUtil().get_spark_session()
+class TestHorizonStandardisationAnonymisation(SparkTestCase):
+    def test__horizon_standardisation__process_applies_anonymisation_in_non_production(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
 
-    raw_df = _build_horizon_file_df(spark)
-    orchestration_df = _build_orchestration_df(spark)
-    schema_dict = _build_schema_dict()
-    anonymised_df = _build_anonymised_df(spark)
+        raw_df = _build_horizon_file_df(spark)
+        orchestration_df = _build_orchestration_df(spark)
+        schema_dict = _build_schema_dict()
+        anonymised_df = _build_anonymised_df(spark)
 
-    process = HorizonStandardisationProcess(spark=spark)
+        process = HorizonStandardisationProcess(spark=spark)
 
-    source_data = {
-        "test_file.csv": raw_df,
-        "orchestration_data": orchestration_df,
-        "test_table_standardised_table_schema": schema_dict,
-        "odw_standardised_db.test_table": None,
-    }
+        source_data = {
+            "test_file.csv": raw_df,
+            "orchestration_data": orchestration_df,
+            "test_table_standardised_table_schema": schema_dict,
+            "odw_standardised_db.test_table": None,
+        }
 
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
-            return_value=anonymised_df,
-        ) as mock_apply,
-    ):
-        data_to_write, etl_result = process.process(
-            source_data=source_data.copy(),
-            entity_name="test_file",
-            date_folder="2025-01-05",
-        )
-
-    mock_apply.assert_called_once()
-    _, kwargs = mock_apply.call_args
-    assert kwargs["file_name"] == "test_file.csv"
-    assert kwargs["source_folder"] == "Horizon"
-
-    written_df = data_to_write["odw_standardised_db.test_table"]["data"]
-    row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
-
-    assert row["first_name"] == "J***"
-    assert row["last_name"] == "D**"
-    assert row["email_address"] == "j******e@example.com"
-    assert etl_result.metadata.table_name == "test_table"
-
-
-def test__horizon_standardisation__process_skips_anonymisation_in_production():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    raw_df = _build_horizon_file_df(spark)
-    orchestration_df = _build_orchestration_df(spark)
-    schema_dict = _build_schema_dict()
-
-    process = HorizonStandardisationProcess(spark=spark)
-
-    source_data = {
-        "test_file.csv": raw_df,
-        "orchestration_data": orchestration_df,
-        "test_table_standardised_table_schema": schema_dict,
-        "odw_standardised_db.test_table": None,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=False),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch("odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview") as mock_apply,
-    ):
-        data_to_write, etl_result = process.process(
-            source_data=source_data.copy(),
-            entity_name="test_file",
-            date_folder="2025-01-05",
-        )
-
-    mock_apply.assert_not_called()
-
-    written_df = data_to_write["odw_standardised_db.test_table"]["data"]
-    row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
-
-    assert row["first_name"] == "John"
-    assert row["last_name"] == "Doe"
-    assert row["email_address"] == "john.doe@example.com"
-    assert etl_result.metadata.table_name == "test_table"
-
-
-def test__horizon_standardisation__process_preserves_standard_write_contract():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    raw_df = _build_horizon_file_df(spark)
-    orchestration_df = _build_orchestration_df(spark)
-    schema_dict = _build_schema_dict()
-    anonymised_df = _build_anonymised_df(spark)
-
-    process = HorizonStandardisationProcess(spark=spark)
-
-    source_data = {
-        "test_file.csv": raw_df,
-        "orchestration_data": orchestration_df,
-        "test_table_standardised_table_schema": schema_dict,
-        "odw_standardised_db.test_table": None,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
-            return_value=anonymised_df,
-        ),
-    ):
-        data_to_write, _ = process.process(
-            source_data=source_data.copy(),
-            entity_name="test_file",
-            date_folder="2025-01-05",
-        )
-
-    payload = data_to_write["odw_standardised_db.test_table"]
-
-    assert payload["storage_kind"] == "ADLSG2-Table"
-    assert payload["database_name"] == "odw_standardised_db"
-    assert payload["table_name"] == "test_table"
-    assert payload["storage_endpoint"] == "test-storage.dfs.core.windows.net"
-    assert payload["container_name"] == "odw-standardised"
-    assert payload["blob_path"] == "Horizon/test_table"
-    assert payload["file_format"] == "delta"
-    assert payload["write_mode"] == "overwrite"
-    assert payload["write_options"] == {}
-
-
-def test__horizon_standardisation__process_raises_when_anonymisation_fails():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    raw_df = _build_horizon_file_df(spark)
-    orchestration_df = _build_orchestration_df(spark)
-    schema_dict = _build_schema_dict()
-
-    process = HorizonStandardisationProcess(spark=spark)
-
-    source_data = {
-        "test_file.csv": raw_df,
-        "orchestration_data": orchestration_df,
-        "test_table_standardised_table_schema": schema_dict,
-        "odw_standardised_db.test_table": None,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
-            side_effect=RuntimeError("Purview anonymisation failed"),
-        ),
-    ):
-        try:
-            process.process(
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=True),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+                return_value=anonymised_df,
+            ) as mock_apply,
+        ):
+            data_to_write, etl_result = process.process(
                 source_data=source_data.copy(),
                 entity_name="test_file",
                 date_folder="2025-01-05",
             )
-            assert False, "Expected process() to raise when anonymisation fails"
-        except RuntimeError as ex:
-            assert str(ex) == "Purview anonymisation failed"
+
+        mock_apply.assert_called_once()
+        _, kwargs = mock_apply.call_args
+        assert kwargs["file_name"] == "test_file.csv"
+        assert kwargs["source_folder"] == "Horizon"
+
+        written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+        row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+
+        assert row["first_name"] == "J***"
+        assert row["last_name"] == "D**"
+        assert row["email_address"] == "j******e@example.com"
+        assert etl_result.metadata.table_name == "test_table"
+
+    def test__horizon_standardisation__process_skips_anonymisation_in_production(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        raw_df = _build_horizon_file_df(spark)
+        orchestration_df = _build_orchestration_df(spark)
+        schema_dict = _build_schema_dict()
+
+        process = HorizonStandardisationProcess(spark=spark)
+
+        source_data = {
+            "test_file.csv": raw_df,
+            "orchestration_data": orchestration_df,
+            "test_table_standardised_table_schema": schema_dict,
+            "odw_standardised_db.test_table": None,
+        }
+
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=False),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview"
+            ) as mock_apply,
+        ):
+            data_to_write, etl_result = process.process(
+                source_data=source_data.copy(),
+                entity_name="test_file",
+                date_folder="2025-01-05",
+            )
+
+        mock_apply.assert_not_called()
+
+        written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+        row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+
+        assert row["first_name"] == "John"
+        assert row["last_name"] == "Doe"
+        assert row["email_address"] == "john.doe@example.com"
+        assert etl_result.metadata.table_name == "test_table"
+
+    def test__horizon_standardisation__process_preserves_standard_write_contract(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        raw_df = _build_horizon_file_df(spark)
+        orchestration_df = _build_orchestration_df(spark)
+        schema_dict = _build_schema_dict()
+        anonymised_df = _build_anonymised_df(spark)
+
+        process = HorizonStandardisationProcess(spark=spark)
+
+        source_data = {
+            "test_file.csv": raw_df,
+            "orchestration_data": orchestration_df,
+            "test_table_standardised_table_schema": schema_dict,
+            "odw_standardised_db.test_table": None,
+        }
+
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=True),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+                return_value=anonymised_df,
+            ),
+        ):
+            data_to_write, _ = process.process(
+                source_data=source_data.copy(),
+                entity_name="test_file",
+                date_folder="2025-01-05",
+            )
+
+        payload = data_to_write["odw_standardised_db.test_table"]
+
+        assert payload["storage_kind"] == "ADLSG2-Table"
+        assert payload["database_name"] == "odw_standardised_db"
+        assert payload["table_name"] == "test_table"
+        assert payload["storage_endpoint"] == "test-storage.dfs.core.windows.net"
+        assert payload["container_name"] == "odw-standardised"
+        assert payload["blob_path"] == "Horizon/test_table"
+        assert payload["file_format"] == "delta"
+        assert payload["write_mode"] == "overwrite"
+        assert payload["write_options"] == {}
+
+    def test__horizon_standardisation__process_raises_when_anonymisation_fails(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        raw_df = _build_horizon_file_df(spark)
+        orchestration_df = _build_orchestration_df(spark)
+        schema_dict = _build_schema_dict()
+
+        process = HorizonStandardisationProcess(spark=spark)
+
+        source_data = {
+            "test_file.csv": raw_df,
+            "orchestration_data": orchestration_df,
+            "test_table_standardised_table_schema": schema_dict,
+            "odw_standardised_db.test_table": None,
+        }
+
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=True),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+                side_effect=RuntimeError("Purview anonymisation failed"),
+            ),
+        ):
+            try:
+                process.process(
+                    source_data=source_data.copy(),
+                    entity_name="test_file",
+                    date_folder="2025-01-05",
+                )
+                assert False, "Expected process() to raise when anonymisation fails"
+            except RuntimeError as ex:
+                assert str(ex) == "Purview anonymisation failed"
