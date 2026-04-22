@@ -5,11 +5,12 @@ import pyspark.sql.functions as F
 
 from odw.core.anonymisation import AnonymisationEngine, fetch_purview_classifications_by_qualified_name
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.test_case import SparkTestCase
 
 
 @pytest.mark.integration
 @pytest.mark.purview
-class TestPurviewAnonymisationIntegration:
+class TestPurviewAnonymisationIntegration(SparkTestCase):
     @pytest.fixture(scope="class")
     def spark(self):
         return PytestSparkSessionUtil().get_spark_session()
