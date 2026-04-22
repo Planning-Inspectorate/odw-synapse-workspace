@@ -1,4 +1,5 @@
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.test.util.config import TEST_CONFIG
 from pyspark.sql import DataFrame
 import json
 import inspect
@@ -12,16 +13,17 @@ This module contains various assertions that are useful for testing
 
 def _get_test_function_caller():
     for x in inspect.stack():
-        if x.function.startswith("test") or x.function.endswith("test"):
-            return x.function
+        function = x.function
+        if function.startswith("test") or function.endswith("test"):
+            return function
 
 
-def assert_dataframes_equal(expected: DataFrame, actual: DataFrame, save_local_data: bool = False):
+def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
     """
+    save_local_data = TEST_CONFIG.get("DUMP_ASSERTION_DATA", False)
     caller = _get_test_function_caller()
-    print(f"assert frames equal caller: '{caller}'")
     if save_local_data:
         expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_expected"))
         actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_actual"))

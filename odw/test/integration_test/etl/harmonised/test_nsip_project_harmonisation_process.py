@@ -732,7 +732,7 @@ class TestNsipProjectHarmonisationProcess(ETLTestCase):
         comparable_cols = set(_final_table_schema().names) - uncomparable_cols
         expected_cleaned = expected.select(*comparable_cols)
         actual_cleaned = actual.select(*comparable_cols)
-        assert_dataframes_equal(expected_cleaned, actual_cleaned, True)
+        assert_dataframes_equal(expected_cleaned, actual_cleaned)
 
     def _run_test_case(self, test_case_name: str):
         spark = PytestSparkSessionUtil().get_spark_session()
