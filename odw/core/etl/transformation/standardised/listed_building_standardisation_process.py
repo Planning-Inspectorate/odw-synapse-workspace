@@ -165,11 +165,19 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
         ]
 
         listed_buildings_df = listed_buildings_df.select(
-            *[F.col(c) if c in listed_buildings_df.columns else F.lit(None).alias(c) for c in lb_cols]
+            *[
+                F.col(c).cast("string") if c in listed_buildings_df.columns
+                else F.lit(None).cast("string").alias(c)
+                for c in lb_cols
+            ]
         )
 
         listed_building_outline_df = listed_building_outline_df.select(
-            *[F.col(c) if c in listed_building_outline_df.columns else F.lit(None).alias(c) for c in lbo_cols]
+            *[
+                F.col(c).cast("string") if c in listed_building_outline_df.columns
+                else F.lit(None).cast("string").alias(c)
+                for c in lbo_cols
+            ]
         )
 
         return {
@@ -229,7 +237,7 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
                 metadata=ETLResult.ETLResultMetadata(
                     start_execution_time=start_exec_time,
                     end_execution_time=end_exec_time,
-                    table_name="listed_buildings",
+                    table_name="listed_building_and_listed_building_outline",
                     insert_count=insert_count,
                     update_count=0,
                     delete_count=0,
