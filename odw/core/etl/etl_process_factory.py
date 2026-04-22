@@ -1,8 +1,6 @@
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
 from odw.core.etl.transformation.harmonised.service_bus_harmonisation_process import ServiceBusHarmonisationProcess
@@ -20,7 +18,6 @@ from odw.core.etl.transformation.curated.nsip_meeting_curated_process import Nsi
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
 from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
-from typing import Dict, List, Set, Type
 from typing import Dict, List, Set, Type
 import json
 

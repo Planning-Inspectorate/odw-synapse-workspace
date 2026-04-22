@@ -1,12 +1,11 @@
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
-from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict
 
 
 class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
