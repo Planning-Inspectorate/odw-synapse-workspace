@@ -165,6 +165,9 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         new_data = new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
         new_data = new_data.union(update_rows).union(unupdated_rows).dropDuplicates()
 
+        new_data = new_data.cache()
+        insert_count = new_data.count()
+
         hrm_table_snake_case = hrm_table.replace("-", "_")
 
         data_to_write = {
@@ -188,7 +191,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
                 table_name=harmonised_table_path,
-                insert_count=new_data.count(),
+                insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
                 activity_type=self.__class__.__name__,
