@@ -31,7 +31,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             .config("spark.ui.enabled", False)
             .config("spark.driver.memory", "2g")
             .config("spark.sql.jsonGenerator.ignoreNullFields", "false")
-            #.config("spark.python.profile", True)
+            # .config("spark.python.profile", True)
         ).getOrCreate()
         self._initialise_file_system(self._SPARK_SESSION)
 
