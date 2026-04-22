@@ -16,6 +16,11 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 
+try:
+    from notebookutils import mssparkutils
+except Exception:
+    mssparkutils = None
+
 
 class ListedBuildingsStandardisationProcess(StandardisationProcess):
     """
@@ -25,14 +30,8 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        """
-        Name used by ETLProcessFactory
-        """
         return "listed-buildings-standardisation"
 
-    # ---------------------------------------------------------------------
-    # Schemas
-    # ---------------------------------------------------------------------
     @staticmethod
     def get_listed_building_schema() -> StructType:
         return StructType([
@@ -75,22 +74,28 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
             StructField("typology", StringType(), True),
         ])
 
-    # ---------------------------------------------------------------------
-    # Load data (RAW → DataFrames)
-    # ---------------------------------------------------------------------
-    @LoggingUtil.logging_to_appins
-    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        date_folder: str = kwargs.get("date_folder") or kwargs.get("run_date")
+    def _get_date_folder(self, kwargs: Dict) -> str:
+        date_folder = kwargs.get("date_folder") or kwargs.get("run_date")
+        if not date_folder and mssparkutils is not None:
+            try:
+                date_folder = mssparkutils.notebook.getArgument("date_folder")
+            except Exception:
+                date_folder = None
+        if not date_folder and mssparkutils is not None:
+            try:
+                date_folder = mssparkutils.notebook.getArgument("run_date")
+            except Exception:
+                date_folder = None
         if not date_folder:
             raise ValueError("load_data requires 'date_folder' parameter")
+        return date_folder
 
+    @LoggingUtil.logging_to_appins
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        date_folder = self._get_date_folder(kwargs)
         storage_account = Util.get_storage_account()
 
-        base_path = (
-            f"abfss://odw-raw@{storage_account}"
-            f"/ListedBuildings/{date_folder}"
-        )
-
+        base_path = f"abfss://odw-raw@{storage_account}/ListedBuildings/{date_folder}"
         lb_path = f"{base_path}/listed_building.json"
         lbo_path = f"{base_path}/listed_building_outline.json"
 
@@ -121,20 +126,57 @@ class ListedBuildingsStandardisationProcess(StandardisationProcess):
             .select("entity.*")
         )
 
+        lb_cols = [
+            "dataset",
+            "end-date",
+            "entity",
+            "entry-date",
+            "geometry",
+            "name",
+            "organisation-entity",
+            "point",
+            "prefix",
+            "reference",
+            "start-date",
+            "typology",
+            "documentation-url",
+            "listed-building-grade",
+        ]
+
+        lbo_cols = [
+            "address",
+            "address-text",
+            "dataset",
+            "document-url",
+            "documentation-url",
+            "end-date",
+            "entity",
+            "entry-date",
+            "geometry",
+            "listed-building",
+            "name",
+            "notes",
+            "organisation-entity",
+            "point",
+            "prefix",
+            "reference",
+            "start-date",
+            "typology",
+        ]
+
+        listed_buildings_df = listed_buildings_df.select(
+            *[F.col(c) if c in listed_buildings_df.columns else F.lit(None).alias(c) for c in lb_cols]
+        )
+
+        listed_building_outline_df = listed_building_outline_df.select(
+            *[F.col(c) if c in listed_building_outline_df.columns else F.lit(None).alias(c) for c in lbo_cols]
+        )
+
         return {
-            "listed_building": self.spark.createDataFrame(
-                listed_buildings_df.collect(),
-                schema=self.get_listed_building_schema(),
-            ),
-            "listed_building_outline": self.spark.createDataFrame(
-                listed_building_outline_df.collect(),
-                schema=self.get_listed_building_outline_schema(),
-            ),
+            "listed_building": listed_buildings_df,
+            "listed_building_outline": listed_building_outline_df,
         }
 
-    # ---------------------------------------------------------------------
-    # Process (STANDARDISED WRITE)
-    # ---------------------------------------------------------------------
     @LoggingUtil.logging_to_appins
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
