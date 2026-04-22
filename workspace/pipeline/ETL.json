@@ -1,0 +1,69 @@
+{
+	"name": "ETL",
+	"properties": {
+		"activities": [
+			{
+				"name": "EXTRACT",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "EXTRACT",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "TrackExtractedFiles",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "EXTRACT",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"snapshot": true
+				}
+			},
+			{
+				"name": "LOAD",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "TrackExtractedFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"waitOnCompletion": true
+				}
+			}
+		],
+		"folder": {
+			"name": "Horizon Migration/MPESC-MIGRATION-2"
+		},
+		"annotations": []
+	}
+}
