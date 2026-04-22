@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3259063e-990d-40d1-9a5c-a391b98d17a0"
+				"spark.autotune.trackingId": "0a489b55-ef49-4aa0-a69d-5c44b1e56f0f"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -139,71 +139,54 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_service_user_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
 					"df = spark.sql(\"\"\"\n",
-					"   SELECT\n",
-					"    id\n",
-					"    ,caseReference\n",
-					"    ,salutation\n",
-					"    ,FirstName\n",
-					"    ,lastName\n",
-					"    ,addressLine1\n",
-					"    ,addressLine2\n",
-					"    ,addressTown\n",
-					"    ,addressCounty\n",
-					"    ,postcode\n",
-					"    ,addressCountry\n",
-					"    ,organisation\n",
-					"    ,organisationType\n",
-					"    ,role\n",
-					"    ,telephoneNumber\n",
-					"    ,otherPhoneNumber\n",
-					"    ,faxNumber\n",
-					"    ,emailAddress\n",
-					"    ,webAddress\n",
-					"    ,serviceUserType\n",
-					"    ,sourceSystem\n",
-					"    ,sourceSUID\n",
-					"    ,ODTSourceSystem\n",
-					"    ,ingestionDate\n",
-					"    ,ValidTo\n",
-					"    ,RowID\n",
-					"    ,IsActive\n",
-					"    \n",
-					"FROM \n",
-					"    vw_Appeal_Service_User_curated_mipins\n",
-					"    \"\"\")\n",
+					"    SELECT\n",
+					"        id,\n",
+					"        caseReference,\n",
+					"        salutation,\n",
+					"        FirstName,\n",
+					"        lastName,\n",
+					"        addressLine1,\n",
+					"        addressLine2,\n",
+					"        addressTown,\n",
+					"        addressCounty,\n",
+					"        postcode,\n",
+					"        addressCountry,\n",
+					"        organisation,\n",
+					"        organisationType,\n",
+					"        role,\n",
+					"        telephoneNumber,\n",
+					"        otherPhoneNumber,\n",
+					"        faxNumber,\n",
+					"        emailAddress,\n",
+					"        webAddress,\n",
+					"        serviceUserType,\n",
+					"        sourceSystem,\n",
+					"        sourceSUID,\n",
+					"        ODTSourceSystem,\n",
+					"        ingestionDate,\n",
+					"        ValidTo,\n",
+					"        RowID,\n",
+					"        IsActive\n",
+					"    FROM vw_Appeal_Service_User_curated_mipins\n",
+					"\"\"\")\n",
 					"\n",
-					"df.write.format(\"delta\").mode(\"Overwrite\").saveAsTable(\"odw_curated_db.appeal_service_user_curated_mipins\")"
+					"table_name = 'odw_curated_db.appeal_service_user_curated_mipins'\n",
+					"\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"table_path = (\n",
+					"    df_table_path\n",
+					"    .where(\"col_name == 'Location'\")\n",
+					"    .select(\"data_type\")\n",
+					"    .collect()[0][0]\n",
+					")\n",
+					"\n",
+					"df.write \\\n",
+					"    .format(\"parquet\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"path\", table_path) \\\n",
+					"    .saveAsTable(table_name)"
 				],
 				"execution_count": null
 			},

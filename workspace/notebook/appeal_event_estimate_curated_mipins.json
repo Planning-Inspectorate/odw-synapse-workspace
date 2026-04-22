@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -121,14 +121,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark.sql(f\"drop table if exists odw_curated_db.appeal_event_estimate_curated_mipins;\")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"final_view_df.write.mode(\"overwrite\").saveAsTable(\"odw_curated_db.appeal_event_estimate_curated_mipins\")"
+					"table_name = 'odw_curated_db.appeal_event_estimate_curated_mipins'\n",
+					"\n",
+					"df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"table_path = (\n",
+					"    df_table_path\n",
+					"    .where(\"col_name == 'Location'\")\n",
+					"    .select(\"data_type\")\n",
+					"    .collect()[0][0]\n",
+					")\n",
+					"\n",
+					"final_view_df.write \\\n",
+					"    .format(\"parquet\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .option(\"path\", table_path) \\\n",
+					"    .saveAsTable(table_name)"
 				],
 				"execution_count": null
 			},
