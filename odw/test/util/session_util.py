@@ -12,9 +12,9 @@ class PytestSparkSessionUtil(metaclass=Singleton):
     """
     Class to manage the testing session itself. This initialises a single Spark session per
     worker thread, alongside a separate DB/filesystem per thread. This class is a singleton,
-    so only one instance can ever be created.
+    so only one instance can ever be created
 
-    Usage
+    # Usage
     - `PytestSparkSessionUtil().get_spark_session()`
     - `PytestSparkSessionUtil().get_thread_id()`
     - `PytestSparkSessionUtil().get_spark_warehouse_name()`
