@@ -1,0 +1,338 @@
+{
+	"name": "py_case_marking",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised/green_specialist_case"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ce3386df-a180-40e3-bb1a-aca38594424d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to read data from Standardised layer and build a table for Harmonized Layer.\n",
+					"\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 02-Dec-2025 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This Notebook is designed to facilitate green specialist cases in harmonized layer. It includes steps for initializing the environment, creating and managing Delta tables, and inserting data into harmonized tables. The Notebook ensures that green specialist case data is accurately transformed, stored, and made available for reporting and analysis.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_curated\"\n",
+					"\n",
+					"PipelineRunID = \"4d524b0c-541d-47fc-9f85-e152a758548e\"\n",
+					"\n",
+					"PipelineTriggerID = \"ced8187b-67df-4d23-b333-a84c7c09cc2c\"\n",
+					"\n",
+					"PipelineTriggerName = \"ced8187b-67df-4d23-b333-a84c7c09cc2c\"\n",
+					"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"\n",
+					"PipelineTriggeredbyPipelineRunID = \"7f446fc7-6541-4347-9178-cbaa36080fdd\"\n",
+					""
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import sys\n",
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType\n",
+					"from pyspark.sql.window import Window\n",
+					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
+					"from datetime import datetime, timedelta"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run /utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark_table_final = \"odw_harmonised_db.casemarking\"\n",
+					"source_table = \"odw_standardised_db.case_marking\"\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Set time parser policy\n",
+					"        logInfo(\"Setting legacy time parser policy\")\n",
+					"        spark.sql(\"SET spark.sql.legacy.timeParserPolicy = LEGACY\")\n",
+					"        logInfo(\"Legacy time parser policy set successfully\")\n",
+					"        \n",
+					"        # Delete existing data\n",
+					"        logInfo(f\"Starting deletion of all rows from {spark_table_final}\")\n",
+					"        spark.sql(f\"DELETE FROM {spark_table_final}\")\n",
+					"        logInfo(f\"Successfully deleted all rows from {spark_table_final}\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in setting policy or deleting data from {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Insert data from source table\n",
+					"        logInfo(f\"Starting data insertion into {spark_table_final} from {source_table}\")\n",
+					"        spark.sql(f\"\"\"\n",
+					"            INSERT INTO {spark_table_final} (\n",
+					"                ID,\n",
+					"                case_reference,\n",
+					"                overall_mark,\n",
+					"                amendments_timeliness_mark,\n",
+					"                complexity,\n",
+					"                conditions_mark,\n",
+					"                conditions_detail,\n",
+					"                coverage_mark,\n",
+					"                coverage_detail,\n",
+					"                ground_a_mark,\n",
+					"                ground_a_iit_level,\n",
+					"                invalid_nullity,\n",
+					"                invalid_nullity_mark,\n",
+					"                legal_grounds_mark,\n",
+					"                legal_grounds_considered,\n",
+					"                non_legal_grounds_mark,\n",
+					"                non_legal_grounds_considered,\n",
+					"                other_grounds_affecting_complexity,\n",
+					"                outcome,\n",
+					"                overall_case_level_for_iit_progression,\n",
+					"                presentation_accuracy_mark,\n",
+					"                presentation_accuracy_detail,\n",
+					"                structure_reasoning_mark,\n",
+					"                structure_reasoning_detail,\n",
+					"                timeliness_mark,\n",
+					"                reading_complete_notification_needed,\n",
+					"                IngestionDate,\n",
+					"                RowID\n",
+					"            )\n",
+					"            SELECT\n",
+					"                ID,\n",
+					"                case_reference,\n",
+					"                overall_mark,\n",
+					"                amendments_timeliness_mark,\n",
+					"                complexity,\n",
+					"                conditions_mark,\n",
+					"                conditions_detail,\n",
+					"                coverage_mark,\n",
+					"                coverage_detail,\n",
+					"                ground_a_mark,\n",
+					"                ground_a_iit_level,\n",
+					"                invalid_nullity,\n",
+					"                invalid_nullity_mark,\n",
+					"                legal_grounds_mark,\n",
+					"                legal_grounds_considered,\n",
+					"                non_legal_grounds_mark,\n",
+					"                non_legal_grounds_considered,\n",
+					"                other_grounds_affecting_complexity,\n",
+					"                outcome,\n",
+					"                overall_case_level_for_iit_progression,\n",
+					"                presentation_accuracy_mark,\n",
+					"                presentation_accuracy_detail,\n",
+					"                structure_reasoning_mark,\n",
+					"                structure_reasoning_detail,\n",
+					"                timeliness_mark,\n",
+					"                reading_complete_notification_needed,\n",
+					"                CURRENT_TIMESTAMP() AS IngestionDate,\n",
+					"                NULL                 AS RowID\n",
+					"            FROM {source_table}\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        # Get count of inserted rows\n",
+					"        insert_count = (\n",
+					"            spark.sql(f\"SELECT COUNT(*) as count FROM {spark_table_final}\")\n",
+					"                 .collect()[0]['count']\n",
+					"        )\n",
+					"        logInfo(f\"Successfully inserted {insert_count} rows into {spark_table_final}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in inserting data into {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        logInfo(\"Starting RowID update with MD5 hash values\")\n",
+					"\n",
+					"        sql_stmt = f\"\"\"\n",
+					"UPDATE {spark_table_final}\n",
+					"SET RowID = md5(concat_ws('|',\n",
+					"    COALESCE(TRIM(CAST(ID                                      AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(case_reference                          AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(overall_mark                            AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(amendments_timeliness_mark              AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(complexity                              AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(conditions_mark                         AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(conditions_detail                       AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(coverage_mark                           AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(coverage_detail                         AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(ground_a_mark                           AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(ground_a_iit_level                      AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(invalid_nullity                         AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(invalid_nullity_mark                    AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(legal_grounds_mark                      AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(legal_grounds_considered                AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(non_legal_grounds_mark                  AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(non_legal_grounds_considered            AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(other_grounds_affecting_complexity      AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(outcome                                 AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(overall_case_level_for_iit_progression  AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(presentation_accuracy_mark              AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(presentation_accuracy_detail            AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(structure_reasoning_mark                AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(structure_reasoning_detail              AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(timeliness_mark                         AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(reading_complete_notification_needed    AS STRING)), '')\n",
+					"))\n",
+					"\"\"\"\n",
+					"        logInfo(f\"About to run SQL:\\n{sql_stmt}\")\n",
+					"        spark.sql(sql_stmt)\n",
+					"        logInfo(\"Successfully updated all RowID values with MD5 hashes\")\n",
+					"\n",
+					"        null_rowid_count = (\n",
+					"            spark.sql(\n",
+					"                f\"SELECT COUNT(*) as count FROM {spark_table_final} WHERE RowID IS NULL\"\n",
+					"            ).collect()[0]['count']\n",
+					"        )\n",
+					"\n",
+					"        if null_rowid_count > 0:\n",
+					"            logError(f\"Data quality issue: {null_rowid_count} rows have NULL RowID values\")\n",
+					"        else:\n",
+					"            logInfo(\"Data quality check passed: No NULL RowID values found\")\n",
+					"\n",
+					"        logInfo(\"checkmark data processing completed successfully\")\n",
+					"        end_exec_time = datetime.now()\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = (\n",
+					"            f\"Error in updating RowID for {spark_table_final}: {str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data into {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
