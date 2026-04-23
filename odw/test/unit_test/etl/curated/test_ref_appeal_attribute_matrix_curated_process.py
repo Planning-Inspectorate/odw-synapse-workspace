@@ -94,7 +94,7 @@ def test__appeal_attribute_matrix_curated_process__process__selects_latest_recor
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
     assert df.count() == 1
-    assert df.collect()[0]["IngestionDate"] == "2025-02-01"
+    assert df.orderBy("IngestionDate", ascending=False).collect()[0]["IngestionDate"] == "2025-02-01"
     assert result.metadata.insert_count == 1
 
 
