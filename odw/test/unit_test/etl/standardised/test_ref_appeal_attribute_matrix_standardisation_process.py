@@ -3,9 +3,6 @@ from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardis
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import pyspark.sql.types as T
-import pytest
-
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
 
 
 def test__appeal_attribute_matrix_standardisation_process__get_latest_ingestion_date__returns_latest_valid_date():

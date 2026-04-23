@@ -1,10 +1,7 @@
-import pytest
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
-
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute():
