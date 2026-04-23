@@ -168,22 +168,21 @@ class NsipProjectCuratedProcess(CurationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         nsip_project_data: DataFrame = self.load_parameter("harmonised_data", source_data)
-        nsip_project_data = (
-            nsip_project_data.withColumn("caseId", F.col("caseId").cast(IntegerType()))
-            .withColumn("publishStatus", F.lower(F.col("publishStatus")))
-            .withColumn("projectType", F.initcap(F.col("ProjectType")))
-            .withColumn("stage", F.lower(F.regexp_replace(F.col("Stage"), r"[- ]", "_")))
-            .withColumn(
-                "sourceSystem",
-                F.lower(F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))),
-            )
-            .drop("ODTSourceSystem")
-            .withColumn("easting", F.col("easting").cast(IntegerType()))
-            .withColumn("northing", F.col("northing").cast(IntegerType()))
-            .withColumnRenamed("WelshLanguage", "welshLanguage")
-            .withColumnRenamed("SecretaryOfState", "secretaryOfState")
-            .withColumn("rule8LetterPublishDate", F.col("rule8LetterPublishDate").cast(DateType()))
-        )
+        nsip_project_data = nsip_project_data.withColumns(
+            {
+                "publishStatus": F.lower(F.col("publishStatus")),
+                "projectType": F.initcap(F.col("ProjectType")),
+                "stage": F.lower(F.regexp_replace(F.col("Stage"), r"[- ]", "_")),
+                "sourceSystem": F.lower(
+                    F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))
+                ),
+                "easting": F.col("easting").cast(IntegerType()),
+                "northing": F.col("northing").cast(IntegerType()),
+                "welshLanguage": F.col("WelshLanguage"),
+                "secretaryOfState": F.col("SecretaryOfState"),
+                "rule8LetterPublishDate": F.col("rule8LetterPublishDate").cast(DateType()),
+            }
+        ).drop("ODTSourceSystem")
         end_exec_time = datetime.now()
 
         data_to_write = {
