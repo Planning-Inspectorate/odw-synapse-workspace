@@ -26,9 +26,7 @@ class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data = self.load_parameter("source_data", kwargs)
-        df: DataFrame = self.load_parameter(
-            "standardised_data", source_data
-        )
+        df: DataFrame = self.load_parameter("standardised_data", source_data)
 
         std_cols = df.columns[:]
 
@@ -36,35 +34,17 @@ class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
             if isinstance(f.dataType, T.StringType):
                 df = df.withColumn(f.name, F.trim(F.col(f.name)))
 
-        df = df.withColumn(
-            "attribute",
-            F.trim(F.lower(F.col("attribute")))
-        )
+        df = df.withColumn("attribute", F.trim(F.lower(F.col("attribute"))))
 
-        df = df.withColumn(
-            "TEMP_PK",
-            F.sha2(
-                F.to_json(F.struct(F.col("attribute"))),
-                256
-            )
-        )
+        df = df.withColumn("TEMP_PK", F.sha2(F.to_json(F.struct(F.col("attribute"))), 256))
 
         if "ODTSourceSystem" not in df.columns:
-            df = df.withColumn(
-                "ODTSourceSystem",
-                F.lit("AppealAttributeMatrix")
-            )
+            df = df.withColumn("ODTSourceSystem", F.lit("AppealAttributeMatrix"))
 
         if "IngestionDate" in df.columns:
-            df = df.withColumn(
-                "IngestionDate",
-                F.to_timestamp("IngestionDate")
-            )
+            df = df.withColumn("IngestionDate", F.to_timestamp("IngestionDate"))
         else:
-            df = df.withColumn(
-                "IngestionDate",
-                F.current_timestamp()
-            )
+            df = df.withColumn("IngestionDate", F.current_timestamp())
 
         if "IsActive" not in df.columns:
             df = df.withColumn("IsActive", F.lit("Y"))
@@ -87,9 +67,7 @@ class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
                 "blob_path": "ref_appeal_attribute_matrix",
                 "file_format": "delta",
                 "write_mode": "overwrite",
-                "write_options": {
-                    "overwriteSchema": "true"
-                },
+                "write_options": {"overwriteSchema": "true"},
             }
         }
 

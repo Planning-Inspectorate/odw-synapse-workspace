@@ -42,7 +42,6 @@ class ETLProcessFactory:
         NsipRepresentationCuratedProcess,
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
-        
     }
 
     @classmethod

@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict
 import re
 
+
 class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
     OUTPUT_TABLE = "appeal_attribute_matrix"
 
@@ -19,9 +20,7 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         return "appeal_attribute_matrix_standardisation_process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        storage_account = mssparkutils.notebook.run(
-            "/utils/py_utils_get_storage_account"
-        )
+        storage_account = mssparkutils.notebook.run("/utils/py_utils_get_storage_account")
 
         base_dir = f"abfss://odw-raw@{storage_account}AppealAttributeMatrix/"
         entries = mssparkutils.fs.ls(base_dir)
@@ -36,19 +35,14 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         ]
 
         if not date_dirs:
-            raise FileNotFoundError(
-                f"No YYYY-MM-DD folders found under {base_dir}"
-            )
+            raise FileNotFoundError(f"No YYYY-MM-DD folders found under {base_dir}")
 
         ingestion_date = max(date_dirs)
 
-        file_path = (
-            f"{base_dir}{ingestion_date}/appeal-attribute-matrix.csv"
-        )
+        file_path = f"{base_dir}{ingestion_date}/appeal-attribute-matrix.csv"
 
         raw_df = (
-            self.spark.read
-            .option("header", True)
+            self.spark.read.option("header", True)
             .option("inferSchema", True)
             .option("ignoreLeadingWhiteSpace", True)
             .option("ignoreTrailingWhiteSpace", True)
@@ -65,21 +59,12 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
         raw_df: DataFrame = self.load_parameter("raw_data", source_data)
 
         valid_columns = [
-            field.name
-            for field in raw_df.schema.fields
-            if field.name
-            and field.name.strip() != ""
-            and not field.name.strip().startswith("_c")
+            field.name for field in raw_df.schema.fields if field.name and field.name.strip() != "" and not field.name.strip().startswith("_c")
         ]
 
         df = raw_df.select(*valid_columns)
 
-        df = df.filter(
-            ~(
-                col("attribute").isNull()
-                | col("attribute").rlike(r'^\s*["\']?\s*$')
-            )
-        )
+        df = df.filter(~(col("attribute").isNull() | col("attribute").rlike(r'^\s*["\']?\s*$')))
 
         def to_camel_case(colname: str) -> str:
             parts = re.split(r"\s+", colname.strip())
@@ -102,9 +87,7 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
                 "blob_path": "appeal_attribute_matrix",
                 "file_format": "delta",
                 "write_mode": "overwrite",
-                "write_options": {
-                    "overwriteSchema": "true"
-                },
+                "write_options": {"overwriteSchema": "true"},
             }
         }
 

@@ -8,8 +8,8 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 
-class AppealAttributeMatrixCuratedProcess(CurationProcess):
 
+class AppealAttributeMatrixCuratedProcess(CurationProcess):
     STANDARDISED_TABLE = "odw_standardised_db.appeal_attribute_matrix"
     HARMONISED_TABLE = "odw_harmonised_db.ref_appeal_attribute_matrix"
     OUTPUT_TABLE = "odw_curated_db.ref_appeal_attribute_matrix"
@@ -27,10 +27,7 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
         harmonised_df = self.spark.table(self.HARMONISED_TABLE)
         standardised_df = self.spark.table(self.STANDARDISED_TABLE)
 
-        return {
-            "harmonised_data": harmonised_df,
-            "standardised_schema": standardised_df
-        }
+        return {"harmonised_data": harmonised_df, "standardised_schema": standardised_df}
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
@@ -45,15 +42,8 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
             df = df_h.filter(F.col("IsActive") == "Y")
 
         elif {"TEMP_PK", "IngestionDate"}.issubset(set(df_h.columns)):
-            latest = (
-                df_h.groupBy("TEMP_PK")
-                .agg(F.max("IngestionDate").alias("IngestionDate"))
-            )
-            df = df_h.join(
-                latest,
-                on=["TEMP_PK", "IngestionDate"],
-                how="inner"
-            )
+            latest = df_h.groupBy("TEMP_PK").agg(F.max("IngestionDate").alias("IngestionDate"))
+            df = df_h.join(latest, on=["TEMP_PK", "IngestionDate"], how="inner")
 
         else:
             df = df_h
@@ -71,9 +61,7 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
 
         insert_count = df.count()
 
-        LoggingUtil().log_info(
-            f"Curated Appeal Attribute Matrix row count: {insert_count}"
-        )
+        LoggingUtil().log_info(f"Curated Appeal Attribute Matrix row count: {insert_count}")
 
         end_exec_time = datetime.now()
 
@@ -88,9 +76,7 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
                 "blob_path": "AppealAttributeMatrix/appeal_attribute_matrix",
                 "file_format": "delta",
                 "write_mode": "overwrite",
-                "write_options": {
-                    "overwriteSchema": "true"
-                },
+                "write_options": {"overwriteSchema": "true"},
             }
         }
 
