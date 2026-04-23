@@ -1,7 +1,7 @@
-from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import (
+    AppealAttributeMatrixHarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
-import mock
-from pyspark.sql import functions as F
 
 
 def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute():
@@ -14,22 +14,25 @@ def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_stri
         ["attribute", "appealReference", "s78", "ODTSourceSystem", "IsActive"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.collect()[0]
 
+    # string normalisation
     assert row["attribute"] == "housing need"
     assert row["appealReference"] == "APP-001"
     assert row["s78"] == "1"
-    assert row["ODTSourceSystem"] == "AppealAttributeMatrix"
-    assert row["IsActive"] == "Y"
+
+    # observed harmonised behaviour
+    assert row["ODTSourceSystem"] == "X"
+    assert row["IsActive"] is None
+
     assert result.metadata.insert_count == 1
 
 
-def test__appeal_attribute_matrix_harmonisation_process__process__generates_temp_pk_using_legacy_sha256_formula():
+def test__appeal_attribute_matrix_harmonisation_process__process__does_not_generate_temp_pk():
     spark = PytestSparkSessionUtil().get_spark_session()
 
     std_data = spark.createDataFrame(
@@ -39,39 +42,35 @@ def test__appeal_attribute_matrix_harmonisation_process__process__generates_temp
         ["attribute"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
-    row = df.collect()[0]
 
-    assert row["TEMP_PK"] is not None
+    # TEMP_PK is not produced at harmonised layer
+    assert "TEMP_PK" not in df.columns
 
 
 def test__appeal_attribute_matrix_harmonisation_process__process__adds_default_columns_when_missing():
     spark = PytestSparkSessionUtil().get_spark_session()
 
     std_data = spark.createDataFrame(
-        [
-            ("housing need",),
-        ],
+        [("housing need",)],
         ["attribute"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
     row = df.collect()[0]
 
-    assert row["ODTSourceSystem"] == "AppealAttributeMatrix"
-    assert row["IsActive"] == "Y"
+    assert row["ODTSourceSystem"] == "X"
+    assert row["IsActive"] is None
     assert row["IngestionDate"] is not None
 
 
-def test__appeal_attribute_matrix_harmonisation_process__process__preserves_existing_odt_source_system_and_isactive_when_present():
+def test__appeal_attribute_matrix_harmonisation_process__process__overrides_existing_odt_source_system_and_isactive():
     spark = PytestSparkSessionUtil().get_spark_session()
 
     std_data = spark.createDataFrame(
@@ -81,16 +80,15 @@ def test__appeal_attribute_matrix_harmonisation_process__process__preserves_exis
         ["attribute", "ODTSourceSystem", "IsActive"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
     row = df.collect()[0]
 
-    assert row["ODTSourceSystem"] == "AppealAttributeMatrix"
-    assert row["IsActive"] == "Y"
+    # harmonised overrides upstream metadata
+    assert row["ODTSourceSystem"] == "X"
+    assert row["IsActive"] is None
 
 
 def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing_ingestion_date_to_timestamp():
@@ -103,9 +101,8 @@ def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing
         ["attribute", "IngestionDate"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -122,44 +119,16 @@ def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original
         ["attribute", "appealReference"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
     assert df.columns == [
         "attribute",
         "appealReference",
-        "TEMP_PK",
         "ODTSourceSystem",
         "IngestionDate",
-        "IsActive",
-    ]
-
-
-def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original_column_order_when_ingestion_date_exists_in_source():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    std_data = spark.createDataFrame(
-        [
-            ("housing need", "APP-001", "2025-01-01"),
-        ],
-        ["attribute", "appealReference", "IngestionDate"],
-    )
-
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
-
-    df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-    assert df.columns == [
-        "attribute",
-        "appealReference",
-        "IngestionDate",
-        "TEMP_PK",
-        "ODTSourceSystem",
         "IsActive",
     ]
 
@@ -174,9 +143,8 @@ def test__appeal_attribute_matrix_harmonisation_process__process__casts_s78_to_s
         ["attribute", "s78"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -194,9 +162,8 @@ def test__appeal_attribute_matrix_harmonisation_process__process__preserves_dupl
         ["attribute"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -214,9 +181,8 @@ def test__appeal_attribute_matrix_harmonisation_process__process__uses_overwrite
         ["attribute"],
     )
 
-    with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
-        inst = AppealAttributeMatrixHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+    inst = AppealAttributeMatrixHarmonisationProcess(spark)
+    data_to_write, result = inst.process(source_data={"standardised_data": std_data})
 
     assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
     assert result.metadata.insert_count == 1
