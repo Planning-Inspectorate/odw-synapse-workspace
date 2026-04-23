@@ -111,10 +111,7 @@ def test__service_bus_standardisation__process_applies_anonymisation_in_non_prod
     assert kwargs["source_folder"] == "ServiceBus"
 
     written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = {
-        (row["full_name"], row["emailAddress"])
-        for row in written_df.select("full_name", "emailAddress").collect()
-    }
+    rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
 
     assert rows == {
         ("J*** **e", "j******e@example.com"),
@@ -154,10 +151,7 @@ def test__service_bus_standardisation__process_skips_anonymisation_in_production
     mock_apply.assert_not_called()
 
     written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = {
-        (row["full_name"], row["emailAddress"])
-        for row in written_df.select("full_name", "emailAddress").collect()
-    }
+    rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
 
     assert rows == {
         ("John Doe", "john.doe@example.com"),
