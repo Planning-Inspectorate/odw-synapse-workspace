@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1ee1ad93-bba7-4a62-be7e-38f68454139d"
+				"spark.autotune.trackingId": "4008e3c1-5f67-4b78-a4fe-b8587f584566"
 			}
 		},
 		"metadata": {
@@ -34,15 +34,15 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
@@ -71,6 +71,25 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"PipelineName = \"pln_curated\"\n",
+					"\n",
+					"PipelineRunID = \"4d524b0c-541d-47fc-9f85-e152a758548e\"\n",
+					"\n",
+					"PipelineTriggerID = \"ced8187b-67df-4d23-b333-a84c7c09cc2c\"\n",
+					"\n",
+					"PipelineTriggerName = \"ced8187b-67df-4d23-b333-a84c7c09cc2c\"\n",
+					"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"\n",
+					"PipelineTriggeredbyPipelineRunID = \"7f446fc7-6541-4347-9178-cbaa36080fdd\""
+				],
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"import sys\n",
 					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count\n",
 					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType\n",
@@ -78,27 +97,27 @@
 					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
 					"from datetime import datetime, timedelta"
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"spark_table_final = \"odw_harmonised_db.load_green_specialist_case\"\n",
-					"source_table = \"odw_standardised_db.green_specialist_case\"\n",
+					"spark_table_final = \"odw_harmonised_db.comment_state_ref\"\n",
+					"source_table = \"odw_standardised_db.casestatementreference\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
@@ -106,7 +125,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -127,7 +146,7 @@
 					"        error_message = f\"Error in setting policy or deleting data from {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "code",
@@ -147,7 +166,7 @@
 					"                ID,\n",
 					"                value,\n",
 					"                CURRENT_DATE()      AS IngestionDate,\n",
-					"                NULL                AS RowID,\n",
+					"                NULL                AS RowID\n",
 					"       \n",
 					"            FROM {source_table}\n",
 					"      \n",
@@ -163,26 +182,30 @@
 					"        end_exec_time = datetime.now()\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        # Update RowID with MD5 hash\n",
 					"        logInfo(\"Starting RowID update with MD5 hash values\")\n",
-					"        spark.sql(f\"\"\"\n",
-					"            UPDATE {spark_table_final}\n",
-					"            SET RowID = md5(concat_ws('|', \n",
-					"                COALESCE(TRIM(CAST(ID                   AS STRING)), ''),\n",
-					"                COALESCE(TRIM(CAST(value                AS STRING)), '')\n",
-					"        \"\"\")\n",
+					"\n",
+					"        sql_stmt = f\"\"\"\n",
+					"UPDATE {spark_table_final}\n",
+					"SET RowID = md5(concat_ws('|',\n",
+					"    COALESCE(TRIM(CAST(ID    AS STRING)), ''),\n",
+					"    COALESCE(TRIM(CAST(value AS STRING)), '')\n",
+					"))\n",
+					"\"\"\"\n",
+					"        logInfo(f\"About to run SQL:\\n{sql_stmt}\")\n",
+					"        spark.sql(sql_stmt)\n",
 					"        logInfo(\"Successfully updated all RowID values with MD5 hashes\")\n",
 					"\n",
 					"        null_rowid_count = spark.sql(\n",
 					"            f\"SELECT COUNT(*) as count FROM {spark_table_final} WHERE RowID IS NULL\"\n",
 					"        ).collect()[0]['count']\n",
+					"\n",
 					"        if null_rowid_count > 0:\n",
 					"            logError(f\"Data quality issue: {null_rowid_count} rows have NULL RowID values\")\n",
 					"        else:\n",
@@ -195,10 +218,9 @@
 					"        error_message = (\n",
 					"            f\"Error in updating RowID for {spark_table_final}: {str(e)[:800]}\"\n",
 					"        )\n",
-					"        end_exec_time = datetime.now()\n",
-					""
+					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -235,7 +257,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 42
 			}
 		]
 	}
