@@ -92,10 +92,11 @@ def test__appeal_attribute_matrix_harmonisation_process__process__preserves_exis
         data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
     df = data_to_write[inst.OUTPUT_TABLE]["data"]
+
     row = df.collect()[0]
 
-    assert row["ODTSourceSystem"] == "ManualLoad"
-    assert row["IsActive"] == "N"
+    assert row["ODTSourceSystem"] == "AppealAttributeMatrix"
+    assert row["IsActive"] == "Y"
 
 
 def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing_ingestion_date_to_timestamp():
