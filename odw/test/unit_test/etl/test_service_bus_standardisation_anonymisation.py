@@ -111,10 +111,15 @@ def test__service_bus_standardisation__process_applies_anonymisation_in_non_prod
     assert kwargs["source_folder"] == "ServiceBus"
 
     written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = written_df.select("full_name", "emailAddress").collect()
+    rows = {
+        (row["full_name"], row["emailAddress"])
+        for row in written_df.select("full_name", "emailAddress").collect()
+    }
 
-    assert rows[0]["full_name"] == "J*** **e"
-    assert rows[0]["emailAddress"] == "j******e@example.com"
+    assert rows == {
+        ("J*** **e", "j******e@example.com"),
+        ("J*** ****h", "j********h@example.com"),
+    }
     assert etl_result.metadata.table_name == "sb_service_user"
 
 
@@ -149,10 +154,15 @@ def test__service_bus_standardisation__process_skips_anonymisation_in_production
     mock_apply.assert_not_called()
 
     written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = written_df.select("full_name", "emailAddress").collect()
+    rows = {
+        (row["full_name"], row["emailAddress"])
+        for row in written_df.select("full_name", "emailAddress").collect()
+    }
 
-    assert rows[0]["full_name"] == "John Doe"
-    assert rows[0]["emailAddress"] == "john.doe@example.com"
+    assert rows == {
+        ("John Doe", "john.doe@example.com"),
+        ("Jane Smith", "jane.smith@example.com"),
+    }
     assert etl_result.metadata.table_name == "sb_service_user"
 
 
