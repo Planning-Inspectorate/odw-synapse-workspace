@@ -5,10 +5,17 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 
 
+def _std_schema(spark):
+    # Minimal dummy standardised schema required by curated process
+    return spark.createDataFrame(
+        [("dummy",)],
+        ["attribute"],
+    )
+
+
 def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present():
     spark = PytestSparkSessionUtil().get_spark_session()
 
-    # Curated assumes harmonised data is already filtered to IsActive == 'Y'
     hrm_data = spark.createDataFrame(
         [
             ("a", "Y"),
@@ -16,11 +23,14 @@ def test__appeal_attribute_matrix_curated_process__process__filters_only_active_
         ["attribute", "IsActive"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -34,7 +44,6 @@ def test__appeal_attribute_matrix_curated_process__process__filters_only_active_
 def test__appeal_attribute_matrix_curated_process__process__isactive_branch_takes_precedence_over_latest_per_temp_pk():
     spark = PytestSparkSessionUtil().get_spark_session()
 
-    # Curated assumes any inactive rows have already been removed
     hrm_data = spark.createDataFrame(
         [
             ("a-old", "pk1", "2025-01-01", "Y"),
@@ -42,11 +51,14 @@ def test__appeal_attribute_matrix_curated_process__process__isactive_branch_take
         ["attribute", "TEMP_PK", "IngestionDate", "IsActive"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -67,11 +79,14 @@ def test__appeal_attribute_matrix_curated_process__process__selects_latest_recor
         ["attribute", "TEMP_PK", "IngestionDate"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -90,11 +105,14 @@ def test__appeal_attribute_matrix_curated_process__process__passes_through_when_
         ["attribute"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -112,7 +130,7 @@ def test__appeal_attribute_matrix_curated_process__process__adds_missing_standar
         ["attribute"],
     )
 
-    std_data = spark.createDataFrame(
+    std_schema = spark.createDataFrame(
         [("a", "APP-001")],
         ["attribute", "appealReference"],
     )
@@ -122,7 +140,7 @@ def test__appeal_attribute_matrix_curated_process__process__adds_missing_standar
         data_to_write, _ = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
-                "standardised_data": std_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -141,7 +159,7 @@ def test__appeal_attribute_matrix_curated_process__process__orders_columns_std_f
         ["attribute", "TEMP_PK", "ODTSourceSystem", "IngestionDate", "IsActive"],
     )
 
-    std_data = spark.createDataFrame(
+    std_schema = spark.createDataFrame(
         [("a", "APP-001")],
         ["attribute", "appealReference"],
     )
@@ -151,7 +169,7 @@ def test__appeal_attribute_matrix_curated_process__process__orders_columns_std_f
         data_to_write, _ = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
-                "standardised_data": std_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -175,11 +193,14 @@ def test__appeal_attribute_matrix_curated_process__process__casts_s78_to_string_
         ["attribute", "s78"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, _ = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
@@ -196,11 +217,14 @@ def test__appeal_attribute_matrix_curated_process__process__uses_overwrite_write
         ["attribute"],
     )
 
+    std_schema = _std_schema(spark)
+
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
         inst = AppealAttributeMatrixCuratedProcess(spark)
         data_to_write, result = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
+                "standardised_schema": std_schema,
             }
         )
 
