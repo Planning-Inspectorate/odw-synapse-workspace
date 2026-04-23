@@ -51,7 +51,11 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
             "\nActual dataframe\n"
             f"{actual._jdf.showString(rows_to_show, 20, False)}"
         )
-    assert not data_mismatch, exception_message
+    try:
+        assert not data_mismatch, exception_message
+    finally:
+        expected.unpersist()
+        actual.unpersist()
 
 
 def assert_etl_result_successful(etl_result: ETLResult):
