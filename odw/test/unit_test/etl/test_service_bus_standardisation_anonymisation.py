@@ -91,146 +91,18 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             "raw_messages": raw_df,
         }
 
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-            return_value=anonymised_df,
-        ) as mock_apply,
-    ):
-        data_to_write, etl_result = process.process(
-            source_data=source_data.copy(),
-            entity_name="service-user",
-        )
-
-    mock_apply.assert_called_once()
-    _, kwargs = mock_apply.call_args
-    assert kwargs["entity_name"] == "service-user"
-    assert kwargs["source_folder"] == "ServiceBus"
-
-    written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
-
-    assert rows == {
-        ("J*** **e", "j******e@example.com"),
-        ("J*** ****h", "j********h@example.com"),
-    }
-    assert etl_result.metadata.table_name == "sb_service_user"
-
-
-def test__service_bus_standardisation__process_skips_anonymisation_in_production():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    table_df = _build_existing_table_df(spark)
-    raw_df = _build_raw_messages_df(spark)
-
-    process = ServiceBusStandardisationProcess(spark=spark)
-
-    source_data = {
-        "odw_standardised_db.sb_service_user": table_df,
-        "raw_messages": raw_df,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=False),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
-        ) as mock_apply,
-    ):
-        data_to_write, etl_result = process.process(
-            source_data=source_data.copy(),
-            entity_name="service-user",
-        )
-
-    mock_apply.assert_not_called()
-
-    written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-    rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
-
-    assert rows == {
-        ("John Doe", "john.doe@example.com"),
-        ("Jane Smith", "jane.smith@example.com"),
-    }
-    assert etl_result.metadata.table_name == "sb_service_user"
-
-
-def test__service_bus_standardisation__process_preserves_standard_write_contract():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    table_df = _build_existing_table_df(spark)
-    raw_df = _build_raw_messages_df(spark)
-    anonymised_df = _build_anonymised_df(spark)
-
-    process = ServiceBusStandardisationProcess(spark=spark)
-
-    source_data = {
-        "odw_standardised_db.sb_service_user": table_df,
-        "raw_messages": raw_df,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-            return_value=anonymised_df,
-        ),
-    ):
-        data_to_write, _ = process.process(
-            source_data=source_data.copy(),
-            entity_name="service-user",
-        )
-
-    payload = data_to_write["odw_standardised_db.sb_service_user"]
-
-    assert payload["storage_kind"] == "ADLSG2-Table"
-    assert payload["database_name"] == "odw_standardised_db"
-    assert payload["table_name"] == "sb_service_user"
-    assert payload["storage_endpoint"] == "test-storage.dfs.core.windows.net"
-    assert payload["container_name"] == "odw-standardised"
-    assert payload["blob_path"] == "sb_service_user"
-    assert payload["file_format"] == "delta"
-    assert payload["write_mode"] == "append"
-    assert payload["write_options"] == {"mergeSchema": "true"}
-
-
-def test__service_bus_standardisation__process_raises_when_anonymisation_fails():
-    spark = PytestSparkSessionUtil().get_spark_session()
-
-    table_df = _build_existing_table_df(spark)
-    raw_df = _build_raw_messages_df(spark)
-
-    process = ServiceBusStandardisationProcess(spark=spark)
-
-    source_data = {
-        "odw_standardised_db.sb_service_user": table_df,
-        "raw_messages": raw_df,
-    }
-
-    with (
-        mock.patch.object(Util, "is_non_production_environment", return_value=True),
-        mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
-        mock.patch.object(LoggingUtil, "__new__"),
-        mock.patch.object(LoggingUtil, "log_info", return_value=None),
-        mock.patch.object(LoggingUtil, "log_error", return_value=None),
-        mock.patch(
-            "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
-            side_effect=RuntimeError("Purview anonymisation failed"),
-        ),
-    ):
-        try:
-            process.process(
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=True),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
+                return_value=anonymised_df,
+            ) as mock_apply,
+        ):
+            data_to_write, etl_result = process.process(
                 source_data=source_data.copy(),
                 entity_name="service-user",
             )
@@ -241,10 +113,12 @@ def test__service_bus_standardisation__process_raises_when_anonymisation_fails()
         assert kwargs["source_folder"] == "ServiceBus"
 
         written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-        rows = written_df.select("full_name", "emailAddress").collect()
+        rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
 
-        assert rows[0]["full_name"] == "J*** **e"
-        assert rows[0]["emailAddress"] == "j******e@example.com"
+        assert rows == {
+            ("J*** **e", "j******e@example.com"),
+            ("J*** ****h", "j********h@example.com"),
+        }
         assert etl_result.metadata.table_name == "sb_service_user"
 
     def test__service_bus_standardisation__process_skips_anonymisation_in_production(self):
@@ -278,10 +152,12 @@ def test__service_bus_standardisation__process_raises_when_anonymisation_fails()
         mock_apply.assert_not_called()
 
         written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-        rows = written_df.select("full_name", "emailAddress").collect()
+        rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
 
-        assert rows[0]["full_name"] == "John Doe"
-        assert rows[0]["emailAddress"] == "john.doe@example.com"
+        assert rows == {
+            ("John Doe", "john.doe@example.com"),
+            ("Jane Smith", "jane.smith@example.com"),
+        }
         assert etl_result.metadata.table_name == "sb_service_user"
 
     def test__service_bus_standardisation__process_preserves_standard_write_contract(self):
