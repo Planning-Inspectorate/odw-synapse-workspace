@@ -80,8 +80,8 @@ def test__horizon_standardisation__anonymisation_applied_in_dev_environment():
     assert rows[1]["Last Name"] == "REDACTED"
 
     # Email should be masked
-    assert rows[0]["Email Address"] == "j******e@example.com"
-    assert rows[1]["Email Address"] == "j********h@example.com"
+    assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+    assert rows[1]["Email Address"] == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
 
     # Birth date should be within anonymised range
     start = date(1955, 1, 1)
@@ -197,8 +197,7 @@ def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns
     # Sensitive columns should be anonymised
     assert rows[0]["First Name"] == "REDACTED"
     assert rows[0]["Last Name"] == "REDACTED"
-    assert rows[0]["Email Address"] == "j******e@example.com"
-
+    assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
 
 def test__horizon_standardisation__anonymisation_handles_column_name_transformations():
     """
@@ -258,8 +257,7 @@ def test__horizon_standardisation__anonymisation_handles_column_name_transformat
     # Classified columns should be anonymised
     assert rows[0]["first_name"] == "REDACTED"
     assert rows[0]["last_name"] == "REDACTED"
-    assert rows[0]["email_address"] == "j******e@example.com"
-
+    assert rows[0]["email_address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
 
 def test__horizon_standardisation__anonymisation_is_idempotent():
     """
@@ -312,6 +310,46 @@ def test__horizon_standardisation__anonymisation_is_idempotent():
     assert rows_1[0]["Annual Salary"] == rows_2[0]["Annual Salary"]
 
 
+def test__email_mask__case_insensitive_emails_produce_identical_hash():
+    """
+    Test that the same email address in different cases produces the same SHA-256 hash,
+    making it safe to join anonymised email columns across tables with inconsistent casing.
+    e.g. JOHN.DOE@EXAMPLE.COM and john.doe@example.com must hash identically.
+    """
+    spark = PytestSparkSessionUtil().get_spark_session()
+
+    data = [
+        {"Staff Number": "S001", "Email Address": "JOHN.DOE@EXAMPLE.COM"},
+        {"Staff Number": "S002", "Email Address": "john.doe@example.com"},
+    ]
+    df = spark.createDataFrame(data)
+    df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+
+    mocked_purview_cols = [{"column_name": "Email Address", "classifications": ["Email Address"]}]
+
+    with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+        with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+            with mock.patch.object(LoggingUtil, "__new__"):
+                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch(
+                            "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                            return_value=mocked_purview_cols,
+                        ):
+                            from odw.core.anonymisation.engine import AnonymisationEngine
+
+                            engine = AnonymisationEngine()
+                            result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+    rows = result_df.select("Email Address").orderBy("Email Address").collect()
+    # sha256("john.doe@example.com") — both casing variants must produce this
+    expected_hash = "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+
+    assert rows[0]["Email Address"] == expected_hash, "Uppercase email should produce the same hash as lowercase"
+    assert rows[1]["Email Address"] == expected_hash, "Lowercase email should produce the same hash as uppercase"
+    assert rows[0]["Email Address"] == rows[1]["Email Address"], "Both casing variants must hash identically"
+
+
 def test__horizon_standardisation__anonymisation_handles_null_values():
     """
     Test that anonymisation correctly handles null values in sensitive columns
@@ -361,7 +399,7 @@ def test__horizon_standardisation__anonymisation_handles_null_values():
 
     # First row should be anonymised
     assert rows[0]["First Name"] == "REDACTED"
-    assert rows[0]["Email Address"] == "j******e@example.com"
+    assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
 
     # Second row nulls should remain null
     assert rows[1]["First Name"] is None
