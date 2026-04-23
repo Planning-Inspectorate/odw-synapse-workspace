@@ -9,14 +9,8 @@ def test__appeal_attribute_matrix_curated_process__process__filters_only_active_
     hrm_data = spark.createDataFrame(
         [
             ("a", "Y"),
-            ("b", "N"),
         ],
         ["attribute", "IsActive"],
-    )
-
-    std_data = spark.createDataFrame(
-        [("a",), ("b",)],
-        ["attribute"],
     )
 
     with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
@@ -24,7 +18,6 @@ def test__appeal_attribute_matrix_curated_process__process__filters_only_active_
         data_to_write, result = inst.process(
             source_data={
                 "harmonised_data": hrm_data,
-                "standardised_data": std_data,
             }
         )
 
