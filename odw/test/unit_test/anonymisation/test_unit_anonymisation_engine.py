@@ -199,6 +199,7 @@ def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns
     assert rows[0]["Last Name"] == "REDACTED"
     assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
 
+
 def test__horizon_standardisation__anonymisation_handles_column_name_transformations():
     """
     Test that anonymisation works correctly after Horizon column name transformations
@@ -258,6 +259,7 @@ def test__horizon_standardisation__anonymisation_handles_column_name_transformat
     assert rows[0]["first_name"] == "REDACTED"
     assert rows[0]["last_name"] == "REDACTED"
     assert rows[0]["email_address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+
 
 def test__horizon_standardisation__anonymisation_is_idempotent():
     """
