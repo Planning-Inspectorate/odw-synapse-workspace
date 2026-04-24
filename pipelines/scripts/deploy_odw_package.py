@@ -28,7 +28,7 @@ class ODWPackageDeployer():
         odw_packages = [package for package in packages if package["name"].startswith("odw")]
         return sorted(
             odw_packages,
-            key=lambda package: datetime.strptime(package["properties"]["uploadedTimestamp"].replace("+00:00", "")[:-8], "%Y-%m-%dT%H:%M:%S")
+            key=lambda package: datetime.strptime(package["properties"]["uploadedTimestamp"], "%Y-%m-%dT%H:%M:%S.%f%z")
         )
 
     def get_odw_packages_bound_to_extra_spark_pools(self, workspace_manager: SynapseWorkspaceManager):
