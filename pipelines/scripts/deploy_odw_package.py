@@ -1,7 +1,7 @@
 from odw_common.util.synapse_workspace_manager import SynapseWorkspaceManager
 from concurrent.futures import ThreadPoolExecutor
 from pipelines.scripts.config import CONFIG
-from dateutil import parser
+from dateutil.parser import parse
 import argparse
 from typing import List, Dict, Any
 from datetime import datetime
@@ -29,7 +29,7 @@ class ODWPackageDeployer():
         odw_packages = [package for package in packages if package["name"].startswith("odw")]
         return sorted(
             odw_packages,
-            key=lambda package: parser.parse(package["properties"]["uploadedTimestamp"])
+            key=lambda package: parse(package["properties"]["uploadedTimestamp"])
         )
 
     def get_odw_packages_bound_to_extra_spark_pools(self, workspace_manager: SynapseWorkspaceManager):
