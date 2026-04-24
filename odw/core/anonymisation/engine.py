@@ -558,8 +558,10 @@ class AnonymisationEngine:
             if not classes:
                 skipped.append({"column": col_name, "reason": "no_allowlisted_classification", "raw_classifications": sorted(raw_classes)})
                 continue
-            if any(classes.intersection(strat.classification_names) for strat in self.strategies) and actual_col not in target_cols:
-                target_cols.append(actual_col)
+            has_matching_strategy = any(classes.intersection(strat.classification_names) for strat in self.strategies)
+            if has_matching_strategy:
+                if actual_col not in target_cols:
+                    target_cols.append(actual_col)
             else:
                 skipped.append({"column": col_name, "reason": "no_matching_strategy", "allowlisted_classifications": sorted(classes)})
 
