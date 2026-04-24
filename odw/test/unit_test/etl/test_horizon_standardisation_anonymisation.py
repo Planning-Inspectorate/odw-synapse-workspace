@@ -65,7 +65,7 @@ def _build_anonymised_df(spark):
             "staff_number": "S001",
             "first_name": "REDACTED",
             "last_name": "REDACTED",
-            "email_address": "j******e@example.com",
+            "email_address": "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f",
             "birth_date": "1980-06-01",
             "annual_salary": "65000",
         }
@@ -129,7 +129,7 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
 
         assert row["first_name"] == "REDACTED"
         assert row["last_name"] == "REDACTED"
-        assert row["email_address"] == "j******e@example.com"
+        assert row["email_address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
         assert etl_result.metadata.table_name == "test_table"
 
     def test__horizon_standardisation__process_skips_anonymisation_in_production(self):

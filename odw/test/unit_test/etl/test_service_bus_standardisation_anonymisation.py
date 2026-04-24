@@ -57,13 +57,13 @@ def _build_anonymised_df(spark):
         {
             "EmployeeID": "E1",
             "full_name": "REDACTED",
-            "emailAddress": "j******e@example.com",
+            "emailAddress": "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f",
             "message_enqueued_time_utc": "2025-01-02T00:00:00.000000+0000",
         },
         {
             "EmployeeID": "E2",
             "full_name": "REDACTED",
-            "emailAddress": "j********h@example.com",
+            "emailAddress": "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859",
             "message_enqueued_time_utc": "2025-01-03T00:00:00.000000+0000",
         },
     ]
@@ -116,8 +116,8 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
 
         assert rows == {
-            ("REDACTED", "j******e@example.com"),
-            ("REDACTED", "j********h@example.com"),
+            ("REDACTED", "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"),
+            ("REDACTED", "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"),
         }
         assert etl_result.metadata.table_name == "sb_service_user"
 
