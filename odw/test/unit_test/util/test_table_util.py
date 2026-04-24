@@ -3,8 +3,7 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from pyspark.sql import SparkSession
-from pyspark.sql import Catalog
+from pyspark.sql import Catalog, SparkSession
 import pytest
 import mock
 from datetime import datetime
@@ -59,7 +58,7 @@ class TestTableUtil(SparkTestCase):
         )
 
     def test_delete_table__successful(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         storage_name = "somestorageaccount"
@@ -78,7 +77,7 @@ class TestTableUtil(SparkTestCase):
                                 notebookutils.mssparkutils.fs.rm.assert_called_once_with(table_location, True)
 
     def test_delete_table__table_does_not_exist(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         with mock.patch.object(Catalog, "tableExists", return_value=False):
@@ -92,7 +91,7 @@ class TestTableUtil(SparkTestCase):
                             assert not notebookutils.mssparkutils.fs.rm.called
 
     def test_delete_table__multiple_occurrences(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         storage_name = "somestorageaccount"
@@ -116,7 +115,7 @@ class TestTableUtil(SparkTestCase):
                                     assert not notebookutils.mssparkutils.fs.rm.called
 
     def test_delete_table_contents__successful(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         storage_name = "somestorageaccount"
@@ -134,7 +133,7 @@ class TestTableUtil(SparkTestCase):
                                 assert not notebookutils.mssparkutils.fs.rm.called
 
     def test_delete_table_contents__table_does_not_exist(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         with mock.patch.object(Catalog, "tableExists", return_value=False):
@@ -146,7 +145,7 @@ class TestTableUtil(SparkTestCase):
                         LoggingUtil.log_info.assert_has_calls([mock.call(f"Table {db_name}.{table_name} does not exist")], any_order=True)
 
     def test_delete_table_contents__multiple_occurrences(self):
-        spark = SparkSession.builder.getOrCreate()
+        spark = PytestSparkSessionUtil().get_spark_session()
         db_name = "some_db"
         table_name = "some_table"
         storage_name = "somestorageaccount"
