@@ -102,20 +102,13 @@ class EmailMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        """Mask the email local part using native Spark column expressions.
+        """Hash the email address using SHA-256 of the lowercased value.
 
-        Keeps the first and last character of the local part and replaces the
-        middle with '*'. The domain is preserved unchanged. Non-email strings
-        are masked end-to-end keeping only first and last character.
+        Normalising to lowercase before hashing ensures the same email stored in
+        different cases across tables produces the same hash, enabling reliable
+        joins on the anonymised column. Nulls are preserved.
         """
-        col_expr = F.col(column).cast("string")
-        has_at = col_expr.contains("@")
-        local_part = F.split(col_expr, "@").getItem(0)
-        domain_part = F.split(col_expr, "@").getItem(1)
-        masked_local = F.regexp_replace(local_part, r"(?<=.).(?=.)", "*")
-        email_result = F.concat(masked_local, F.lit("@"), domain_part)
-        non_email_result = F.regexp_replace(col_expr, r"(?<=.).(?=.)", "*")
-        result = F.when(F.col(column).isNull(), None).otherwise(F.when(has_at, email_result).otherwise(non_email_result))
+        result = F.when(F.col(column).isNull(), None).otherwise(F.sha2(F.lower(F.col(column).cast("string")), 256))
         return df.withColumn(column, result)
 
 
