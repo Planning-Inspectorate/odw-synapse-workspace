@@ -6,11 +6,165 @@
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
-		"metadata": {
-			"language_info": {
-				"name": "python"
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "0a689c40-5d55-4020-ba8d-ed0f6e988a16"
 			}
 		},
-		"cells": []
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					" \n",
+					"if workspace == 'pins-synw-odw-prod-uks':\n",
+					"    storage_account_name = 'pinsstmpescproduksqz8bvk'\n",
+					"elif workspace == 'pins-synw-odw-dev-uks':\n",
+					"    storage_account_name = 'pinsstmpescdevuksw49hqz'\n",
+					"else:\n",
+					"    raise ValueError(f'Unknown workspace: {workspace}')\n",
+					" \n",
+					"csv_base_path = f'abfss://mpesc@{storage_account_name}.dfs.core.windows.net'\n",
+					" \n",
+					"print(f'Workspace       : {workspace}')\n",
+					"print(f'Storage account : {storage_account_name}')\n",
+					"print(f'Base path       : {csv_base_path}')\n",
+					" \n",
+					"# ── 2. Load source files ──────────────────────────────────────────────────────\n",
+					" \n",
+					"case_path      = f'{csv_base_path}/MPESC-SPREADSHEET/EXTRACT/Case.csv'\n",
+					"authority_path = f'{csv_base_path}/config/Authority.csv'\n",
+					" \n",
+					"print(f'\\nReading Case      : {case_path}')\n",
+					"print(f'Reading Authority : {authority_path}')\n",
+					" \n",
+					"case_df      = spark.read.option('header', 'true').csv(case_path)\n",
+					"authority_df = spark.read.option('header', 'true').csv(authority_path)\n",
+					" \n",
+					"print(f'Case rows      : {case_df.count()}')\n",
+					"print(f'Authority rows : {authority_df.count()}')\n",
+					" "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"case_df = case_df.withColumnRenamed('authorityId', 'legacyAuthorityId')\n",
+					" \n",
+					"# ── 4. Build the pinsCode → GUID lookup from Authority ────────────────────────\n",
+					" \n",
+					"authority_lookup = (\n",
+					"    authority_df\n",
+					"    .select('pinsCode', 'id')        # id is the GUID we want to map to\n",
+					"    .withColumnRenamed('id', 'authorityId')  # rename so the join result is clean\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import col\n",
+					" \n",
+					"enriched_df = case_df.join(\n",
+					"    authority_lookup,\n",
+					"    case_df['legacyAuthorityId'] == authority_lookup['pinsCode'],\n",
+					"    how='left'\n",
+					").drop('pinsCode') "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"total_rows       = enriched_df.count()\n",
+					"unmapped_rows    = enriched_df.filter(col('authorityId').isNull()).count()\n",
+					"mapped_rows      = total_rows - unmapped_rows\n",
+					" \n",
+					"print(f'\\nTotal rows       : {total_rows}')\n",
+					"print(f'Mapped rows      : {mapped_rows}')\n",
+					"print(f'Unmapped rows    : {unmapped_rows}')\n",
+					" \n",
+					"if unmapped_rows > 0:\n",
+					"    print('\\nWARNING: Some cases could not be matched to an Authority GUID.')\n",
+					"    print('Unmatched legacyAuthorityId values:')\n",
+					"    (\n",
+					"        enriched_df\n",
+					"        .filter(col('authorityId').isNull())\n",
+					"        .select('legacyAuthorityId')\n",
+					"        .distinct()\n",
+					"        .show(50, truncate=False)\n",
+					"    )\n",
+					" "
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print('\\nSample output (legacyAuthorityId → authorityId):')\n",
+					"enriched_df.select('id', 'legacyAuthorityId', 'authorityId').show(10, truncate=False)\n",
+					" \n",
+					"# ── 8. Write output ───────────────────────────────────────────────────────────\n",
+					" \n",
+					"output_path = f'{csv_base_path}/MPESC-SPREADSHEET/EXTRACT/Case.csv'\n",
+					" \n",
+					"print(f'\\nWriting output to: {output_path}')\n",
+					" \n",
+					"(\n",
+					"    enriched_df\n",
+					"    .coalesce(1)                          # single CSV file output\n",
+					"    .write\n",
+					"    .mode('overwrite')\n",
+					"    .option('header', 'true')\n",
+					"    .csv(output_path)\n",
+					")\n",
+					" \n",
+					"print('Migration complete.')"
+				],
+				"execution_count": null
+			}
+		]
 	}
 }
