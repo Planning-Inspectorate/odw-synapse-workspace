@@ -651,10 +651,10 @@ class TestAnonymisationEngine(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
-            {"id": "1", "Postcode": "SW1W  9SP"},   # multiple spaces
+            {"id": "1", "Postcode": "SW1W  9SP"},  # multiple spaces
             {"id": "2", "Postcode": "  E17 4NT  "},  # leading/trailing spaces
-            {"id": "3", "Postcode": "sw1w 9sp"},     # lowercase
-            {"id": "4", "Postcode": "E174NT"},       # no space
+            {"id": "3", "Postcode": "sw1w 9sp"},  # lowercase
+            {"id": "4", "Postcode": "E174NT"},  # no space
         ]
         df = spark.createDataFrame(data)
 
@@ -675,10 +675,10 @@ class TestAnonymisationEngine(SparkTestCase):
                                 result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
 
         rows = result_df.select("Postcode").collect()
-        assert rows[0]["Postcode"] == "SW1W"   # multiple spaces: first block kept
-        assert rows[1]["Postcode"] == "E17"    # leading/trailing spaces stripped, first block kept
-        assert rows[2]["Postcode"] == "sw1w"   # lowercase preserved as-is
-        assert rows[3]["Postcode"] == "E174NT" # no space: full value kept (no block to split)
+        assert rows[0]["Postcode"] == "SW1W"  # multiple spaces: first block kept
+        assert rows[1]["Postcode"] == "E17"  # leading/trailing spaces stripped, first block kept
+        assert rows[2]["Postcode"] == "sw1w"  # lowercase preserved as-is
+        assert rows[3]["Postcode"] == "E174NT"  # no space: full value kept (no block to split)
 
     def test__anonymisation__non_allowlisted_classification_skipped(self):
         from odw.core.anonymisation.engine import AnonymisationEngine
@@ -714,8 +714,8 @@ class TestAnonymisationEngine(SparkTestCase):
                                 )
 
         rows = result_df.select("Postcode", "Secret").collect()
-        assert rows[0]["Postcode"] == "E17"        # anonymised — classification in allowlist
-        assert rows[0]["Secret"] == "sensitive"    # not anonymised — classification not in allowlist
+        assert rows[0]["Postcode"] == "E17"  # anonymised — classification in allowlist
+        assert rows[0]["Secret"] == "sensitive"  # not anonymised — classification not in allowlist
 
     def test__anonymisation__duplicate_purview_column_applied_once(self):
         from odw.core.anonymisation.engine import AnonymisationEngine

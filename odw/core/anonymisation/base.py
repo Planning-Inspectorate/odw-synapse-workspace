@@ -177,7 +177,9 @@ class AddressStrategy(BaseStrategy):
                 for field in schema.fields:
                     if field.name.lower() == "postcode":
                         pc = F.col(f"`{column}`.`{field.name}`")
-                        redacted_fields.append(F.when(pc.isNull(), None).otherwise(F.split(F.trim(pc.cast("string")), r"\s+").getItem(0)).alias(field.name))
+                        redacted_fields.append(
+                            F.when(pc.isNull(), None).otherwise(F.split(F.trim(pc.cast("string")), r"\s+").getItem(0)).alias(field.name)
+                        )
                     else:
                         field_col = F.col(f"`{column}`.`{field.name}`")
                         redacted_fields.append(F.when(field_col.isNull(), None).otherwise(F.lit("REDACTED")).alias(field.name))
