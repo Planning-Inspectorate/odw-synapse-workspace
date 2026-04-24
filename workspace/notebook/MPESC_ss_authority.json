@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0a689c40-5d55-4020-ba8d-ed0f6e988a16"
+				"spark.autotune.trackingId": "e0cd6d2d-5b04-4ce1-9132-4f717386444a"
 			}
 		},
 		"metadata": {
@@ -85,7 +85,7 @@
 					"print(f'Authority rows : {authority_df.count()}')\n",
 					" "
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -100,7 +100,7 @@
 					"    .withColumnRenamed('id', 'authorityId')  # rename so the join result is clean\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -113,7 +113,7 @@
 					"    how='left'\n",
 					").drop('pinsCode') "
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -138,32 +138,49 @@
 					"    )\n",
 					" "
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"print('\\nSample output (legacyAuthorityId → authorityId):')\n",
-					"enriched_df.select('id', 'legacyAuthorityId', 'authorityId').show(10, truncate=False)\n",
-					" \n",
-					"# ── 8. Write output ───────────────────────────────────────────────────────────\n",
-					" \n",
-					"output_path = f'{csv_base_path}/MPESC-SPREADSHEET/EXTRACT/Case.csv'\n",
-					" \n",
-					"print(f'\\nWriting output to: {output_path}')\n",
-					" \n",
-					"(\n",
-					"    enriched_df\n",
-					"    .coalesce(1)                          # single CSV file output\n",
-					"    .write\n",
-					"    .mode('overwrite')\n",
-					"    .option('header', 'true')\n",
-					"    .csv(output_path)\n",
+					"# Re-read sources to clear the broken plan\n",
+					"case_df      = spark.read.option('header', 'true').csv(case_path)\n",
+					"authority_df = spark.read.option('header', 'true').csv(authority_path)\n",
+					"\n",
+					"case_df = case_df.withColumnRenamed('authorityId', 'legacyAuthorityId')\n",
+					"\n",
+					"authority_lookup = (\n",
+					"    authority_df\n",
+					"    .select('pinsCode', 'id')\n",
+					"    .withColumnRenamed('id', 'authorityId')\n",
 					")\n",
-					" \n",
+					"\n",
+					"enriched_df = case_df.join(\n",
+					"    authority_lookup,\n",
+					"    case_df['legacyAuthorityId'] == authority_lookup['pinsCode'],\n",
+					"    how='left'\n",
+					").drop('pinsCode')\n",
+					"\n",
+					"# Then write\n",
+					"staging_path = f'{csv_base_path}/MPESC-SPREADSHEET/EXTRACT/_Case_staging'\n",
+					"output_path  = f'{csv_base_path}/MPESC-SPREADSHEET/EXTRACT/Case.csv'\n",
+					"\n",
+					"try: mssparkutils.fs.rm(staging_path, recurse=True)\n",
+					"except: pass\n",
+					"\n",
+					"enriched_df.coalesce(1).write.mode('overwrite').option('header', 'true').csv(staging_path)\n",
+					"\n",
+					"part_file = [f.path for f in mssparkutils.fs.ls(staging_path) if f.name.startswith('part-') and f.name.endswith('.csv')][0]\n",
+					"\n",
+					"try: mssparkutils.fs.rm(output_path, recurse=True)\n",
+					"except: pass\n",
+					"\n",
+					"mssparkutils.fs.mv(part_file, output_path)\n",
+					"mssparkutils.fs.rm(staging_path, recurse=True)\n",
+					"\n",
 					"print('Migration complete.')"
 				],
-				"execution_count": null
+				"execution_count": 13
 			}
 		]
 	}
