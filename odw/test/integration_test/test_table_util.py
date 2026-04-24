@@ -2,6 +2,7 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.test_case import SparkTestCase
 import pytest
 import mock
 from datetime import datetime
@@ -100,20 +101,20 @@ def create_table(data_format: str, file_path: str, database_name: str, table_nam
     """)
 
 
-def test_delete_parquet_table():
-    parquet_file_path = "/tmp/out/test_table_util__test_delete_parquet_table.parquet"
-    database_name = "test_table_util"
-    table_name = "test_delete_parquet_table"
-    create_table("parquet", parquet_file_path, database_name, table_name)
-    validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table)
+class TestTableUtil(SparkTestCase):
+    def test_delete_parquet_table(self):
+        parquet_file_path = "/tmp/out/test_table_util__test_delete_parquet_table.parquet"
+        database_name = "test_table_util"
+        table_name = "test_delete_parquet_table"
+        create_table("parquet", parquet_file_path, database_name, table_name)
+        validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table)
 
-
-@pytest.mark.skip("Cannot test this due to compatibility issue when running outside of Synapse. Need to investigate this further")
-def test_delete_delta_table():
-    parquet_file_path = "/tmp/out/test_table_util__test_delete_delta_table.parquet"
-    database_name = "test_table_util"
-    table_name = "test_delete_delta_table"
-    # Note: Writing delta tables requires third-party packages. Logically the process would work on any kind
-    # of data source, so for simplicity this is being tested against parquet for now
-    create_table("parquet", parquet_file_path, database_name, table_name)
-    validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table_contents)
+    @pytest.mark.skip("Cannot test this due to compatibility issue when running outside of Synapse. Need to investigate this further")
+    def test_delete_delta_table(self):
+        parquet_file_path = "/tmp/out/test_table_util__test_delete_delta_table.parquet"
+        database_name = "test_table_util"
+        table_name = "test_delete_delta_table"
+        # Note: Writing delta tables requires third-party packages. Logically the process would work on any kind
+        # of data source, so for simplicity this is being tested against parquet for now
+        create_table("parquet", parquet_file_path, database_name, table_name)
+        validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table_contents)
