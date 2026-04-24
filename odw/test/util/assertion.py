@@ -28,30 +28,39 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     rows_to_show = 20
     # There seems to be a bug that occasionally appears in spark 3.4 that causes a crash when using exceptAll
     # The workaround is to cache before running that command
-    expected.cache()
-    actual.cache()
-    # Update column order, since column order maters when comparing the data
-    # At this stage both data frames are guaranteed to have the same schema
-    expected = expected.select(expected.schema.names)
-    actual = actual.select(expected.schema.names)
-    in_expected_but_not_actual = expected.exceptAll(actual)
-    in_actual_but_not_expected = actual.exceptAll(expected)
-    data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
-    if data_mismatch:
-        missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
-        unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
-        exception_message = (
-            "Data mismatch between expected and actual dataframe\n"
-            "In expected dataframe but not the actual dataframe\n"
-            f"{missing_data_sample}"
-            "\nIn actual dataframe but not the expected dataframe\n"
-            f"{unexpected_data_sample}"
-            "\nExpected dataframe\n"
-            f"{expected._jdf.showString(rows_to_show, 20, False)}"
-            "\nActual dataframe\n"
-            f"{actual._jdf.showString(rows_to_show, 20, False)}"
-        )
-    assert not data_mismatch, exception_message
+    expected_cached = expected.cache()
+    actual_cached = actual.cache()
+
+    try:
+        # Update column order, since column order matters when comparing the data.
+        # At this stage both dataframes are guaranteed to have the same schema.
+        expected_ordered = expected_cached.select(expected_cached.schema.names)
+        actual_ordered = actual_cached.select(expected_cached.schema.names)
+
+        in_expected_but_not_actual = expected_ordered.exceptAll(actual_ordered)
+        in_actual_but_not_expected = actual_ordered.exceptAll(expected_ordered)
+
+        data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
+
+        if data_mismatch:
+            missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
+            unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
+            exception_message = (
+                "Data mismatch between expected and actual dataframe\n"
+                "In expected dataframe but not the actual dataframe\n"
+                f"{missing_data_sample}"
+                "\nIn actual dataframe but not the expected dataframe\n"
+                f"{unexpected_data_sample}"
+                "\nExpected dataframe\n"
+                f"{expected_ordered._jdf.showString(rows_to_show, 20, False)}"
+                "\nActual dataframe\n"
+                f"{actual_ordered._jdf.showString(rows_to_show, 20, False)}"
+            )
+
+        assert not data_mismatch, exception_message
+    finally:
+        expected_cached.unpersist(blocking=True)
+        actual_cached.unpersist(blocking=True)
 
 
 def assert_etl_result_successful(etl_result: ETLResult):

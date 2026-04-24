@@ -1,4 +1,5 @@
 from odw.test.util.session_util import PytestSparkSessionUtil
+import gc
 import pytest
 
 
@@ -47,3 +48,4 @@ class SparkTestCase(TestCase):
         # Clear the spark cache to free up some memory
         spark = PytestSparkSessionUtil().get_spark_session()
         spark.catalog.clearCache()
+        gc.collect()
