@@ -8,7 +8,6 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 
-
 class AppealAttributeMatrixCuratedProcess(CurationProcess):
     STANDARDISED_TABLE = "odw_standardised_db.appeal_attribute_matrix"
     HARMONISED_TABLE = "odw_harmonised_db.ref_appeal_attribute_matrix"

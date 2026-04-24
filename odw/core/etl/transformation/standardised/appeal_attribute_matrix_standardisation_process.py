@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Dict
 import re
 
-
 class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
     OUTPUT_TABLE = "appeal_attribute_matrix"
 
