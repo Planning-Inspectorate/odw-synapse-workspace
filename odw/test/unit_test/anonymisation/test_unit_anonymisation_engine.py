@@ -443,7 +443,6 @@ class TestAnonymisationEngine(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         from pyspark.sql.types import StructType, StructField, StringType
 
-<<<<<<< HEAD
         address_schema = StructType(
             [
                 StructField("addressLine1", StringType(), True),

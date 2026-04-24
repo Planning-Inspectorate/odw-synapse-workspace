@@ -2,8 +2,8 @@
 Unit tests for anonymisation of inspector data in the harmonised layer.
 
 Covers the PII fields present in odw_harmonised_db.pins_inspector:
-  - firstName, lastName       → NameMaskStrategy  (keep first letter, mask rest)
-  - inspectorManager          → NameMaskStrategy  (full-name variant: keep first/last letter of each word)
+  - firstName, lastName       → NameMaskStrategy  (REDACTED)
+  - inspectorManager          → NameMaskStrategy  (REDACTED)
   - email                     → EmailMaskStrategy (SHA-256 of lowercased value)
   - address (struct)          → AddressStrategy   (REDACTED for all fields except postcode outward code)
 
@@ -51,7 +51,7 @@ def _apply(spark, data, schema, mocked_cols):
 
 class TestInspectorHarmonisedAnonymisation(SparkTestCase):
     def test__inspector__first_name_is_masked_to_first_letter(self):
-        """firstName is masked: first letter kept, remaining characters replaced with asterisks."""
+        """firstName is anonymised to REDACTED."""
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
@@ -65,11 +65,11 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         out = _apply(spark, data, None, mocked_cols)
         rows = out.orderBy("sapId").select("sapId", "firstName").collect()
 
-        assert rows[0]["firstName"] == "J***"
-        assert rows[1]["firstName"] == "C********"
+        assert rows[0]["firstName"] == "REDACTED"
+        assert rows[1]["firstName"] == "REDACTED"
 
     def test__inspector__last_name_is_masked_to_first_letter(self):
-        """lastName is masked: first letter kept, remaining characters replaced with asterisks."""
+        """lastName is anonymised to REDACTED."""
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
@@ -83,11 +83,11 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         out = _apply(spark, data, None, mocked_cols)
         rows = out.orderBy("sapId").select("sapId", "lastName").collect()
 
-        assert rows[0]["lastName"] == "D**"
-        assert rows[1]["lastName"] == "S****"
+        assert rows[0]["lastName"] == "REDACTED"
+        assert rows[1]["lastName"] == "REDACTED"
 
     def test__inspector__manager_full_name_masks_first_and_last_letter(self):
-        """inspectorManager uses full-name masking: first letter of first name + last letter of last name."""
+        """inspectorManager is anonymised to REDACTED."""
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
@@ -101,8 +101,8 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         out = _apply(spark, data, None, mocked_cols)
         rows = out.orderBy("sapId").select("sapId", "inspectorManager").collect()
 
-        assert rows[0]["inspectorManager"] == "J*** ****h"
-        assert rows[1]["inspectorManager"] == "R***** ****n"
+        assert rows[0]["inspectorManager"] == "REDACTED"
+        assert rows[1]["inspectorManager"] == "REDACTED"
 
     def test__inspector__email_is_sha256_hashed(self):
         """email is SHA-256 hashed (lowercased before hashing for case-insensitive joins)."""
@@ -317,10 +317,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         row = out.select("sapId", "firstName", "lastName", "email", "inspectorManager", "grade", "address").collect()[0]
 
         # PII fields anonymised
-        assert row["firstName"] == "J***"
-        assert row["lastName"] == "D**"
+        assert row["firstName"] == "REDACTED"
+        assert row["lastName"] == "REDACTED"
         assert row["email"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
-        assert row["inspectorManager"] == "J*** ****h"
+        assert row["inspectorManager"] == "REDACTED"
         assert row["address"].addressLine1 == "REDACTED"
         assert row["address"].addressLine2 == "REDACTED"
         assert row["address"].townCity == "REDACTED"
@@ -363,5 +363,5 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         out = _apply(spark, data, None, mocked_cols)
         row = out.select("firstName", "lastName").collect()[0]
 
-        assert row["firstName"] == "J***"
+        assert row["firstName"] == "REDACTED"
         assert row["lastName"] == "Doe"

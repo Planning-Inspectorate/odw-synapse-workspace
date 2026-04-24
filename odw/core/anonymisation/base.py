@@ -181,8 +181,7 @@ class AddressStrategy(BaseStrategy):
                             F.when(pc.isNull(), None).otherwise(F.split(F.trim(pc.cast("string")), r"\s+").getItem(0)).alias(field.name)
                         )
                     else:
-                        field_col = F.col(f"`{column}`.`{field.name}`")
-                        redacted_fields.append(F.when(field_col.isNull(), None).otherwise(F.lit("REDACTED")).alias(field.name))
+                        redacted_fields.append(F.lit("REDACTED").alias(field.name))
                 redacted_struct = F.struct(*redacted_fields)
                 return df.withColumn(column, F.when(F.col(f"`{column}`").isNotNull(), redacted_struct).otherwise(None))
 
