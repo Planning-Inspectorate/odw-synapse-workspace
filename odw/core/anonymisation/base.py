@@ -145,7 +145,7 @@ class PostcodeStrategy(BaseStrategy):
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
         col_expr = F.col(column).cast("string")
-        result = F.when(F.col(column).isNull(), None).otherwise(F.split(col_expr, " ").getItem(0))
+        result = F.when(F.col(column).isNull(), None).otherwise(F.split(F.trim(col_expr), r"\s+").getItem(0))
         return df.withColumn(column, result)
 
 
@@ -176,14 +176,15 @@ class AddressStrategy(BaseStrategy):
                 redacted_fields = []
                 for field in schema.fields:
                     if field.name.lower() == "postcode":
-                        pc = F.col(f"{column}.{field.name}")
-                        redacted_fields.append(F.when(pc.isNull(), None).otherwise(F.split(pc.cast("string"), " ").getItem(0)).alias(field.name))
+                        pc = F.col(f"`{column}`.`{field.name}`")
+                        redacted_fields.append(F.when(pc.isNull(), None).otherwise(F.split(F.trim(pc.cast("string")), r"\s+").getItem(0)).alias(field.name))
                     else:
-                        redacted_fields.append(F.lit("REDACTED").alias(field.name))
+                        field_col = F.col(f"`{column}`.`{field.name}`")
+                        redacted_fields.append(F.when(field_col.isNull(), None).otherwise(F.lit("REDACTED")).alias(field.name))
                 redacted_struct = F.struct(*redacted_fields)
-                return df.withColumn(column, F.when(F.col(column).isNotNull(), redacted_struct).otherwise(None))
+                return df.withColumn(column, F.when(F.col(f"`{column}`").isNotNull(), redacted_struct).otherwise(None))
 
-        return df.withColumn(column, F.when(F.col(column).isNotNull(), F.lit("REDACTED")).otherwise(None))
+        return df.withColumn(column, F.when(F.col(f"`{column}`").isNotNull(), F.lit("REDACTED")).otherwise(None))
 
 
 def default_strategies() -> List[BaseStrategy]:

@@ -644,3 +644,106 @@ class TestAnonymisationEngine(SparkTestCase):
 
         assert rows[1]["sapId"] == "456"
         assert rows[1]["address"] is None
+
+    def test__anonymisation__postcode_edge_cases(self):
+        from odw.core.anonymisation.engine import AnonymisationEngine
+
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        data = [
+            {"id": "1", "Postcode": "SW1W  9SP"},   # multiple spaces
+            {"id": "2", "Postcode": "  E17 4NT  "},  # leading/trailing spaces
+            {"id": "3", "Postcode": "sw1w 9sp"},     # lowercase
+            {"id": "4", "Postcode": "E174NT"},       # no space
+        ]
+        df = spark.createDataFrame(data)
+
+        mocked_purview_cols = [
+            {"column_name": "Postcode", "classifications": ["UK Postcode"]},
+        ]
+
+        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+                with mock.patch.object(LoggingUtil, "__new__"):
+                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                            with mock.patch(
+                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                                return_value=mocked_purview_cols,
+                            ):
+                                engine = AnonymisationEngine()
+                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+        rows = result_df.select("Postcode").collect()
+        assert rows[0]["Postcode"] == "SW1W"   # multiple spaces: first block kept
+        assert rows[1]["Postcode"] == "E17"    # leading/trailing spaces stripped, first block kept
+        assert rows[2]["Postcode"] == "sw1w"   # lowercase preserved as-is
+        assert rows[3]["Postcode"] == "E174NT" # no space: full value kept (no block to split)
+
+    def test__anonymisation__non_allowlisted_classification_skipped(self):
+        from odw.core.anonymisation.engine import AnonymisationEngine
+
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        data = [
+            {"id": "1", "Postcode": "E17 4NT", "Secret": "sensitive"},
+        ]
+        df = spark.createDataFrame(data)
+
+        # Both columns are returned by Purview, but classification_allowlist restricts to "UK Postcode" only
+        mocked_purview_cols = [
+            {"column_name": "Postcode", "classifications": ["UK Postcode"]},
+            {"column_name": "Secret", "classifications": ["Internal Only"]},
+        ]
+
+        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+                with mock.patch.object(LoggingUtil, "__new__"):
+                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                            with mock.patch(
+                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                                return_value=mocked_purview_cols,
+                            ):
+                                engine = AnonymisationEngine()
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                    classification_allowlist=["UK Postcode"],
+                                )
+
+        rows = result_df.select("Postcode", "Secret").collect()
+        assert rows[0]["Postcode"] == "E17"        # anonymised — classification in allowlist
+        assert rows[0]["Secret"] == "sensitive"    # not anonymised — classification not in allowlist
+
+    def test__anonymisation__duplicate_purview_column_applied_once(self):
+        from odw.core.anonymisation.engine import AnonymisationEngine
+
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        data = [
+            {"id": "1", "Postcode": "E17 4NT"},
+        ]
+        df = spark.createDataFrame(data)
+
+        # Purview returns the same column twice (can happen with multiple scan results)
+        mocked_purview_cols = [
+            {"column_name": "Postcode", "classifications": ["UK Postcode"]},
+            {"column_name": "Postcode", "classifications": ["UK Postcode"]},
+        ]
+
+        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+                with mock.patch.object(LoggingUtil, "__new__"):
+                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                            with mock.patch(
+                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                                return_value=mocked_purview_cols,
+                            ):
+                                engine = AnonymisationEngine()
+                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+
+        rows = result_df.select("Postcode").collect()
+        assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
