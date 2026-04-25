@@ -3,6 +3,7 @@ from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from unittest import mock
 
+
 class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
     def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present(self):
         spark = PytestSparkSessionUtil().get_spark_session()

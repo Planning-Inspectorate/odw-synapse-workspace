@@ -7,6 +7,7 @@ from pyspark.sql import types as T
 from datetime import datetime
 from typing import Dict
 
+
 class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "ref_appeal_attribute_matrix"
 

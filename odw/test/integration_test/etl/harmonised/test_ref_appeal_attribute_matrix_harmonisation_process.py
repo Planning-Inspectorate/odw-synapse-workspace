@@ -5,6 +5,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from unittest import mock
 from pyspark.sql import functions as F
 
+
 class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
     def test__appeal_attribute_matrix_harmonisation_process__run__end_to_end_matches_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
