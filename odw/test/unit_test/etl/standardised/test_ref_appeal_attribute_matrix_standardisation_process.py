@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from unittest import mock
+import mock
 import pyspark.sql.types as T
 
 class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):

@@ -1,7 +1,7 @@
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from unittest import mock
+import mock
 from pyspark.sql import functions as F
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
