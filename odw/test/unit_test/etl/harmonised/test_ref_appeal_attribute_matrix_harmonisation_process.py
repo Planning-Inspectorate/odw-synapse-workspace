@@ -4,6 +4,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
 
+
 class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
     def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute(self):
         spark = PytestSparkSessionUtil().get_spark_session()

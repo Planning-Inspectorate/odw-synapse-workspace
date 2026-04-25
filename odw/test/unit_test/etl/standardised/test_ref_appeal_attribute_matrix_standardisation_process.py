@@ -5,6 +5,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import pyspark.sql.types as T
 
+
 class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
     def test__appeal_attribute_matrix_standardisation_process__get_latest_ingestion_date__returns_latest_valid_date(self):
         spark = PytestSparkSessionUtil().get_spark_session()

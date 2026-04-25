@@ -4,6 +4,7 @@ from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 
+
 class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):
     def test__appeal_attribute_matrix_curated_process__run__filters_active_and_matches_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
