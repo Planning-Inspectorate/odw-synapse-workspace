@@ -1,12 +1,8 @@
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-import mock
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
+from unittest import mock
 
 class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):
     def test__appeal_attribute_matrix_curated_process__run__filters_active_and_matches_legacy(self):

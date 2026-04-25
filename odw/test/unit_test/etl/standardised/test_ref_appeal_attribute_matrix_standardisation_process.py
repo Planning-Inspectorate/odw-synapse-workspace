@@ -2,12 +2,8 @@ from types import SimpleNamespace
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-import mock
+from unittest import mock
 import pyspark.sql.types as T
-import pytest
-
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
-
 
 class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
     def test__appeal_attribute_matrix_standardisation_process__get_latest_ingestion_date__returns_latest_valid_date(self):
