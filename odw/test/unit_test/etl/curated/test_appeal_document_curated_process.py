@@ -1,13 +1,10 @@
 import mock
-import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():

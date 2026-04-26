@@ -1,13 +1,10 @@
 import hashlib
 import mock
-import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process import AppealDocumentHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
-
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _service_bus_schema():
