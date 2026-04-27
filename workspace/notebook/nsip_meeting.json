@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c2f4063d-1e0f-4c72-9930-4193d2f2eb80"
+				"spark.autotune.trackingId": "8f718151-2d41-45fa-98d5-f0862bf45488"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -301,25 +301,21 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
-					"    full_table = f\"{db}.{table}\"\n",
-					"    if not spark.catalog.tableExists(full_table):\n",
-					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
-					"        return\n",
-					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
-					"    if column.lower() in current_cols:\n",
-					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
-					"        return\n",
-					"    try:\n",
-					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
-					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
-					"    except AnalysisException as e:\n",
-					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
-					"\n",
-					"# Ensure estimatedPrelimMeetingDate is availiable in nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
-					"ensure_column(\"odw_curated_db\", \"nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+					"# Drop table to remove estimatedPrelimMeetingDate from curated parquet table \n",
+					"if not error_message:\n",
+					"    if spark.catalog.tableExists(full_table_name):\n",
+					"        current_cols = [f.name.lower() for f in spark.table(full_table_name).schema.fields]\n",
+					"        if \"estimatedPrelimMeetingDate\" in current_cols:\n",
+					"            try:\n",
+					"                spark.sql(f\"DROP TABLE IF EXISTS {full_table_name}\")\n",
+					"                print(f\"Dropped table {full_table_name} to remove estimatedPrelimMeetingDate. It will be recreated on write.\")\n",
+					"            except Exception as e:\n",
+					"                print(f\"Error dropping table: {e}\")\n",
+					"        else:\n",
+					"            print(\"Column 'estimatedPrelimMeetingDate' does not exist. No action needed.\")\n",
+					"    else:\n",
+					"        print(f\"Table {full_table_name} does not exist. No action needed.\")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -356,7 +352,6 @@
 					"                meetingId,\n",
 					"                meetingDate,\n",
 					"                meetingType,\n",
-					"                estimatedPrelimMeetingDate,\n",
 					"                IsActive,\n",
 					"                ROW_NUMBER() OVER (\n",
 					"                    PARTITION BY meetingId\n",
@@ -374,7 +369,6 @@
 					"            meetingId,\n",
 					"            meetingDate,\n",
 					"            meetingType,\n",
-					"            estimatedPrelimMeetingDate,\n",
 					"            IsActive\n",
 					"        FROM deduped\n",
 					"        WHERE rn = 1\n",
