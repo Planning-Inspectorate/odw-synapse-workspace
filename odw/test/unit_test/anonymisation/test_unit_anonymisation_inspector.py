@@ -12,8 +12,7 @@ sourceSystem, validFrom, specialisms) must remain unchanged.
 """
 
 from unittest import mock
-import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, StringType, ArrayType
+from pyspark.sql.types import StructType, StructField, StringType
 from odw.core.anonymisation import AnonymisationEngine
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
