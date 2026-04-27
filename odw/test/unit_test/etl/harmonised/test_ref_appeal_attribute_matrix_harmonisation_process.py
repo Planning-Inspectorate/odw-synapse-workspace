@@ -4,6 +4,10 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
 
+from odw.core.util.logging_util import LoggingUtil
+
+LoggingUtil = LoggingUtil
+
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
     def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute(self):
