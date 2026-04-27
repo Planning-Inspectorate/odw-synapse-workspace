@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dbde91a6-c6f8-426f-b50f-b883985a6f91"
+				"spark.autotune.trackingId": "31c91765-39b4-4ac6-ad42-5ab7a2e5430f"
 			}
 		},
 		"metadata": {
@@ -28,7 +28,7 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
@@ -62,10 +62,22 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace: {workspace}\")\n",
+					"\n",
 					"csv_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/EXTRACT\"\n",
+					"temp_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/TEMP-CLEANUP\"\n",
+					"\n",
 					"\n",
 					"print(\"Starting csv data cleanup process...\")\n",
-					"print(f\"csv path: {csv_base_path}\")"
+					"print(f\"csv path: {csv_base_path}\")\n",
+					"print(f\"temp path: {temp_path}\")"
 				],
 				"execution_count": null
 			},
@@ -94,7 +106,7 @@
 					"        print(f\"failed to get csv files: {str(e)}\")\n",
 					"        return []\n",
 					"\n",
-					"csv_files = discover_csv_files()\n",
+					"csv_files = get_csv_files()\n",
 					"\n",
 					"if not csv_files:\n",
 					"    raise Exception(\"No csv files were found to clean\")"
@@ -110,7 +122,7 @@
 					"    csv_path = file_info[\"csv_path\"]\n",
 					"\n",
 					"    try:\n",
-					"        df = spark.read.option(\"header\", True).csv(f\"{csv_base_path}/{csv_path}\")\n",
+					"        df = spark.read.option(\"header\", True).option(\"inferSchema\", False).csv(f\"{csv_base_path}/{csv_path}\")\n",
 					"\n",
 					"        original_rows = df.count()\n",
 					"        original_cols = len(df.columns)\n",
@@ -145,13 +157,32 @@
 					"        cleaned_rows = cleaned_df.count()\n",
 					"        cleaned_cols = len(cleaned_df.columns)\n",
 					"        \n",
-					"        # write back to same csv file location\n",
-					"        output_path = f\"{csv_base_path}/{csv_path}\"\n",
+					"        # write to temp (single file)\n",
+					"        temp_output_path = f\"{temp_path}/{table_name}\"\n",
+					"\n",
+					"        spark.catalog.clearCache()\n",
 					"\n",
 					"        cleaned_df.coalesce(1) \\\n",
 					"            .write.mode(\"overwrite\") \\\n",
 					"            .option(\"header\", True) \\\n",
-					"            .csv(output_path)\n",
+					"            .csv(temp_output_path)\n",
+					"        \n",
+					"        # move back to original location\n",
+					"        original_path = f\"{csv_base_path}/{csv_path}\"\n",
+					"        \n",
+					"        # remove original \n",
+					"        try:\n",
+					"            mssparkutils.fs.rm(original_path, True)\n",
+					"        except:\n",
+					"            pass\n",
+					"\n",
+					"        temp_files = mssparkutils.fs.ls(temp_output_path)\n",
+					"        part_file = [f.path for f in temp_files if \"part-\" in f.name][0]\n",
+					"\n",
+					"        mssparkutils.fs.cp(part_file, original_path)\n",
+					"\n",
+					"        # cleanup temp folder for the file\n",
+					"        mssparkutils.fs.rm(temp_output_path, True)\n",
 					"\n",
 					"        print(\n",
 					"            f\" {table_name}: \"\n",
@@ -170,7 +201,7 @@
 					"        }\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        print(f\"error with: {table_name}: {str(e)}\")\n",
+					"        print(f\"Error: {table_name}: {str(e)}\")\n",
 					"        return {\n",
 					"            \"table_name\": table_name,\n",
 					"            \"error\": str(e)\n",
@@ -205,12 +236,14 @@
 					"print(f\"Success: {len(success)}\")\n",
 					"print(f\"Failed: {len(failed)}\")\n",
 					"\n",
-					"if failed:\n",
-					"    print(\"\\n Failures:\")\n",
-					"    for r in failed:\n",
-					"        print(f\" {r['table_name']}: {r['error']}\")\n",
+					"# final temp cleanup\n",
+					"try:\n",
+					"    mssparkutils.fs.rm(temp_path, True)\n",
+					"    print(\"\\ntemp directory cleaned\")\n",
+					"except:\n",
+					"    print(\"\\ntemp cleanup skipped\")\n",
 					"\n",
-					"print(f\"\\nCleaned files have been saved to: {csv_base_path}\")"
+					"print(f\"\\nCleaned files saved to: {csv_base_path}\")"
 				],
 				"execution_count": null
 			}
