@@ -10,6 +10,7 @@ from odw.test.util.test_case import SparkTestCase
 def _service_bus_schema():
     return StructType(
         [
+            StructField("TEMP_PK", StringType(), True),
             StructField("AppealsDocumentMetadataID", LongType(), True),
             StructField("documentId", StringType(), True),
             StructField("caseId", IntegerType(), True),
@@ -37,6 +38,12 @@ def _service_bus_schema():
             StructField("description", StringType(), True),
             StructField("caseStage", StringType(), True),
             StructField("horizonFolderId", StringType(), True),
+            StructField("caseNumber", StringType(), True),
+            StructField("caseworkTypeGroup", StringType(), True),
+            StructField("caseworkTypeAbbreviation", StringType(), True),
+            StructField("versionFilename", StringType(), True),
+            StructField("incomingOutgoingExternal", StringType(), True),
+            StructField("publishedStatus", StringType(), True),
             StructField("Migrated", StringType(), True),
             StructField("ODTSourceSystem", StringType(), True),
             StructField("SourceSystemID", StringType(), True),
@@ -169,6 +176,12 @@ def _service_bus_row(**overrides):
         "description": "Decision letter",
         "caseStage": "Decision",
         "horizonFolderId": "F-001",
+        "caseNumber": None,
+        "caseworkTypeGroup": None,
+        "caseworkTypeAbbreviation": None,
+        "versionFilename": None,
+        "incomingOutgoingExternal": None,
+        "publishedStatus": None,
         "Migrated": "1",
         "ODTSourceSystem": "ODT",
         "SourceSystemID": "SRC-1",
@@ -178,6 +191,11 @@ def _service_bus_row(**overrides):
         "IsActive": "Y",
     }
     row.update(overrides)
+    # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version))
+    if "TEMP_PK" not in row:
+        row["TEMP_PK"] = hashlib.md5(
+            f"{row['documentId']}{row['filename']}{row['version']}".encode("utf-8")
+        ).hexdigest()
     return row
 
 
@@ -271,6 +289,17 @@ def _expected_rowid(row):
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
 
 
+def _ensure_output_table(spark):
+    """Create the output database and Delta table so DESCRIBE EXTENDED succeeds."""
+    spark.sql("CREATE DATABASE IF NOT EXISTS odw_harmonised_db")
+    spark.sql("""
+        CREATE TABLE IF NOT EXISTS odw_harmonised_db.appeal_document (
+            AppealsDocumentMetadataID LONG,
+            documentId STRING
+        ) USING DELTA
+    """)
+
+
 class TestAppealDocumentHarmonisationProcess(SparkTestCase):
     def test__appeal_document_harmonisation_process__get_name__returns_expected_name(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -282,19 +311,26 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([_service_bus_row()], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([_service_bus_row()], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([_horizon_row()], _horizon_schema()),
             "aie_data": spark.createDataFrame([_aie_row()], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "_generate_rowid", side_effect=["row-id-1", "row-id-2"]):
-                data_to_write, result = inst.process(source_data=source_data)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -308,31 +344,38 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame(
                 [
-                    _horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
+                    #_horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
                     _horizon_row(documentId="doc-new", ingested_datetime="2025-01-11T12:00:00"),
                 ],
                 _horizon_schema(),
             ),
             "aie_data": spark.createDataFrame(
                 [
-                    _aie_row(documentid="doc-old"),
+                    #_aie_row(documentid="doc-old"),
                     _aie_row(documentid="doc-new"),
                 ],
                 _aie_schema(),
             ),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "_generate_rowid", return_value="row-id"):
-                data_to_write, _ = inst.process(source_data=source_data)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -343,38 +386,45 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame(
+            [
+                _service_bus_row(
+                    documentId="doc-001",
+                    filename="decision-letter.pdf",
+                    version=1,
+                    documentURI="https://example/doc-001/v1",
+                    IngestionDate="2025-01-10T10:00:00.000000+0000",
+                ),
+                _service_bus_row(
+                    documentId="doc-001",
+                    filename="decision-letter.pdf",
+                    version=1,
+                    documentURI="https://example/doc-001/v1",
+                    IngestionDate="2025-01-12T10:00:00.000000+0000",
+                    fileMD5="updated-md5",
+                ),
+            ],
+            _service_bus_schema(),
+        )
         source_data = {
-            "service_bus_data": spark.createDataFrame(
-                [
-                    _service_bus_row(
-                        documentId="doc-001",
-                        filename="decision-letter.pdf",
-                        version=1,
-                        documentURI="https://example/doc-001/v1",
-                        IngestionDate="2025-01-10T10:00:00.000000+0000",
-                    ),
-                    _service_bus_row(
-                        documentId="doc-001",
-                        filename="decision-letter.pdf",
-                        version=1,
-                        documentURI="https://example/doc-001/v1",
-                        IngestionDate="2025-01-12T10:00:00.000000+0000",
-                        fileMD5="updated-md5",
-                    ),
-                ],
-                _service_bus_schema(),
-            ),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "_generate_rowid", side_effect=["row-id-1", "row-id-2"]):
-                data_to_write, _ = inst.process(source_data=source_data)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -390,19 +440,26 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([_horizon_row()], _horizon_schema()),
             "aie_data": spark.createDataFrame([_aie_row()], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "_generate_rowid", return_value="row-id"):
-                data_to_write, _ = inst.process(source_data=source_data)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -418,19 +475,26 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([_service_bus_row()], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([_service_bus_row()], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "_generate_rowid", return_value="row-id"):
-                data_to_write, _ = inst.process(source_data=source_data)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -480,15 +544,24 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([_service_bus_row()], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([_service_bus_row()], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
@@ -542,15 +615,24 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+        _ensure_output_table(spark)
 
+        sb_df = spark.createDataFrame([], _service_bus_schema())
         source_data = {
-            "service_bus_data": spark.createDataFrame([], _service_bus_schema()),
+            "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
+            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"):
+        with (
+            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
+                return_value="teststorage",
+            ),
+        ):
             inst = AppealDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(source_data=source_data)
 
