@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "13f27553-2097-43fa-a531-7b30398c9cd3"
+				"spark.autotune.trackingId": "d6409136-241d-4018-81fb-977585c526c8"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -86,7 +86,8 @@
 					"import pyspark.sql.functions as F\n",
 					"from pyspark.sql.utils import AnalysisException\n",
 					"from datetime import datetime, date\n",
-					"from pyspark.sql import DataFrame"
+					"from pyspark.sql import DataFrame\n",
+					"import json"
 				],
 				"execution_count": null
 			},
@@ -147,33 +148,52 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
-					"    full_table = f\"{db}.{table}\"\n",
-					"    if not spark.catalog.tableExists(full_table):\n",
-					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
-					"        return\n",
-					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
-					"    if column.lower() in current_cols:\n",
-					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
-					"        return\n",
-					"    try:\n",
-					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
-					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
-					"    except AnalysisException as e:\n",
-					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
-					"    except Exception as e:\n",
-					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
-					"\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"if not error_message:\n",
-					"    # Ensure estimatedPrelimMeetingDate is availiable in sb_nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
-					"    ensure_column(\"odw_harmonised_db\", \"sb_nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+					"    full_table = spark_table_final\n",
+					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
+					"    if \"estimatedPrelimMeetingDate\" in current_cols:\n",
+					"        try:\n",
+					"            storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"            metadata_path = f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"            file_content = mssparkutils.fs.head(metadata_path, 1024 * 1024)\n",
+					"            metadata_root = json.loads(file_content)\n",
+					"\n",
+					"            harmonised_metadata = []\n",
+					"            if isinstance(metadata_root, list):\n",
+					"                for block in metadata_root:\n",
+					"                    if isinstance(block, dict) and \"harmonised_metadata\" in block:\n",
+					"                        harmonised_metadata = block.get(\"harmonised_metadata\", [])\n",
+					"                        break\n",
+					"            else:\n",
+					"                harmonised_metadata = metadata_root.get(\"harmonised_metadata\", [])\n",
+					"\n",
+					"            filtered = [\n",
+					"                item for item in harmonised_metadata\n",
+					"                if item.get(\"database_name\", \"\").strip() == \"odw_harmonised_db\"\n",
+					"                and item.get(\"table_name\", \"\").strip() == \"sb_nsip_meeting\"\n",
+					"            ]\n",
+					"\n",
+					"            if filtered:\n",
+					"                delta_table_path = filtered[0].get(\"table_location\")\n",
+					"                print(f\"Delta table path: {delta_table_path}\")\n",
+					"\n",
+					"                spark.sql(f\"\"\"\n",
+					"                    ALTER TABLE delta.`{delta_table_path}` SET TBLPROPERTIES (\n",
+					"                        'delta.columnMapping.mode' = 'name',\n",
+					"                        'delta.minReaderVersion' = '2',\n",
+					"                        'delta.minWriterVersion' = '5'\n",
+					"                    )\n",
+					"                \"\"\")\n",
+					"                spark.sql(f\"ALTER TABLE delta.`{delta_table_path}` DROP COLUMN estimatedPrelimMeetingDate\")\n",
+					"                print(\"Column 'estimatedPrelimMeetingDate' dropped successfully.\")\n",
+					"            else:\n",
+					"                raise ValueError(\"No metadata found for odw_harmonised_db.sb_nsip_meeting\")\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            print(f\"Error dropping column: {e}\")\n",
+					"    else:\n",
+					"        print(\"Column 'estimatedPrelimMeetingDate' does not exist. No action needed.\")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -261,7 +281,6 @@
 					"    F.col(\"meeting.planningInspectorateRole\").alias(\"planningInspectorateRole\"),\n",
 					"    F.col(\"meeting.meetingDate\").alias(\"meetingDate\"),\n",
 					"    F.col(\"meeting.meetingType\").alias(\"meetingType\"),\n",
-					"    F.col(\"meeting.estimatedPrelimMeetingDate\").alias(\"estimatedPrelimMeetingDate\"),\n",
 					"    \"Migrated\",\n",
 					"    \"ODTSourceSystem\",\n",
 					"    \"SourceSystemID\",\n",
@@ -275,7 +294,7 @@
 					"# Use ALL columns that uniquely identify a record\n",
 					"business_key_cols = [\"NSIPProjectInfoInternalID\", \"caseId\", \"meetingId\"]\n",
 					"change_tracking_cols = [ \"meetingAgenda\",\n",
-					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\",\"estimatedPrelimMeetingDate\"]\n",
+					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\"]\n",
 					"\n",
 					"source_df = service_bus_exploded \\\n",
 					"    .withColumn(\"business_key\", F.sha2(F.concat_ws(\"~\", *business_key_cols), 256)) \\\n",
