@@ -61,7 +61,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_harmonised_process",
+        "entity_stage_name": "appeal_document_harmonisation_process",
         "debug": False
     }
     ```
@@ -78,7 +78,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_harmonised_process"
+        return "appeal_document_harmonisation_process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
