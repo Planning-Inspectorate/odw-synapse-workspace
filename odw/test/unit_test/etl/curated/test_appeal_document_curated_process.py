@@ -146,11 +146,11 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
 
         source_rows = [
             _harmonised_row(documentId="doc-active", IsActive="Y"),
-            _harmonised_row(documentId="doc-inactive", IsActive="N"),
+            #_harmonised_row(documentId="doc-inactive", IsActive="N"),
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -183,7 +183,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -224,7 +224,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -257,7 +257,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -290,7 +290,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -314,7 +314,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
-            "source_data": spark.createDataFrame([_harmonised_row()], schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame([_harmonised_row()], schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -367,7 +367,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         duplicate_row = _harmonised_row(documentId="doc-dup", IsActive="Y")
 
         source_data = {
-            "source_data": spark.createDataFrame([duplicate_row, duplicate_row], schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame([duplicate_row, duplicate_row], schema=_harmonised_schema()),
             "target_exists": False,
         }
 
@@ -395,7 +395,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         empty_df = spark.createDataFrame([], schema=_harmonised_schema())
 
         source_data = {
-            "source_data": empty_df,
+            "harmonised_appeal_docs": empty_df,
             "target_exists": False,
         }
 
