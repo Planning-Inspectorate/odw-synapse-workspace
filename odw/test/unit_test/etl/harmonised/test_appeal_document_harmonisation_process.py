@@ -193,9 +193,7 @@ def _service_bus_row(**overrides):
     row.update(overrides)
     # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version))
     if "TEMP_PK" not in row:
-        row["TEMP_PK"] = hashlib.md5(
-            f"{row['documentId']}{row['filename']}{row['version']}".encode()
-        ).hexdigest()
+        row["TEMP_PK"] = hashlib.md5(f"{row['documentId']}{row['filename']}{row['version']}".encode()).hexdigest()
     return row
 
 
@@ -294,9 +292,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         spark.sparkContext.setLogLevel("ERROR")
         spark.sql("CREATE DATABASE IF NOT EXISTS odw_harmonised_db")
-        spark.sql(
-            "CREATE TABLE IF NOT EXISTS odw_harmonised_db.appeal_document (dummy STRING) USING parquet"
-        )
+        spark.sql("CREATE TABLE IF NOT EXISTS odw_harmonised_db.appeal_document (dummy STRING) USING parquet")
 
     def test__appeal_document_harmonisation_process__get_name__returns_expected_name(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -346,14 +342,14 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame(
                 [
-                    #_horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
+                    # _horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
                     _horizon_row(documentId="doc-new", ingested_datetime="2025-01-11T12:00:00"),
                 ],
                 _horizon_schema(),
             ),
             "aie_data": spark.createDataFrame(
                 [
-                    #_aie_row(documentid="doc-old"),
+                    # _aie_row(documentid="doc-old"),
                     _aie_row(documentid="doc-new"),
                 ],
                 _aie_schema(),

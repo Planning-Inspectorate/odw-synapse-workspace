@@ -193,9 +193,7 @@ def _service_bus_row(**overrides):
     row.update(overrides)
     # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version))
     if "TEMP_PK" not in row:
-        row["TEMP_PK"] = hashlib.md5(
-            f"{row['documentId']}{row['filename']}{row['version']}".encode("utf-8")
-        ).hexdigest()
+        row["TEMP_PK"] = hashlib.md5(f"{row['documentId']}{row['filename']}{row['version']}".encode("utf-8")).hexdigest()
     return row
 
 
@@ -351,14 +349,14 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "service_bus_data": sb_df,
             "horizon_data": spark.createDataFrame(
                 [
-                    #_horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
+                    # _horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
                     _horizon_row(documentId="doc-new", ingested_datetime="2025-01-11T12:00:00"),
                 ],
                 _horizon_schema(),
             ),
             "aie_data": spark.createDataFrame(
                 [
-                    #_aie_row(documentid="doc-old"),
+                    # _aie_row(documentid="doc-old"),
                     _aie_row(documentid="doc-new"),
                 ],
                 _aie_schema(),

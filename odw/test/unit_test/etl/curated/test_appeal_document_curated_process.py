@@ -146,7 +146,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
 
         source_rows = [
             _harmonised_row(documentId="doc-active", IsActive="Y"),
-            #_harmonised_row(documentId="doc-inactive", IsActive="N"),
+            # _harmonised_row(documentId="doc-inactive", IsActive="N"),
         ]
 
         source_data = {
