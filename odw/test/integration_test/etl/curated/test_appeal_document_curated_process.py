@@ -167,7 +167,7 @@ def _curated_row(**overrides):
 
 
 class TestAppealDocumentCuratedProcess(ETLTestCase):
-    def setup(self):
+    def setup_method(self):
         self.test_suffix = uuid.uuid4().hex
 
     def compare_curated_data(self, expected_df: DataFrame, actual_df: DataFrame):
