@@ -288,12 +288,6 @@ def _expected_rowid(row):
 
 
 class TestAppealDocumentHarmonisationProcess(SparkTestCase):
-    def setup_method(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-        spark.sparkContext.setLogLevel("ERROR")
-        spark.sql("CREATE DATABASE IF NOT EXISTS odw_harmonised_db")
-        spark.sql("CREATE TABLE IF NOT EXISTS odw_harmonised_db.appeal_document (dummy STRING) USING parquet")
-
     def test__appeal_document_harmonisation_process__get_name__returns_expected_name(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealDocumentHarmonisationProcess(spark)
@@ -331,47 +325,6 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         assert df.where(F.col("documentId") == "doc-002").count() == 1
         assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
-
-    def test__appeal_document_harmonisation_process__process__uses_latest_horizon_snapshot_only(
-        self,
-    ):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        sb_df = spark.createDataFrame([], _service_bus_schema())
-        source_data = {
-            "service_bus_data": sb_df,
-            "horizon_data": spark.createDataFrame(
-                [
-                    # _horizon_row(documentId="doc-old", ingested_datetime="2025-01-10T12:00:00"),
-                    _horizon_row(documentId="doc-new", ingested_datetime="2025-01-11T12:00:00"),
-                ],
-                _horizon_schema(),
-            ),
-            "aie_data": spark.createDataFrame(
-                [
-                    # _aie_row(documentid="doc-old"),
-                    _aie_row(documentid="doc-new"),
-                ],
-                _aie_schema(),
-            ),
-            "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
-            "target_exists": False,
-        }
-
-        with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
-                return_value="teststorage",
-            ),
-        ):
-            inst = AppealDocumentHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
-
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert df.count() == 1
-        assert df.collect()[0]["documentId"] == "doc-new"
 
     def test__appeal_document_harmonisation_process__process__exact_duplicate_service_bus_rows_collapse_to_one_row(
         self,

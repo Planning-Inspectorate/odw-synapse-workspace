@@ -109,11 +109,15 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         # This is used later to derive the Migrated flag.
         sb_primary_keys = self._load_service_bus_primary_keys()
 
+        # Resolve the output table path so process() stays pure transformation.
+        table_path = self._resolve_table_path()
+
         return {
             "service_bus_data": service_bus_data,
             "horizon_data": horizon_data,
             "aie_data": aie_data,
             "sb_primary_keys": sb_primary_keys,
+            "table_path": table_path,
         }
 
     def _load_service_bus_data(self) -> DataFrame:
@@ -123,7 +127,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                MD5(CONCAT(documentId, filename, version)) AS {self.PRIMARY_KEY}
+                MD5(CONCAT(COALESCE(documentId, ''), COALESCE(filename, ''), COALESCE(CAST(version AS STRING), ''))) AS {self.PRIMARY_KEY}
                 ,AppealsDocumentMetadataID
                 ,documentId
                 ,caseId
@@ -232,9 +236,19 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                MD5(CONCAT(documentId, filename, version)) AS {self.PRIMARY_KEY}
+                MD5(CONCAT(COALESCE(documentId, ''), COALESCE(filename, ''), COALESCE(CAST(version AS STRING), ''))) AS {self.PRIMARY_KEY}
             FROM {self.SERVICE_BUS_TABLE}
         """)
+
+    def _resolve_table_path(self):
+        """Resolve the Delta table location via DESCRIBE EXTENDED."""
+        try:
+            df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
+            rows = df.filter(df.col_name == "Location").select("data_type").collect()
+            return rows[0]["data_type"] if rows else None
+        except Exception:
+            LoggingUtil().log_info(f"Could not resolve path for {self.OUTPUT_TABLE}, continuing without path")
+            return None
 
     # ------------------------------------------------------------------
     # process – pure transformation, no reads or writes
@@ -252,6 +266,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         aie_data: DataFrame = self.load_parameter("aie_data", source_data)
         sb_primary_keys: DataFrame = self.load_parameter("sb_primary_keys", source_data)
+        table_path = source_data.get("table_path")
 
         # ---------------------------------------------------------
         # Step 1: Join Horizon + AIE
@@ -321,11 +336,11 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         )
 
         # ---------------------------------------------------------
-        # Step 2: Align Horizon columns to SB columns and union
+        # Step 2: Align Horizon columns to SB columns and union by name
         # ---------------------------------------------------------
         LoggingUtil().log_info(f"Combining data for {self.OUTPUT_TABLE}")
         horizon_joined = horizon_joined.select(service_bus_data.columns)
-        combined = service_bus_data.union(horizon_joined)
+        combined = service_bus_data.unionByName(horizon_joined)
 
         # ---------------------------------------------------------
         # Step 3: Window-function calculations (replaces intermediate table + SQL views)
@@ -415,14 +430,6 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         final_df = final_df.withColumn("RowID", row_id_expr)
 
         insert_count = final_df.count()
-
-        # ---------------------------------------------------------
-        # Step 8: Resolve table path
-        # ---------------------------------------------------------
-
-        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
-        rows = df.filter(df.col_name == "Location").select("data_type").collect()
-        table_path = rows[0]["data_type"] if rows else None
 
         data_to_write = {
             self.OUTPUT_TABLE: {
