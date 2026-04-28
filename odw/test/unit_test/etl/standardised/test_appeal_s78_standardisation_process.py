@@ -15,57 +15,39 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
     def mock_data_loaders(self):
         yield
 
-    def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
-        override_table_name = "t_as78sp_lhcs78"
+    def _assert_row_count_query(self, target_col_name: str, override_property: str, test_name: str, target_function: Callable):
+        """
+        Tests for the data loaders that execute a query with the below structure
+
+        ```
+        SELECT * FROM (
+            SELECT x.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY target_col_name
+                    ORDER BY expected_from DESC, modified_datetime DESC, ingested_datetime DESC, file_id DESC
+                ) rn
+            FROM TABLE_NAME
+        ) WHERE rn = 1
+        ```
+        :param str target_col_name: The name of the partitioning column
+        :param str override_property: Static variable in AppealS78StandardisationProcess which defines the table to query
+        :param str test_name: The name of the test
+        :param Callable target_function: The function of AppealS78StandardisationProcess which loads the data (i.e. the function to test)
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        def generate_horizoncases_row(**overrides):
+        def generate_row(**overrides):
             base = {
                 "ingested_datetime": None,
                 "expected_from": None,
-                "expected_to": None,
-                "casenodeid": "",
-                "subtype": "",
-                "modifydate": "",
-                "abbreviation": "",
-                "casereference": "",
-                "caseuniqueid": "",
-                "caseofficerid": "",
-                "caseofficerlogin": "",
-                "caseofficername": "",
-                "coemailaddress": "",
-                "input_file": "",
-                "ingested_by_process_name": "some_process",
                 "modified_datetime": None,
-                "modified_by_process_name": "some_process",
-                "entity_name": "HorizonCases_s78",
-                "file_id": "",
+                "file_id": None,
+                target_col_name: None,
             }
             return base | overrides
 
-        def generate_expected_horizoncases_row(**overrides):
-            base = {
-                "ingested_datetime": None,
-                "expected_from": None,
-                "expected_to": None,
-                "casenodeid": "",
-                "subtype": "",
-                "modifydate": "",
-                "abbreviation": "",
-                "casereference": "",
-                "caseuniqueid": "1",
-                "caseofficerid": "",
-                "caseofficerlogin": "",
-                "caseofficername": "",
-                "coemailaddress": "",
-                "input_file": "",
-                "ingested_by_process_name": "some_process",
-                "modified_datetime": None,
-                "modified_by_process_name": "some_process",
-                "entity_name": "HorizonCases_s78",
-                "file_id": "b",
-                "rn": 1,
-            }
+        def generate_expected_row(**overrides):
+            base = {"ingested_datetime": None, "expected_from": None, "modified_datetime": None, "file_id": None, target_col_name: None, "rn": 1}
             return base | overrides
 
         expected_from_base = datetime(2025, 1, 1)
@@ -80,135 +62,121 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
         raw_data = spark.createDataFrame(
             (
-                generate_horizoncases_row(caseuniqueid="1"),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(**{target_col_name: "1"}),
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_base,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_base,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_base,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_base,
                 ),
-                generate_horizoncases_row(
-                    caseuniqueid="1",
+                generate_row(
+                    **{target_col_name: "1"},
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_inc,
                     ingested_datetime=ingested_datetime_inc,
                     file_id=file_id_inc,
                 ),
-                generate_horizoncases_row(caseuniqueid="2"),
-                generate_horizoncases_row(caseuniqueid="3"),
+                generate_row(**{target_col_name: "2"}),
+                generate_row(**{target_col_name: "3"}),
             ),
             schema=StructType(
                 [
                     StructField("ingested_datetime", TimestampType(), True),
                     StructField("expected_from", TimestampType(), True),
-                    StructField("expected_to", TimestampType(), True),
-                    StructField("casenodeid", StringType(), True),
-                    StructField("subtype", StringType(), True),
-                    StructField("modifydate", StringType(), True),
-                    StructField("abbreviation", StringType(), True),
-                    StructField("casereference", StringType(), True),
-                    StructField("caseuniqueid", StringType(), True),
-                    StructField("caseofficerid", StringType(), True),
-                    StructField("caseofficerlogin", StringType(), True),
-                    StructField("caseofficername", StringType(), True),
-                    StructField("coemailaddress", StringType(), True),
-                    StructField("input_file", StringType(), True),
-                    StructField("ingested_by_process_name", StringType(), True),
                     StructField("modified_datetime", TimestampType(), True),
-                    StructField("modified_by_process_name", StringType(), True),
-                    StructField("entity_name", StringType(), True),
+                    StructField(target_col_name, StringType(), True),
                     StructField("file_id", StringType(), True),
                 ]
             ),
@@ -216,54 +184,47 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         self.write_existing_table(
             spark,
             raw_data,
-            override_table_name,
+            test_name,
             "odw_standardised_db",
             "odw-standardised",
-            override_table_name,
+            test_name,
             "overwrite",
         )
         expected_data = spark.createDataFrame(
             (
-                generate_expected_horizoncases_row(
-                    caseuniqueid="1",
+                generate_expected_row(
+                    **{target_col_name: "1"},
                     ingested_datetime=ingested_datetime_inc,
                     expected_from=expected_from_inc,
                     modified_datetime=modified_datetime_inc,
+                    rn=1,
                 ),
-                generate_expected_horizoncases_row(caseuniqueid="2", ingested_datetime=None, expected_from=None, modified_datetime=None),
-                generate_expected_horizoncases_row(caseuniqueid="3", ingested_datetime=None, expected_from=None, modified_datetime=None),
+                generate_expected_row(**{target_col_name: "2"}, ingested_datetime=None, expected_from=None, modified_datetime=None),
+                generate_expected_row(**{target_col_name: "3"}, ingested_datetime=None, expected_from=None, modified_datetime=None),
             ),
             schema=StructType(
                 [
                     StructField("ingested_datetime", TimestampType(), True),
                     StructField("expected_from", TimestampType(), True),
-                    StructField("expected_to", TimestampType(), True),
-                    StructField("casenodeid", StringType(), True),
-                    StructField("subtype", StringType(), True),
-                    StructField("modifydate", StringType(), True),
-                    StructField("abbreviation", StringType(), True),
-                    StructField("casereference", StringType(), True),
-                    StructField("caseuniqueid", StringType(), True),
-                    StructField("caseofficerid", StringType(), True),
-                    StructField("caseofficerlogin", StringType(), True),
-                    StructField("caseofficername", StringType(), True),
-                    StructField("coemailaddress", StringType(), True),
-                    StructField("input_file", StringType(), True),
-                    StructField("ingested_by_process_name", StringType(), True),
                     StructField("modified_datetime", TimestampType(), True),
-                    StructField("modified_by_process_name", StringType(), True),
-                    StructField("entity_name", StringType(), True),
+                    StructField(target_col_name, StringType(), True),
                     StructField("file_id", StringType(), True),
                     StructField("rn", IntegerType(), False),
                 ]
             ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_HORIZON_CASES_S78", override_table_name),
+            mock.patch.object(AppealS78StandardisationProcess, override_property, test_name),
             mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
         ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_horizoncases_s78()
+            inst = AppealS78StandardisationProcess()
+            actual_data = target_function(inst)
             assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
+        self._assert_row_count_query(
+            "caseuniqueid", "STANDARDISED_HORIZON_CASES_S78", "t_as78sp_lhcs78", AppealS78StandardisationProcess._load_standardised_horizoncases_s78
+        )
 
     def test__appeal_s78_standardisation_process__load_cases_specialisms(self):
         override_table_name = "t_as78sp_lcs"
@@ -337,342 +298,22 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
-        override_table_name = "t_as78sp_lvwcd"
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        def generate_case_dates_row(**overrides):
-            base = {
-                "ingested_datetime": None,
-                "expected_from": None,
-                "expected_to": None,
-                "casenodeid": "",
-                "receiptdate": "",
-                "startdate": "",
-                "appealdocscomplete": "",
-                "callindate": "",
-                "datereceivedfromcallinauthority": "",
-                "bespoketargetdate": "",
-                "daterecovered": "",
-                "datenotrecoveredorderecovered": "",
-                "decisionsubmitdate": "",
-                "noticewithdrawndate": "",
-                "appealwithdrawndate": "",
-                "casedecisiondate": "",
-                "appealturnedawaydate": "",
-                "appeallapseddate": "",
-                "casecloseddate": "",
-                "proceduredetermineddate": "",
-                "originalcasedecisiondate": "",
-                "planningguaranteedate": "",
-                "datedecisionreportreceivedinpins": "",
-                "datesenttoreader": "",
-                "datereturnedfromreader": "",
-                "datepublicationprocedurecompleted": "",
-                "datecostsreportdespatched": "",
-                "orderrejectedorreturned": "",
-                "input_file": "",
-                "ingested_by_process_name": "",
-                "modified_datetime": None,
-                "modified_by_process_name": "",
-                "entity_name": "",
-                "file_id": "",
-            }
-            return base | overrides
-
-        def generate_expected_case_dates_row(**overrides):
-            base = {
-                "ingested_datetime": None,
-                "expected_from": None,
-                "expected_to": None,
-                "casenodeid": "1",
-                "receiptdate": "",
-                "startdate": "",
-                "appealdocscomplete": "",
-                "callindate": "",
-                "datereceivedfromcallinauthority": "",
-                "bespoketargetdate": "",
-                "daterecovered": "",
-                "datenotrecoveredorderecovered": "",
-                "decisionsubmitdate": "",
-                "noticewithdrawndate": "",
-                "appealwithdrawndate": "",
-                "casedecisiondate": "",
-                "appealturnedawaydate": "",
-                "appeallapseddate": "",
-                "casecloseddate": "",
-                "proceduredetermineddate": "",
-                "originalcasedecisiondate": "",
-                "planningguaranteedate": "",
-                "datedecisionreportreceivedinpins": "",
-                "datesenttoreader": "",
-                "datereturnedfromreader": "",
-                "datepublicationprocedurecompleted": "",
-                "datecostsreportdespatched": "",
-                "orderrejectedorreturned": "",
-                "input_file": "",
-                "ingested_by_process_name": "",
-                "modified_datetime": None,
-                "modified_by_process_name": "",
-                "entity_name": "",
-                "file_id": "b",
-                "rn": 1,
-            }
-            return base | overrides
-
-        expected_from_base = datetime(2025, 1, 1)
-        modified_datetime_base = datetime(2025, 1, 1)
-        ingested_datetime_base = datetime(2025, 1, 1)
-        file_id_base = "a"
-
-        expected_from_inc = expected_from_base + timedelta(days=1)
-        modified_datetime_inc = modified_datetime_base + timedelta(days=1)
-        ingested_datetime_inc = ingested_datetime_base + timedelta(days=1)
-        file_id_inc = "b"
-
-        raw_data = spark.createDataFrame(
-            (
-                generate_case_dates_row(casenodeid="1"),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_base,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_base,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_base,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_base,
-                ),
-                generate_case_dates_row(
-                    casenodeid="1",
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_inc,
-                    ingested_datetime=ingested_datetime_inc,
-                    file_id=file_id_inc,
-                ),
-                generate_case_dates_row(casenodeid="2"),
-                generate_case_dates_row(casenodeid="3"),
-            ),
-            schema=StructType(
-                [
-                    StructField("ingested_datetime", TimestampType(), True),
-                    StructField("expected_from", TimestampType(), True),
-                    StructField("expected_to", TimestampType(), True),
-                    StructField("casenodeid", StringType(), True),
-                    StructField("receiptdate", StringType(), True),
-                    StructField("startdate", StringType(), True),
-                    StructField("appealdocscomplete", StringType(), True),
-                    StructField("callindate", StringType(), True),
-                    StructField("datereceivedfromcallinauthority", StringType(), True),
-                    StructField("bespoketargetdate", StringType(), True),
-                    StructField("daterecovered", StringType(), True),
-                    StructField("datenotrecoveredorderecovered", StringType(), True),
-                    StructField("decisionsubmitdate", StringType(), True),
-                    StructField("noticewithdrawndate", StringType(), True),
-                    StructField("appealwithdrawndate", StringType(), True),
-                    StructField("casedecisiondate", StringType(), True),
-                    StructField("appealturnedawaydate", StringType(), True),
-                    StructField("appeallapseddate", StringType(), True),
-                    StructField("casecloseddate", StringType(), True),
-                    StructField("proceduredetermineddate", StringType(), True),
-                    StructField("originalcasedecisiondate", StringType(), True),
-                    StructField("planningguaranteedate", StringType(), True),
-                    StructField("datedecisionreportreceivedinpins", StringType(), True),
-                    StructField("datesenttoreader", StringType(), True),
-                    StructField("datereturnedfromreader", StringType(), True),
-                    StructField("datepublicationprocedurecompleted", StringType(), True),
-                    StructField("datecostsreportdespatched", StringType(), True),
-                    StructField("orderrejectedorreturned", StringType(), True),
-                    StructField("input_file", StringType(), True),
-                    StructField("ingested_by_process_name", StringType(), True),
-                    StructField("modified_datetime", TimestampType(), True),
-                    StructField("modified_by_process_name", StringType(), True),
-                    StructField("entity_name", StringType(), True),
-                    StructField("file_id", StringType(), True),
-                ]
-            ),
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_HORIZON_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates
         )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            override_table_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            override_table_name,
-            "overwrite",
-        )
-        expected_data = spark.createDataFrame(
-            (
-                generate_expected_case_dates_row(
-                    casenodeid="1",
-                    ingested_datetime=ingested_datetime_inc,
-                    expected_from=expected_from_inc,
-                    modified_datetime=modified_datetime_inc,
-                ),
-                generate_expected_case_dates_row(casenodeid="2", ingested_datetime=None, expected_from=None, modified_datetime=None),
-                generate_expected_case_dates_row(casenodeid="3", ingested_datetime=None, expected_from=None, modified_datetime=None),
-            ),
-            schema=StructType(
-                [
-                    StructField("ingested_datetime", TimestampType(), True),
-                    StructField("expected_from", TimestampType(), True),
-                    StructField("expected_to", TimestampType(), True),
-                    StructField("casenodeid", StringType(), True),
-                    StructField("receiptdate", StringType(), True),
-                    StructField("startdate", StringType(), True),
-                    StructField("appealdocscomplete", StringType(), True),
-                    StructField("callindate", StringType(), True),
-                    StructField("datereceivedfromcallinauthority", StringType(), True),
-                    StructField("bespoketargetdate", StringType(), True),
-                    StructField("daterecovered", StringType(), True),
-                    StructField("datenotrecoveredorderecovered", StringType(), True),
-                    StructField("decisionsubmitdate", StringType(), True),
-                    StructField("noticewithdrawndate", StringType(), True),
-                    StructField("appealwithdrawndate", StringType(), True),
-                    StructField("casedecisiondate", StringType(), True),
-                    StructField("appealturnedawaydate", StringType(), True),
-                    StructField("appeallapseddate", StringType(), True),
-                    StructField("casecloseddate", StringType(), True),
-                    StructField("proceduredetermineddate", StringType(), True),
-                    StructField("originalcasedecisiondate", StringType(), True),
-                    StructField("planningguaranteedate", StringType(), True),
-                    StructField("datedecisionreportreceivedinpins", StringType(), True),
-                    StructField("datesenttoreader", StringType(), True),
-                    StructField("datereturnedfromreader", StringType(), True),
-                    StructField("datepublicationprocedurecompleted", StringType(), True),
-                    StructField("datecostsreportdespatched", StringType(), True),
-                    StructField("orderrejectedorreturned", StringType(), True),
-                    StructField("input_file", StringType(), True),
-                    StructField("ingested_by_process_name", StringType(), True),
-                    StructField("modified_datetime", TimestampType(), True),
-                    StructField("modified_by_process_name", StringType(), True),
-                    StructField("entity_name", StringType(), True),
-                    StructField("file_id", StringType(), True),
-                    StructField("rn", IntegerType(), False),
-                ]
-            ),
-        )
-        with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_HORIZON_CASE_DATES", override_table_name),
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
-        ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_vw_case_dates()
-            assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
-        """
-        cdd_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.casenodeid
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM cdd x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid",
+            "STANDARDISED_CASE_DOCUMENT_DATES_DATES",
+            "t_as78sp_lcdd",
+            AppealS78StandardisationProcess._load_standardised_casedocumentdatesdates,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_casesitestrings(self):
-        """
-        css_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.casenodeid
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM css x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_typeofprocedure(self):
         """
@@ -684,46 +325,25 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         """
 
     def test__appeal_s78_standardisation_process__load_vw_addadditionaldata(self):
-        """
-        aad_old_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM aad_old x
-        ) t WHERE rn = 1
-        ),
-        """
+        self._assert_row_count_query(
+            "appealrefnumber",
+            "STANDARDISED_ADD_ADDITIONAL_DATA",
+            "t_as78sp_lvwaad",
+            AppealS78StandardisationProcess._load_standardised_vw_additionalfields,
+        )
 
     def test__appeal_s78_standardisation_process__load_vw_additionalfields(self):
-        """
-        af_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM af x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "appealrefnumber", "STANDARDISED_ADDITIONAL_FIELDSt_as78sp_lvwaf", AppealS78StandardisationProcess._load_standardised_vw_additionalfields
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_advert_attributes(self):
-        """
-        haa_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.caseuniqueid
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM haa x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "caseuniqueid",
+            "STANDARDISED_HORIZON_ADVERT_ATTRIBUTES",
+            "t_as78sp_lhaa",
+            AppealS78StandardisationProcess._load_standardised_horizon_advert_attributes,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_TypeOfLevel(self):
         """
@@ -735,116 +355,53 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         """
 
     def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(self):
-        """
-        scd_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM scd x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "appealrefnumber",
+            "STANDARDISED_HORIZON_SPECIALIST_CASE_DATES",
+            "t_as78sp_lhscd",
+            AppealS78StandardisationProcess._load_standardised_horizon_specialist_case_dates,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_PlanningAppStrings(self):
-        """
-        pas_1row AS (
-        SELECT * FROM (
-            SELECT p.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY p.casenodeid
-                    ORDER BY p.expected_from DESC, p.modified_datetime DESC, p.ingested_datetime DESC, p.file_id DESC
-                ) rn
-            FROM pas p
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_PLANNING_APP_STRINGS", "t_as78sp_lpas", AppealS78StandardisationProcess._load_standardised_PlanningAppStrings
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_PlanningAppDates(self):
-        """
-        pad_1row AS (
-        SELECT * FROM (
-            SELECT p.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY p.casenodeid
-                    ORDER BY p.expected_from DESC, p.modified_datetime DESC, p.ingested_datetime DESC, p.file_id DESC
-                ) rn
-            FROM pad p
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_standardised_PlanningAppDates
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_BIS_LeadCase(self):
-        """
-        lc_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.casenodeid
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM lc x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_BIS_LeadCase
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_CaseStrings(self):
-        """
-        cs2_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.casenodeid
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM cs2 x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid", "STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_CaseStrings
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_case_info(self):
-        """
-        ci_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM ci x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "appealrefnumber", "STANDARDISED_HORIZON_CASE_INFO", "t_as78sp_lhci", AppealS78StandardisationProcess._load_standardised_horizon_case_info
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_case_dates(self):
-        """
-        cdh_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM cdh x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "appealrefnumber",
+            "STANDARDISED_HORIZON_CASE_DATES",
+            "t_as78sp_lhcd",
+            AppealS78StandardisationProcess._load_standardised_horizon_case_dates,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_appeals_additional_data(self):
-        """
-        ad_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.appealrefnumber
-                    ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC
-                ) rn
-            FROM aad x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "appealrefnumber",
+            "STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA",
+            "t_as78sp_lhaad",
+            AppealS78StandardisationProcess._load_standardised_horizon_appeals_additional_data,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_appeal_grounds(self):
         """
@@ -865,38 +422,20 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         """
 
     def test__appeal_s78_standardisation_process__load_horizon_notice_dates(self):
-        """
-        hnd_1row AS (
-        SELECT * FROM (
-            SELECT n.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY n.casenodeid
-                    ORDER BY n.expected_from DESC,
-                            n.setrownumber DESC,
-                            n.ingested_datetime DESC,
-                            n.file_id DESC
-                ) rn
-            FROM hnd n
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid",
+            "STANDARDISED_HORIZON_NOTICE_DATES",
+            "t_as78sp_lhnd",
+            AppealS78StandardisationProcess._load_standardised_horizon_notice_dates,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_horizon_application_made_under_section(self):
-        """
-        hmu_1row AS (
-        SELECT * FROM (
-            SELECT x.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY x.casenodeid
-                    ORDER BY x.expected_from DESC,
-                            x.modified_datetime DESC,
-                            x.ingested_datetime DESC,
-                            x.file_id DESC
-                ) rn
-            FROM hmu x
-        ) t WHERE rn = 1
+        self._assert_row_count_query(
+            "casenodeid",
+            "STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION",
+            "t_as78sp_lhmu",
+            AppealS78StandardisationProcess._load_standardised_horizon_application_made_under_section,
         )
-        """
 
     def test__appeal_s78_standardisation_process__load_data(self, mock_data_loaders):
         expected_output_keys = {
