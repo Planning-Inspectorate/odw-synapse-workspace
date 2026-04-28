@@ -305,6 +305,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([_horizon_row()], _horizon_schema()),
             "aie_data": spark.createDataFrame([_aie_row()], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
@@ -356,6 +357,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
@@ -390,6 +392,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([_horizon_row()], _horizon_schema()),
             "aie_data": spark.createDataFrame([_aie_row()], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
@@ -424,6 +427,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
@@ -492,6 +496,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
@@ -562,6 +567,7 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             "horizon_data": spark.createDataFrame([], _horizon_schema()),
             "aie_data": spark.createDataFrame([], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
+            "table_path": "/tmp/test/appeal_document",
             "target_exists": False,
         }
 
