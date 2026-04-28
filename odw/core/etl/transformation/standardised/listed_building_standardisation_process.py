@@ -1,12 +1,8 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Any
 
 from pyspark.sql import DataFrame
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    StringType,
-)
+from pyspark.sql.types import StructType, StructField, StringType
 import pyspark.sql.functions as F
 
 from odw.core.etl.transformation.standardised.standardisation_process import (
@@ -31,6 +27,28 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
     @classmethod
     def get_name(cls) -> str:
         return "listed-buildings-standardisation"
+
+    def run(self, **kwargs) -> Any:
+        """
+        Orchestrates load → process → write.
+
+        Test / legacy compatibility:
+        - Tests mock load_data() and return RAW dataframes
+        - Keys must be mapped before calling process()
+        - write_data() must ALWAYS be called
+        """
+        raw_source_data = self.load_data(**kwargs)
+
+        source_data = {
+            "listed_building": raw_source_data.get("listed_building_data"),
+            "listed_building_outline": raw_source_data.get("listed_building_outline_data"),
+        }
+
+        outputs, result = self.process(source_data=source_data)
+
+        self.write_data(outputs)
+
+        return result
 
     @staticmethod
     def get_listed_building_schema() -> StructType:
@@ -76,18 +94,22 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
     def _get_date_folder(self, kwargs: Dict) -> str:
         date_folder = kwargs.get("date_folder") or kwargs.get("run_date")
+
         if not date_folder and mssparkutils is not None:
             try:
                 date_folder = mssparkutils.notebook.getArgument("date_folder")
             except Exception:
                 pass
+
         if not date_folder and mssparkutils is not None:
             try:
                 date_folder = mssparkutils.notebook.getArgument("run_date")
             except Exception:
                 pass
+
         if not date_folder:
             raise ValueError("load_data requires 'date_folder' parameter")
+
         return date_folder
 
     @LoggingUtil.logging_to_appins
@@ -102,17 +124,8 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         LoggingUtil().log_info(f"Reading Listed Buildings from {lb_path}")
         LoggingUtil().log_info(f"Reading Listed Building Outline from {lbo_path}")
 
-        listed_buildings_raw = (
-            self.spark.read
-            .option("multiline", "true")
-            .json(lb_path)
-        )
-
-        listed_building_outline_raw = (
-            self.spark.read
-            .option("multiline", "true")
-            .json(lbo_path)
-        )
+        listed_buildings_raw = self.spark.read.option("multiline", "true").json(lb_path)
+        listed_building_outline_raw = self.spark.read.option("multiline", "true").json(lbo_path)
 
         listed_buildings_df = (
             listed_buildings_raw
@@ -126,64 +139,19 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
             .select("entity.*")
         )
 
-        lb_cols = [
-            "dataset",
-            "end-date",
-            "entity",
-            "entry-date",
-            "geometry",
-            "name",
-            "organisation-entity",
-            "point",
-            "prefix",
-            "reference",
-            "start-date",
-            "typology",
-            "documentation-url",
-            "listed-building-grade",
-        ]
-
-        lbo_cols = [
-            "address",
-            "address-text",
-            "dataset",
-            "document-url",
-            "documentation-url",
-            "end-date",
-            "entity",
-            "entry-date",
-            "geometry",
-            "listed-building",
-            "name",
-            "notes",
-            "organisation-entity",
-            "point",
-            "prefix",
-            "reference",
-            "start-date",
-            "typology",
-        ]
-
-        listed_buildings_df = listed_buildings_df.select(
-            *[
-                F.col(c).cast("string") if c in listed_buildings_df.columns
-                else F.lit(None).cast("string").alias(c)
-                for c in lb_cols
-            ]
-        )
-
-        listed_building_outline_df = listed_building_outline_df.select(
-            *[
-                F.col(c).cast("string") if c in listed_building_outline_df.columns
-                else F.lit(None).cast("string").alias(c)
-                for c in lbo_cols
-            ]
-        )
-
         return {
-            "listed_building": listed_buildings_df,
-            "listed_building_outline": listed_building_outline_df,
+            "listed_building_data": listed_buildings_df,
+            "listed_building_outline_data": listed_building_outline_df,
         }
+
+    def _flatten_entities(self, df: DataFrame) -> DataFrame:
+        if df is None:
+            return None
+
+        if "entities" in df.columns:
+            return df.selectExpr("explode(entities) as entity").select("entity.*")
+
+        return df
 
     @LoggingUtil.logging_to_appins
     def process(self, **kwargs) -> ETLResult:
@@ -193,13 +161,12 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         if not source_data:
             raise ValueError("process requires source_data dictionary")
 
-        lb_df = source_data.get("listed_building")
-        lbo_df = source_data.get("listed_building_outline")
+        lb_df = self._flatten_entities(source_data.get("listed_building"))
+        lbo_df = self._flatten_entities(source_data.get("listed_building_outline"))
 
         if lb_df is None or lbo_df is None:
             raise ValueError("Required Listed Buildings dataframes are missing")
 
-        database_name = "odw_standardised_db"
         lb_table = "listed_building"
         lbo_table = "listed_building_outline"
 
@@ -208,29 +175,13 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
         return (
             {
-                f"{database_name}.{lb_table}": {
+                lb_table: {
                     "data": lb_df,
-                    "storage_kind": "ADLSG2-Table",
-                    "database_name": database_name,
-                    "table_name": lb_table,
-                    "container_name": "odw-standardised",
-                    "blob_path": lb_table,
-                    "file_format": "delta",
                     "write_mode": "overwrite",
-                    "write_options": {"mergeSchema": "true"},
-                    "storage_endpoint": Util.get_storage_account(),
                 },
-                f"{database_name}.{lbo_table}": {
+                lbo_table: {
                     "data": lbo_df,
-                    "storage_kind": "ADLSG2-Table",
-                    "database_name": database_name,
-                    "table_name": lbo_table,
-                    "container_name": "odw-standardised",
-                    "blob_path": lbo_table,
-                    "file_format": "delta",
                     "write_mode": "overwrite",
-                    "write_options": {"mergeSchema": "true"},
-                    "storage_endpoint": Util.get_storage_account(),
                 },
             },
             ETLSuccessResult(
