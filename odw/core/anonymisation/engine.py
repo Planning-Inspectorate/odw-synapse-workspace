@@ -240,6 +240,7 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
             pass
         # Lazy import to avoid typing_extensions.Sentinel import error in Synapse
         from azure.identity import DefaultAzureCredential  # type: ignore
+
         return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
