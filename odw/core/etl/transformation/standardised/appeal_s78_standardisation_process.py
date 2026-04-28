@@ -1,4 +1,5 @@
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from pyspark.sql import DataFrame
 
 
 class AppealS78StandardisationProcess(StandardisationProcess):
@@ -94,6 +95,20 @@ class AppealS78StandardisationProcess(StandardisationProcess):
 
     def load_data(self, **kwargs):
         raise NotImplementedError("AppealS78StandardisationProcess.load_data() has not been implemented yet.")
+
+    def generate_base_table(
+        self,
+        horizon_cases: DataFrame,
+        case_specialisms: DataFrame,
+        case_dates: DataFrame,
+        case_document_dates_dates: DataFrame,
+        case_site_strings: DataFrame,
+        addadditional_data: DataFrame,
+        additional_fields: DataFrame,
+        horizon_notice_dates: DataFrame,
+        horizon_appeal_grounds: DataFrame,
+    ):
+        pass
 
     def process(self, **kwargs):
         raise NotImplementedError("AppealS78StandardisationProcess.process() has not been implemented yet.")
