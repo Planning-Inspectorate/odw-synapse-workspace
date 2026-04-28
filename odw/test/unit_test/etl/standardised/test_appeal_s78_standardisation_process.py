@@ -11,10 +11,6 @@ from typing import Callable
 
 
 class TestAppealS78StandardisationProcess(SparkTestCase):
-    @pytest.fixture()
-    def mock_data_loaders(self):
-        yield
-
     def _assert_row_count_query(self, target_col_name: str, override_property: str, test_name: str, target_function: Callable):
         """
         Tests for the data loaders that execute a query with the below structure
@@ -355,7 +351,7 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             "appealrefnumber",
             "STANDARDISED_ADD_ADDITIONAL_DATA",
             "t_as78sp_lvwaad",
-            AppealS78StandardisationProcess._load_standardised_vw_additionalfields,
+            AppealS78StandardisationProcess._load_standardised_vw_addadditionaldata,
         )
 
     def test__appeal_s78_standardisation_process__load_vw_additionalfields(self):
@@ -413,24 +409,31 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._load_standardised_horizon_specialist_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_PlanningAppStrings(self):
+    def test__appeal_s78_standardisation_process__load_planning_app_strings(self):
+        # For odw_standardised_db.PlanningAppStrings
         self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_PLANNING_APP_STRINGS", "t_as78sp_lpas", AppealS78StandardisationProcess._load_standardised_PlanningAppStrings
+            "casenodeid",
+            "STANDARDISED_PLANNING_APP_STRINGS",
+            "t_as78sp_lpas",
+            AppealS78StandardisationProcess._load_standardised_planning_app_strings,
         )
 
-    def test__appeal_s78_standardisation_process__load_PlanningAppDates(self):
+    def test__appeal_s78_standardisation_process__load_planning_app_dates(self):
+        # For odw_standardised_db.PlanningAppDates
         self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_standardised_PlanningAppDates
+            "casenodeid", "STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_planning_app_dates
         )
 
-    def test__appeal_s78_standardisation_process__load_BIS_LeadCase(self):
+    def test__appeal_s78_standardisation_process__load_standardised_bis_lead_case(self):
+        # For odw_standardised_db.BIS_LeadCase
         self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_BIS_LeadCase
+            "casenodeid", "STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_bis_lead_case
         )
 
-    def test__appeal_s78_standardisation_process__load_CaseStrings(self):
+    def test__appeal_s78_standardisation_process__load_standardised_case_strings(self):
+        # For odw_standardised_db.CaseStrings
         self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_CaseStrings
+            "casenodeid", "STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_case_strings
         )
 
     def test__appeal_s78_standardisation_process__load_horizon_case_info(self):
