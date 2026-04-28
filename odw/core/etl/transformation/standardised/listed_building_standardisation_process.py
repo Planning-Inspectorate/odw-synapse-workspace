@@ -32,8 +32,10 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         raw_source_data = self.load_data(**kwargs)
 
         source_data = {
-            "listed_building": raw_source_data.get("listed_building_data"),
-            "listed_building_outline": raw_source_data.get("listed_building_outline_data"),
+            "listed_building_data": raw_source_data.get("listed_building_data"),
+            "listed_building_outline_data": raw_source_data.get(
+                "listed_building_outline_data"
+            ),
         }
 
         outputs, result = self.process(source_data=source_data)
@@ -129,7 +131,9 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         self._safe_log_info(f"Reading Listed Building Outline from {lbo_path}")
 
         listed_buildings_raw = self.spark.read.option("multiline", "true").json(lb_path)
-        listed_building_outline_raw = self.spark.read.option("multiline", "true").json(lbo_path)
+        listed_building_outline_raw = self.spark.read.option(
+            "multiline", "true"
+        ).json(lbo_path)
 
         listed_buildings_df = self._flatten_entities(listed_buildings_raw)
         listed_building_outline_df = self._flatten_entities(listed_building_outline_raw)
@@ -146,8 +150,15 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         if not source_data:
             raise ValueError("process requires source_data dictionary")
 
-        lb_df = self._flatten_entities(source_data.get("listed_building"))
-        lbo_df = self._flatten_entities(source_data.get("listed_building_outline"))
+        lb_raw = source_data.get("listed_building") or source_data.get(
+            "listed_building_data"
+        )
+        lbo_raw = source_data.get("listed_building_outline") or source_data.get(
+            "listed_building_outline_data"
+        )
+
+        lb_df = self._flatten_entities(lb_raw)
+        lbo_df = self._flatten_entities(lbo_raw)
 
         if lb_df is None or lbo_df is None:
             raise ValueError("Required Listed Buildings dataframes are missing")
@@ -178,7 +189,9 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
                     update_count=0,
                     delete_count=0,
                     activity_type=self.__class__.__name__,
-                    duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
+                    duration_seconds=(
+                        end_exec_time - start_exec_time
+                    ).total_seconds(),
                 )
             ),
         )
