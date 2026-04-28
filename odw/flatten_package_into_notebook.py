@@ -269,6 +269,14 @@ def extract_imports_from_file(module_content: str):
     return [x for x in all_names_to_import if x.startswith("odw")]
 
 
+def extract_relative_imports_from_file(module_name: str, module_content: str, module_map: Dict[str, str]) -> List[str]:
+    """Resolve relative imports (e.g. `from .base import X`) to full odw module paths."""
+    package = ".".join(module_name.split(".")[:-1])
+    matches = re.findall(r"^from\s+\.(\w[\w.]*)\s+import", module_content, re.MULTILINE)
+    resolved = [f"{package}.{m}" for m in matches]
+    return [r for r in resolved if r in module_map]
+
+
 def generate_dag(module_map: Dict[str, str], root: str = None):
     """
     Generate a direct acyclic graph of the python files
@@ -276,7 +284,10 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
     :param Dict[str, Any] module_map: Map of the form <moduel.name: python module content>
     :param str root: Drop all files not associated to the root. Default includes all files
     """
-    dag = {module: extract_imports_from_file(module_content) for module, module_content in module_map.items()}
+    dag = {
+        module: extract_imports_from_file(module_content) + extract_relative_imports_from_file(module, module_content, module_map)
+        for module, module_content in module_map.items()
+    }
     if root:
         if not os.path.exists(root):
             raise FileNotFoundError(f"Root file '{root}' does not exist")
