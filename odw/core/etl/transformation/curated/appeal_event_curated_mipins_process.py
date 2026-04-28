@@ -30,9 +30,7 @@ class AppealEventCuratedMipinsProcess(CurationProcess):
         return "appeal_event_curated_mipins"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(
-            f"Loading harmonised Appeal Event data from {self.HARMONISED_TABLE}"
-        )
+        LoggingUtil().log_info(f"Loading harmonised Appeal Event data from {self.HARMONISED_TABLE}")
 
         df = self.spark.sql(f"""
             SELECT
@@ -68,9 +66,7 @@ class AppealEventCuratedMipinsProcess(CurationProcess):
                 AND (ValidTo IS NULL OR ValidTo >= TIMESTAMP('1900-01-01'))
         """)
 
-        return {
-            "harmonised_appeal_event": df
-        }
+        return {"harmonised_appeal_event": df}
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
@@ -80,18 +76,10 @@ class AppealEventCuratedMipinsProcess(CurationProcess):
 
         for col in self.TIMESTAMP_COLUMNS:
             if col in df.columns:
-                df = df.withColumn(
-                    col,
-                    F.to_timestamp(
-                        F.from_utc_timestamp(F.col(col), "Europe/London"),
-                        "yyyy-MM-dd'T'HH:mm:ss.SSS"
-                    )
-                )
+                df = df.withColumn(col, F.to_timestamp(F.from_utc_timestamp(F.col(col), "Europe/London"), "yyyy-MM-dd'T'HH:mm:ss.SSS"))
 
         insert_count = df.count()
-        LoggingUtil().log_info(
-            f"Curated Appeal Event (MIPINS) row count: {insert_count}"
-        )
+        LoggingUtil().log_info(f"Curated Appeal Event (MIPINS) row count: {insert_count}")
 
         end_exec_time = datetime.now()
 

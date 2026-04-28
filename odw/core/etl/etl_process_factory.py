@@ -21,7 +21,6 @@ from odw.core.etl.transformation.curated.appeal_event_curated_process import App
 from typing import Dict, List, Set, Type
 import json
 
-
 class ETLProcessFactory:
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
         StandardisationProcess,

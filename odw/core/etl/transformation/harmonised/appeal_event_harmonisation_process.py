@@ -6,6 +6,7 @@ from pyspark.sql import DataFrame
 from datetime import datetime
 from typing import Dict
 
+
 class AppealEventHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "appeal_event"
     PRIMARY_KEY = "eventId"
@@ -98,11 +99,7 @@ class AppealEventHarmonisationProcess(HarmonisationProcess):
 
         target_table = f"{self.harmonised_db}.{self.OUTPUT_TABLE}"
 
-        combined_df.write \
-            .format("delta") \
-            .mode("overwrite") \
-            .option("overwriteSchema", "true") \
-            .saveAsTable(target_table)
+        combined_df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(target_table)
 
         combined_df = self.spark.table(target_table)
         combined_df.createOrReplaceTempView("appeal_event_base")
@@ -155,21 +152,14 @@ class AppealEventHarmonisationProcess(HarmonisationProcess):
 
         final_columns = combined_df.columns
 
-        final_df = combined_df \
-            .drop("AppealsEventId", "ValidTo", "Migrated", "IsActive") \
-            .join(calcs_df, on=["eventId", "IngestionDate"], how="inner") \
-            .select(final_columns) \
+        final_df = (
+            combined_df.drop("AppealsEventId", "ValidTo", "Migrated", "IsActive")
+            .join(calcs_df, on=["eventId", "IngestionDate"], how="inner")
+            .select(final_columns)
             .distinct()
-
-        final_df = final_df.withColumn(
-            "RowID",
-            F.md5(
-                F.concat_ws(
-                    "",
-                    *[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in final_df.columns]
-                )
-            )
         )
+
+        final_df = final_df.withColumn("RowID", F.md5(F.concat_ws("", *[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in final_df.columns])))
 
         hrm_table_snake_case = self.OUTPUT_TABLE.replace("-", "_")
 
