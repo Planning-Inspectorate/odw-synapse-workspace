@@ -59,9 +59,19 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
                 AND (ValidTo IS NULL OR ValidTo >= TIMESTAMP('1900-01-01'))
         """)
 
+        # Resolve the output table path so process() stays pure transformation.
+        table_path = self._resolve_table_path()
+
         return {
             "harmonised_appeal_event_estimate": harmonised_appeal_event_estimate,
+            "table_path": table_path,
         }
+
+    def _resolve_table_path(self):
+        """Resolve the Delta table location via DESCRIBE EXTENDED."""
+        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
+        rows = df.filter(df.col_name == "Location").select("data_type").collect()
+        return rows[0]["data_type"] if rows else None
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
@@ -71,6 +81,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         dataFrame: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
+        table_path = self.load_parameter("table_path", source_data)
 
         # Convert UTC timestamps to Europe/London timezone
         timestamp_columns = ["IngestionDate", "ValidTO"]
@@ -85,10 +96,6 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
         insert_count = dataFrame.count()
         LoggingUtil().log_info(f"Curated Appeal Event Estimate MIPINS row count: {insert_count}")
-
-        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
-        rows = df.filter(df.col_name == "Location").select("data_type").collect()
-        table_path = rows[0]["data_type"] if rows else None
 
         end_exec_time = datetime.now()
         data_to_write = {
