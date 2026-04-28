@@ -64,8 +64,8 @@ def generate_etl_fail_result(exception: str, start_time: datetime = datetime.now
 
 
 def compare_etl_results(expected: ETLResult, actual: ETLResult):
-    actual_result_json = json.loads(actual.json())
-    expected_result_json = json.loads(expected.json())
+    actual_result_json = json.loads(actual.model_dump_json())
+    expected_result_json = json.loads(expected.model_dump_json())
     actual_error_message = actual_result_json["metadata"].pop("exception_trace", None)
     expected_error_message = expected_result_json["metadata"].pop("exception_trace", None)
     metadata_fields_to_ignore = ("start_execution_time", "end_execution_time", "duration_seconds")
