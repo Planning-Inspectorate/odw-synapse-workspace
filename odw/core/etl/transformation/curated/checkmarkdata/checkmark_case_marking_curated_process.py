@@ -54,7 +54,7 @@ class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
                 "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "checkmarkdata/pbi_case_marking",  # mirrors legacy ABFSS path
+                "blob_path": "checkmarkdata/pbi_case_marking",  #  legacy ABFSS path
                 "write_mode": "overwrite",
             }
         }
