@@ -28,7 +28,7 @@ class AppealS78StandardisationProcess(StandardisationProcess):
 
     def get_name(self) -> str:
         return "Appeal S78 Standardisation Process"
-    
+
     def _load_standardised_horizoncases_s78(self):
         pass
 
@@ -62,16 +62,16 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     def _load_standardised_horizon_specialist_case_dates(self):
         pass
 
-    def _load_standardised_PlanningAppStrings(self):
+    def _load_standardised_planning_app_strings(self):
         pass
 
-    def _load_standardised_PlanningAppDates(self):
+    def _load_planning_app_dates(self):
         pass
 
-    def _load_standardised_BIS_LeadCase(self):
+    def _load_standardised_bis_lead_case(self):
         pass
 
-    def _load_standardised_CaseStrings(self):
+    def _load_standardised_case_strings(self):
         pass
 
     def _load_standardised_horizon_case_info(self):
@@ -91,7 +91,6 @@ class AppealS78StandardisationProcess(StandardisationProcess):
 
     def _load_standardised_horizon_application_made_under_section(self):
         pass
-
 
     def load_data(self, **kwargs):
         raise NotImplementedError("AppealS78StandardisationProcess.load_data() has not been implemented yet.")
