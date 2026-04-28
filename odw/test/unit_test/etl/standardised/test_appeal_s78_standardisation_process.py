@@ -315,14 +315,40 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             "casenodeid", "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
         )
 
-    def test__appeal_s78_standardisation_process__load_typeofprocedure(self):
-        """
-        add_procedure AS (
-        SELECT a.*, tp.proccode AS caseProcedure
-        FROM add_aad a
-        LEFT JOIN tp ON a.procedureType = tp.name
+    def test__appeal_s78_standardisation_process__load_type_of_procedure(self):
+        # The full source table should be returned
+        test_name = "t_as78sp_ltop"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        def generate_row(**overrides):
+            base = {"colA": "1", "colB": "a", "colC": "d"}
+            return base | overrides
+
+        raw_data = spark.createDataFrame(
+            (
+                generate_row(colA=1),
+                generate_row(colB=2),
+                generate_row(colC=3),
+            ),
+            schema=StructType(
+                [StructField("colA", StringType(), True), StructField("colB", StringType(), True), StructField("colC", StringType(), True)]
+            ),
         )
-        """
+        self.write_existing_table(
+            spark,
+            raw_data,
+            test_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            test_name,
+            "overwrite",
+        )
+        with (
+            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_TYPE_OF_PROCEDURE", test_name),
+            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+        ):
+            actual_data = AppealS78StandardisationProcess()._load_standardised_horizon_appeal_grounds()
+            assert_dataframes_equal(raw_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_vw_addadditionaldata(self):
         self._assert_row_count_query(
@@ -345,14 +371,39 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._load_standardised_horizon_advert_attributes,
         )
 
-    def test__appeal_s78_standardisation_process__load_TypeOfLevel(self):
-        """
-        add_typeoflevel AS (
-        SELECT b.*, ctl.name AS allocationLevel, ctl.band AS allocationBand
-        FROM base b
-        LEFT JOIN ctl ON b.level_code = ctl.name
+    def test__appeal_s78_standardisation_process__load_current_type_of_level(self):
+        test_name = "t_as78sp_lctol"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        def generate_row(**overrides):
+            base = {"colA": "1", "colB": "a", "colC": "d"}
+            return base | overrides
+
+        raw_data = spark.createDataFrame(
+            (
+                generate_row(colA=1),
+                generate_row(colB=2),
+                generate_row(colC=3),
+            ),
+            schema=StructType(
+                [StructField("colA", StringType(), True), StructField("colB", StringType(), True), StructField("colC", StringType(), True)]
+            ),
         )
-        """
+        self.write_existing_table(
+            spark,
+            raw_data,
+            test_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            test_name,
+            "overwrite",
+        )
+        with (
+            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_TYPE_OF_LEVEL", test_name),
+            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+        ):
+            actual_data = AppealS78StandardisationProcess()._load_standardised_current_type_of_level()
+            assert_dataframes_equal(raw_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(self):
         self._assert_row_count_query(
@@ -404,22 +455,121 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
 
     def test__appeal_s78_standardisation_process__load_horizon_appeal_grounds(self):
-        """
-        hag_agg AS (
-        SELECT
-            g.casenodeid,
-            sort_array(
-            collect_list(
-                named_struct(
-                'appealGroundLetter', g.appealgroundletter,
-                'groundForAppealStartDate', g.groundforappealstartdate
-                )
-            )
-            ) AS enforcementAppealGroundsDetails
-        FROM hag g
-        GROUP BY g.casenodeid
+        test_name = "t_as78sp_lhap"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        def generate_row(**overrides):
+            base = {"casenodeid": None, "appealgroundletter": None, "groundforappealstartdate": None}
+            return base | overrides
+
+        def generate_expected_row(**overrides):
+            base = {"casenodeid": None, "enforcementAppealGroundsDetails": [{"appealGroundLetter": "", "groundForAppealStartDate": ""}]}
+            return base | overrides
+
+        base_date = datetime(2025, 1, 1)
+        next_date = datetime(2025, 2, 1)
+
+        raw_data = spark.createDataFrame(
+            (
+                generate_row(
+                    casenodeid=1,
+                    appealgroundletter="a",
+                    groundforappealstartdate=base_date,
+                ),
+                generate_row(
+                    casenodeid=1,
+                    appealgroundletter="a",
+                    groundforappealstartdate=next_date,
+                ),
+                generate_row(
+                    casenodeid=1,
+                    appealgroundletter="b",
+                    groundforappealstartdate=base_date,
+                ),
+                generate_row(
+                    casenodeid=2,
+                    appealgroundletter="a",
+                    groundforappealstartdate=base_date,
+                ),
+                generate_row(
+                    casenodeid=2,
+                    appealgroundletter="a",
+                    groundforappealstartdate=next_date,
+                ),
+                generate_row(
+                    casenodeid=2,
+                    appealgroundletter="b",
+                    groundforappealstartdate=base_date,
+                ),
+                generate_row(
+                    casenodeid=2,
+                    appealgroundletter="b",
+                    groundforappealstartdate=next_date,
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("casenodeid", IntegerType(), True),
+                    StructField("appealgroundletter", StringType(), True),
+                    StructField("groundforappealstartdate", TimestampType(), True),
+                ]
+            ),
         )
-        """
+        self.write_existing_table(
+            spark,
+            raw_data,
+            test_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            test_name,
+            "overwrite",
+        )
+
+        expected_data = spark.createDataFrame(
+            (
+                generate_expected_row(
+                    casenodeid=1,
+                    enforcementAppealGroundsDetails=[
+                        {"appealGroundLetter": "a", "groundForAppealStartDate": base_date},
+                        {"appealGroundLetter": "a", "groundForAppealStartDate": next_date},
+                        {"appealGroundLetter": "b", "groundForAppealStartDate": base_date},
+                    ],
+                ),
+                generate_expected_row(
+                    casenodeid=2,
+                    enforcementAppealGroundsDetails=[
+                        {"appealGroundLetter": "a", "groundForAppealStartDate": base_date},
+                        {"appealGroundLetter": "a", "groundForAppealStartDate": next_date},
+                        {"appealGroundLetter": "b", "groundForAppealStartDate": base_date},
+                        {"appealGroundLetter": "b", "groundForAppealStartDate": next_date},
+                    ],
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("casenodeid", IntegerType(), True),
+                    StructField(
+                        "enforcementAppealGroundsDetails",
+                        ArrayType(
+                            StructType(
+                                [
+                                    StructField("appealGroundLetter", StringType(), True),
+                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                ]
+                            ),
+                            False,
+                        ),
+                        False,
+                    ),
+                ]
+            ),
+        )
+        with (
+            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_HORIZON_APPEAL_GROUNDS", test_name),
+            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+        ):
+            actual_data = AppealS78StandardisationProcess()._load_standardised_horizon_appeal_grounds()
+            assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_horizon_notice_dates(self):
         self._assert_row_count_query(
