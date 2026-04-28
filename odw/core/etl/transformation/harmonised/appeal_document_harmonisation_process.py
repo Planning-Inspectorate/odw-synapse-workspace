@@ -242,13 +242,9 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     def _resolve_table_path(self):
         """Resolve the Delta table location via DESCRIBE EXTENDED."""
-        try:
-            df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
-            rows = df.filter(df.col_name == "Location").select("data_type").collect()
-            return rows[0]["data_type"] if rows else None
-        except Exception:
-            LoggingUtil().log_info(f"Could not resolve path for {self.OUTPUT_TABLE}, continuing without path")
-            return None
+        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
+        rows = df.filter(df.col_name == "Location").select("data_type").collect()
+        return rows[0]["data_type"] if rows else None
 
     # ------------------------------------------------------------------
     # process – pure transformation, no reads or writes
@@ -266,7 +262,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         aie_data: DataFrame = self.load_parameter("aie_data", source_data)
         sb_primary_keys: DataFrame = self.load_parameter("sb_primary_keys", source_data)
-        table_path = source_data.get("table_path")
+        table_path = self.load_parameter("table_path", source_data)
 
         # ---------------------------------------------------------
         # Step 1: Join Horizon + AIE
