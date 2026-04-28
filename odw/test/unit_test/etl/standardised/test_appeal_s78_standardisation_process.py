@@ -8,6 +8,7 @@ from odw.test.util.assertion import assert_dataframes_equal
 from datetime import datetime, timedelta
 from pyspark.sql import DataFrame
 from typing import Callable
+from contextlib import ExitStack
 
 
 class TestAppealS78StandardisationProcess(SparkTestCase):
@@ -590,27 +591,41 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._load_standardised_horizon_application_made_under_section,
         )
 
-    def test__appeal_s78_standardisation_process__load_data(self, mock_data_loaders):
-        expected_output_keys = {
-            "odw_standardised_db.horizoncases_s78",
-            "odw_standardised_db.cases_specialisms",
-            "odw_standardised_db.vw_case_dates",
-            "odw_standardised_db.casedocumentdatesdates",
-            "odw_standardised_db.casesitestrings",
-            "odw_standardised_db.typeofprocedure",
-            "odw_standardised_db.vw_addadditionaldata",
-            "odw_standardised_db.vw_additionalfields",
-            "odw_standardised_db.horizon_advert_attributes",
-            "odw_standardised_db.TypeOfLevel",
-            "odw_standardised_db.horizon_specialist_case_dates",
-            "odw_standardised_db.PlanningAppStrings",
-            "odw_standardised_db.PlanningAppDates",
-            "odw_standardised_db.BIS_LeadCase",
-            "odw_standardised_db.CaseStrings",
-            "odw_standardised_db.horizon_case_info",
-            "odw_standardised_db.horizon_case_dates",
-            "odw_standardised_db.horizon_appeals_additional_data",
-            "odw_standardised_db.horizon_appeal_grounds",
-            "odw_standardised_db.horizon_notice_dates",
-            "odw_standardised_db.horizon_application_made_under_section",
-        }
+    def test__appeal_s78_standardisation_process__load_data(self):
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            inst = AppealS78StandardisationProcess()
+            loader_function_map = {
+                "odw_standardised_db.horizoncases_s78": inst._load_standardised_horizoncases_s78,
+                "odw_standardised_db.cases_specialisms": inst._load_standardised_cases_specialisms,
+                "odw_standardised_db.vw_case_dates": inst._load_standardised_vw_case_dates,
+                "odw_standardised_db.casedocumentdatesdates": inst._load_standardised_casedocumentdatesdates,
+                "odw_standardised_db.casesitestrings": inst._load_standardised_casesitestrings,
+                "odw_standardised_db.typeofprocedure": inst._load_type_of_procedure,
+                "odw_standardised_db.vw_addadditionaldata": inst._load_standardised_vw_addadditionaldata,
+                "odw_standardised_db.vw_additionalfields": inst._load_standardised_vw_additionalfields,
+                "odw_standardised_db.horizon_advert_attributes": inst._load_standardised_horizon_advert_attributes,
+                "odw_standardised_db.TypeOfLevel": inst._load_standardised_current_type_of_level,
+                "odw_standardised_db.horizon_specialist_case_dates": inst._load_standardised_horizon_specialist_case_dates,
+                "odw_standardised_db.PlanningAppStrings": inst._load_standardised_planning_app_strings,
+                "odw_standardised_db.PlanningAppDates": inst._load_planning_app_dates,
+                "odw_standardised_db.BIS_LeadCase": inst._load_standardised_bis_lead_case,
+                "odw_standardised_db.CaseStrings": inst._load_standardised_case_strings,
+                "odw_standardised_db.horizon_case_info": inst._load_standardised_horizon_case_info,
+                "odw_standardised_db.horizon_case_dates": inst._load_standardised_horizon_case_dates,
+                "odw_standardised_db.horizon_appeals_additional_data": inst._load_standardised_horizon_appeals_additional_data,
+                "odw_standardised_db.horizon_appeal_grounds": inst._load_standardised_horizon_appeal_grounds,
+                "odw_standardised_db.horizon_notice_dates": inst._load_standardised_horizon_notice_dates,
+                "odw_standardised_db.horizon_application_made_under_section": inst._load_standardised_horizon_application_made_under_section,
+            }
+            expected_result = {table_name: i for i, table_name in enumerate(loader_function_map.keys())}
+            with ExitStack() as stack:
+                for table_name, return_value in expected_result.items():
+                    method = loader_function_map[table_name].__name__
+                    stack.enter_context(mock.patch.object(inst, method, return_value=return_value))
+                actual_result = inst.load_data()
+                called_functions_map = {x.__name__: getattr(inst, x.__name__).called for x in loader_function_map.values()}
+                uncalled_functions = [k for k, v in called_functions_map.items() if not v]
+                assert not uncalled_functions, (
+                    f"The following methods of AppealS78StandardisationProcess were not called but were expected {uncalled_functions}"
+                )
+                assert expected_result == actual_result
