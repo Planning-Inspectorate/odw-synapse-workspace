@@ -2,10 +2,8 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
-
 from datetime import datetime
 from typing import Dict, Tuple
 

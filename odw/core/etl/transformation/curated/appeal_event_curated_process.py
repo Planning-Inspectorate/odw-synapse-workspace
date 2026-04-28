@@ -41,18 +41,14 @@ class AppealEventCuratedProcess(CurationProcess):
             FROM {self.HARMONISED_TABLE}
             WHERE IsActive = 'Y'
         """)
-
         return {"harmonised_appeal_event": df}
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
-
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         df: DataFrame = self.load_parameter("harmonised_appeal_event", source_data)
-
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated Appeal Event row count: {insert_count}")
-
         end_exec_time = datetime.now()
 
         data_to_write = {
