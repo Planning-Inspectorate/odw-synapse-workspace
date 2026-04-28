@@ -94,13 +94,9 @@ class AppealEventHarmonisationProcess(HarmonisationProcess):
 
     def process(self, source_data: Dict[str, DataFrame], **kwargs):
         start_exec_time = datetime.now()
-
         combined_df = source_data["service_bus"].union(source_data["horizon"])
-
         target_table = f"{self.harmonised_db}.{self.OUTPUT_TABLE}"
-
         combined_df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(target_table)
-
         combined_df = self.spark.table(target_table)
         combined_df.createOrReplaceTempView("appeal_event_base")
 
