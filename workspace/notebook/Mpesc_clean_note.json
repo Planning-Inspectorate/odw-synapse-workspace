@@ -1,0 +1,220 @@
+{
+	"name": "Mpesc_clean_note",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9729f2f5-c3e7-435e-9200-d2e53fb1b118"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"import re\n",
+					"import csv\n",
+					"import io\n",
+					"from datetime import datetime\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"FULL_PATH = f\"{mpesc_base_path}/MPESC-SPREADSHEET/EXTRACT/CaseNote.csv\"\n",
+					"\n",
+					"NULL_GUID = \"00000000-0000-0000-0000-000000000000\"\n",
+					""
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def fix_guid(val):\n",
+					"    if re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', val.strip()):\n",
+					"        return val.strip()\n",
+					"    return NULL_GUID\n",
+					"\n",
+					"def fix_date(val):\n",
+					"    # Strip time portion if present e.g. \"2013-07-19 00:00:00\" -> \"2013-07-19\"\n",
+					"    val = val.strip()\n",
+					"    try:\n",
+					"        return datetime.strptime(val, \"%Y-%m-%d %H:%M:%S\").strftime(\"%Y-%m-%d\")\n",
+					"    except ValueError:\n",
+					"        pass\n",
+					"    try:\n",
+					"        return datetime.strptime(val, \"%Y-%m-%d\").strftime(\"%Y-%m-%d\")\n",
+					"    except ValueError:\n",
+					"        pass\n",
+					"    try:\n",
+					"        return datetime.strptime(val, \"%d/%m/%Y\").strftime(\"%Y-%m-%d\")\n",
+					"    except ValueError:\n",
+					"        return val  # leave as-is if unrecognised\n",
+					""
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Step 1: Read full file as binary to avoid line-split issues\n",
+					"print(\"Step 1: Reading file...\")\n",
+					"binary_rdd = spark.sparkContext.binaryFiles(FULL_PATH)\n",
+					"raw_bytes = binary_rdd.collect()[0][1]\n",
+					"raw_content = raw_bytes.decode('utf-8')\n",
+					"print(f\"  Characters read: {len(raw_content)}\")\n",
+					"\n",
+					"# Step 2: Parse properly with csv.reader (handles quoted newlines)\n",
+					"print(\"Step 2: Parsing CSV...\")\n",
+					"rows = list(csv.reader(io.StringIO(raw_content)))\n",
+					"print(f\"  Rows parsed (inc header): {len(rows)}\")\n",
+					"\n",
+					"header = rows[0]\n",
+					"comment_idx = header.index(\"comment\")\n",
+					"date_idx = header.index(\"createdAt\")\n",
+					"author_idx = header.index(\"authorId\")\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Step 3: Fix data issues\n",
+					"print(\"Step 3: Fixing dates, authorIds, quoting comments...\")\n",
+					"output = io.StringIO()\n",
+					"writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL, lineterminator='\\n')\n",
+					"writer.writerow(header)\n",
+					"\n",
+					"fixed_dates = 0\n",
+					"fixed_guids = 0\n",
+					"\n",
+					"for i, row in enumerate(rows[1:], 1):\n",
+					"    # Fix date\n",
+					"    original_date = row[date_idx]\n",
+					"    row[date_idx] = fix_date(original_date)\n",
+					"    if row[date_idx] != original_date.strip():\n",
+					"        fixed_dates += 1\n",
+					"\n",
+					"    # Fix authorId\n",
+					"    original_author = row[author_idx]\n",
+					"    row[author_idx] = fix_guid(original_author)\n",
+					"    if row[author_idx] != original_author.strip():\n",
+					"        fixed_guids += 1\n",
+					"        print(f\"  Row {i}: fixed authorId '{original_author}' -> '{row[author_idx]}'\")\n",
+					"\n",
+					"    writer.writerow(row)\n",
+					"\n",
+					"print(f\"  Dates fixed: {fixed_dates}\")\n",
+					"print(f\"  AuthorIds fixed: {fixed_guids}\")\n",
+					""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"import csv\n",
+					"import io\n",
+					"from datetime import datetime\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"FULL_PATH = f\"{mpesc_base_path}/MPESC-SPREADSHEET/EXTRACT/CaseNote.csv\"\n",
+					"\n",
+					"binary_rdd = spark.sparkContext.binaryFiles(FULL_PATH)\n",
+					"raw_bytes = binary_rdd.collect()[0][1]\n",
+					"raw_content = raw_bytes.decode('utf-8')\n",
+					"\n",
+					"rows = list(csv.reader(io.StringIO(raw_content)))\n",
+					"header = rows[0]\n",
+					"date_idx = header.index(\"createdAt\")\n",
+					"\n",
+					"output = io.StringIO()\n",
+					"writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL, lineterminator='\\n')\n",
+					"writer.writerow(header)\n",
+					"\n",
+					"for row in rows[1:]:\n",
+					"    val = row[date_idx].strip()\n",
+					"    # Strip \" 00:00:00\" time portion\n",
+					"    if ' ' in val:\n",
+					"        val = val.split(' ')[0]\n",
+					"    row[date_idx] = val\n",
+					"    writer.writerow(row)\n",
+					"\n",
+					"mssparkutils.fs.put(FULL_PATH, output.getvalue(), overwrite=True)\n",
+					"print(f\"Done. {len(rows)-1} rows written. Dates stripped to YYYY-MM-DD.\")"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(\"Step 4: Writing file back...\")\n",
+					"mssparkutils.fs.put(FULL_PATH, output.getvalue(), overwrite=True)\n",
+					"print(f\"Done. {len(rows)-1} rows written.\")"
+				],
+				"execution_count": 24
+			}
+		]
+	}
+}
