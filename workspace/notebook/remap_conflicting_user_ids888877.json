@@ -1,0 +1,409 @@
+{
+	"name": "remap_conflicting_user_ids888877",
+	"properties": {
+		"description": "Remaps conflicting User UUIDs across scoped EXTRACT CSVs (User, Inspector, Case, CaseNote, CaseDecision). Where a User.csv row's idpUserId already exists in dbo.[User], the incoming id (UUID) is replaced with the existing DB id. Casing-only differences are also normalised to DB casing.",
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b22fb467-1d6a-4c0f-8650-dfb12d85a342"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Remap Conflicting User IDs\n",
+					"\n",
+					"**Purpose:**  \n",
+					"Some rows in `User.csv` have an `idpUserId` that already exists in `dbo.[User]`.  \n",
+					"Rather than failing on insert, we replace the *incoming* UUID (from the CSV `id` column) with the *existing* UUID from the database — but only within the **scoped CSVs** that carry a user ID foreign key.\n",
+					"\n",
+					"Two types of conflict are handled:\n",
+					"- **Genuine conflicts** — the CSV `id` maps to a completely different DB UUID for the same `idpUserId`\n",
+					"- **Casing-only conflicts** — the UUID is the same value but different case (e.g. lowercase CSV vs uppercase DB); these are normalised to DB casing\n",
+					"\n",
+					"**Scoped files (only these are read and rewritten):**\n",
+					"`User.csv`, `Inspector.csv`, `Case.csv`, `CaseNote.csv`, `CaseDecision.csv`\n",
+					"\n",
+					"**Steps:**\n",
+					"1. Resolve environment (prod / dev)\n",
+					"2. Read `User.csv` from `EXTRACT/`\n",
+					"3. Query `dbo.[User]` for existing `idpUserId → id` mappings\n",
+					"4. Join to find conflicts (including casing differences) and build a remap dictionary\n",
+					"5. Apply replacements to scoped CSVs only and overwrite in place\n",
+					"6. Verify no stale UUIDs remain\n",
+					"\n",
+					"> **Note:** `idpUserId` values are never modified — only `id` / foreign-key UUID columns are touched.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 1 — Environment setup"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"    server               = \"pins-sql-peas-primary-prod.database.windows.net\"\n",
+					"    database             = \"pins-sqldb-peas-prod\"\n",
+					"    akv_name             = \"pins-kv-peas-prod\"\n",
+					"    secret_name          = \"peas-sql-app-connection-string\"\n",
+					"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"    server               = \"pins-sql-peas-primary-dev.database.windows.net\"\n",
+					"    database             = \"pins-sqldb-peas-dev\"\n",
+					"    akv_name             = \"pinskvsynwodwdevuks\"\n",
+					"    secret_name          = \"mpesc-sql-password\"\n",
+					"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"extract_path    = f\"{mpesc_base_path}/MPESC-SPREADSHEET/EXTRACT\"\n",
+					"user_csv_path   = f\"{extract_path}/User.csv\"\n",
+					"\n",
+					"print(f\"Workspace    : {workspace}\")\n",
+					"print(f\"Extract path : {extract_path}\")"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 2 — Read User.csv from EXTRACT/"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"\n",
+					"user_csv_df = (\n",
+					"    spark.read\n",
+					"    .option(\"header\", \"true\")\n",
+					"    .option(\"inferSchema\", \"false\")\n",
+					"    .csv(user_csv_path)\n",
+					")\n",
+					"\n",
+					"print(f\"User.csv rows : {user_csv_df.count()}\")\n",
+					"print(f\"Columns       : {user_csv_df.columns}\")\n",
+					"display(user_csv_df.limit(10))"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 3 — Query dbo.[User] for existing idpUserId → id mappings"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# ── Build JDBC connection ─────────────────────────────────────────────────────\n",
+					"\n",
+					"jdbc_url = (\n",
+					"    f\"jdbc:sqlserver://{server}:1433;\"\n",
+					"    f\"database={database};\"\n",
+					"    \"encrypt=true;\"\n",
+					"    \"trustServerCertificate=false;\"\n",
+					"    \"hostNameInCertificate=*.database.windows.net;\"\n",
+					"    \"loginTimeout=30;\"\n",
+					")\n",
+					"\n",
+					"secret_value = mssparkutils.credentials.getSecret(akv_name, secret_name)\n",
+					"\n",
+					"if secret_name == \"peas-sql-app-connection-string\":\n",
+					"    parts = {\n",
+					"        kv.split(\"=\", 1)[0].strip().lower(): kv.split(\"=\", 1)[1].strip()\n",
+					"        for kv in secret_value.split(\";\")\n",
+					"        if \"=\" in kv\n",
+					"    }\n",
+					"    db_user = parts.get(\"user id\") or parts.get(\"uid\") or parts.get(\"user\")\n",
+					"    db_pass = parts.get(\"password\") or parts.get(\"pwd\")\n",
+					"    if not db_user:\n",
+					"        raise ValueError(f\"User ID not found in secret '{secret_name}'\")\n",
+					"    if not db_pass:\n",
+					"        raise ValueError(f\"Password not found in secret '{secret_name}'\")\n",
+					"else:\n",
+					"    db_user = \"peas_app_ZXzkE0vP\"\n",
+					"    db_pass = secret_value\n",
+					"\n",
+					"# ── Read id + idpUserId from DB ───────────────────────────────────────────────\n",
+					"\n",
+					"db_user_df = (\n",
+					"    spark.read\n",
+					"    .format(\"jdbc\")\n",
+					"    .option(\"url\", jdbc_url)\n",
+					"    .option(\"dbtable\", \"dbo.[User]\")\n",
+					"    .option(\"user\", db_user)\n",
+					"    .option(\"password\", db_pass)\n",
+					"    .load()\n",
+					"    .select(\n",
+					"        F.col(\"id\").cast(\"string\").alias(\"db_id\"),\n",
+					"        F.col(\"idpUserId\").cast(\"string\").alias(\"idpUserId\")\n",
+					"    )\n",
+					"    .filter(\n",
+					"        F.col(\"idpUserId\").isNotNull() &\n",
+					"        (F.col(\"idpUserId\") != \"\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(f\"DB User rows with idpUserId : {db_user_df.count()}\")\n",
+					"display(db_user_df.limit(10))"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 4 — Find conflicts and build remap dictionary\n",
+					"\n",
+					"A conflict is any row in `User.csv` whose `idpUserId` already exists in `dbo.[User]` **and** whose `id` differs from the DB `id` — including casing differences.  \n",
+					"We build: `{ incoming_csv_id  →  existing_db_id }`\n",
+					"\n",
+					"The join is on `idpUserId` (exact, case-sensitive as agreed).  \n",
+					"The `id` comparison uses `upper()` on both sides to catch casing-only differences."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"# Join CSV rows against DB rows on idpUserId (exact / case-sensitive)\n",
+					"# Filter keeps rows where the UUIDs differ even after uppercasing —\n",
+					"# this catches both genuine conflicts AND casing-only differences.\n",
+					"conflicts_df = (\n",
+					"    user_csv_df\n",
+					"    .select(\n",
+					"        F.col(\"id\").cast(\"string\").alias(\"csv_id\"),\n",
+					"        F.col(\"idpUserId\").cast(\"string\").alias(\"idpUserId\")\n",
+					"    )\n",
+					"    .join(db_user_df, on=\"idpUserId\", how=\"inner\")\n",
+					"    # Include casing-only differences: upper(csv_id) != upper(db_id) OR csv_id != db_id\n",
+					"    # Simplified: keep anything where the raw strings don't match\n",
+					"    .filter(F.upper(F.col(\"csv_id\")) != F.upper(F.col(\"db_id\")))\n",
+					"    .select(\"idpUserId\", \"csv_id\", \"db_id\",\n",
+					"        F.when(\n",
+					"            F.upper(F.col(\"csv_id\")) == F.upper(F.col(\"db_id\")), \"casing-only\"\n",
+					"        ).otherwise(\"genuine\").alias(\"conflict_type\")\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"conflict_count = conflicts_df.count()\n",
+					"print(f\"Conflicting rows found: {conflict_count}\")\n",
+					"\n",
+					"if conflict_count == 0:\n",
+					"    print(\"\\nNo conflicts detected — no remapping needed. Notebook complete.\")\n",
+					"else:\n",
+					"    display(conflicts_df)\n",
+					"\n",
+					"    genuine_count = conflicts_df.filter(F.col(\"conflict_type\") == \"genuine\").count()\n",
+					"    casing_count  = conflicts_df.filter(F.col(\"conflict_type\") == \"casing-only\").count()\n",
+					"    print(f\"  Genuine conflicts  : {genuine_count}\")\n",
+					"    print(f\"  Casing-only        : {casing_count}\")\n",
+					"\n",
+					"    # Collect to driver as a plain Python dict  { csv_id: db_id }\n",
+					"    remap_dict = {\n",
+					"        row[\"csv_id\"]: row[\"db_id\"]\n",
+					"        for row in conflicts_df.collect()\n",
+					"    }\n",
+					"    print(f\"\\nRemap dictionary ({len(remap_dict)} entries):\")\n",
+					"    for k, v in remap_dict.items():\n",
+					"        print(f\"  {k}  →  {v}\")"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 5 — Remap scoped CSVs and overwrite in place\n",
+					"\n",
+					"Only the following files are processed — these are the only tables that carry a user ID foreign key:\n",
+					"`User.csv`, `Inspector.csv`, `Case.csv`, `CaseNote.csv`, `CaseDecision.csv`\n",
+					"\n",
+					"For each file we:\n",
+					"1. Read the raw text\n",
+					"2. Apply every `old_id → new_id` substitution (covers both genuine conflicts and casing normalisation)\n",
+					"3. Write the result back to the same path (overwrite) only if something changed"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if conflict_count == 0:\n",
+					"    print(\"No conflicts — skipping remap step.\")\n",
+					"else:\n",
+					"    # ── Only process CSVs that carry a user ID foreign key ────────────────────\n",
+					"    SCOPED_FILES = {\n",
+					"        \"User.csv\",\n",
+					"        \"Inspector.csv\",\n",
+					"        \"Case.csv\",\n",
+					"        \"CaseNote.csv\",\n",
+					"        \"CaseDecision.csv\",\n",
+					"    }\n",
+					"\n",
+					"    all_files  = mssparkutils.fs.ls(extract_path)\n",
+					"    csv_files  = [\n",
+					"        f.path for f in all_files\n",
+					"        if f.name.endswith(\".csv\") and f.name in SCOPED_FILES\n",
+					"    ]\n",
+					"\n",
+					"    print(f\"Scoped CSV files to process: {len(csv_files)}\")\n",
+					"    for fp in csv_files:\n",
+					"        print(f\"  {fp}\")\n",
+					"    print()\n",
+					"\n",
+					"    remapped_files  = []\n",
+					"    unchanged_files = []\n",
+					"    error_files     = []\n",
+					"\n",
+					"    for filepath in csv_files:\n",
+					"        try:\n",
+					"            # ── Read raw text ──────────────────────────────────────────────\n",
+					"            content = mssparkutils.fs.head(filepath, 1024 * 1024 * 50)  # up to 50 MB\n",
+					"\n",
+					"            # ── Apply substitutions ────────────────────────────────────────\n",
+					"            updated_content   = content\n",
+					"            replacements_made = 0\n",
+					"\n",
+					"            for old_id, new_id in remap_dict.items():\n",
+					"                # Case-sensitive exact string replacement\n",
+					"                occurrences = updated_content.count(old_id)\n",
+					"                if occurrences > 0:\n",
+					"                    updated_content   = updated_content.replace(old_id, new_id)\n",
+					"                    replacements_made += occurrences\n",
+					"\n",
+					"            # ── Write back only if something changed ───────────────────────\n",
+					"            if replacements_made > 0:\n",
+					"                mssparkutils.fs.put(filepath, updated_content, overwrite=True)\n",
+					"                remapped_files.append((filepath, replacements_made))\n",
+					"                print(f\"  UPDATED  ({replacements_made:>4} replacement(s)): {filepath}\")\n",
+					"            else:\n",
+					"                unchanged_files.append(filepath)\n",
+					"                print(f\"  unchanged                        : {filepath}\")\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            error_files.append((filepath, str(e)))\n",
+					"            print(f\"  [ERROR] {filepath}: {e}\")\n",
+					"\n",
+					"    # ── Summary ────────────────────────────────────────────────────────────\n",
+					"    print(f\"\\n{'─'*60}\")\n",
+					"    print(f\"Summary\")\n",
+					"    print(f\"{'─'*60}\")\n",
+					"    print(f\"  Scoped files processed : {len(csv_files)}\")\n",
+					"    print(f\"  Files updated          : {len(remapped_files)}\")\n",
+					"    print(f\"  Files unchanged        : {len(unchanged_files)}\")\n",
+					"    print(f\"  Errors                 : {len(error_files)}\")\n",
+					"\n",
+					"    if error_files:\n",
+					"        print(\"\\nFiles with errors:\")\n",
+					"        for fp, err in error_files:\n",
+					"            print(f\"  {fp}: {err}\")"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Step 6 — Verification\n",
+					"\n",
+					"Re-read `User.csv` and confirm that none of the remapped incoming UUIDs remain."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if conflict_count == 0:\n",
+					"    print(\"No conflicts — nothing to verify.\")\n",
+					"else:\n",
+					"    from pyspark.sql.functions import col\n",
+					"    from functools import reduce\n",
+					"\n",
+					"    user_csv_after = (\n",
+					"        spark.read\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"inferSchema\", \"false\")\n",
+					"        .csv(user_csv_path)\n",
+					"    )\n",
+					"\n",
+					"    stale_ids = list(remap_dict.keys())\n",
+					"\n",
+					"    # Check if any old incoming UUIDs are still present in the id column\n",
+					"    still_present = user_csv_after.filter(col(\"id\").isin(stale_ids))\n",
+					"    remaining = still_present.count()\n",
+					"\n",
+					"    if remaining == 0:\n",
+					"        print(\"Verification PASSED — no stale incoming UUIDs remain in User.csv.\")\n",
+					"    else:\n",
+					"        print(f\"Verification FAILED — {remaining} row(s) still contain an old incoming UUID:\")\n",
+					"        display(still_present)\n",
+					"\n",
+					"    print(\"\\nFinal User.csv sample:\")\n",
+					"    display(user_csv_after.limit(20))"
+				],
+				"execution_count": 18
+			}
+		]
+	}
+}
