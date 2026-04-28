@@ -1,4 +1,4 @@
-﻿import hashlib
+import hashlib
 import mock
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
