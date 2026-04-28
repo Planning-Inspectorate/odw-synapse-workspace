@@ -22,6 +22,9 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     STANDARDISED_HORIZON_NOTICE_DATES = "horizon_notice_dates"
     STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION = "horizon_application_made_under_section"
     STANDARDISED_ADD_ADDITIONAL_DATA = "vw_addadditionaldata"
+    STANDARDISED_HORIZON_APPEAL_GROUNDS = "horizon_appeal_grounds"
+    STANDARDISED_TYPE_OF_PROCEDURE = "typeofprocedure"
+    STANDARDISED_TYPE_OF_LEVEL = "TypeOfLevel"
 
     def get_name(self) -> str:
         return "Appeal S78 Standardisation Process"
@@ -41,7 +44,7 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     def _load_standardised_casesitestrings(self):
         pass
 
-    def _load_standardised_typeofprocedure(self):
+    def _load_type_of_procedure(self):
         pass
 
     def _load_standardised_vw_addadditionaldata(self):
@@ -53,7 +56,7 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     def _load_standardised_horizon_advert_attributes(self):
         pass
 
-    def _load_standardised_TypeOfLevel(self):
+    def _load_standardised_current_type_of_level(self):
         pass
 
     def _load_standardised_horizon_specialist_case_dates(self):
