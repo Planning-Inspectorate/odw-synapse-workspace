@@ -7,7 +7,7 @@ from odw.core.etl.transformation.harmonised.listed_building_harmonisation_proces
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _standardised_schema():
