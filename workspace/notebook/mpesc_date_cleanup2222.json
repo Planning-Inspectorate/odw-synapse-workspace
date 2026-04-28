@@ -1,0 +1,403 @@
+{
+	"name": "mpesc_date_cleanup2222",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ccb18d1a-cf7d-45e3-9738-e4c8a6deb520"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# MPESC CSV Date Cleanup\n",
+					"Reads every CSV in `MPESC-SPREADSHEET/EXTRACT/` as **plain text**, auto-detects the separator, converts all date columns to `YYYY-MM-DD HH:MM:SS`, and writes back with the same filename.\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace: {workspace}\")\n",
+					"\n",
+					"csv_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/EXTRACT\"\n",
+					"temp_path     = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/TEMP-CLEANUP\"\n",
+					"\n",
+					"print(\"Starting csv data cleanup process...\")\n",
+					"print(f\"csv path:  {csv_base_path}\")\n",
+					"print(f\"temp path: {temp_path}\")"
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 1 · Separator Auto-Detection"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import csv as _csv\n",
+					"\n",
+					"def detect_separator(file_path: str) -> str:\n",
+					"    \"\"\"\n",
+					"    Reads the first line of a file from ADLS and sniffs the delimiter.\n",
+					"    Falls back to comma if detection fails.\n",
+					"    \"\"\"\n",
+					"    try:\n",
+					"        # Read raw text — mssparkutils.fs.head returns the first N bytes as a string\n",
+					"        first_lines = mssparkutils.fs.head(file_path, 2048)\n",
+					"        first_line  = first_lines.split(\"\\n\")[0]\n",
+					"\n",
+					"        sniffer = _csv.Sniffer()\n",
+					"        dialect = sniffer.sniff(first_line, delimiters=\",\\t|;\")\n",
+					"        return dialect.delimiter\n",
+					"    except Exception:\n",
+					"        return \",\"   # safe default\n",
+					"\n",
+					"\n",
+					"print(\"detect_separator() defined ✓\")"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 2 · Date Conversion UDF"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import StringType\n",
+					"from datetime import datetime, timezone\n",
+					"from dateutil import parser as dateutil_parser\n",
+					"import re\n",
+					"\n",
+					"OUTPUT_FORMAT = \"%Y-%m-%d %H:%M:%S\"\n",
+					"\n",
+					"_DATE_FORMATS = [\n",
+					"    \"%Y-%m-%dT%H:%M:%S.%fZ\",\n",
+					"    \"%Y-%m-%dT%H:%M:%SZ\",\n",
+					"    \"%Y-%m-%dT%H:%M:%S\",\n",
+					"    \"%Y-%m-%d %H:%M:%S.%f\",\n",
+					"    \"%Y-%m-%d %H:%M:%S\",\n",
+					"    \"%Y-%m-%d\",\n",
+					"    \"%Y%m%d\",\n",
+					"    \"%d/%m/%Y %H:%M:%S\",   # DD/MM/YYYY  ← the ADF error format\n",
+					"    \"%d/%m/%Y\",\n",
+					"    \"%m/%d/%Y %H:%M:%S\",\n",
+					"    \"%m/%d/%Y\",\n",
+					"    \"%d-%m-%Y %H:%M:%S\",\n",
+					"    \"%d-%m-%Y\",\n",
+					"    \"%Y/%m/%d %H:%M:%S\",\n",
+					"    \"%Y/%m/%d\",\n",
+					"    \"%d %b %Y\",\n",
+					"    \"%d %B %Y\",\n",
+					"    \"%b %d, %Y\",\n",
+					"    \"%B %d, %Y\",\n",
+					"    \"%d-%b-%Y\",\n",
+					"    \"%d-%B-%Y\",\n",
+					"]\n",
+					"\n",
+					"\n",
+					"def _convert_date(value):\n",
+					"    if value is None:\n",
+					"        return None\n",
+					"    s = str(value).strip()\n",
+					"    if not s or s.lower() in (\"nan\", \"nat\", \"null\", \"none\", \"\"):\n",
+					"        return None\n",
+					"    if re.fullmatch(r\"\\d{10}\", s):\n",
+					"        return datetime.fromtimestamp(int(s), tz=timezone.utc).strftime(OUTPUT_FORMAT)\n",
+					"    if re.fullmatch(r\"\\d{13}\", s):\n",
+					"        return datetime.fromtimestamp(int(s) / 1000, tz=timezone.utc).strftime(OUTPUT_FORMAT)\n",
+					"    for fmt in _DATE_FORMATS:\n",
+					"        try:\n",
+					"            return datetime.strptime(s, fmt).strftime(OUTPUT_FORMAT)\n",
+					"        except ValueError:\n",
+					"            continue\n",
+					"    try:\n",
+					"        return dateutil_parser.parse(s, dayfirst=True).strftime(OUTPUT_FORMAT)\n",
+					"    except Exception:\n",
+					"        return None\n",
+					"\n",
+					"\n",
+					"convert_date_udf = F.udf(_convert_date, StringType())\n",
+					"print(\"UDF registered ✓\")"
+				],
+				"execution_count": 23
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 3 · Date Column Detection"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Hardcoded date columns per file — taken directly from the column output\n",
+					"FILE_DATE_COLUMNS = {\n",
+					"    \"Case.csv\":             [\"createdDate\", \"receivedDate\", \"closedDate\"],\n",
+					"    \"CaseAbeyance.csv\":     [\"abeyanceStartDate\", \"abeyanceEndDate\"],\n",
+					"    \"CaseDates.csv\":        [\"startDate\"],\n",
+					"    \"CaseDecision.csv\":     [\"outcomeDate\", \"decisionReceivedDate\"],\n",
+					"    \"CaseHistory.csv\":      [\"createdAt\"],\n",
+					"    \"CaseNote.csv\":         [\"createdAt\"],\n",
+					"    \"CaseOutcome.csv\":      [\"partiesNotifiedDate\"],\n",
+					"    \"Inspector.csv\":        [\"inspectorAllocatedDate\"],\n",
+					"    \"Procedure.csv\":        [\"caseOfficerVerificationDate\", \"siteVisitDate\", \"earliestHearingDate\",\n",
+					"                             \"confirmedHearingDate\", \"hearingClosedDate\", \"hearingDateNotificationDate\",\n",
+					"                             \"hearingVenueNotificationDate\", \"statementsOfCaseReceivedDate\",\n",
+					"                             \"offerForWrittenRepresentationsDate\"],\n",
+					"}\n",
+					"\n",
+					"def detect_date_columns(df, file_name: str) -> list:\n",
+					"    cols = FILE_DATE_COLUMNS.get(file_name, [])\n",
+					"    # Only return ones that actually exist in this file\n",
+					"    return [c for c in cols if c in df.columns]"
+				],
+				"execution_count": 24
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 4 · Process All Files"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import DataFrame\n",
+					"\n",
+					"all_files = mssparkutils.fs.ls(csv_base_path)\n",
+					"csv_files = [f for f in all_files if f.name.lower().endswith(\".csv\")]\n",
+					"\n",
+					"print(f\"Found {len(csv_files)} file(s)\")\n",
+					"for f in csv_files:\n",
+					"    print(f\"  {f.name}  ({f.size:,} bytes)\")\n",
+					"\n",
+					"report_rows = []\n",
+					"\n",
+					"for file_info in csv_files:\n",
+					"    file_name = file_info.name\n",
+					"    src_path  = f\"{csv_base_path}/{file_name}\"\n",
+					"    tmp_dir   = f\"{temp_path}/{file_name}\"\n",
+					"\n",
+					"    print(f\"\\n{'='*60}\")\n",
+					"    print(f\"Processing: {file_name}\")\n",
+					"\n",
+					"    # ── Step 1: detect separator from raw first line ─────────────────────────\n",
+					"    sep = detect_separator(src_path)\n",
+					"    print(f\"  Separator : {repr(sep)}\")\n",
+					"\n",
+					"    # ── Step 2: read ALL columns as string ───────────────────────────────────\n",
+					"    df: DataFrame = (\n",
+					"        spark.read\n",
+					"             .option(\"header\",      \"true\")\n",
+					"             .option(\"sep\",         sep)\n",
+					"             .option(\"inferSchema\", \"false\")   # <-- keeps everything as string\n",
+					"             .option(\"multiLine\",   \"true\")\n",
+					"             .option(\"escape\",      '\"')\n",
+					"             .csv(src_path)\n",
+					"    )\n",
+					"    first_col = df.columns[0]\n",
+					"    clean_col  = first_col.encode('utf-8').decode('utf-8-sig')  # removes \\ufeff if present\n",
+					"    if clean_col != first_col:\n",
+					"        print(f\"  BOM stripped from column: {repr(first_col)} → {repr(clean_col)}\")\n",
+					"        df = df.withColumnRenamed(first_col, clean_col)\n",
+					"    \n",
+					"    total_rows = df.count()\n",
+					"    print(f\"  Rows      : {total_rows:,}\")\n",
+					"    print(f\"  Columns   : {df.columns}\")\n",
+					"\n",
+					"    # ── Step 3: detect date columns ──────────────────────────────────────────\n",
+					"    date_cols = detect_date_columns(df, file_name)\n",
+					"    print(f\"  Date cols : {date_cols if date_cols else 'none — skipping'}\")\n",
+					"\n",
+					"    if not date_cols:\n",
+					"        report_rows.append({\n",
+					"            \"File\": file_name, \"Separator\": repr(sep),\n",
+					"            \"Date Columns\": \"none\", \"Rows\": total_rows,\n",
+					"            \"Converted\": \"-\", \"Failed\": \"-\",\n",
+					"        })\n",
+					"        continue\n",
+					"\n",
+					"    # ── Step 4: convert each date column, preserving column order ────────────\n",
+					"    original_cols = df.columns\n",
+					"    df_fixed = df\n",
+					"    for col in date_cols:\n",
+					"        tmp_col  = f\"__orig_{col}\"\n",
+					"        df_fixed = (\n",
+					"            df_fixed\n",
+					"            .withColumnRenamed(col, tmp_col)\n",
+					"            .withColumn(col, convert_date_udf(F.col(tmp_col)))\n",
+					"            .drop(tmp_col)\n",
+					"            .select(original_cols)\n",
+					"        )\n",
+					"\n",
+					"    # ── Step 5: write to TEMP, copy back with original name ──────────────────\n",
+					"    (\n",
+					"        df_fixed\n",
+					"        .coalesce(1)\n",
+					"        .write\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"sep\",    sep)\n",
+					"        .mode(\"overwrite\")\n",
+					"        .csv(tmp_dir)\n",
+					"    )\n",
+					"\n",
+					"    part_file = next(f for f in mssparkutils.fs.ls(tmp_dir) if f.name.startswith(\"part-\"))\n",
+					"    mssparkutils.fs.cp(part_file.path, src_path, recurse=False)\n",
+					"    mssparkutils.fs.rm(tmp_dir, recurse=True)\n",
+					"    print(f\"  Written   → {src_path}\")\n",
+					"\n",
+					"    # ── Step 6: count failures ────────────────────────────────────────────────\n",
+					"    fail_total = 0\n",
+					"    conv_total = 0\n",
+					"    for col in date_cols:\n",
+					"        orig_nulls = df.filter(\n",
+					"            F.col(col).isNull() | (F.trim(F.col(col)) == \"\")\n",
+					"        ).count()\n",
+					"        new_nulls  = df_fixed.filter(F.col(col).isNull()).count()\n",
+					"        fail_total += max(0, new_nulls - orig_nulls)\n",
+					"        conv_total += total_rows - new_nulls\n",
+					"\n",
+					"    report_rows.append({\n",
+					"        \"File\":         file_name,\n",
+					"        \"Separator\":    repr(sep),\n",
+					"        \"Date Columns\": \", \".join(date_cols),\n",
+					"        \"Rows\":         total_rows,\n",
+					"        \"Converted\":    conv_total,\n",
+					"        \"Failed\":       fail_total,\n",
+					"    })\n",
+					"\n",
+					"print(f\"\\n{'='*60}\")\n",
+					"print(\"All files processed ✓\")"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 5 · Summary Report"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import pandas as pd\n",
+					"\n",
+					"report_df = pd.DataFrame(report_rows)\n",
+					"print(\"\\nDate Cleanup Summary\")\n",
+					"print(\"=\" * 90)\n",
+					"print(report_df.to_string(index=False))\n",
+					"\n",
+					"failures = report_df[\n",
+					"    report_df[\"Failed\"].apply(lambda x: x not in (\"-\", 0) and str(x) != \"0\")\n",
+					"]\n",
+					"if not failures.empty:\n",
+					"    print(\"\\n⚠  Files with unconverted values — manual review recommended:\")\n",
+					"    print(failures[[\"File\", \"Date Columns\", \"Failed\"]].to_string(index=False))\n",
+					"else:\n",
+					"    print(\"\\n✓ No conversion failures.\")"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## 6 · Spot-Check (Optional)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"CHECK_FILE = \"Case.csv\"   # ← change to any filename\n",
+					"CHECK_COLS = [\"createdDate\", \"updatedDate\", \"receivedDate\", \"closedDate\"]\n",
+					"\n",
+					"check_sep = detect_separator(f\"{csv_base_path}/{CHECK_FILE}\")\n",
+					"df_check  = (\n",
+					"    spark.read\n",
+					"         .option(\"header\",      \"true\")\n",
+					"         .option(\"sep\",         check_sep)\n",
+					"         .option(\"inferSchema\", \"false\")\n",
+					"         .csv(f\"{csv_base_path}/{CHECK_FILE}\")\n",
+					")\n",
+					"\n",
+					"cols_present = [c for c in CHECK_COLS if c in df_check.columns]\n",
+					"print(f\"Separator: {repr(check_sep)}\")\n",
+					"print(f\"Columns present: {cols_present}\")\n",
+					"display(df_check.select(cols_present).limit(20))"
+				],
+				"execution_count": 28
+			}
+		]
+	}
+}
