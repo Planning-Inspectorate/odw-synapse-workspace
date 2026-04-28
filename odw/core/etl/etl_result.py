@@ -52,15 +52,6 @@ class ETLFailResult(ETLResult):
     status_code: ClassVar[int] = 500
 
 
-# Pydantic v1 requires update_forward_refs() for subclasses that inherit a field
-# typed with a nested class (ETLResultMetadata is defined inside ETLResult).
-# The nested class must be passed explicitly so Pydantic can resolve the forward ref.
-# Pydantic v2 resolves forward references automatically, so guard with hasattr.
-for _cls in (ETLSuccessResult, ETLFailResult):
-    if hasattr(_cls, "update_forward_refs"):
-        _cls.update_forward_refs(ETLResultMetadata=ETLResult.ETLResultMetadata)
-
-
 class ETLResultFactory:
     """
     Automatically generate an ETLResult class from an outcome string
