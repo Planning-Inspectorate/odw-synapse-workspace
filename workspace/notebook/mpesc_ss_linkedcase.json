@@ -1,0 +1,185 @@
+{
+	"name": "mpesc_ss_linkedcase",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "71ac0999-7514-4158-b5a4-2a041818a573"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace '{workspace}'\")\n",
+					"\n",
+					"mpesc_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net\"\n",
+					"FULL_PATH = f\"{mpesc_base_path}/MPESC-SPREADSHEET/EXTRACT/LinkedCase.csv\"\n",
+					"\n",
+					"print(\"Using:\", mpesc_base_path)\n",
+					"print(\"Full path:\", FULL_PATH)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import BooleanType\n",
+					"\n",
+					"df_raw = (\n",
+					"    spark.read\n",
+					"         .option(\"header\", \"true\")\n",
+					"         .option(\"inferSchema\", \"true\")\n",
+					"         .csv(FULL_PATH)\n",
+					")\n",
+					"\n",
+					"print(f\"Rows loaded : {df_raw.count()}\")\n",
+					"df_raw.printSchema()\n",
+					"df_raw.show(5, truncate=False)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"unexpected = df_raw.filter(~F.col(\"isLead\").isin(0, 1))\n",
+					"unexpected_count = unexpected.count()\n",
+					"\n",
+					"if unexpected_count > 0:\n",
+					"    print(f\"WARNING: {unexpected_count} rows have unexpected isLead values:\")\n",
+					"    unexpected.select(\"id\", \"isLead\").show(20, truncate=False)\n",
+					"else:\n",
+					"    print(\"Validation passed – isLead contains only 0 and 1.\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_transformed = df_raw.withColumn(\n",
+					"    \"isLead\",\n",
+					"    F.col(\"isLead\").cast(BooleanType())\n",
+					")\n",
+					"\n",
+					"df_transformed.printSchema()\n",
+					"df_transformed.show(5, truncate=False)"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"null_count = df_transformed.filter(F.col(\"isLead\").isNull()).count()\n",
+					"assert null_count == 0, f\"Transform introduced {null_count} null values in isLead!\"\n",
+					"\n",
+					"true_count  = df_transformed.filter(F.col(\"isLead\") == True).count()\n",
+					"false_count = df_transformed.filter(F.col(\"isLead\") == False).count()\n",
+					"print(f\"isLead = true  : {true_count} rows\")\n",
+					"print(f\"isLead = false : {false_count} rows\")\n",
+					"print(f\"Total          : {true_count + false_count} rows (no nulls)\")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"TEMP_PATH = f\"{mpesc_base_path}/LinkedCase/_linkedcase_temp\"\n",
+					"\n",
+					"(\n",
+					"    df_transformed\n",
+					"        .coalesce(1)\n",
+					"        .write\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .mode(\"overwrite\")\n",
+					"        .csv(TEMP_PATH)\n",
+					")\n",
+					"\n",
+					"print(f\"Written to temp path: {TEMP_PATH}\")"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"files = mssparkutils.fs.ls(TEMP_PATH)\n",
+					"part_file = next(f.path for f in files if f.name.startswith(\"part-\") and f.name.endswith(\".csv\"))\n",
+					"\n",
+					"mssparkutils.fs.mv(part_file, FULL_PATH, overwrite=True)\n",
+					"mssparkutils.fs.rm(TEMP_PATH, recurse=True)\n",
+					"\n",
+					"print(f\"Successfully replaced: {FULL_PATH}\")"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_verify = (\n",
+					"    spark.read\n",
+					"         .option(\"header\", \"true\")\n",
+					"         .option(\"inferSchema\", \"true\")\n",
+					"         .csv(FULL_PATH)\n",
+					")\n",
+					"\n",
+					"df_verify.printSchema()\n",
+					"df_verify.show(5, truncate=False)\n",
+					"print(f\"Row count: {df_verify.count()}\")"
+				],
+				"execution_count": 9
+			}
+		]
+	}
+}
