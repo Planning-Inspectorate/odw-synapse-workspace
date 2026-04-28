@@ -26,17 +26,9 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "listed-buildings-standardisation"
+        return "listed_building_standardisation_process"
 
     def run(self, **kwargs) -> Any:
-        """
-        Orchestrates load → process → write.
-
-        Test / legacy compatibility:
-        - Tests mock load_data() and return RAW dataframes
-        - Keys must be mapped before calling process()
-        - write_data() must ALWAYS be called
-        """
         raw_source_data = self.load_data(**kwargs)
 
         source_data = {
@@ -45,9 +37,7 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         }
 
         outputs, result = self.process(source_data=source_data)
-
         self.write_data(outputs)
-
         return result
 
     @staticmethod
@@ -112,37 +102,11 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
         return date_folder
 
-    @LoggingUtil.logging_to_appins
-    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        date_folder = self._get_date_folder(kwargs)
-        storage_account = Util.get_storage_account()
-
-        base_path = f"abfss://odw-raw@{storage_account}/ListedBuildings/{date_folder}"
-        lb_path = f"{base_path}/listed_building.json"
-        lbo_path = f"{base_path}/listed_building_outline.json"
-
-        LoggingUtil().log_info(f"Reading Listed Buildings from {lb_path}")
-        LoggingUtil().log_info(f"Reading Listed Building Outline from {lbo_path}")
-
-        listed_buildings_raw = self.spark.read.option("multiline", "true").json(lb_path)
-        listed_building_outline_raw = self.spark.read.option("multiline", "true").json(lbo_path)
-
-        listed_buildings_df = (
-            listed_buildings_raw
-            .selectExpr("explode(entities) as entity")
-            .select("entity.*")
-        )
-
-        listed_building_outline_df = (
-            listed_building_outline_raw
-            .selectExpr("explode(entities) as entity")
-            .select("entity.*")
-        )
-
-        return {
-            "listed_building_data": listed_buildings_df,
-            "listed_building_outline_data": listed_building_outline_df,
-        }
+    def _safe_log_info(self, message: str) -> None:
+        try:
+            LoggingUtil().log_info(message)
+        except Exception:
+            pass
 
     def _flatten_entities(self, df: DataFrame) -> DataFrame:
         if df is None:
@@ -153,7 +117,28 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
         return df
 
-    @LoggingUtil.logging_to_appins
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
+        date_folder = self._get_date_folder(kwargs)
+        storage_account = Util.get_storage_account()
+
+        base_path = f"abfss://odw-raw@{storage_account}/ListedBuildings/{date_folder}"
+        lb_path = f"{base_path}/listed_building.json"
+        lbo_path = f"{base_path}/listed_building_outline.json"
+
+        self._safe_log_info(f"Reading Listed Buildings from {lb_path}")
+        self._safe_log_info(f"Reading Listed Building Outline from {lbo_path}")
+
+        listed_buildings_raw = self.spark.read.option("multiline", "true").json(lb_path)
+        listed_building_outline_raw = self.spark.read.option("multiline", "true").json(lbo_path)
+
+        listed_buildings_df = self._flatten_entities(listed_buildings_raw)
+        listed_building_outline_df = self._flatten_entities(listed_building_outline_raw)
+
+        return {
+            "listed_building_data": listed_buildings_df,
+            "listed_building_outline_data": listed_building_outline_df,
+        }
+
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
 
