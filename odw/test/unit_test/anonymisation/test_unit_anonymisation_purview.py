@@ -60,8 +60,8 @@ class TestAnonymisationPurview(SparkTestCase):
 
         rows = out.select("full_name", "emailAddress", "Age", "NINumber", "BirthDate", "AnnualSalary").collect()
 
-        assert rows[0]["full_name"] == "J*** **e"
-        assert rows[1]["full_name"] == "J*** ****h"
+        assert rows[0]["full_name"] == "REDACTED"
+        assert rows[1]["full_name"] == "REDACTED"
 
         assert rows[0]["emailAddress"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
         assert rows[1]["emailAddress"] == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
