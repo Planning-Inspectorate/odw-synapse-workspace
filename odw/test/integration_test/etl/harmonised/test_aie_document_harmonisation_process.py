@@ -1,3 +1,4 @@
+from datetime import datetime
 import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
@@ -43,7 +44,7 @@ _HORIZON_SCHEMA = T.StructType(
         T.StructField("filter2", T.StringType(), True),
         T.StructField("Migrated", T.StringType(), True),
         T.StructField("ODTSourceSystem", T.StringType(), True),
-        T.StructField("IngestionDate", T.StringType(), True),
+        T.StructField("IngestionDate", T.TimestampType(), True),
         T.StructField("ValidTo", T.StringType(), True),
         T.StructField("RowID", T.StringType(), True),
         T.StructField("IsActive", T.StringType(), True),
@@ -101,7 +102,7 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         horizon_data = spark.createDataFrame(
-            [_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         source_data = {"horizon_data": horizon_data}
@@ -148,8 +149,8 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
 
         horizon_data = spark.createDataFrame(
             [
-                _horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00", file_md5="old-md5"),
-                _horizon_row("pk1", "1", "file1.pdf", "1", "2024-02-01 00:00:00", file_md5="new-md5"),
+                _horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1), file_md5="old-md5"),
+                _horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 2, 1), file_md5="new-md5"),
             ],
             _HORIZON_SCHEMA,
         )
@@ -179,10 +180,12 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
         by_ingestion = {row["IngestionDate"]: row for row in df.collect()}
 
         assert df.count() == 2
-        assert by_ingestion["2024-02-01 00:00:00"]["IsActive"] == "Y"
-        assert by_ingestion["2024-02-01 00:00:00"]["ValidTo"] is None
-        assert by_ingestion["2024-01-01 00:00:00"]["IsActive"] == "N"
-        assert by_ingestion["2024-01-01 00:00:00"]["ValidTo"] == "2024-02-01 00:00:00"
+        assert by_ingestion[datetime(2024, 2, 1)]["IsActive"] == "Y"
+        assert by_ingestion[datetime(2024, 2, 1)]["ValidTo"] is None
+        assert by_ingestion[datetime(2024, 1, 1)]["IsActive"] == "N"
+        # ValidTo is a string column in the SQL schema; coalescing with NextRow.IngestionDate
+        # casts the timestamp to a string.
+        assert by_ingestion[datetime(2024, 1, 1)]["ValidTo"] == "2024-02-01 00:00:00"
         assert result.metadata.insert_count == 2
 
     def test__aie_document_harmonisation_process__run__empty_source_writes_empty_output(self):

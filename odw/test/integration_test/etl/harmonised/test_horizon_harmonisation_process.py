@@ -79,10 +79,13 @@ class TestHorizonHarmonisationProcessIntegration(ETLTestCase):
         assert rows[0]["name"] == "Alice"
         assert rows[0]["IsActive"] == "Y"
         assert rows[0]["ValidTo"] is None
-        assert rows[0]["ODTSourceSystem"] == "HORIZON"
+        assert rows[0]["ODTSourceSystem"] == "Horizon"
         assert rows[0]["Migrated"] == "0"
         assert rows[0]["SourceSystemID"] == "HORIZON-TEST"
         assert rows[0]["IngestionDate"] is not None
+        # RowID must be a populated MD5 hex digest (32 chars), not an empty placeholder.
+        assert rows[0]["RowID"] is not None
+        assert len(rows[0]["RowID"]) == 32
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["partition_by"] == ["IsActive"]
@@ -112,6 +115,8 @@ class TestHorizonHarmonisationProcessIntegration(ETLTestCase):
         assert rows["Alice Updated"]["IsActive"] == "Y"
         assert rows["Alice Updated"]["ValidTo"] is None
         assert rows["Alice"]["ValidTo"] == rows["Alice Updated"]["IngestionDate"]
+        # Different business state must produce different RowIDs.
+        assert rows["Alice"]["RowID"] != rows["Alice Updated"]["RowID"]
         assert result.metadata.insert_count == 2
 
     def test__horizon_harmonisation_process__run__unchanged_state_across_ingestions_is_deduplicated(self):

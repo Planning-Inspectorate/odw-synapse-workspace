@@ -1,3 +1,4 @@
+from datetime import datetime
 from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -94,7 +95,7 @@ _HORIZON_SCHEMA = T.StructType(
         T.StructField("filter2", T.StringType(), True),
         T.StructField("Migrated", T.StringType(), True),
         T.StructField("ODTSourceSystem", T.StringType(), True),
-        T.StructField("IngestionDate", T.StringType(), True),
+        T.StructField("IngestionDate", T.TimestampType(), True),
         T.StructField("ValidTo", T.StringType(), True),
         T.StructField("RowID", T.StringType(), True),
         T.StructField("IsActive", T.StringType(), True),
@@ -129,7 +130,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__drops_temp_pk_from_output(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -139,7 +140,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__output_contains_required_columns(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -154,7 +155,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__single_record_is_active(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -167,8 +168,8 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
             [
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00"),
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-02-01 00:00:00"),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1)),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 2, 1)),
             ],
             _HORIZON_SCHEMA,
         )
@@ -176,16 +177,16 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
         df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
         rows = {row["IngestionDate"]: row for row in df.collect()}
 
-        assert rows["2024-02-01 00:00:00"]["IsActive"] == "Y"
-        assert rows["2024-01-01 00:00:00"]["IsActive"] == "N"
+        assert rows[datetime(2024, 2, 1)]["IsActive"] == "Y"
+        assert rows[datetime(2024, 1, 1)]["IsActive"] == "N"
 
     def test__process__distinct_pks_are_both_active(self):
         """Two records with different composite keys are both independently active."""
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
             [
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00"),
-                _make_horizon_row("pk2", "2", "file2.pdf", "1", "2024-01-01 00:00:00"),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1)),
+                _make_horizon_row("pk2", "2", "file2.pdf", "1", datetime(2024, 1, 1)),
             ],
             _HORIZON_SCHEMA,
         )
@@ -201,7 +202,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__aie_document_data_id_assigned(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -213,8 +214,8 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
             [
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00"),
-                _make_horizon_row("pk2", "2", "file2.pdf", "1", "2024-01-02 00:00:00"),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1)),
+                _make_horizon_row("pk2", "2", "file2.pdf", "1", datetime(2024, 1, 2)),
             ],
             _HORIZON_SCHEMA,
         )
@@ -230,7 +231,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__valid_to_null_for_active_record(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -242,8 +243,8 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
             [
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00"),
-                _make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-02-01 00:00:00"),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1)),
+                _make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 2, 1)),
             ],
             _HORIZON_SCHEMA,
         )
@@ -251,8 +252,10 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
         df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
         rows = {row["IngestionDate"]: row for row in df.collect()}
 
-        assert rows["2024-02-01 00:00:00"]["ValidTo"] is None
-        assert rows["2024-01-01 00:00:00"]["ValidTo"] == "2024-02-01 00:00:00"
+        assert rows[datetime(2024, 2, 1)]["ValidTo"] is None
+        # ValidTo is a string column in the SQL schema (CAST(null AS string)); coalescing it with the
+        # timestamp NextRow.IngestionDate produces a string-typed result.
+        assert rows[datetime(2024, 1, 1)]["ValidTo"] == "2024-02-01 00:00:00"
 
     # ------------------------------------------------------------------
     # RowID test
@@ -261,7 +264,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__row_id_is_populated(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
@@ -277,7 +280,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__process__write_config_is_correct(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         horizon_data = spark.createDataFrame(
-            [_make_horizon_row("pk1", "1", "file1.pdf", "1", "2024-01-01 00:00:00")],
+            [_make_horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1))],
             _HORIZON_SCHEMA,
         )
         data_to_write, result = self._run_process(horizon_data)
@@ -295,5 +298,5 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__aie_document_harmonisation_process__is_registered_in_factory(self):
         from odw.core.etl.etl_process_factory import ETLProcessFactory
 
-        process_class = ETLProcessFactory.get("aie-document-harmonised")
+        process_class = ETLProcessFactory.get("AIE Harmonisation")
         assert process_class is AieDocumentHarmonisationProcess

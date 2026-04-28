@@ -50,7 +50,7 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
     - No ``message_type`` field: state changes are detected by hashing business columns.
     - Duplicate column names (case-insensitive) are collapsed — a Horizon CSV artefact.
     - ``IngestionDate`` is derived from ``expected_from`` (file batch date), not message timestamps.
-    - ``ODTSourceSystem`` is always ``'HORIZON'``, ``Migrated`` is always ``'0'``.
+    - ``ODTSourceSystem`` is always ``'Horizon'``, ``Migrated`` is always ``'0'``.
 
     Required orchestration fields
     -----------------------------
@@ -154,13 +154,21 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         # Step 3: Add harmonisation plumbing columns.
         data = (
             data.withColumn("Migrated", F.lit("0"))
-            .withColumn("ODTSourceSystem", F.lit("HORIZON"))
+            .withColumn("ODTSourceSystem", F.lit("Horizon"))
             .withColumn("ValidTo", F.lit(None).cast("string"))
-            .withColumn("RowID", F.lit(""))
             .withColumn("IsActive", F.lit("N"))
         )
         if source_system_id is not None:
             data = data.withColumn("SourceSystemID", F.lit(source_system_id))
+
+        # Compute RowID as an MD5 hash of the business columns (mirrors the legacy notebook).
+        # _EXCLUDE_FROM_HASH excludes SCD-2 plumbing and standardisation metadata so that
+        # only true business data contributes to the hash.
+        business_cols = [c for c in data.columns if c not in _EXCLUDE_FROM_HASH]
+        data = data.withColumn(
+            "RowID",
+            F.md5(F.concat_ws("||", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in business_cols])),
+        )
 
         # Step 4: Drop rows where the business key is null.
         data = data.filter(F.col(primary_key).isNotNull())
