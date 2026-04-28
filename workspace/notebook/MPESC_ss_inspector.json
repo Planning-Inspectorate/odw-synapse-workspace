@@ -1,0 +1,261 @@
+{
+	"name": "MPESC_ss_inspector",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "489d67be-22d3-4e26-921f-986865d54662"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import *"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == \"pins-synw-odw-prod-uks\":\n",
+					"    storage_account_name = \"pinsstmpescproduksqz8bvk\"\n",
+					"elif workspace == \"pins-synw-odw-dev-uks\":\n",
+					"    storage_account_name = \"pinsstmpescdevuksw49hqz\"\n",
+					"else:\n",
+					"    raise ValueError(f\"Unknown workspace: {workspace}\")\n",
+					"\n",
+					"csv_base_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/EXTRACT\"\n",
+					"temp_path = f\"abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/TEMP\"\n",
+					"\n",
+					"print(f\"workspace       : {workspace}\")\n",
+					"print(f\"storage account : {storage_account_name}\")\n",
+					"print(f\"base path       : {csv_base_path}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"inspector_path = f\"{csv_base_path}/Inspector.csv\"\n",
+					"case_path = f\"{csv_base_path}/Case.csv\"\n",
+					"\n",
+					"print(f\"reading Inspector : {inspector_path}\")\n",
+					"print(f\"reading Case      : {case_path}\")\n",
+					"\n",
+					"inspector_df = spark.read.option(\"header\", \"true\").csv(inspector_path)\n",
+					"case_df = spark.read.option(\"header\", \"true\").csv(case_path)\n",
+					"\n",
+					"print(f\"Inspector rows : {inspector_df.count():,}\")\n",
+					"print(f\"Case rows      : {case_df.count():,}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# check for missing inspectorAllocatedDate\n",
+					"total_inspectors = inspector_df.count()\n",
+					"\n",
+					"missing_dates = inspector_df.filter(\n",
+					"    (F.col(\"inspectorAllocatedDate\").isNull()) |\n",
+					"    (F.col(\"inspectorAllocatedDate\") == \"\") |\n",
+					"    (F.trim(F.col(\"inspectorAllocatedDate\")) == \"\")\n",
+					").count()\n",
+					"\n",
+					"print(f\"Total Inspector records : {total_inspectors:,}\")\n",
+					"print(f\"Missing allocated dates : {missing_dates:,}\")\n",
+					"\n",
+					"if missing_dates == 0:\n",
+					"    print(\"No missing dates found - no processing needed\")\n",
+					"else:\n",
+					"    print(f\"Need to map {missing_dates:,} missing dates from Case.csv\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# build case lookup table\n",
+					"case_lookup = (\n",
+					"    case_df\n",
+					"    .select(\"id\", \"createdDate\")\n",
+					"    .withColumnRenamed(\"id\", \"caseId\")\n",
+					"    .withColumnRenamed(\"createdDate\", \"case_createdDate\")\n",
+					")\n",
+					"\n",
+					"print(f\"case lookup records: {case_lookup.count():,}\")\n",
+					"\n",
+					"missing_created_dates = case_lookup.filter(\n",
+					"    (F.col(\"case_createdDate\").isNull()) |\n",
+					"    (F.col(\"case_createdDate\") == \"\") |\n",
+					"    (F.trim(F.col(\"case_createdDate\")) == \"\")\n",
+					").count()\n",
+					"\n",
+					"print(f\"cases with missing createdDate: {missing_created_dates:,}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# map missing dates\n",
+					"inspector_with_mapping = inspector_df.join(case_lookup, \"caseId\", \"left\")\n",
+					"\n",
+					"inspector_updated = inspector_with_mapping.withColumn(\n",
+					"    \"inspectorAllocatedDate\",\n",
+					"    F.when(\n",
+					"        (F.col(\"inspectorAllocatedDate\").isNull()) |\n",
+					"        (F.col(\"inspectorAllocatedDate\") == \"\") |\n",
+					"        (F.trim(F.col(\"inspectorAllocatedDate\")) == \"\"),\n",
+					"        F.col(\"case_createdDate\")\n",
+					"    ).otherwise(F.col(\"inspectorAllocatedDate\"))\n",
+					")\n",
+					"\n",
+					"final_inspector_df = inspector_updated.select(\n",
+					"    \"id\",\n",
+					"    \"inspectorId\",\n",
+					"    \"inspectorAllocatedDate\",\n",
+					"    \"caseId\"\n",
+					")\n",
+					"\n",
+					"print(\"Mapping completed successfully\")\n",
+					"print(f\"Final Inspector records: {final_inspector_df.count():,}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Execution summary"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"still_missing = final_inspector_df.filter(\n",
+					"    (F.col(\"inspectorAllocatedDate\").isNull()) |\n",
+					"    (F.col(\"inspectorAllocatedDate\") == \"\") |\n",
+					"    (F.trim(F.col(\"inspectorAllocatedDate\")) == \"\")\n",
+					").count()\n",
+					"\n",
+					"mapped_count = missing_dates - still_missing\n",
+					"\n",
+					"print(f\"originally missing dates : {missing_dates:,}\")\n",
+					"print(f\"successfully mapped      : {mapped_count:,}\")\n",
+					"print(f\"still missing            : {still_missing:,}\")\n",
+					"\n",
+					"if still_missing > 0:\n",
+					"    print(f\"{still_missing:,} records could not be mapped\")\n",
+					"    final_inspector_df.filter(\n",
+					"        (F.col(\"inspectorAllocatedDate\").isNull()) |\n",
+					"        (F.col(\"inspectorAllocatedDate\") == \"\")\n",
+					"    ).show(5, truncate=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"###### Write to storage"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if mapped_count > 0:\n",
+					"    print(\"Writing updated Inspector.csv...\")\n",
+					"\n",
+					"    temp_output_path = f\"{temp_path}/Inspector_updated\"\n",
+					"\n",
+					"    final_inspector_df.coalesce(1) \\\n",
+					"        .write.mode(\"overwrite\") \\\n",
+					"        .option(\"header\", \"true\") \\\n",
+					"        .csv(temp_output_path)\n",
+					"\n",
+					"    original_inspector_path = f\"{csv_base_path}/Inspector.csv\"\n",
+					"\n",
+					"    try:\n",
+					"        mssparkutils.fs.rm(original_inspector_path, True)\n",
+					"        print(\"removed original Inspector.csv\")\n",
+					"    except Exception as e:\n",
+					"        print(f\"could nt remove original file: {e}\")\n",
+					"\n",
+					"    temp_files = mssparkutils.fs.ls(temp_output_path)\n",
+					"    part_file = [f.path for f in temp_files if \"part-\" in f.name][0]\n",
+					"\n",
+					"    mssparkutils.fs.cp(part_file, original_inspector_path)\n",
+					"\n",
+					"    mssparkutils.fs.rm(temp_output_path, True)\n",
+					"\n",
+					"    print(f\"Completed - {mapped_count:,} record(s) updated\")\n",
+					"    print(f\"File updated: {original_inspector_path}\")\n",
+					"else:\n",
+					"    print(\"No updates neccessary.\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
