@@ -15,6 +15,9 @@ from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process imp
 from odw.core.etl.transformation.curated.nsip_representation_curated_process import NsipRepresentationCuratedProcess
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
+from odw.core.etl.transformation.harmonised.appeal_event_harmonisation_process import AppealEventHarmonisationProcess
+from odw.core.etl.transformation.curated.appeal_event_curated_mipins_process import AppealEventCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_event_curated_process import AppealEventCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -36,6 +39,9 @@ class ETLProcessFactory:
         NsipRepresentationCuratedProcess,
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
+        AppealEventHarmonisationProcess,
+        AppealEventCuratedMipinsProcess,
+        AppealEventCuratedProcess
     }
 
     @classmethod
