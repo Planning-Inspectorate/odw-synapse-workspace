@@ -219,11 +219,13 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
+        # h_1row
         self._assert_row_count_query(
             "caseuniqueid", "STANDARDISED_HORIZON_CASES_S78", "t_as78sp_lhcs78", AppealS78StandardisationProcess._load_standardised_horizoncases_s78
         )
 
     def test__appeal_s78_standardisation_process__load_cases_specialisms(self):
+        # cs_agg
         override_table_name = "t_as78sp_lcs"
 
         def generate_case_specialisms_row(**overrides):
@@ -295,11 +297,13 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
+        # cd_1row
         self._assert_row_count_query(
             "casenodeid", "STANDARDISED_HORIZON_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates
         )
 
     def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
+        # cdd_1row
         self._assert_row_count_query(
             "casenodeid",
             "STANDARDISED_CASE_DOCUMENT_DATES_DATES",
@@ -308,6 +312,7 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
 
     def test__appeal_s78_standardisation_process__load_casesitestrings(self):
+        # css_1row
         self._assert_row_count_query(
             "casenodeid", "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
         )
@@ -629,3 +634,736 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     f"The following methods of AppealS78StandardisationProcess were not called but were expected {uncalled_functions}"
                 )
                 assert expected_result == actual_result
+
+    def test__appeal_s78_standardisation_process__generate_base_table(self):
+        """
+        base AS (
+            SELECT
+                h.*,
+                cs_agg.casespecialism,
+                cd_1row.receiptdate AS caseCreatedDate,
+                cd_1row.appealdocscomplete,
+                cd_1row.startdate,
+                cd_1row.appealwithdrawndate,
+                cd_1row.casedecisiondate,
+                cd_1row.datenotrecoveredorderecovered,
+                cd_1row.daterecovered,
+                cd_1row.originalcasedecisiondate,
+                cdd_1row.questionnairedue,
+                cdd_1row.questionnairereceived,
+                cdd_1row.interestedpartyrepsduedate,
+                cdd_1row.proofsdue,
+                css_1row.siteviewablefromroad,
+                aad_old_1row.floorspaceinsquaremetres,
+                aad_old_1row.costsappliedforindicator,
+                aad_old_1row.procedureappellant,
+                aad_old_1row.isthesitewithinanaonb,
+                aad_old_1row.procedurelpa,
+                aad_old_1row.inspectorneedtoentersite,
+                aad_old_1row.sitegridreferenceeasting,
+                aad_old_1row.sitegridreferencenorthing,
+                aad_old_1row.sitewithinsssi,
+                af_1row.importantinformation,
+                aad_old_1row.level AS level_code,
+                hnd_1row.issuedate     AS issueDateOfEnforcementNotice,
+                hnd_1row.effectivedate AS effectiveDateOfEnforcementNotice,
+                hag_agg.enforcementAppealGroundsDetails
+
+            FROM h_1row h
+            LEFT JOIN cs_agg        ON h.caseuniqueid = cs_agg.casereference
+            LEFT JOIN cd_1row       ON h.casenodeid   = cd_1row.casenodeid
+            LEFT JOIN cdd_1row      ON h.casenodeid   = cdd_1row.casenodeid
+            LEFT JOIN css_1row      ON h.casenodeid   = css_1row.casenodeid
+            LEFT JOIN aad_old_1row  ON h.caseuniqueid = aad_old_1row.appealrefnumber
+            LEFT JOIN af_1row       ON h.caseuniqueid = af_1row.appealrefnumber
+            LEFT JOIN hnd_1row      ON h.casenodeid = hnd_1row.casenodeid
+            LEFT JOIN hag_agg       ON h.casenodeid = hag_agg.casenodeid
+        ),
+        """
+        test_name = "t_as78sp_gbt"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        # h_1row
+        def generate_horizon_case_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "casenodeid": None,
+                "subtype": None,
+                "modifydate": None,
+                "abbreviation": None,
+                "casereference": None,
+                "caseuniqueid": None,
+                "caseofficerid": None,
+                "caseofficerlogin": None,
+                "caseofficername": None,
+                "coemailaddress": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        horizon_cases = spark.createDataFrame(
+            (
+                generate_horizon_case_row(casenodeid="1", caseuniqueid="refA"),
+                generate_horizon_case_row(casenodeid="2", caseuniqueid="refB"),
+                generate_horizon_case_row(casenodeid="3", caseuniqueid="refC"),
+                generate_horizon_case_row(casenodeid="4", caseuniqueid="refD"),
+                generate_horizon_case_row(casenodeid="5", caseuniqueid="refE"),
+                generate_horizon_case_row(casenodeid="6", caseuniqueid="refF"),
+                generate_horizon_case_row(casenodeid="7", caseuniqueid="refG"),
+            ),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("subtype", StringType(), True),
+                    StructField("modifydate", StringType(), True),
+                    StructField("abbreviation", StringType(), True),
+                    StructField("casereference", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("caseofficerid", StringType(), True),
+                    StructField("caseofficerlogin", StringType(), True),
+                    StructField("caseofficername", StringType(), True),
+                    StructField("coemailaddress", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+        # cs_agg
+        case_specialisms = spark.createDataFrame(
+            ({"casereference": "refA", "casespecialism": "Some Specialism"},),
+            schema=StructType([StructField("casereference", StringType(), True), StructField("casespecialism", StringType(), False)]),
+        )
+
+        # cd_1row
+        def generate_case_dates_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "casenodeid": None,
+                "receiptdate": None,
+                "startdate": None,
+                "appealdocscomplete": None,
+                "callindate": None,
+                "datereceivedfromcallinauthority": None,
+                "bespoketargetdate": None,
+                "daterecovered": None,
+                "datenotrecoveredorderecovered": None,
+                "decisionsubmitdate": None,
+                "noticewithdrawndate": None,
+                "appealwithdrawndate": None,
+                "casedecisiondate": None,
+                "appealturnedawaydate": None,
+                "appeallapseddate": None,
+                "casecloseddate": None,
+                "proceduredetermineddate": None,
+                "originalcasedecisiondate": None,
+                "planningguaranteedate": None,
+                "datedecisionreportreceivedinpins": None,
+                "datesenttoreader": None,
+                "datereturnedfromreader": None,
+                "datepublicationprocedurecompleted": None,
+                "datecostsreportdespatched": None,
+                "orderrejectedorreturned": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        case_dates = spark.createDataFrame(
+            (
+                generate_case_dates_row(
+                    casenodeid="2",
+                    receiptdate=datetime(2025, 1, 1).isoformat(),
+                    appealdocscomplete="Romulan",
+                    startdate=datetime(2026, 1, 1).isoformat(),
+                    appealwithdrawndate=datetime(2027, 1, 1).isoformat(),
+                    casedecisiondate=datetime(2028, 1, 1).isoformat(),
+                    datenotrecoveredorderecovered=datetime(2029, 1, 1).isoformat(),
+                    daterecovered=datetime(2030, 1, 1).isoformat(),
+                    originalcasedecisiondate=datetime(2031, 1, 1).isoformat(),
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("receiptdate", StringType(), True),
+                    StructField("startdate", StringType(), True),
+                    StructField("appealdocscomplete", StringType(), True),
+                    StructField("callindate", StringType(), True),
+                    StructField("datereceivedfromcallinauthority", StringType(), True),
+                    StructField("bespoketargetdate", StringType(), True),
+                    StructField("daterecovered", StringType(), True),
+                    StructField("datenotrecoveredorderecovered", StringType(), True),
+                    StructField("decisionsubmitdate", StringType(), True),
+                    StructField("noticewithdrawndate", StringType(), True),
+                    StructField("appealwithdrawndate", StringType(), True),
+                    StructField("casedecisiondate", StringType(), True),
+                    StructField("appealturnedawaydate", StringType(), True),
+                    StructField("appeallapseddate", StringType(), True),
+                    StructField("casecloseddate", StringType(), True),
+                    StructField("proceduredetermineddate", StringType(), True),
+                    StructField("originalcasedecisiondate", StringType(), True),
+                    StructField("planningguaranteedate", StringType(), True),
+                    StructField("datedecisionreportreceivedinpins", StringType(), True),
+                    StructField("datesenttoreader", StringType(), True),
+                    StructField("datereturnedfromreader", StringType(), True),
+                    StructField("datepublicationprocedurecompleted", StringType(), True),
+                    StructField("datecostsreportdespatched", StringType(), True),
+                    StructField("orderrejectedorreturned", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # cdd_1row
+        def generate_case_document_dates_dates_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "casenodeid": None,
+                "appealrefnumber": None,
+                "questionnairedue": None,
+                "questionnairereceived": None,
+                "lpaconditionssubmitted": None,
+                "lpaconditionsforwarded": None,
+                "statementduedate": None,
+                "appellantstatementsubmitted": None,
+                "appellantstatementforwarded": None,
+                "lpastatementsubmitted": None,
+                "lpastatementforwarded": None,
+                "datenotificationlettersent": None,
+                "interestedpartyrepsduedate": None,
+                "interestedpartyrepsforwarded": None,
+                "finalcommentsdue": None,
+                "appellantcommentssubmitted": None,
+                "appellantcommentsforwarded": None,
+                "lpacommentssubmitted": None,
+                "lpacommentsforwarded": None,
+                "commongrounddue": None,
+                "commongroundreceived": None,
+                "sitenoticesent": None,
+                "proofsdue": None,
+                "appellantsproofssubmitted": None,
+                "appellantsproofsforwarded": None,
+                "lpaproofssubmitted": None,
+                "lpaproofsforwarded": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        case_document_dates_dates = spark.createDataFrame(
+            (
+                generate_case_document_dates_dates_row(
+                    casenodeid="3",
+                    questionnairedue="Klingon",
+                    questionnairereceived="Cardassian",
+                    interestedpartyrepsduedate=datetime(2032, 1, 1).isoformat(),
+                    proofsdue="Vulcan",
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("appealrefnumber", StringType(), True),
+                    StructField("questionnairedue", StringType(), True),
+                    StructField("questionnairereceived", StringType(), True),
+                    StructField("lpaconditionssubmitted", StringType(), True),
+                    StructField("lpaconditionsforwarded", StringType(), True),
+                    StructField("statementduedate", StringType(), True),
+                    StructField("appellantstatementsubmitted", StringType(), True),
+                    StructField("appellantstatementforwarded", StringType(), True),
+                    StructField("lpastatementsubmitted", StringType(), True),
+                    StructField("lpastatementforwarded", StringType(), True),
+                    StructField("datenotificationlettersent", StringType(), True),
+                    StructField("interestedpartyrepsduedate", StringType(), True),
+                    StructField("interestedpartyrepsforwarded", StringType(), True),
+                    StructField("finalcommentsdue", StringType(), True),
+                    StructField("appellantcommentssubmitted", StringType(), True),
+                    StructField("appellantcommentsforwarded", StringType(), True),
+                    StructField("lpacommentssubmitted", StringType(), True),
+                    StructField("lpacommentsforwarded", StringType(), True),
+                    StructField("commongrounddue", StringType(), True),
+                    StructField("commongroundreceived", StringType(), True),
+                    StructField("sitenoticesent", StringType(), True),
+                    StructField("proofsdue", StringType(), True),
+                    StructField("appellantsproofssubmitted", StringType(), True),
+                    StructField("appellantsproofsforwarded", StringType(), True),
+                    StructField("lpaproofssubmitted", StringType(), True),
+                    StructField("lpaproofsforwarded", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # css_1row
+        def generate_case_site_strings_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "casenodeid": None,
+                "landuse": None,
+                "areaofsite": None,
+                "addressline1": None,
+                "addressline2": None,
+                "town": None,
+                "county": None,
+                "postcode": None,
+                "country": None,
+                "greenbelt": None,
+                "siteviewablefromroad": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        case_site_strings = spark.createDataFrame(
+            (generate_case_site_strings_row(casenodeid="4", siteviewablefromroad="Kelpian"),),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("landuse", StringType(), True),
+                    StructField("areaofsite", StringType(), True),
+                    StructField("addressline1", StringType(), True),
+                    StructField("addressline2", StringType(), True),
+                    StructField("town", StringType(), True),
+                    StructField("county", StringType(), True),
+                    StructField("postcode", StringType(), True),
+                    StructField("country", StringType(), True),
+                    StructField("greenbelt", StringType(), True),
+                    StructField("siteviewablefromroad", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # aad_old_1row
+        def generate_addadditional_data_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "appealrefnumber": None,
+                "caseprocess": None,
+                "caseworkmarker": None,
+                "costsappliedforindicator": None,
+                "level": None,
+                "procedureappellant": None,
+                "procedurelpa": None,
+                "proceduredetermineddate": None,
+                "targetdate": None,
+                "agriculturalholding": None,
+                "developmentaffectsettingoflistedbuilding": None,
+                "floorspaceinsquaremetres": None,
+                "sitegridreferenceeasting": None,
+                "sitegridreferencenorthing": None,
+                "historicbuildinggrantmade": None,
+                "incarelatestoca": None,
+                "inspectorneedtoentersite": None,
+                "isfloodinganissue": None,
+                "isthesitewithinanaonb": None,
+                "sitewithinsssi": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        addadditional_data = spark.createDataFrame(
+            (
+                generate_addadditional_data_row(
+                    appealrefnumber="refB",
+                    floorspaceinsquaremetres="5",
+                    costsappliedforindicator="10",
+                    procedureappellant="Bob Vance",
+                    isthesitewithinanaonb="No",
+                    procedurelpa="Some LPA",
+                    inspectorneedtoentersite="Perchance",
+                    sitegridreferenceeasting="Some easting",
+                    sitegridreferencenorthing="Some northing",
+                    sitewithinsssi="Some SSSI",
+                    level="Some level",
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("appealrefnumber", StringType(), True),
+                    StructField("caseprocess", StringType(), True),
+                    StructField("caseworkmarker", StringType(), True),
+                    StructField("costsappliedforindicator", StringType(), True),
+                    StructField("level", StringType(), True),
+                    StructField("procedureappellant", StringType(), True),
+                    StructField("procedurelpa", StringType(), True),
+                    StructField("proceduredetermineddate", StringType(), True),
+                    StructField("targetdate", StringType(), True),
+                    StructField("agriculturalholding", StringType(), True),
+                    StructField("developmentaffectsettingoflistedbuilding", StringType(), True),
+                    StructField("floorspaceinsquaremetres", StringType(), True),
+                    StructField("sitegridreferenceeasting", StringType(), True),
+                    StructField("sitegridreferencenorthing", StringType(), True),
+                    StructField("historicbuildinggrantmade", StringType(), True),
+                    StructField("incarelatestoca", StringType(), True),
+                    StructField("inspectorneedtoentersite", StringType(), True),
+                    StructField("isfloodinganissue", StringType(), True),
+                    StructField("isthesitewithinanaonb", StringType(), True),
+                    StructField("sitewithinsssi", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # af_1row
+        def generate_additional_fields_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "appealrefnumber": None,
+                "casereference": None,
+                "standardpriority": None,
+                "importantinformation": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        additional_fields = spark.createDataFrame(
+            (generate_additional_fields_row(appealrefnumber="refC", importantinformation="Makarov knows Yuri"),),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("appealrefnumber", StringType(), True),
+                    StructField("casereference", StringType(), True),
+                    StructField("standardpriority", StringType(), True),
+                    StructField("importantinformation", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # hnd_1row
+        def generate_notice_dates_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "caseUniqueId": None,
+                "caseNodeId": None,
+                "setRowNumber": None,
+                "issueDate": None,
+                "effectiveDate": None,
+                "ingested_by_process_name": None,
+                "input_file": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+            }
+            return base | overrides
+
+        horizon_notice_dates = spark.createDataFrame(
+            (generate_notice_dates_row(caseNodeId=5, issueDate=datetime(2033, 1, 1), effectiveDate=datetime(2034, 1, 1)),),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("caseUniqueId", IntegerType(), True),
+                    StructField("caseNodeId", IntegerType(), True),
+                    StructField("setRowNumber", IntegerType(), True),
+                    StructField("issueDate", TimestampType(), True),
+                    StructField("effectiveDate", TimestampType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                ]
+            ),
+        )
+
+        # hag_agg
+        def generate_appeal_grounds_row(**overrides):
+            base = {"casenodeid": None, "enforcementAppealGroundsDetails": []}
+            return base | overrides
+
+        horizon_appeal_grounds = spark.createDataFrame(
+            (
+                generate_appeal_grounds_row(
+                    casenodeid=6, enforcementAppealGroundsDetails=[{"appealGroundLetter": "A", "groundForAppealStartDate": None}]
+                ),
+            ),
+            schema=StructType(
+                [
+                    StructField("casenodeid", IntegerType(), True),
+                    StructField(
+                        "enforcementAppealGroundsDetails",
+                        ArrayType(
+                            StructType(
+                                [
+                                    StructField("appealGroundLetter", StringType(), True),
+                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                ]
+                            ),
+                            False,
+                        ),
+                        False,
+                    ),
+                ]
+            ),
+        )
+
+        # Expected data
+        def generate_expected_data_row(**overrides):
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "expected_to": None,
+                "casenodeid": None,
+                "subtype": None,
+                "modifydate": None,
+                "abbreviation": None,
+                "casereference": None,
+                "caseuniqueid": None,
+                "caseofficerid": None,
+                "caseofficerlogin": None,
+                "caseofficername": None,
+                "coemailaddress": None,
+                "input_file": None,
+                "ingested_by_process_name": None,
+                "modified_datetime": None,
+                "modified_by_process_name": None,
+                "entity_name": None,
+                "file_id": None,
+                "casespecialism": None,
+                "caseCreatedDate": None,
+                "appealdocscomplete": None,
+                "startdate": None,
+                "appealwithdrawndate": None,
+                "casedecisiondate": None,
+                "datenotrecoveredorderecovered": None,
+                "daterecovered": None,
+                "originalcasedecisiondate": None,
+                "questionnairedue": None,
+                "questionnairereceived": None,
+                "interestedpartyrepsduedate": None,
+                "proofsdue": None,
+                "siteviewablefromroad": None,
+                "floorspaceinsquaremetres": None,
+                "costsappliedforindicator": None,
+                "procedureappellant": None,
+                "isthesitewithinanaonb": None,
+                "procedurelpa": None,
+                "inspectorneedtoentersite": None,
+                "sitegridreferenceeasting": None,
+                "sitegridreferencenorthing": None,
+                "sitewithinsssi": None,
+                "importantinformation": None,
+                "level_code": None,
+                "issueDateOfEnforcementNotice": None,
+                "effectiveDateOfEnforcementNotice": None,
+                "enforcementAppealGroundsDetails": None,
+            }
+            return base | overrides
+
+        expected_data = spark.createDataFrame(
+            (
+                generate_expected_data_row(casenodeid="1", caseuniqueid="refA", casespecialism="Some Specialism"),
+                generate_expected_data_row(
+                    casenodeid="2",
+                    caseuniqueid="refB",
+                    caseCreatedDate="2025-01-01T00:00:00",
+                    appealdocscomplete="Romulan",
+                    startdate="2026-01-01T00:00:00",
+                    appealwithdrawndate="2027-01-01T00:00:00",
+                    casedecisiondate="2028-01-01T00:00:00",
+                    datenotrecoveredorderecovered="2029-01-01T00:00:00",
+                    daterecovered="2030-01-01T00:00:00",
+                    originalcasedecisiondate="2031-01-01T00:00:00",
+                    floorspaceinsquaremetres="5",
+                    costsappliedforindicator="10",
+                    procedureappellant="Bob Vance",
+                    isthesitewithinanaonb="No",
+                    procedurelpa="Some LPA",
+                    inspectorneedtoentersite="Perchance",
+                    sitegridreferenceeasting="Some easting",
+                    sitegridreferencenorthing="Some northing",
+                    sitewithinsssi="Some SSSI",
+                    level_code="Some level",
+                ),
+                generate_expected_data_row(
+                    casenodeid="3",
+                    caseuniqueid="refC",
+                    questionnairedue="Klingon",
+                    questionnairereceived="Cardassian",
+                    interestedpartyrepsduedate="2032-01-01T00:00:00",
+                    proofsdue="Vulcan",
+                    importantinformation="Makarov knows Yuri",
+                ),
+                generate_expected_data_row(casenodeid="4", caseuniqueid="refD", siteviewablefromroad="Kelpian"),
+                generate_expected_data_row(
+                    casenodeid="5",
+                    caseuniqueid="refE",
+                    issueDateOfEnforcementNotice=datetime(2033, 1, 1),
+                    effectiveDateOfEnforcementNotice=datetime(2034, 1, 1),
+                ),
+                generate_expected_data_row(
+                    casenodeid="6",
+                    caseuniqueid="refF",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "A", "groundForAppealStartDate": None}],
+                ),
+                generate_expected_data_row(casenodeid="7", caseuniqueid="refG"),
+            ),
+            schema=StructType(
+                [
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("expected_to", TimestampType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("subtype", StringType(), True),
+                    StructField("modifydate", StringType(), True),
+                    StructField("abbreviation", StringType(), True),
+                    StructField("casereference", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("caseofficerid", StringType(), True),
+                    StructField("caseofficerlogin", StringType(), True),
+                    StructField("caseofficername", StringType(), True),
+                    StructField("coemailaddress", StringType(), True),
+                    StructField("input_file", StringType(), True),
+                    StructField("ingested_by_process_name", StringType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("modified_by_process_name", StringType(), True),
+                    StructField("entity_name", StringType(), True),
+                    StructField("file_id", StringType(), True),
+                    StructField("casespecialism", StringType(), True),
+                    StructField("caseCreatedDate", StringType(), True),
+                    StructField("appealdocscomplete", StringType(), True),
+                    StructField("startdate", StringType(), True),
+                    StructField("appealwithdrawndate", StringType(), True),
+                    StructField("casedecisiondate", StringType(), True),
+                    StructField("datenotrecoveredorderecovered", StringType(), True),
+                    StructField("daterecovered", StringType(), True),
+                    StructField("originalcasedecisiondate", StringType(), True),
+                    StructField("questionnairedue", StringType(), True),
+                    StructField("questionnairereceived", StringType(), True),
+                    StructField("interestedpartyrepsduedate", StringType(), True),
+                    StructField("proofsdue", StringType(), True),
+                    StructField("siteviewablefromroad", StringType(), True),
+                    StructField("floorspaceinsquaremetres", StringType(), True),
+                    StructField("costsappliedforindicator", StringType(), True),
+                    StructField("procedureappellant", StringType(), True),
+                    StructField("isthesitewithinanaonb", StringType(), True),
+                    StructField("procedurelpa", StringType(), True),
+                    StructField("inspectorneedtoentersite", StringType(), True),
+                    StructField("sitegridreferenceeasting", StringType(), True),
+                    StructField("sitegridreferencenorthing", StringType(), True),
+                    StructField("sitewithinsssi", StringType(), True),
+                    StructField("importantinformation", StringType(), True),
+                    StructField("level_code", StringType(), True),
+                    StructField("issueDateOfEnforcementNotice", TimestampType(), True),
+                    StructField("effectiveDateOfEnforcementNotice", TimestampType(), True),
+                    StructField(
+                        "enforcementAppealGroundsDetails",
+                        ArrayType(
+                            StructType(
+                                [
+                                    StructField("appealGroundLetter", StringType(), True),
+                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                ]
+                            ),
+                            False,
+                        ),
+                        True,
+                    ),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_base_table(
+                horizon_cases,
+                case_specialisms,
+                case_dates,
+                case_document_dates_dates,
+                case_site_strings,
+                addadditional_data,
+                additional_fields,
+                horizon_notice_dates,
+                horizon_appeal_grounds,
+            )
+            assert_dataframes_equal(expected_data, actual_data)
