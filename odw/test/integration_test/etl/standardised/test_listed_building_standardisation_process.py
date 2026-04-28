@@ -6,8 +6,6 @@ from odw.core.etl.transformation.standardised.listed_building_standardisation_pr
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
-
 
 LISTED_BUILDING_OUTPUT_TABLE = "listed_building"
 LISTED_BUILDING_OUTLINE_OUTPUT_TABLE = "listed_building_outline"

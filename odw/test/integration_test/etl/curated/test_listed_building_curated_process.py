@@ -7,7 +7,7 @@ from odw.core.etl.transformation.curated.listed_building_curated_process import 
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+
 
 
 def _harmonised_schema():
