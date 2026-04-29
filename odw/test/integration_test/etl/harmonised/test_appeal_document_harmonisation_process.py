@@ -191,9 +191,9 @@ def _service_bus_row(**overrides):
         "IsActive": "Y",
     }
     row.update(overrides)
-    # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version))
+    # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version, documentURI))
     if "TEMP_PK" not in row:
-        row["TEMP_PK"] = hashlib.md5(f"{row['documentId']}{row['filename']}{row['version']}".encode("utf-8")).hexdigest()
+        row["TEMP_PK"] = hashlib.md5(f"{row['documentId']}{row['filename']}{row['version']}{row['documentURI']}".encode("utf-8")).hexdigest()
     return row
 
 
