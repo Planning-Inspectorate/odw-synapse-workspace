@@ -1,6 +1,6 @@
 import mock
 import pytest
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType, BooleanType
 from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import AppealS78StandardisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -416,6 +416,7 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
 
     def test__appeal_s78_standardisation_process__load_planning_app_strings(self):
+        # pas_1row
         # For odw_standardised_db.PlanningAppStrings
         self._assert_row_count_query(
             "casenodeid",
@@ -631,55 +632,11 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 called_functions_map = {x.__name__: getattr(inst, x.__name__).called for x in loader_function_map.values()}
                 uncalled_functions = [k for k, v in called_functions_map.items() if not v]
                 assert not uncalled_functions, (
-                    f"The following methods of AppealS78StandardisationProcess were not called but were expected {uncalled_functions}"
+                    f"The following methods of AppealS78StandardisationProcess were not called by load_data() but were expected {uncalled_functions}"
                 )
                 assert expected_result == actual_result
 
     def test__appeal_s78_standardisation_process__generate_base_table(self):
-        """
-        base AS (
-            SELECT
-                h.*,
-                cs_agg.casespecialism,
-                cd_1row.receiptdate AS caseCreatedDate,
-                cd_1row.appealdocscomplete,
-                cd_1row.startdate,
-                cd_1row.appealwithdrawndate,
-                cd_1row.casedecisiondate,
-                cd_1row.datenotrecoveredorderecovered,
-                cd_1row.daterecovered,
-                cd_1row.originalcasedecisiondate,
-                cdd_1row.questionnairedue,
-                cdd_1row.questionnairereceived,
-                cdd_1row.interestedpartyrepsduedate,
-                cdd_1row.proofsdue,
-                css_1row.siteviewablefromroad,
-                aad_old_1row.floorspaceinsquaremetres,
-                aad_old_1row.costsappliedforindicator,
-                aad_old_1row.procedureappellant,
-                aad_old_1row.isthesitewithinanaonb,
-                aad_old_1row.procedurelpa,
-                aad_old_1row.inspectorneedtoentersite,
-                aad_old_1row.sitegridreferenceeasting,
-                aad_old_1row.sitegridreferencenorthing,
-                aad_old_1row.sitewithinsssi,
-                af_1row.importantinformation,
-                aad_old_1row.level AS level_code,
-                hnd_1row.issuedate     AS issueDateOfEnforcementNotice,
-                hnd_1row.effectivedate AS effectiveDateOfEnforcementNotice,
-                hag_agg.enforcementAppealGroundsDetails
-
-            FROM h_1row h
-            LEFT JOIN cs_agg        ON h.caseuniqueid = cs_agg.casereference
-            LEFT JOIN cd_1row       ON h.casenodeid   = cd_1row.casenodeid
-            LEFT JOIN cdd_1row      ON h.casenodeid   = cdd_1row.casenodeid
-            LEFT JOIN css_1row      ON h.casenodeid   = css_1row.casenodeid
-            LEFT JOIN aad_old_1row  ON h.caseuniqueid = aad_old_1row.appealrefnumber
-            LEFT JOIN af_1row       ON h.caseuniqueid = af_1row.appealrefnumber
-            LEFT JOIN hnd_1row      ON h.casenodeid = hnd_1row.casenodeid
-            LEFT JOIN hag_agg       ON h.casenodeid = hag_agg.casenodeid
-        ),
-        """
         test_name = "t_as78sp_gbt"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -1367,3 +1324,906 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 horizon_appeal_grounds,
             )
             assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_type_of_level_table(self):
+        """
+        add_typeoflevel AS (
+        SELECT b.*, ctl.name AS allocationLevel, ctl.band AS allocationBand
+        FROM base b
+        LEFT JOIN ctl ON b.level_code = ctl.name
+        ),
+        """
+        # add_typeoflevel
+        spark = PytestSparkSessionUtil().get_spark_session()
+        base_table = spark.createDataFrame(
+            (
+                {"colA": "a", "colB": "b", "colC": "c", "level_code": "codeA"},
+                {"colA": "d", "colB": "e", "colC": "f", "level_code": "codeB"},
+                {"colA": "g", "colB": "h", "colC": "i", "level_code": "codeC"},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("colB", StringType(), True),
+                    StructField("colC", StringType(), True),
+                    StructField("level_code", StringType(), True),
+                ]
+            ),
+        )
+
+        type_of_level_data = spark.createDataFrame(
+            (
+                {"colD": "1", "colE": "2", "colF": "3", "name": "codeA", "band": "band1"},
+                {"colD": "4", "colE": "5", "colF": "6", "name": "codeB", "band": "band2"},
+                {"colD": "7", "colE": "8", "colF": "9", "name": "codeC", "band": "band3"},
+            ),
+            schema=StructType(
+                [
+                    StructField("colD", StringType(), True),
+                    StructField("colE", StringType(), True),
+                    StructField("colF", StringType(), True),
+                    StructField("name", StringType(), True),
+                    StructField("band", StringType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {"colA": "a", "colB": "b", "colC": "c", "level_code": "codeA", "allocationLevel": "codeA", "allocationBand": "band1"},
+                {"colA": "d", "colB": "e", "colC": "f", "level_code": "codeB", "allocationLevel": "codeB", "allocationBand": "band2"},
+                {"colA": "g", "colB": "h", "colC": "i", "level_code": "codeC", "allocationLevel": "codeC", "allocationBand": "band3"},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("colB", StringType(), True),
+                    StructField("colC", StringType(), True),
+                    StructField("level_code", StringType(), True),
+                    StructField("allocationLevel", StringType(), True),
+                    StructField("allocationBand", StringType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_type_of_level_table(base_table, type_of_level_data)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_planning(self):
+        """
+        add_planning AS (
+        SELECT
+            t.*,
+            pas.lpaapplicationreference  AS applicationReference,
+            pas.planningapplicationtype  AS typeOfPlanningApplication,
+            pad.dateofapplication        AS applicationDate,
+            pad.dateoflpadecision        AS applicationDecisionDate,
+            CASE hmu.applicationMadeUnderSection
+            WHEN '191' THEN 'existing-development'
+            WHEN '192' THEN 'proposed-use-of-a-development'
+            WHEN '26H' THEN 'proposed-changes-to-a-listed-building'
+            ELSE NULL
+            END AS applicationMadeUnderActSection
+        FROM add_typeoflevel t
+        LEFT JOIN pas_1row pas ON t.casenodeid = pas.casenodeid
+        LEFT JOIN pad_1row pad ON t.casenodeid = pad.casenodeid
+        LEFT JOIN hmu_1row hmu ON t.casenodeid = hmu.casenodeid
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        aad_type_of_level_data = spark.createDataFrame(
+            (
+                {"colA": "a", "colB": "b", "casenodeid": "1", "level_code": "codeA", "allocationLevel": "codeA", "allocationBand": "band1"},
+                {"colA": "d", "colB": "e", "casenodeid": "2", "level_code": "codeB", "allocationLevel": "codeB", "allocationBand": "band2"},
+                {"colA": "g", "colB": "h", "casenodeid": "3", "level_code": "codeC", "allocationLevel": "codeC", "allocationBand": "band3"},
+                {
+                    "colA": "i",
+                    "colB": "j",
+                    "casenodeid": "4",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                },  # Unmatched
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("colB", StringType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("level_code", StringType(), True),
+                    StructField("allocationLevel", StringType(), True),
+                    StructField("allocationBand", StringType(), True),
+                ]
+            ),
+        )
+        planning_app_strings = spark.createDataFrame(
+            (
+                {"pasColA": 1, "casenodeid": "1", "lpaapplicationreference": "Obi-wan", "planningapplicationtype": "typeA"},
+                {"pasColA": 2, "casenodeid": "2", "lpaapplicationreference": "Anakin", "planningapplicationtype": "typeB"},
+                {"pasColA": 3, "casenodeid": "3", "lpaapplicationreference": "Ahsoka", "planningapplicationtype": "typeC"},
+            ),
+            schema=StructType(
+                [
+                    StructField("pasColA", StringType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("lpaapplicationreference", StringType(), True),
+                    StructField("planningapplicationtype", StringType(), True),
+                ]
+            ),
+        )
+        planning_app_dates = spark.createDataFrame(
+            (
+                {"padColA": 1, "casenodeid": "1", "dateofapplication": datetime(2020, 1, 1), "dateoflpadecision": datetime(2021, 1, 1)},
+                {"padColA": 2, "casenodeid": "2", "dateofapplication": datetime(2022, 1, 1), "dateoflpadecision": datetime(2023, 1, 1)},
+                {"padColA": 3, "casenodeid": "3", "dateofapplication": datetime(2024, 1, 1), "dateoflpadecision": datetime(2025, 1, 1)},
+            ),
+            schema=StructType(
+                [
+                    StructField("padColA", StringType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("dateofapplication", TimestampType(), True),
+                    StructField("dateoflpadecision", TimestampType(), True),
+                ]
+            ),
+        )
+        made_under_section_data = spark.createDataFrame(
+            (
+                {"hmuColA": 1, "casenodeid": "1", "applicationMadeUnderSection": "191"},
+                {"hmuColA": 2, "casenodeid": "2", "applicationMadeUnderSection": "192"},
+                {"hmuColA": 3, "casenodeid": "3", "applicationMadeUnderSection": "26H"},
+                {"hmuColA": 3, "casenodeid": "3", "applicationMadeUnderSection": "Unmatched"},
+            ),
+            schema=StructType(
+                [
+                    StructField("hmuColA", StringType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("applicationMadeUnderSection", StringType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": "a",
+                    "colB": "b",
+                    "casenodeid": "1",
+                    "level_code": "codeA",
+                    "allocationLevel": "codeA",
+                    "allocationBand": "band1",
+                    "applicationReference": "Obi-wan",
+                    "typeOfPlanningApplication": "typeA",
+                    "applicationDate": datetime(2020, 1, 1, 0, 0),
+                    "applicationDecisionDate": datetime(2021, 1, 1, 0, 0),
+                    "applicationMadeUnderActSection": "existing-development",
+                },
+                {
+                    "colA": "d",
+                    "colB": "e",
+                    "casenodeid": "2",
+                    "level_code": "codeB",
+                    "allocationLevel": "codeB",
+                    "allocationBand": "band2",
+                    "applicationReference": "Anakin",
+                    "typeOfPlanningApplication": "typeB",
+                    "applicationDate": datetime(2022, 1, 1, 0, 0),
+                    "applicationDecisionDate": datetime(2023, 1, 1, 0, 0),
+                    "applicationMadeUnderActSection": "proposed-use-of-a-development",
+                },
+                {
+                    "colA": "g",
+                    "colB": "h",
+                    "casenodeid": "3",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                    "applicationReference": "Ahsoka",
+                    "typeOfPlanningApplication": "typeC",
+                    "applicationDate": datetime(2024, 1, 1, 0, 0),
+                    "applicationDecisionDate": datetime(2025, 1, 1, 0, 0),
+                    "applicationMadeUnderActSection": None,
+                },
+                {
+                    "colA": "g",
+                    "colB": "h",
+                    "casenodeid": "3",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                    "applicationReference": "Ahsoka",
+                    "typeOfPlanningApplication": "typeC",
+                    "applicationDate": datetime(2024, 1, 1, 0, 0),
+                    "applicationDecisionDate": datetime(2025, 1, 1, 0, 0),
+                    "applicationMadeUnderActSection": "proposed-changes-to-a-listed-building",
+                },
+                {
+                    "colA": "i",
+                    "colB": "j",
+                    "casenodeid": "4",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                    "applicationReference": None,
+                    "typeOfPlanningApplication": None,
+                    "applicationDate": None,
+                    "applicationDecisionDate": None,
+                    "applicationMadeUnderActSection": None,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("colB", StringType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("level_code", StringType(), True),
+                    StructField("allocationLevel", StringType(), True),
+                    StructField("allocationBand", StringType(), True),
+                    StructField("applicationReference", StringType(), True),
+                    StructField("typeOfPlanningApplication", StringType(), True),
+                    StructField("applicationDate", TimestampType(), True),
+                    StructField("applicationDecisionDate", TimestampType(), True),
+                    StructField("applicationMadeUnderActSection", StringType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_planning(
+                aad_type_of_level_data, planning_app_strings, planning_app_dates, made_under_section_data
+            )
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_adverts(self):
+        """
+        add_adverts AS (
+        SELECT
+            p.*,
+            haa.advertAttributeKey,
+            haa.advertType,
+            haa.setRowNumber,
+            haa.publicSafetyLpaIndicator,
+            haa.amenityLPAIndicator,
+            haa.publicSafetyGroundOutcome,
+            haa.amenityGroundOutcome,
+            haa.advertInPosition,
+            haa.siteOnHighwayLand
+        FROM add_planning p
+        LEFT JOIN haa_1row haa
+            ON p.caseuniqueid = haa.caseuniqueid
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        add_planning = spark.createDataFrame(
+            (
+                {"colA": "a", "caseuniqueid": "1"},
+                {"colA": "b", "caseuniqueid": "2"},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                ]
+            ),
+        )
+        advert_attributes = spark.createDataFrame(
+            (
+                {
+                    "caseuniqueid": "1",
+                    "advertAttributeKey": "keyA",
+                    "advertType": "typeA",
+                    "setRowNumber": 1,
+                    "publicSafetyLpaIndicator": "A",
+                    "amenityLPAIndicator": "X",
+                    "publicSafetyGroundOutcome": "rejected",
+                    "amenityGroundOutcome": "rejected",
+                    "advertInPosition": True,
+                    "siteOnHighwayLand": True,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("advertAttributeKey", StringType(), True),
+                    StructField("advertType", StringType(), True),
+                    StructField("setRowNumber", IntegerType(), True),
+                    StructField("publicSafetyLpaIndicator", StringType(), True),
+                    StructField("amenityLPAIndicator", StringType(), True),
+                    StructField("publicSafetyGroundOutcome", StringType(), True),
+                    StructField("amenityGroundOutcome", StringType(), True),
+                    StructField("advertInPosition", BooleanType(), True),
+                    StructField("siteOnHighwayLand", BooleanType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "advertAttributeKey": "keyA",
+                    "advertType": "typeA",
+                    "setRowNumber": 1,
+                    "publicSafetyLpaIndicator": "A",
+                    "amenityLPAIndicator": "X",
+                    "publicSafetyGroundOutcome": "rejected",
+                    "amenityGroundOutcome": "rejected",
+                    "advertInPosition": True,
+                    "siteOnHighwayLand": True,
+                },
+                {
+                    "colA": "b",
+                    "caseuniqueid": "2",
+                    "advertAttributeKey": None,
+                    "advertType": None,
+                    "setRowNumber": None,
+                    "publicSafetyLpaIndicator": None,
+                    "amenityLPAIndicator": None,
+                    "publicSafetyGroundOutcome": None,
+                    "amenityGroundOutcome": None,
+                    "advertInPosition": None,
+                    "siteOnHighwayLand": None,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("advertAttributeKey", StringType(), True),
+                    StructField("advertType", StringType(), True),
+                    StructField("setRowNumber", IntegerType(), True),
+                    StructField("publicSafetyLpaIndicator", StringType(), True),
+                    StructField("amenityLPAIndicator", StringType(), True),
+                    StructField("publicSafetyGroundOutcome", StringType(), True),
+                    StructField("amenityGroundOutcome", StringType(), True),
+                    StructField("advertInPosition", BooleanType(), True),
+                    StructField("siteOnHighwayLand", BooleanType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_adverts(add_planning, advert_attributes)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_case_refs(self):
+        """
+        add_case_refs AS (
+        SELECT
+            p.*,
+            lc.leadcasenodeid      AS leadCaseReference,
+            cs2.processingstate    AS caseStatus,
+            cs2.lpacode            AS lpaCode,
+            cs2.linkedstatus       AS linkedCaseStatus,
+            cs2.decision           AS caseDecisionOutcome,
+            cs2.jurisdiction       AS jurisdiction,
+            cs2.redetermined       AS redeterminedIndicator,
+            cs2.developmenttype    AS developmentType,
+            cs2.proceduretype      AS procedureType,
+            ci.validity            AS caseValidationOutcome
+        FROM add_adverts p
+        LEFT JOIN lc_1row  lc  ON p.casenodeid   = lc.casenodeid
+        LEFT JOIN cs2_1row cs2 ON p.casenodeid   = cs2.casenodeid
+        LEFT JOIN ci_1row  ci  ON p.caseuniqueid = ci.appealrefnumber
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        add_adverts = spark.createDataFrame(
+            (
+                {"casenodeid": "1", "caseuniqueid": "id1", "colA": 1},
+                {"casenodeid": "2", "caseuniqueid": "id2", "colA": 2},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", IntegerType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                ]
+            ),
+        )
+        # lc_1row
+        bis_lead_case = spark.createDataFrame(
+            ({"casenodeid": 1, "leadcasenodeid": "A"},),
+            schema=StructType(
+                [
+                    StructField("casenodeid", StringType(), True),
+                    StructField("leadcasenodeid", StringType(), True),
+                ]
+            ),
+        )
+        # cs2_1row
+        bis_case_strings = spark.createDataFrame(
+            (
+                {
+                    "casenodeid": "1",
+                    "processingstate": "stateA",
+                    "lpacode": "lpaA",
+                    "linkedstatus": "lsA",
+                    "decision": "decisionA",
+                    "jurisdiction": "jurisdictionA",
+                    "redetermined": "redeterminedA",
+                    "developmenttype": "typeA",
+                    "proceduretype": "typeB",
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("casenodeid", StringType(), True),
+                    StructField("processingstate", StringType(), True),
+                    StructField("lpacode", StringType(), True),
+                    StructField("linkedstatus", StringType(), True),
+                    StructField("decision", StringType(), True),
+                    StructField("jurisdiction", StringType(), True),
+                    StructField("redetermined", StringType(), True),
+                    StructField("developmenttype", StringType(), True),
+                    StructField("proceduretype", StringType(), True),
+                ]
+            ),
+        )
+        # ci_1row
+        horizon_case_info = spark.createDataFrame(
+            ({"validity": "valid", "appealrefnumber": "id1"},),
+            schema=StructType(
+                [
+                    StructField("validity", StringType(), True),
+                    StructField("appealrefnumber", StringType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": 1,
+                    "casenodeid": "1",
+                    "caseuniqueid": "id1",
+                    "leadCaseReference": "A",
+                    "caseStatus": "stateA",
+                    "lpaCode": "lpaA",
+                    "linkedCaseStatus": "lsA",
+                    "caseDecisionOutcome": "decisionA",
+                    "jurisdiction": "jurisdictionA",
+                    "redeterminedIndicator": "redeterminedA",
+                    "developmentType": "typeA",
+                    "procedureType": "typeB",
+                    "caseValidationOutcome": "valid",
+                },
+                {
+                    "colA": 2,
+                    "casenodeid": "2",
+                    "caseuniqueid": "id2",
+                    "leadCaseReference": None,
+                    "caseStatus": None,
+                    "lpaCode": None,
+                    "linkedCaseStatus": None,
+                    "caseDecisionOutcome": None,
+                    "jurisdiction": None,
+                    "redeterminedIndicator": None,
+                    "developmentType": None,
+                    "procedureType": None,
+                    "caseValidationOutcome": None,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", IntegerType(), True),
+                    StructField("casenodeid", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("leadCaseReference", StringType(), True),
+                    StructField("caseStatus", StringType(), True),
+                    StructField("lpaCode", StringType(), True),
+                    StructField("linkedCaseStatus", StringType(), True),
+                    StructField("caseDecisionOutcome", StringType(), True),
+                    StructField("jurisdiction", StringType(), True),
+                    StructField("redeterminedIndicator", StringType(), True),
+                    StructField("developmentType", StringType(), True),
+                    StructField("procedureType", StringType(), True),
+                    StructField("caseValidationOutcome", StringType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_case_refs(add_adverts, bis_lead_case, bis_case_strings, horizon_case_info)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_dates(self):
+        """
+        add_dates AS (
+        SELECT
+            c.*,
+            cdh.validitystatusdate        AS caseValidationDate,
+            scd.datecostsreportdespatched AS dateCostsReportDespatched
+        FROM add_case_refs c
+        LEFT JOIN cdh_1row cdh ON c.caseuniqueid = cdh.appealrefnumber
+        LEFT JOIN scd_1row scd ON c.caseuniqueid = scd.appealrefnumber
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        add_case_refs = spark.createDataFrame(
+            ({"colA": 1, "caseuniqueid": "a"}, {"colA": 2, "caseuniqueid": "b"}),
+            schema=StructType(
+                [
+                    StructField("colA", IntegerType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                ]
+            ),
+        )
+        # cdh_1row
+        horizon_case_dates = spark.createDataFrame(
+            ({"appealrefnumber": "a", "validitystatusdate": datetime(2025, 1, 1)},),
+            schema=StructType(
+                [
+                    StructField("appealrefnumber", StringType(), True),
+                    StructField("validitystatusdate", TimestampType(), True),
+                ]
+            ),
+        )
+        # scd_1row
+        specialist_case_dates = spark.createDataFrame(
+            ({"appealrefnumber": "a", "datecostsreportdespatched": datetime(2026, 1, 1)},),
+            schema=StructType(
+                [
+                    StructField("appealrefnumber", StringType(), True),
+                    StructField("datecostsreportdespatched", TimestampType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": 1,
+                    "caseuniqueid": "a",
+                    "caseValidationDate": datetime(2025, 1, 1, 0, 0),
+                    "dateCostsReportDespatched": datetime(2026, 1, 1, 0, 0),
+                },
+                {"colA": 2, "caseuniqueid": "b", "caseValidationDate": None, "dateCostsReportDespatched": None},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", IntegerType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("caseValidationDate", TimestampType(), True),
+                    StructField("dateCostsReportDespatched", TimestampType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_dates(add_case_refs, horizon_case_dates, specialist_case_dates)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_aad(self):
+        """
+        add_aad AS (
+        SELECT
+            d.*,
+            aad.developmentorallegation     AS originalDevelopmentDescription,
+            aad.appellantcommentssubmitted  AS appellantCommentsSubmittedDate,
+            aad.appellantstatementsubmitted AS appellantStatementSubmittedDate,
+            aad.lpacommentssubmitted        AS lpaCommentsSubmittedDate,
+            aad.lpaproofssubmitted          AS lpaProofsSubmittedDate,
+            aad.lpastatementsubmitted       AS lpaStatementSubmittedDate,
+            aad.sitenoticesent              AS siteNoticesSentDate,
+            aad.statementsdue               AS statementDueDate,
+            aad.numberofresidences          AS numberOfResidencesNetChange
+        FROM add_dates d
+        LEFT JOIN aad_1row aad ON d.caseuniqueid = aad.appealrefnumber
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        add_dates = spark.createDataFrame(
+            (
+                {"colA": "a", "caseuniqueid": 1},
+                {"colA": "b", "caseuniqueid": 2},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", IntegerType(), True),
+                ]
+            ),
+        )
+        # aad_1row
+        appeals_additional_data = spark.createDataFrame(
+            (
+                {
+                    "appealrefnumber": 1,
+                    "developmentorallegation": "developmentorallegation",
+                    "appellantcommentssubmitted": "appellantcommentssubmitted",
+                    "appellantstatementsubmitted": "appellantstatementsubmitted",
+                    "lpacommentssubmitted": "lpacommentssubmitted",
+                    "lpaproofssubmitted": "lpaproofssubmitted",
+                    "lpastatementsubmitted": "lpastatementsubmitted",
+                    "sitenoticesent": "sitenoticesent",
+                    "statementsdue": "statementsdue",
+                    "numberofresidences": "numberofresidences",
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("appealrefnumber", IntegerType(), True),
+                    StructField("developmentorallegation", StringType(), True),
+                    StructField("appellantcommentssubmitted", StringType(), True),
+                    StructField("appellantstatementsubmitted", StringType(), True),
+                    StructField("lpacommentssubmitted", StringType(), True),
+                    StructField("lpaproofssubmitted", StringType(), True),
+                    StructField("lpastatementsubmitted", StringType(), True),
+                    StructField("sitenoticesent", StringType(), True),
+                    StructField("statementsdue", StringType(), True),
+                    StructField("numberofresidences", StringType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": "a",
+                    "caseuniqueid": 1,
+                    "originalDevelopmentDescription": "developmentorallegation",
+                    "appellantCommentsSubmittedDate": "appellantcommentssubmitted",
+                    "appellantStatementSubmittedDate": "appellantstatementsubmitted",
+                    "lpaCommentsSubmittedDate": "lpacommentssubmitted",
+                    "lpaProofsSubmittedDate": "lpaproofssubmitted",
+                    "lpaStatementSubmittedDate": "lpastatementsubmitted",
+                    "siteNoticesSentDate": "sitenoticesent",
+                    "statementDueDate": "statementsdue",
+                    "numberOfResidencesNetChange": "numberofresidences",
+                },
+                {
+                    "colA": "b",
+                    "caseuniqueid": 2,
+                    "originalDevelopmentDescription": None,
+                    "appellantCommentsSubmittedDate": None,
+                    "appellantStatementSubmittedDate": None,
+                    "lpaCommentsSubmittedDate": None,
+                    "lpaProofsSubmittedDate": None,
+                    "lpaStatementSubmittedDate": None,
+                    "siteNoticesSentDate": None,
+                    "statementDueDate": None,
+                    "numberOfResidencesNetChange": None,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", IntegerType(), True),
+                    StructField("originalDevelopmentDescription", StringType(), True),
+                    StructField("appellantCommentsSubmittedDate", StringType(), True),
+                    StructField("appellantStatementSubmittedDate", StringType(), True),
+                    StructField("lpaCommentsSubmittedDate", StringType(), True),
+                    StructField("lpaProofsSubmittedDate", StringType(), True),
+                    StructField("lpaStatementSubmittedDate", StringType(), True),
+                    StructField("siteNoticesSentDate", StringType(), True),
+                    StructField("statementDueDate", StringType(), True),
+                    StructField("numberOfResidencesNetChange", StringType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_aad(add_dates, appeals_additional_data)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_add_procedure(self):
+        """
+        add_procedure AS (
+        SELECT a.*, tp.proccode AS caseProcedure
+        FROM add_aad a
+        LEFT JOIN tp ON a.procedureType = tp.name
+        )
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        add_aad = spark.createDataFrame(
+            (
+                {"colA": "a", "procedureType": "typeA"},
+                {"colA": "b", "procedureType": "typeB"},
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("procedureType", StringType(), True),
+                ]
+            ),
+        )
+        type_of_procedure = spark.createDataFrame(
+            ({"name": "typeA", "proccode": "1"},),
+            schema=StructType(
+                [
+                    StructField("name", StringType(), True),
+                    StructField("proccode", StringType(), True),
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            ({"colA": "a", "procedureType": "typeA", "caseProcedure": "1"}, {"colA": "b", "procedureType": "typeB", "caseProcedure": None}),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("procedureType", StringType(), True),
+                    StructField("caseProcedure", StringType(), True),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_add_procedure(add_aad, type_of_procedure)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__generate_final_table(self):
+        """
+        SELECT *
+        FROM (
+        SELECT a.*,
+                ROW_NUMBER() OVER (
+                PARTITION BY a.caseuniqueid
+                ORDER BY a.expected_from DESC,
+                            a.modified_datetime DESC,
+                            a.ingested_datetime DESC,
+                            a.file_id DESC
+                ) AS rn_final
+        FROM add_procedure a
+        ) z
+        WHERE rn_final = 1
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        expected_from_base = datetime(2025, 1, 1)
+        modified_datetime_base = datetime(2026, 1, 1)
+        ingested_datetime_base = datetime(2027, 1, 1)
+
+        expected_from_inc = expected_from_base + timedelta(days=1)
+        modified_datetime_inc = modified_datetime_base + timedelta(days=1)
+        ingested_datetime_inc = ingested_datetime_base + timedelta(days=1)
+        add_procedure = spark.createDataFrame(
+            (
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_base,
+                    "modified_datetime": modified_datetime_base,
+                    "ingested_datetime": ingested_datetime_base,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_base,
+                    "modified_datetime": modified_datetime_base,
+                    "ingested_datetime": ingested_datetime_inc,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_base,
+                    "modified_datetime": modified_datetime_inc,
+                    "ingested_datetime": ingested_datetime_base,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_base,
+                    "modified_datetime": modified_datetime_inc,
+                    "ingested_datetime": ingested_datetime_inc,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_inc,
+                    "modified_datetime": modified_datetime_base,
+                    "ingested_datetime": ingested_datetime_base,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_inc,
+                    "modified_datetime": modified_datetime_base,
+                    "ingested_datetime": ingested_datetime_inc,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_inc,
+                    "modified_datetime": modified_datetime_inc,
+                    "ingested_datetime": ingested_datetime_base,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "file_id": "1",
+                    "expected_from": expected_from_inc,
+                    "modified_datetime": modified_datetime_inc,
+                    "ingested_datetime": ingested_datetime_inc,
+                    "level_code": "x",
+                },
+                {
+                    "colA": "b",
+                    "caseuniqueid": "2",
+                    "file_id": "2",
+                    "expected_from": expected_from_base,
+                    "modified_datetime": modified_datetime_base,
+                    "ingested_datetime": ingested_datetime_base,
+                    "level_code": "x",
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("file_id", StringType(), True),
+                    StructField("level_code", StringType(), True),  # This column should be dropped
+                ]
+            ),
+        )
+        expected_data = spark.createDataFrame(
+            (
+                {
+                    "colA": "a",
+                    "caseuniqueid": "1",
+                    "expected_from": datetime(2025, 1, 2, 0, 0),
+                    "modified_datetime": datetime(2026, 1, 2, 0, 0),
+                    "ingested_datetime": datetime(2027, 1, 2, 0, 0),
+                    "file_id": "1",
+                    "rn_final": 1,
+                },
+                {
+                    "colA": "b",
+                    "caseuniqueid": "2",
+                    "expected_from": datetime(2025, 1, 1, 0, 0),
+                    "modified_datetime": datetime(2026, 1, 1, 0, 0),
+                    "ingested_datetime": datetime(2027, 1, 1, 0, 0),
+                    "file_id": "2",
+                    "rn_final": 1,
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("colA", StringType(), True),
+                    StructField("caseuniqueid", StringType(), True),
+                    StructField("expected_from", TimestampType(), True),
+                    StructField("modified_datetime", TimestampType(), True),
+                    StructField("ingested_datetime", TimestampType(), True),
+                    StructField("file_id", StringType(), True),
+                    StructField("rn_final", IntegerType(), False),
+                    StructField("preserveGrantLoan", BooleanType(), True),  # Should be added but be empty
+                    StructField("consultHistoricEngland", BooleanType(), True),  # Should be added but be empty
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            actual_data = AppealS78StandardisationProcess().generate_final_table(add_procedure)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__process(self):
+        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+            inst = AppealS78StandardisationProcess()
+            functions_to_patch = (
+                inst.generate_add_aad,
+                inst.generate_add_adverts,
+                inst.generate_add_case_refs,
+                inst.generate_add_dates,
+                inst.generate_add_planning,
+                inst.generate_add_dates,
+                inst.generate_add_procedure,
+                inst.generate_base_table,
+                inst.generate_type_of_level_table,
+                inst.generate_final_table,
+            )
+            with ExitStack() as stack:
+                for return_value, function in enumerate(functions_to_patch):
+                    method = function.__name__
+                    stack.enter_context(mock.patch.object(inst, method, return_value=return_value))
+                expected_result = getattr(inst, "generate_final_table").return_value
+                actual_result = inst.process()
+                called_functions_map = {x.__name__: getattr(inst, x.__name__).called for x in functions_to_patch}
+                uncalled_functions = [k for k, v in called_functions_map.items() if not v]
+                assert not uncalled_functions, (
+                    f"The following methods of AppealS78StandardisationProcess were not called by process() but were expected {uncalled_functions}"
+                )
+                assert expected_result == actual_result
