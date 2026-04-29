@@ -107,7 +107,35 @@ class AppealS78StandardisationProcess(StandardisationProcess):
         additional_fields: DataFrame,
         horizon_notice_dates: DataFrame,
         horizon_appeal_grounds: DataFrame,
-    ):
+    ) -> DataFrame:
+        pass
+
+    def generate_type_of_level_table(self, base_table: DataFrame, type_of_level: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_planning(
+        self, aad_type_of_level_data: DataFrame, planning_app_strings: DataFrame, planning_app_dates: DataFrame, made_under_section_data: DataFrame
+    ) -> DataFrame:
+        pass
+
+    def generate_add_adverts(self, add_planning: DataFrame, advert_attributes: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_case_refs(
+        self, add_adverts: DataFrame, bis_lead_case: DataFrame, bis_case_strings: DataFrame, horizon_case_info: DataFrame
+    ) -> DataFrame:
+        pass
+
+    def generate_add_dates(self, add_case_refs: DataFrame, horizon_case_dates: DataFrame, specialist_case_dates: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_aad(self, add_dates: DataFrame, appeals_additional_data) -> DataFrame:
+        pass
+
+    def generate_add_procedure(self, add_aad: DataFrame, type_of_procedure: DataFrame) -> DataFrame:
+        pass
+
+    def generate_final_table(self, add_procedure: DataFrame) -> DataFrame:
         pass
 
     def process(self, **kwargs):
