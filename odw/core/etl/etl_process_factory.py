@@ -10,7 +10,8 @@ from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_pr
 from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import NsipS51AdviceHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
-from odw.core.etl.transformation.harmonised.horizon_harmonisation_process import HorizonHarmonisationProcess
+from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
+from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
@@ -33,7 +34,8 @@ class ETLProcessFactory:
         NsipS51AdviceHarmonisationProcess,
         NsipMeetingHarmonisationProcess,
         AieDocumentHarmonisationProcess,
-        HorizonHarmonisationProcess,
+        EntraIdHarmonisationProcess,
+        ListedBuildingHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
         NsipExamTimetableCuratedProcess,
