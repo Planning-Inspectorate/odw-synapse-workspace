@@ -1,30 +1,17 @@
-from odw.core.etl.transformation.curated.curation_process import CurationProcess
-from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
-from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
 from datetime import datetime
 from typing import Dict, Tuple
 
-try:
-    ETLResultMetadata  # type: ignore[name-defined]
-except NameError:
-    from pydantic import BaseModel, Field
+from pyspark.sql import DataFrame, SparkSession
 
-    class ETLResultMetadata(BaseModel):  # fallback, local definition
-        start_execution_time: datetime
-        end_execution_time: datetime
-        exception: str | None = None
-        exception_trace: str | None = None
-        table_name: str | None = None
-        insert_count: int = Field(default=0)
-        update_count: int = Field(default=0)
-        delete_count: int = Field(default=0)
-        activity_type: str
-        duration_seconds: float
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.etl.transformation.curated.curation_process import CurationProcess
+from odw.core.util.logging_util import LoggingUtil
+from odw.core.util.util import Util
 
 
 class AppealRepresentationCuratedProcess(CurationProcess):
+    """Curates active harmonised appeal representation data into the curated layer."""
+
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
 
@@ -36,7 +23,11 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         return "appeal-representation-curated"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}")
+        """Load active appeal representation records from the harmonised table."""
+
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Representation data from {self.HARMONISED_TABLE}"
+        )
 
         harmonised_representations = self.spark.sql(
             f"""
@@ -66,15 +57,21 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         }
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
+        """Prepare curated appeal representation output and return ETL metadata."""
+
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_representations: DataFrame = self.load_parameter("harmonised_representations", source_data)
+        harmonised_representations: DataFrame = self.load_parameter(
+            "harmonised_representations", source_data
+        )
 
         df = harmonised_representations
 
         insert_count = df.count()
-        LoggingUtil().log_info(f"Curated Appeal Representation row count: {insert_count}")
+        LoggingUtil().log_info(
+            f"Curated Appeal Representation row count: {insert_count}"
+        )
 
         end_exec_time = datetime.now()
 
@@ -94,7 +91,7 @@ class AppealRepresentationCuratedProcess(CurationProcess):
         }
 
         return data_to_write, ETLSuccessResult(
-            metadata=ETLResultMetadata(
+            metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
                 table_name=self.OUTPUT_TABLE,
