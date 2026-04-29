@@ -299,7 +299,7 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
     def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
         # cd_1row
         self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_HORIZON_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates
+            "casenodeid", "STANDARDISED_VW_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates
         )
 
     def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
