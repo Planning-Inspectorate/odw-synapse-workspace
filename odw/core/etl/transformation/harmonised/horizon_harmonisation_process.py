@@ -36,6 +36,10 @@ _EXCLUDE_FROM_HASH = frozenset(
     ]
 )
 
+# Schema-level metadata fields present in the standardised_table_definitions JSONs.
+# Excluded when deriving the ordered RowID column list from the schema.
+_SCHEMA_METADATA_FIELDS = frozenset(["ingested_datetime", "expected_from", "expected_to"])
+
 
 class HorizonHarmonisationProcess(HarmonisationProcess):
     """
@@ -62,6 +66,9 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
     Optional orchestration fields
     -----------------------------
     - ``Source_System_ID``: value written to the ``SourceSystemID`` column (omitted if absent).
+    - ``Standardised_Table_Definition``: path under ``odw-config/`` to the schema JSON whose ordered
+      ``fields`` list (minus standardisation metadata) drives the explicit RowID column list. When
+      absent, RowID falls back to all non-excluded columns of the source DataFrame.
 
     # Example usage via py_etl_orchestrator
 
@@ -102,9 +109,15 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info(f"Loading Horizon standardised data from {full_std_table}")
         source_data = self.spark.table(full_std_table)
 
+        standardised_table_schema = None
+        if "Standardised_Table_Definition" in definition:
+            schema_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
+            standardised_table_schema = json.loads(self.spark.read.text(schema_loc, wholetext=True).first().value)
+
         return {
             "orchestration_data": orchestration_data,
             "source_data": source_data,
+            "standardised_table_schema": standardised_table_schema,
         }
 
     # ------------------------------------------------------------------
@@ -119,6 +132,7 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
 
         orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data_map)
         raw: DataFrame = self.load_parameter("source_data", source_data_map)
+        standardised_table_schema: dict = source_data_map.get("standardised_table_schema")
 
         definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
         definition: dict = next((d for d in definitions if entity_name == d.get("Source_Filename_Start")), None)
@@ -161,14 +175,23 @@ class HorizonHarmonisationProcess(HarmonisationProcess):
         if source_system_id is not None:
             data = data.withColumn("SourceSystemID", F.lit(source_system_id))
 
-        # Compute RowID as an MD5 hash of the business columns (mirrors the legacy notebook).
-        # _EXCLUDE_FROM_HASH excludes SCD-2 plumbing and standardisation metadata so that
-        # only true business data contributes to the hash.
-        business_cols = [c for c in data.columns if c not in _EXCLUDE_FROM_HASH]
-        data = data.withColumn(
-            "RowID",
-            F.md5(F.concat_ws("||", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in business_cols])),
-        )
+        # Compute RowID as MD5(CONCAT(IFNULL(col, '.'), ...)) over an explicit, ordered list of
+        # business columns — mirrors the legacy notebook idiom. The ordered list is taken from
+        # the standardised_table_definition schema (minus standardisation metadata); when the
+        # schema is unavailable, fall back to all non-excluded columns of the source DataFrame.
+        if standardised_table_schema is not None:
+            schema_field_names = [f["name"] for f in standardised_table_schema.get("fields", [])]
+            rowid_cols = [c for c in schema_field_names if c not in _SCHEMA_METADATA_FIELDS and c in data.columns]
+        else:
+            rowid_cols = [c for c in data.columns if c not in _EXCLUDE_FROM_HASH]
+
+        if rowid_cols:
+            data = data.withColumn(
+                "RowID",
+                F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in rowid_cols])),
+            )
+        else:
+            data = data.withColumn("RowID", F.lit(""))
 
         # Step 4: Drop rows where the business key is null.
         data = data.filter(F.col(primary_key).isNotNull())

@@ -33,10 +33,11 @@ def _orchestration_df(spark, source_system_id="HORIZON-TEST"):
 class TestHorizonHarmonisationProcessIntegration(ETLTestCase):
     OUTPUT_TABLE = f"{HorizonHarmonisationProcess.HRM_DB}.test_entity"
 
-    def _run(self, spark, source_df, source_system_id="HORIZON-TEST"):
+    def _run(self, spark, source_df, source_system_id="HORIZON-TEST", standardised_table_schema=None):
         source_data = {
             "orchestration_data": _orchestration_df(spark, source_system_id=source_system_id),
             "source_data": source_df,
+            "standardised_table_schema": standardised_table_schema,
         }
 
         with (
@@ -171,3 +172,38 @@ class TestHorizonHarmonisationProcessIntegration(ETLTestCase):
 
         df = data_to_write[self.OUTPUT_TABLE]["data"]
         assert "SourceSystemID" not in df.columns
+
+    def test__horizon_harmonisation_process__run__rowid_matches_schema_driven_md5_concat_with_dot_for_nulls(self):
+        import hashlib
+
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        # Schema picks the explicit ordered RowID column list — `name` only, `expected_from` is
+        # excluded as standardisation metadata, and `id` is excluded because it's not declared.
+        schema = {
+            "fields": [
+                {"name": "ingested_datetime", "type": "timestamp", "nullable": False},
+                {"name": "expected_from", "type": "timestamp", "nullable": False},
+                {"name": "expected_to", "type": "timestamp", "nullable": False},
+                {"name": "id", "type": "string", "nullable": False},
+                {"name": "name", "type": "string", "nullable": True},
+            ]
+        }
+
+        source_df = spark.createDataFrame(
+            [
+                ("id-1", "Alice", "2024-01-01 00:00:00"),
+                ("id-2", None, "2024-01-01 00:00:00"),
+            ],
+            _SOURCE_SCHEMA,
+        )
+
+        _, data_to_write, _ = self._run(spark, source_df, standardised_table_schema=schema)
+
+        df = data_to_write[self.OUTPUT_TABLE]["data"]
+        rows = {row["id"]: row for row in df.collect()}
+
+        # Expected RowID = md5(concat(IFNULL(id, '.'), IFNULL(name, '.'))) — schema order, no
+        # separator, '.' for nulls. Mirrors the notebook idiom (e.g. appeals_folder.json).
+        assert rows["id-1"]["RowID"] == hashlib.md5(b"id-1Alice").hexdigest()
+        assert rows["id-2"]["RowID"] == hashlib.md5(b"id-2.").hexdigest()
