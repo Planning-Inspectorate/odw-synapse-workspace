@@ -9,8 +9,9 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         super().__init__(spark)
         self.spark = spark
 
-    def get_name(self) -> str:
-        return "listed_building_harmonisation_process"
+    @classmethod
+    def get_name(cls) -> str:
+        return "Listed Building Harmonisation"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("ListedBuildingHarmonisationProcess.load_data() has not been implemented yet.")
