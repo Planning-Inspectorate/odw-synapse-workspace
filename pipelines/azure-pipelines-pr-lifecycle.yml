@@ -1,12 +1,14 @@
-# azure-pipelines-pr-lifecycle.yml
-name: Close stale issues and PRs
-
-# trigger: none
-# pr: none
+resources:
+  repositories:
+    - repository: odw-common
+      type: github
+      name: Planning-Inspectorate/odw-common
+      endpoint: GitHub  # Your GitHub service connection name
+      ref: refs/heads/main
 
 schedules:
-  - cron: "0 0 * * *"   # daily at midnight
-    displayName: Close stale issues and PRs
+  - cron: "0 0 * * *"
+    displayName: Daily stale PR cleanup
     branches:
       include:
         - main
@@ -15,67 +17,18 @@ schedules:
 pool: pins-agent-pool-odw-build-uks
 
 variables:
-- group: GitHub-Secrets  # PAT stored in Variable Group
+  - group: GitHub-Secrets
 
-steps:
-  - checkout: self
-
-  - script: |
-      echo "Checking for stale PRs..."
-
-      REPO="Planning-Inspectorate/odw-synapse-workspace"
-
-      # PRs with no activity for 14 days → mark stale
-      stale_prs=$(curl -s \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$REPO/pulls?state=open" | \
-        jq '.[] | select(.updated_at < "'$(date -d "14 days ago" -Iseconds)'") | .number')
-
-      for pr in $stale_prs; do
-        echo "Marking PR #$pr as stale..."
-        curl -s -X POST \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{"labels":["stale"]}' \
-          "https://api.github.com/repos/$REPO/issues/$pr/labels"
-      done
-
-      # PRs with no activity for 21 days → close
-      very_stale_prs=$(curl -s \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$REPO/pulls?state=open" | \
-        jq '.[] | select(.updated_at < "'$(date -d "21 days ago" -Iseconds)'") | .number')
-
-      for pr in $very_stale_prs; do
-        echo "Closing PR #$pr..."
-        curl -s -X PATCH \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{"state":"closed"}' \
-          "https://api.github.com/repos/$REPO/pulls/$pr"
-      done
-
-    env:
-      GITHUB_TOKEN: $(GITHUB_TOKEN)
-      
-    displayName: Close stale PRs
-
-
-  # - script: |
-  #     echo "Finding and marking stale issues and PRs..."
-
-  #     REPO="Planning-Inspectorate/odw-synapse-workspace"
-  #     DAYS_BEFORE_STALE=14
-  #     DAYS_BEFORE_CLOSE=7
-
-  #     # Example: list open issues/PRs and process them.
-  #     # You can expand this into full stale logic (labels, comments, closing)
-  #     # similar to actions/stale.
-
-  #     echo "This is a placeholder. Implement your stale logic here using GitHub REST API."
-  #     echo "For example:"
-  #     echo "  - gh api repos/$REPO/issues ..."
-  #   displayName: Run stale cleanup logic
-
-  #   env:
-  #     GITHUB_TOKEN: $(GITHUB_TOKEN)
+stages:
+  - stage: CleanupStalePRs
+    displayName: Cleanup Stale PRs
+    jobs:
+      - job: CloseStalePRs
+        displayName: Close Stale PRs
+        steps:
+          - template: pipelines/templates/github/close-stale-prs.yml@odw-common
+            parameters:
+              githubRepository: 'Planning-Inspectorate/odw-synapse-workspace'
+              staleThresholdDays: 14
+              closureThresholdDays: 21
+              variableGroupName: 'GitHub-Secrets'
