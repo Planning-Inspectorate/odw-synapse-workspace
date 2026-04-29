@@ -123,11 +123,11 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
     def _load_service_bus_data(self) -> DataFrame:
         """
         Get data out of the service bus with additional fields needed for Horizon data.
-        Computes a primary key: MD5(CONCAT(documentId, filename, version))
+        Computes a primary key: MD5(CONCAT(documentId, filename, version, documentURI))
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                MD5(CONCAT(COALESCE(documentId, ''), COALESCE(filename, ''), COALESCE(CAST(version AS STRING), ''))) AS {self.PRIMARY_KEY}
+                MD5(CONCAT(COALESCE(documentId, ''), COALESCE(filename, ''), COALESCE(CAST(version AS STRING), ''), COALESCE(documentURI, ''))) AS {self.PRIMARY_KEY}
                 ,AppealsDocumentMetadataID
                 ,documentId
                 ,caseId
