@@ -3,56 +3,9 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Log Start",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Start",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"StatusMessage": "EntraID RAW ingest starting",
-						"AppInsIKey": {
-							"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Set loop start",
 				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Log Start",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -176,62 +129,11 @@
 				}
 			},
 			{
-				"name": "Log Completion",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Set rowsCopied",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@activity('Copy AAD Users').ExecutionStartTime",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@activity('Copy AAD Users').ExecutionEndTime",
-							"type": "Expression"
-						},
-						"Inserts": {
-							"value": "@variables('rowsCopied')",
-							"type": "Expression"
-						},
-						"StatusMessage": "EntraID RAW ingest completed",
-						"AppInsIKey": {
-							"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Append success",
 				"type": "AppendVariable",
 				"dependsOn": [
 					{
-						"activity": "Log Completion",
+						"activity": "Set rowsCopied",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -271,62 +173,11 @@
 				}
 			},
 			{
-				"name": "Log Failure",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Set lastErrorMessage",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Failure",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@variables('lastErrorMessage')",
-							"type": "Expression"
-						},
-						"StatusMessage": "EntraID RAW ingest failed",
-						"AppInsIKey": {
-							"value": "@string(\n  coalesce(\n    json(pipeline().parameters.runContextJson)?['appInsightsKey'],\n    json(pipeline().parameters.runContextJson)?['apps_insights_ikey'],\n    ''\n  )\n)",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
 				"name": "Append failure",
 				"type": "AppendVariable",
 				"dependsOn": [
 					{
-						"activity": "Log Failure",
+						"activity": "Set lastErrorMessage",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -423,11 +274,6 @@
 				}
 			}
 		],
-		"parameters": {
-			"runContextJson": {
-				"type": "string"
-			}
-		},
 		"variables": {
 			"hasFailure": {
 				"type": "Boolean",
@@ -438,7 +284,8 @@
 				"defaultValue": 0
 			},
 			"lastErrorMessage": {
-				"type": "String"
+				"type": "String",
+				"defaultValue": ""
 			},
 			"loopStartTicks": {
 				"type": "String"
@@ -453,7 +300,7 @@
 			}
 		},
 		"folder": {
-			"name": "utils/Ingest"
+			"name": "EntraID/0-raw"
 		},
 		"annotations": []
 	}
