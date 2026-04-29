@@ -10,6 +10,10 @@ from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_pr
 from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import NsipS51AdviceHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.core.etl.transformation.harmonised.appeal_event_estimate_harmonisation_process import AppealEventEstimateHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process import AppealDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
+from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
@@ -17,6 +21,7 @@ from odw.core.etl.transformation.curated.nsip_representation_curated_process imp
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
+from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -33,6 +38,10 @@ class ETLProcessFactory:
         NsipS51AdviceHarmonisationProcess,
         NsipMeetingHarmonisationProcess,
         AppealEventEstimateHarmonisationProcess,
+        AppealDocumentHarmonisationProcess,
+        AieDocumentHarmonisationProcess,
+        EntraIdHarmonisationProcess,
+        ListedBuildingHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
         NsipExamTimetableCuratedProcess,
@@ -40,6 +49,7 @@ class ETLProcessFactory:
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
         AppealEventEstimateCuratedProcess,
+        AppealDocumentCuratedProcess,
     }
 
     @classmethod
