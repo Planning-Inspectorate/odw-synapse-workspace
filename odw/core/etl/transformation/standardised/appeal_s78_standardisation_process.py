@@ -6,7 +6,7 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     STANDARDISED_DB = "odw_standardised_db"
     STANDARDISED_CASES_SPECIALISMS = "cases_specialisms"
     STANDARDISED_HORIZON_CASES_S78 = "horizoncases_s78"
-    STANDARDISED_HORIZON_CASE_DATES = "vw_case_dates"
+    STANDARDISED_VW_CASE_DATES = "vw_case_dates"
     STANDARDISED_CASE_DOCUMENT_DATES_DATES = "casedocumentdatesdates"
     STANDARDISED_CASE_SITE_STRINGS = "casesitestrings"
     STANDARDISED_ADDITIONAL_FIELDS = "vw_additionalfields"
