@@ -96,6 +96,63 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     def load_data(self, **kwargs):
         raise NotImplementedError("AppealS78StandardisationProcess.load_data() has not been implemented yet.")
 
+    def _generate_aggregate_horizoncases_s78(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_cases_specialisms(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_casedocumentdatesdates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_casesitestrings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_addadditionaldata(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_additionalfields(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_advert_attributes(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_specialist_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_planning_app_strings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_planning_app_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_bis_lead_case(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_case_strings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_case_info(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_appeals_additional_data(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_appeal_grounds(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_notice_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_application_made_under_section(self, raw_data: DataFrame):
+        pass
+
     def generate_base_table(
         self,
         horizon_cases: DataFrame,
