@@ -1,0 +1,36 @@
+# azure-pipelines-code-validation.yml
+name: Code Validation
+
+pr:
+  branches:
+    include:
+      - '*'
+
+trigger: none
+
+pool: pins-agent-pool-odw-build-uks
+
+strategy:
+  matrix:
+    python310:
+      python.version: '3.10'
+
+steps:
+  - checkout: self
+
+  - task: UsePythonVersion@0
+    displayName: Set up Python
+    inputs:
+      versionSpec: '$(python.version)'
+
+  - script: |
+      export PYTHONPATH="${PYTHONPATH}:/./"
+      python3 -m pip install "git+https://github.com/Planning-Inspectorate/odw-common.git@main"
+      python3 pipelines/scripts/check_notebooks_valid.py
+    displayName: Validate Synapse notebooks
+
+  - script: |
+      pip install ruff
+      ruff check odw
+      ruff format --check odw
+    displayName: Validate ODW Python package code styling

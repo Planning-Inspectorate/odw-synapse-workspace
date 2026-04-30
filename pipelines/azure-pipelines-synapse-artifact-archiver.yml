@@ -1,0 +1,64 @@
+# azure-pipelines-synapse-artifact-archiver.yml
+name: Synapse artifact archival
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 13 * * 2"   # 13:00 every Tuesday (same as '00 13 * * tue')
+    displayName: Weekly Synapse artifact archival
+    branches:
+      include:
+        - main
+    always: true
+
+pool: pins-agent-pool-odw-build-uks
+
+variables:
+- group: GitHub-Secrets
+
+steps:
+  - checkout: self
+
+  - task: UsePythonVersion@0
+    displayName: Set up Python
+    inputs:
+      versionSpec: '3.10'
+
+  - script: |
+      pip install ast2json azure-identity
+      pip install "git+https://github.com/Planning-Inspectorate/odw-common.git@main"
+      export PYTHONPATH="${PYTHONPATH}:/./"
+      python3 pipelines/scripts/archive_artifacts.py
+      sudo apt-get update
+      sudo apt-get install -y gh
+    displayName: 'Install dependencies and run archive script'
+
+  - script: |
+      git config --global user.email "automation@users.noreply.github.com"
+      git config --global user.name "automation"
+      echo "Manual checkout using PAT..."
+      git clone https://$(GITHUB_TOKEN)@github.com/Planning-Inspectorate/odw-synapse-workspace.git repo
+      cd repo
+      pullRequests=$(gh pr list -B main -H "fix/autoArchive")
+        if [[ -z "$pullRequests" ]]; then
+            git pull
+            git checkout -b "fix/autoArchive"
+
+            if [[ `git status --porcelain` ]]; then
+                git add -A
+                git commit -m "chore(synapse): Auto archive Synapse artifacts"
+                git push --set-upstream origin "fix/autoArchive"
+                echo "No pull requests found from "fix/autoArchive"->main , raising a pull request"
+                gh pr create -B main -H "fix/autoArchive" --title "Auto archive Synapse artifacts" --body "Auto archive Synapse artifacts"
+            else
+                echo "No artifacts to acrchive or delete - aborting the creation of the pull request"
+                git checkout main
+                git branch -D "fix/autoArchive"
+            fi
+        else
+            echo "A pull request from the "fix/autoArchive" branch to the main branch already exists. This must be merged before more artifacts can be archived" 
+        fi
+    displayName: 'Archive notebooks and raise pull request'
+    env:
+      GITHUB_TOKEN: $(GITHUB_TOKEN)
