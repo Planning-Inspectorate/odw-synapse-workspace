@@ -1503,11 +1503,55 @@
 							}
 						},
 						{
+							"name": "A_AIE_Ingest",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_aie_ingest",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						},
+						{
+							"name": "A_LB_Ingest",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_listed_building_ingest",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						},
+						{
 							"name": "Set_apiResult_From_API",
 							"type": "SetVariable",
 							"dependsOn": [
 								{
 									"activity": "A_EID_Ingest",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "A_AIE_Ingest",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "A_LB_Ingest",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -1521,7 +1565,7 @@
 							"typeProperties": {
 								"variableName": "hzResultJson",
 								"value": {
-									"value": "@replace(\n  replace(\n    string(activity('A_EID_Ingest).output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
+									"value": "@replace(\n  replace(\n    string(activity('A_EID_Ingest').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
 							}
