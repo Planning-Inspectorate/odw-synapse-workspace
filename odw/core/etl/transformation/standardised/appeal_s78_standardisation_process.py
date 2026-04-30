@@ -1,0 +1,199 @@
+from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from pyspark.sql import DataFrame
+
+
+class AppealS78StandardisationProcess(StandardisationProcess):
+    STANDARDISED_DB = "odw_standardised_db"
+    STANDARDISED_CASES_SPECIALISMS = "cases_specialisms"
+    STANDARDISED_HORIZON_CASES_S78 = "horizoncases_s78"
+    STANDARDISED_VW_CASE_DATES = "vw_case_dates"
+    STANDARDISED_CASE_DOCUMENT_DATES_DATES = "casedocumentdatesdates"
+    STANDARDISED_CASE_SITE_STRINGS = "casesitestrings"
+    STANDARDISED_ADDITIONAL_FIELDS = "vw_additionalfields"
+    STANDARDISED_HORIZON_ADVERT_ATTRIBUTES = "horizon_advert_attributes"
+    STANDARDISED_HORIZON_SPECIALIST_CASE_DATES = "horizon_specialist_case_dates"
+    STANDARDISED_PLANNING_APP_STRINGS = "PlanningAppStrings"
+    STANDARDISED_PLANNING_APP_DATES = "PlanningAppDates"
+    STANDARDISED_LEAD_CASE = "BIS_LeadCase"
+    OUTPUT_TABLE = "horizon_appeal_s78"
+    STANDARDISED_CASE_STRINGS = "CaseStrings"
+    STANDARDISED_HORIZON_CASE_INFO = "horizon_case_info"
+    STANDARDISED_HORIZON_CASE_DATES = "horizon_case_dates"
+    STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA = "horizon_appeals_additional_data"
+    STANDARDISED_HORIZON_NOTICE_DATES = "horizon_notice_dates"
+    STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION = "horizon_application_made_under_section"
+    STANDARDISED_ADD_ADDITIONAL_DATA = "vw_addadditionaldata"
+    STANDARDISED_HORIZON_APPEAL_GROUNDS = "horizon_appeal_grounds"
+    STANDARDISED_TYPE_OF_PROCEDURE = "typeofprocedure"
+    STANDARDISED_TYPE_OF_LEVEL = "TypeOfLevel"
+
+    def get_name(self) -> str:
+        return "Appeal S78 Standardisation Process"
+
+    def _load_standardised_horizoncases_s78(self):
+        pass
+
+    def _load_standardised_cases_specialisms(self):
+        pass
+
+    def _load_standardised_vw_case_dates(self):
+        pass
+
+    def _load_standardised_casedocumentdatesdates(self):
+        pass
+
+    def _load_standardised_casesitestrings(self):
+        pass
+
+    def _load_type_of_procedure(self):
+        pass
+
+    def _load_standardised_vw_addadditionaldata(self):
+        pass
+
+    def _load_standardised_vw_additionalfields(self):
+        pass
+
+    def _load_standardised_horizon_advert_attributes(self):
+        pass
+
+    def _load_standardised_current_type_of_level(self):
+        pass
+
+    def _load_standardised_horizon_specialist_case_dates(self):
+        pass
+
+    def _load_standardised_planning_app_strings(self):
+        pass
+
+    def _load_planning_app_dates(self):
+        pass
+
+    def _load_standardised_bis_lead_case(self):
+        pass
+
+    def _load_standardised_case_strings(self):
+        pass
+
+    def _load_standardised_horizon_case_info(self):
+        pass
+
+    def _load_standardised_horizon_case_dates(self):
+        pass
+
+    def _load_standardised_horizon_appeals_additional_data(self):
+        pass
+
+    def _load_standardised_horizon_appeal_grounds(self):
+        pass
+
+    def _load_standardised_horizon_notice_dates(self):
+        pass
+
+    def _load_standardised_horizon_application_made_under_section(self):
+        pass
+
+    def load_data(self, **kwargs):
+        raise NotImplementedError("AppealS78StandardisationProcess.load_data() has not been implemented yet.")
+
+    def _generate_aggregate_horizoncases_s78(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_cases_specialisms(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_casedocumentdatesdates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_casesitestrings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_addadditionaldata(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_vw_additionalfields(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_advert_attributes(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_specialist_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_planning_app_strings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_planning_app_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_bis_lead_case(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_case_strings(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_case_info(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_case_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_appeals_additional_data(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_appeal_grounds(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_notice_dates(self, raw_data: DataFrame):
+        pass
+
+    def _generate_aggregate_horizon_application_made_under_section(self, raw_data: DataFrame):
+        pass
+
+    def generate_base_table(
+        self,
+        horizon_cases: DataFrame,
+        case_specialisms: DataFrame,
+        case_dates: DataFrame,
+        case_document_dates_dates: DataFrame,
+        case_site_strings: DataFrame,
+        addadditional_data: DataFrame,
+        additional_fields: DataFrame,
+        horizon_notice_dates: DataFrame,
+        horizon_appeal_grounds: DataFrame,
+    ) -> DataFrame:
+        pass
+
+    def generate_type_of_level_table(self, base_table: DataFrame, type_of_level: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_planning(
+        self, aad_type_of_level_data: DataFrame, planning_app_strings: DataFrame, planning_app_dates: DataFrame, made_under_section_data: DataFrame
+    ) -> DataFrame:
+        pass
+
+    def generate_add_adverts(self, add_planning: DataFrame, advert_attributes: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_case_refs(
+        self, add_adverts: DataFrame, bis_lead_case: DataFrame, bis_case_strings: DataFrame, horizon_case_info: DataFrame
+    ) -> DataFrame:
+        pass
+
+    def generate_add_dates(self, add_case_refs: DataFrame, horizon_case_dates: DataFrame, specialist_case_dates: DataFrame) -> DataFrame:
+        pass
+
+    def generate_add_aad(self, add_dates: DataFrame, appeals_additional_data) -> DataFrame:
+        pass
+
+    def generate_add_procedure(self, add_aad: DataFrame, type_of_procedure: DataFrame) -> DataFrame:
+        pass
+
+    def generate_final_table(self, add_procedure: DataFrame) -> DataFrame:
+        pass
+
+    def process(self, **kwargs):
+        raise NotImplementedError("AppealS78StandardisationProcess.process() has not been implemented yet.")
