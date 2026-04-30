@@ -15,11 +15,12 @@ class NsipProjectCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "nsip_project"
     OUTPUT_TABLE = "nsip_project"
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "nsip_project_curated_process"
 
     def _load_nsip_data(self):
-        LoggingUtil().log_info("Loading data from curated NSIP prject table")
+        LoggingUtil().log_info("Loading data from curated NSIP project table")
         return self.spark.sql(f"""
             SELECT
                 Project.caseId
@@ -170,6 +171,7 @@ class NsipProjectCuratedProcess(CurationProcess):
         nsip_project_data: DataFrame = self.load_parameter("harmonised_data", source_data)
         nsip_project_data = nsip_project_data.withColumns(
             {
+                "caseId": F.col("caseId").cast(IntegerType()),
                 "publishStatus": F.lower(F.col("publishStatus")),
                 "projectType": F.initcap(F.col("ProjectType")),
                 "stage": F.lower(F.regexp_replace(F.col("Stage"), r"[- ]", "_")),

@@ -860,7 +860,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 ),
                 how="left",
             )
-            .filter(first_seen_service_bus_data["caseId"].isNull())
+            .filter(first_seen_service_bus_data["caseId"].isNull())  # Need to drop cases that have been migrated, but keep the history from Horizon
             .drop(first_seen_service_bus_data["caseid"])
         )
 
@@ -890,8 +890,6 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
 
         results = service_bus_data.unionByName(horizon_data, allowMissingColumns=True)
 
-        end_exec_time = datetime.now()
-
         # After writing logic
         final_df = self._clean_data(service_bus_data, results)
 
@@ -909,6 +907,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 "write_mode": "overwrite",
             }
         }
+        end_exec_time = datetime.now()
         return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
