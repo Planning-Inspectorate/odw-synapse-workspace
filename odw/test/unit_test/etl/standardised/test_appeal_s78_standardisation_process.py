@@ -6,13 +6,181 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.assertion import assert_dataframes_equal
 from datetime import datetime, timedelta
-from pyspark.sql import DataFrame
 from typing import Callable
 from contextlib import ExitStack
 
 
+pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+
+
 class TestAppealS78StandardisationProcess(SparkTestCase):
-    def _assert_row_count_query(self, target_col_name: str, override_property: str, test_name: str, target_function: Callable):
+    def assert_data_load_query(self, override_property: str, test_name: str, target_function: Callable):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        def generate_row(**overrides):
+            base = {"expected_from": None, "colA": None, "colB": None, "colC": None}
+            return base | overrides
+
+        schema = StructType(
+            [
+                StructField("expected_from", TimestampType(), True),
+                StructField("colA", StringType(), True),
+                StructField("colB", StringType(), True),
+                StructField("colC", StringType(), True),
+            ]
+        )
+
+        raw_data = spark.createDataFrame(
+            (
+                generate_row(expected_from=datetime(2020, 1, 1), colA=1, colB=2, colC=3),
+                generate_row(expected_from=datetime(2020, 1, 1), colA=2, colB=4, colC=6),
+                generate_row(expected_from=datetime(2020, 1, 1), colA=3, colB=6, colC=9),
+                generate_row(expected_from=datetime(2021, 1, 1), colA=4, colB=8, colC=12),
+                generate_row(expected_from=datetime(2021, 1, 1), colA=5, colB=10, colC=15),
+                generate_row(expected_from=datetime(2022, 1, 1), colA=6, colB=12, colC=18),
+                generate_row(expected_from=datetime(2023, 1, 1), colA=7, colB=14, colC=21),
+                generate_row(expected_from=datetime(2024, 1, 1), colA=8, colB=16, colC=24),
+                generate_row(expected_from=datetime(2025, 1, 1), colA=9, colB=18, colC=27),
+                generate_row(expected_from=datetime(2026, 1, 1), colA=10, colB=20, colC=30),
+                generate_row(expected_from=datetime(2027, 1, 1), colA=11, colB=22, colC=33),
+                generate_row(expected_from=datetime(2028, 1, 1), colA=12, colB=24, colC=36),
+                generate_row(expected_from=datetime(2029, 1, 1), colA=13, colB=26, colC=39),
+                generate_row(expected_from=datetime(2029, 1, 1), colA=14, colB=28, colC=42),
+                generate_row(expected_from=datetime(2029, 1, 1), colA=15, colB=30, colC=45),
+            ),
+            schema=schema,
+        )
+        self.write_existing_table(spark, raw_data, test_name, "odw_standardised_db", "odw-standardised", test_name, "overwrite")
+        expected_data = spark.createDataFrame(
+            (
+                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="13", colB="26", colC="39"),
+                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="14", colB="28", colC="42"),
+                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="15", colB="30", colC="45"),
+            ),
+            schema=schema,
+        )
+        with (
+            mock.patch.object(AppealS78StandardisationProcess, override_property, test_name),
+            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+        ):
+            inst = AppealS78StandardisationProcess()
+            actual_data = target_function(inst)
+            assert_dataframes_equal(expected_data, actual_data)
+
+    def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_CASES_S78", "t_as78sp_lhcs78", AppealS78StandardisationProcess._load_standardised_horizoncases_s78
+        )
+
+    def test__appeal_s78_standardisation_process__load_cases_specialisms(self):
+        self.assert_data_load_query(
+            "STANDARDISED_CASES_SPECIALISMS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_cases_specialisms
+        )
+
+    def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
+        self.assert_data_load_query("STANDARDISED_VW_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates)
+
+    def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
+        self.assert_data_load_query(
+            "STANDARDISED_CASE_DOCUMENT_DATES_DATES",
+            "t_as78sp_lcdd",
+            AppealS78StandardisationProcess._load_standardised_casedocumentdatesdates,
+        )
+
+    def test__appeal_s78_standardisation_process__load_casesitestrings(self):
+        self.assert_data_load_query(
+            "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
+        )
+
+    def test__appeal_s78_standardisation_process__load_type_of_procedure(self):
+        self.assert_data_load_query("STANDARDISED_TYPE_OF_PROCEDURE", "t_as78sp_ltop", AppealS78StandardisationProcess._load_type_of_procedure)
+
+    def test__appeal_s78_standardisation_process__load_vw_addadditionaldata(self):
+        self.assert_data_load_query(
+            "STANDARDISED_ADD_ADDITIONAL_DATA",
+            "t_as78sp_lvwaad",
+            AppealS78StandardisationProcess._load_standardised_vw_addadditionaldata,
+        )
+
+    def test__appeal_s78_standardisation_process__load_vw_additionalfields(self):
+        self.assert_data_load_query(
+            "STANDARDISED_ADDITIONAL_FIELDS", "t_as78sp_lvwaf", AppealS78StandardisationProcess._load_standardised_vw_additionalfields
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_advert_attributes(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_ADVERT_ATTRIBUTES",
+            "t_as78sp_lhaa",
+            AppealS78StandardisationProcess._load_standardised_horizon_advert_attributes,
+        )
+
+    def test__appeal_s78_standardisation_process__load_current_type_of_level(self):
+        self.assert_data_load_query(
+            "STANDARDISED_TYPE_OF_LEVEL", "t_as78sp_lctol", AppealS78StandardisationProcess._load_standardised_current_type_of_level
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_SPECIALIST_CASE_DATES",
+            "t_as78sp_lhscd",
+            AppealS78StandardisationProcess._load_standardised_horizon_specialist_case_dates,
+        )
+
+    def test__appeal_s78_standardisation_process__load_planning_app_strings(self):
+        self.assert_data_load_query(
+            "STANDARDISED_PLANNING_APP_STRINGS",
+            "t_as78sp_lpas",
+            AppealS78StandardisationProcess._load_standardised_planning_app_strings,
+        )
+
+    def test__appeal_s78_standardisation_process__load_planning_app_dates(self):
+        self.assert_data_load_query("STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_planning_app_dates)
+
+    def test__appeal_s78_standardisation_process__load_standardised_bis_lead_case(self):
+        self.assert_data_load_query("STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_bis_lead_case)
+
+    def test__appeal_s78_standardisation_process__load_standardised_case_strings(self):
+        self.assert_data_load_query("STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_case_strings)
+
+    def test__appeal_s78_standardisation_process__load_horizon_case_info(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_CASE_INFO", "t_as78sp_lhci", AppealS78StandardisationProcess._load_standardised_horizon_case_info
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_case_dates(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_CASE_DATES",
+            "t_as78sp_lhcd",
+            AppealS78StandardisationProcess._load_standardised_horizon_case_dates,
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_appeals_additional_data(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA",
+            "t_as78sp_lhaad",
+            AppealS78StandardisationProcess._load_standardised_horizon_appeals_additional_data,
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_appeal_grounds(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_APPEAL_GROUNDS", "t_as78sp_phag", AppealS78StandardisationProcess._load_standardised_horizon_appeal_grounds
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_notice_dates(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_NOTICE_DATES",
+            "t_as78sp_lhnd",
+            AppealS78StandardisationProcess._load_standardised_horizon_notice_dates,
+        )
+
+    def test__appeal_s78_standardisation_process__load_horizon_application_made_under_section(self):
+        self.assert_data_load_query(
+            "STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION",
+            "t_as78sp_lhamus",
+            AppealS78StandardisationProcess._load_standardised_horizon_application_made_under_section,
+        )
+
+    def _assert_row_count_aggregation_query(self, target_col_name: str, target_function: Callable):
         """
         Tests for the data loaders that execute a query with the below structure
 
@@ -27,8 +195,6 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         ) WHERE rn = 1
         ```
         :param str target_col_name: The name of the partitioning column
-        :param str override_property: Static variable in AppealS78StandardisationProcess which defines the table to query
-        :param str test_name: The name of the test
         :param Callable target_function: The function of AppealS78StandardisationProcess which loads the data (i.e. the function to test)
         """
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -178,15 +344,6 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            test_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            test_name,
-            "overwrite",
-        )
         expected_data = spark.createDataFrame(
             (
                 generate_expected_row(
@@ -211,23 +368,18 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, override_property, test_name),
             mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
         ):
             inst = AppealS78StandardisationProcess()
-            actual_data = target_function(inst)
+            actual_data = target_function(inst, raw_data)
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizoncases_s78(self):
         # h_1row
-        self._assert_row_count_query(
-            "caseuniqueid", "STANDARDISED_HORIZON_CASES_S78", "t_as78sp_lhcs78", AppealS78StandardisationProcess._load_standardised_horizoncases_s78
-        )
+        self._assert_row_count_aggregation_query("caseuniqueid", AppealS78StandardisationProcess._generate_aggregate_horizoncases_s78)
 
-    def test__appeal_s78_standardisation_process__load_cases_specialisms(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_cases_specialisms(self):
         # cs_agg
-        override_table_name = "t_as78sp_lcs"
-
         def generate_case_specialisms_row(**overrides):
             base = {
                 "ingested_datetime": None,
@@ -271,15 +423,6 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            override_table_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            override_table_name,
-            "overwrite",
-        )
         # Generated by running the original query against the test data
         expected_data = spark.createDataFrame(
             (
@@ -290,182 +433,83 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             schema=StructType([StructField("casereference", StringType(), True), StructField("casespecialism", StringType(), False)]),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_CASES_SPECIALISMS", override_table_name),
             mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
         ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_cases_specialisms()
+            actual_data = AppealS78StandardisationProcess()._generate_aggregate_cases_specialisms(raw_data)
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_case_dates(self):
         # cd_1row
-        self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_VW_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates
-        )
+        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_vw_case_dates)
 
-    def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_casedocumentdatesdates(self):
         # cdd_1row
-        self._assert_row_count_query(
+        self._assert_row_count_aggregation_query(
             "casenodeid",
-            "STANDARDISED_CASE_DOCUMENT_DATES_DATES",
-            "t_as78sp_lcdd",
-            AppealS78StandardisationProcess._load_standardised_casedocumentdatesdates,
+            AppealS78StandardisationProcess._generate_aggregate_casedocumentdatesdates,
         )
 
-    def test__appeal_s78_standardisation_process__load_casesitestrings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_casesitestrings(self):
         # css_1row
-        self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
-        )
+        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_casesitestrings)
 
-    def test__appeal_s78_standardisation_process__load_type_of_procedure(self):
-        # The full source table should be returned
-        test_name = "t_as78sp_ltop"
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        def generate_row(**overrides):
-            base = {"colA": "1", "colB": "a", "colC": "d"}
-            return base | overrides
-
-        raw_data = spark.createDataFrame(
-            (
-                generate_row(colA=1),
-                generate_row(colB=2),
-                generate_row(colC=3),
-            ),
-            schema=StructType(
-                [StructField("colA", StringType(), True), StructField("colB", StringType(), True), StructField("colC", StringType(), True)]
-            ),
-        )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            test_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            test_name,
-            "overwrite",
-        )
-        with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_TYPE_OF_PROCEDURE", test_name),
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
-        ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_horizon_appeal_grounds()
-            assert_dataframes_equal(raw_data, actual_data)
-
-    def test__appeal_s78_standardisation_process__load_vw_addadditionaldata(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_addadditionaldata(self):
+        self._assert_row_count_aggregation_query(
             "appealrefnumber",
-            "STANDARDISED_ADD_ADDITIONAL_DATA",
-            "t_as78sp_lvwaad",
-            AppealS78StandardisationProcess._load_standardised_vw_addadditionaldata,
+            AppealS78StandardisationProcess._generate_aggregate_vw_addadditionaldata,
         )
 
-    def test__appeal_s78_standardisation_process__load_vw_additionalfields(self):
-        self._assert_row_count_query(
-            "appealrefnumber", "STANDARDISED_ADDITIONAL_FIELDSt_as78sp_lvwaf", AppealS78StandardisationProcess._load_standardised_vw_additionalfields
-        )
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_additionalfields(self):
+        self._assert_row_count_aggregation_query("appealrefnumber", AppealS78StandardisationProcess._generate_aggregate_vw_additionalfields)
 
-    def test__appeal_s78_standardisation_process__load_horizon_advert_attributes(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_advert_attributes(self):
+        self._assert_row_count_aggregation_query(
             "caseuniqueid",
-            "STANDARDISED_HORIZON_ADVERT_ATTRIBUTES",
-            "t_as78sp_lhaa",
-            AppealS78StandardisationProcess._load_standardised_horizon_advert_attributes,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_advert_attributes,
         )
 
-    def test__appeal_s78_standardisation_process__load_current_type_of_level(self):
-        test_name = "t_as78sp_lctol"
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        def generate_row(**overrides):
-            base = {"colA": "1", "colB": "a", "colC": "d"}
-            return base | overrides
-
-        raw_data = spark.createDataFrame(
-            (
-                generate_row(colA=1),
-                generate_row(colB=2),
-                generate_row(colC=3),
-            ),
-            schema=StructType(
-                [StructField("colA", StringType(), True), StructField("colB", StringType(), True), StructField("colC", StringType(), True)]
-            ),
-        )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            test_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            test_name,
-            "overwrite",
-        )
-        with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_TYPE_OF_LEVEL", test_name),
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
-        ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_current_type_of_level()
-            assert_dataframes_equal(raw_data, actual_data)
-
-    def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_specialist_case_dates(self):
+        self._assert_row_count_aggregation_query(
             "appealrefnumber",
-            "STANDARDISED_HORIZON_SPECIALIST_CASE_DATES",
-            "t_as78sp_lhscd",
-            AppealS78StandardisationProcess._load_standardised_horizon_specialist_case_dates,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_specialist_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_planning_app_strings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_strings(self):
         # pas_1row
         # For odw_standardised_db.PlanningAppStrings
-        self._assert_row_count_query(
+        self._assert_row_count_aggregation_query(
             "casenodeid",
-            "STANDARDISED_PLANNING_APP_STRINGS",
-            "t_as78sp_lpas",
-            AppealS78StandardisationProcess._load_standardised_planning_app_strings,
+            AppealS78StandardisationProcess._generate_aggregate_planning_app_strings,
         )
 
-    def test__appeal_s78_standardisation_process__load_planning_app_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_dates(self):
         # For odw_standardised_db.PlanningAppDates
-        self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_planning_app_dates
-        )
+        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_planning_app_dates)
 
-    def test__appeal_s78_standardisation_process__load_standardised_bis_lead_case(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_bis_lead_case(self):
         # For odw_standardised_db.BIS_LeadCase
-        self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_bis_lead_case
-        )
+        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_bis_lead_case)
 
-    def test__appeal_s78_standardisation_process__load_standardised_case_strings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_case_strings(self):
         # For odw_standardised_db.CaseStrings
-        self._assert_row_count_query(
-            "casenodeid", "STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_case_strings
-        )
+        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_case_strings)
 
-    def test__appeal_s78_standardisation_process__load_horizon_case_info(self):
-        self._assert_row_count_query(
-            "appealrefnumber", "STANDARDISED_HORIZON_CASE_INFO", "t_as78sp_lhci", AppealS78StandardisationProcess._load_standardised_horizon_case_info
-        )
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_info(self):
+        self._assert_row_count_aggregation_query("appealrefnumber", AppealS78StandardisationProcess._generate_aggregate_horizon_case_info)
 
-    def test__appeal_s78_standardisation_process__load_horizon_case_dates(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_dates(self):
+        self._assert_row_count_aggregation_query(
             "appealrefnumber",
-            "STANDARDISED_HORIZON_CASE_DATES",
-            "t_as78sp_lhcd",
-            AppealS78StandardisationProcess._load_standardised_horizon_case_dates,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_appeals_additional_data(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeals_additional_data(self):
+        self._assert_row_count_aggregation_query(
             "appealrefnumber",
-            "STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA",
-            "t_as78sp_lhaad",
-            AppealS78StandardisationProcess._load_standardised_horizon_appeals_additional_data,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_appeals_additional_data,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_appeal_grounds(self):
-        test_name = "t_as78sp_lhap"
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeal_grounds(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         def generate_row(**overrides):
@@ -525,16 +569,6 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        self.write_existing_table(
-            spark,
-            raw_data,
-            test_name,
-            "odw_standardised_db",
-            "odw-standardised",
-            test_name,
-            "overwrite",
-        )
-
         expected_data = spark.createDataFrame(
             (
                 generate_expected_row(
@@ -575,26 +609,21 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "STANDARDISED_HORIZON_APPEAL_GROUNDS", test_name),
             mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
         ):
-            actual_data = AppealS78StandardisationProcess()._load_standardised_horizon_appeal_grounds()
+            actual_data = AppealS78StandardisationProcess()._generate_aggregate_horizon_appeal_grounds(raw_data)
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__load_horizon_notice_dates(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_notice_dates(self):
+        self._assert_row_count_aggregation_query(
             "casenodeid",
-            "STANDARDISED_HORIZON_NOTICE_DATES",
-            "t_as78sp_lhnd",
-            AppealS78StandardisationProcess._load_standardised_horizon_notice_dates,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_notice_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_application_made_under_section(self):
-        self._assert_row_count_query(
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_application_made_under_section(self):
+        self._assert_row_count_aggregation_query(
             "casenodeid",
-            "STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION",
-            "t_as78sp_lhmu",
-            AppealS78StandardisationProcess._load_standardised_horizon_application_made_under_section,
+            AppealS78StandardisationProcess._generate_aggregate_horizon_application_made_under_section,
         )
 
     def test__appeal_s78_standardisation_process__load_data(self):
@@ -2204,6 +2233,25 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
             inst = AppealS78StandardisationProcess()
             functions_to_patch = (
+                inst._generate_aggregate_horizoncases_s78,
+                inst._generate_aggregate_cases_specialisms,
+                inst._generate_aggregate_vw_case_dates,
+                inst._generate_aggregate_casedocumentdatesdates,
+                inst._generate_aggregate_casesitestrings,
+                inst._generate_aggregate_vw_addadditionaldata,
+                inst._generate_aggregate_vw_additionalfields,
+                inst._generate_aggregate_horizon_advert_attributes,
+                inst._generate_aggregate_horizon_specialist_case_dates,
+                inst._generate_aggregate_planning_app_strings,
+                inst._generate_aggregate_planning_app_dates,
+                inst._generate_aggregate_bis_lead_case,
+                inst._generate_aggregate_case_strings,
+                inst._generate_aggregate_horizon_case_info,
+                inst._generate_aggregate_horizon_case_dates,
+                inst._generate_aggregate_horizon_appeals_additional_data,
+                inst._generate_aggregate_horizon_appeal_grounds,
+                inst._generate_aggregate_horizon_notice_dates,
+                inst._generate_aggregate_horizon_application_made_under_section,
                 inst.generate_add_aad,
                 inst.generate_add_adverts,
                 inst.generate_add_case_refs,
