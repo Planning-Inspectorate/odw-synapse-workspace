@@ -31,7 +31,7 @@ def import_all_testing_modules():
     # Extract all testing modules under the `test/` directory
     module_content_to_exclude = {"__init__.py", "__pycache__", "conftest.py"}
     python_modules_to_load = []
-    files_to_explore = [x for x in os.listdir(os.path.join("odw", "test")) if "test" in x and os.path.isdir(os.path.join("odw", "test", x))]
+    files_to_explore = [x for x in os.listdir(os.path.join("odw", "test")) if "test" in x and os.path.isdir(os.path.join("odw", "test", x)) and x != "integration_test"]
     while files_to_explore:
         next_file = files_to_explore.pop(0)
         if os.path.isfile(os.path.join("odw", "test", next_file)):
