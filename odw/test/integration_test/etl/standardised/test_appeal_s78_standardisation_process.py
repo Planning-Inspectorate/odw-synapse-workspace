@@ -1399,9 +1399,8 @@ def generate_expected_schema():
 
 
 class TestAppealS78StandardisationProcess(ETLTestCase):
-    def test__appeal_s78_standardisation_process__run__with_no_existing_data(self):
+    def execute_case(self, test_prefix: str):
         spark = PytestSparkSessionUtil().get_spark_session()
-        test_prefix = "t_as78sp_r_wned"
         # h
         horizoncases_s78 = spark.createDataFrame(
             (
@@ -2299,5 +2298,31 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
             actual_table_data = spark.table(f"odw_standardised_db.{expected_output_table}")
             assert_dataframes_equal(expected_data, actual_table_data)
 
+    def test__appeal_s78_standardisation_process__run__with_no_existing_data(self):
+        """
+        - Given I have a set of existing tables related to s78 and no existing s78 standardised table
+        - When I call AppealS78StandardisationProcess().run
+        - Then the standardised s78 table should be created
+        """
+        self.execute_case("t_as78sp_r_wned")
+
     def test__appeal_s78_standardisation_process__run__with_existing_data(self):
-        pass
+        """
+        - Given I have a set of existing tables related to s78 and an existing s78 standardised table
+        - When I call AppealS78StandardisationProcess().run
+        - Then the standardised s78 table should be created
+        """
+        spark = PytestSparkSessionUtil().get_spark_session()
+        test_prefix = "t_as78sp_r_wed"
+        existing_table_name = f"{test_prefix}_horizon_appeal_s78"
+        existing_data = spark.createDataFrame([], schema=generate_expected_schema())
+        self.write_existing_table(
+            spark,
+            existing_data,
+            existing_table_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            existing_table_name,
+            "overwrite",
+        )
+        self.execute_case(test_prefix)
