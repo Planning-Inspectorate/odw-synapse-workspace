@@ -1,0 +1,982 @@
+{
+	"name": "pln_api_ingest",
+	"properties": {
+		"activities": [
+			{
+				"name": "Log Start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Start",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat('API RAW ingest starting: ', if(empty(pipeline().parameters.entityName), 'all entities', pipeline().parameters.entityName))",
+							"type": "Expression"
+						},
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs"
+					}
+				}
+			},
+			{
+				"name": "Set loop start",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Log Start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "loopStartTicks",
+					"value": {
+						"value": "@string(ticks(utcNow()))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "If_EID",
+				"description": "Runs the EntraID copy when entityName is 'entraid' or empty (run-all).",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set loop start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(\n  empty(pipeline().parameters.entityName),\n  equals(pipeline().parameters.entityName, 'entraid')\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "EID_Copy_AAD_Users",
+							"description": "Calls the Entra ID Graph API and retrieves a list of users and their attributes, writing the raw JSON to a date-stamped folder in odw-raw.",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.02:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:00.010",
+									"requestMethod": "GET",
+									"paginationRules": {
+										"AbsoluteUrl": "$['@odata.nextLink']"
+									}
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings",
+										"filePattern": "arrayOfObjects"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_entra_id",
+									"type": "DatasetReference",
+									"parameters": {
+										"query": "users?$select=surname,givenName,userPrincipalName,id,employeeId"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "entra_id_users",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": "entraid.json"
+									}
+								}
+							]
+						},
+						{
+							"name": "EID_Set_RowsCopied",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "EID_Copy_AAD_Users",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "rowsCopied",
+								"value": {
+									"value": "@int(coalesce(activity('EID_Copy_AAD_Users').output.rowsCopied,'0'))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "EID_Append_Success",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "EID_Set_RowsCopied",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"EntraID Users\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":', string(variables('rowsCopied')), ',',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "EID_Append_Failure",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "EID_Copy_AAD_Users",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"EntraID Users\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"error\":\"', replace(replace(replace(string(activity('EID_Copy_AAD_Users').Error.Message), '\"', ''''), '\\r', ' '), '\\n', ' '), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "EID_Mark_Failure",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "EID_Append_Failure",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_AIE",
+				"description": "Runs the AIE CSV copy when entityName is 'aie' or empty (run-all).",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set loop start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(\n  empty(pipeline().parameters.entityName),\n  equals(pipeline().parameters.entityName, 'aie')\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "AIE_Set_Environment",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "env",
+								"value": {
+									"value": "@if(\n    equals(pipeline().DataFactory, 'pins-synw-odw-prod-uks'),\n    'PROD',\n    if(\n        equals(pipeline().DataFactory, 'pins-synw-odw-test-uks'),\n        'TEST',\n        if(\n            equals(pipeline().DataFactory, 'pins-synw-odw-build-uks'),\n            'BUILD',\n            'DEV'\n        )\n    )\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "AIE_Get_Metadata",
+							"description": "Getting the Metadata of the csv files in the AIE data labs folder",
+							"type": "GetMetadata",
+							"dependsOn": [
+								{
+									"activity": "AIE_Set_Environment",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "AIEFileDataLabs",
+									"type": "DatasetReference",
+									"parameters": {
+										"env": {
+											"value": "@variables('env')",
+											"type": "Expression"
+										}
+									}
+								},
+								"fieldList": [
+									"childItems"
+								],
+								"storeSettings": {
+									"type": "AzureFileStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							}
+						},
+						{
+							"name": "AIE_ForEach",
+							"type": "ForEach",
+							"dependsOn": [
+								{
+									"activity": "AIE_Get_Metadata",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"items": {
+									"value": "@activity('AIE_Get_Metadata').output.childItems",
+									"type": "Expression"
+								},
+								"isSequential": false,
+								"batchCount": 2,
+								"activities": [
+									{
+										"name": "AIE_Wait",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 30
+										}
+									},
+									{
+										"name": "AIE_Copy_File",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "AIE_Wait",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.00:20:00",
+											"retry": 3,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "DelimitedTextSource",
+												"storeSettings": {
+													"type": "AzureFileStorageReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "DelimitedTextReadSettings"
+												}
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "AIEFileDataLabsCopier",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": {
+														"value": "@item().name",
+														"type": "Expression"
+													},
+													"env": {
+														"value": "@variables('env')",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "AIEFile1Raw",
+												"type": "DatasetReference",
+												"parameters": {
+													"FileName": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"name": "AIE_Log_Success",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "AIE_Copy_File",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Completion",
+												"StartTime": {
+													"value": "@activity('AIE_Copy_File').ExecutionStartTime",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@activity('AIE_Copy_File').ExecutionEndTime",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat('Copied AIE extract successfully: ', item().name)",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@activity('AIE_Copy_File').PipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@activity('AIE_Copy_File').PipelineRunId",
+													"type": "Expression"
+												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@activity('AIE_Copy_File').Duration",
+													"type": "Expression"
+												},
+												"ActivityType": {
+													"value": "@activity('AIE_Copy_File').ActivityType",
+													"type": "Expression"
+												},
+												"DurationSeconds": {
+													"value": "@activity('AIE_Copy_File').Duration",
+													"type": "Expression"
+												},
+												"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+												"StatusCode": {
+													"value": "@activity('AIE_Copy_File').StatusCode",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "AIE_Log_Failure",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "AIE_Copy_File",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Fail",
+												"StartTime": {
+													"value": "@activity('AIE_Copy_File').ExecutionStartTime",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@activity('AIE_Copy_File').ExecutionEndTime",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@activity('AIE_Copy_File').Error.message",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat('Failed to copy AIE extract: ', item().name)",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@activity('AIE_Copy_File').PipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@activity('AIE_Copy_File').PipelineRunId",
+													"type": "Expression"
+												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@activity('AIE_Copy_File').Duration",
+													"type": "Expression"
+												},
+												"ActivityType": {
+													"value": "@activity('AIE_Copy_File').ActivityType",
+													"type": "Expression"
+												},
+												"DurationSeconds": {
+													"value": "@activity('AIE_Copy_File').Duration",
+													"type": "Expression"
+												},
+												"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+												"StatusCode": {
+													"value": "@activity('AIE_Copy_File').StatusCode",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "AIE_Append_Success",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "AIE_ForEach",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"AIE Documents\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "AIE_Append_Failure_Meta",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "AIE_Get_Metadata",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"AIE Documents\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"error\":\"', replace(replace(replace(string(activity('AIE_Get_Metadata').Error.Message), '\"', ''''), '\\r', ' '), '\\n', ' '), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "AIE_Mark_Failure_Meta",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "AIE_Append_Failure_Meta",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						},
+						{
+							"name": "AIE_Append_Failure_ForEach",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "AIE_ForEach",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"AIE Documents\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"error\":\"One or more AIE file copies failed. See per-file logs for details.\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "AIE_Mark_Failure_ForEach",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "AIE_Append_Failure_ForEach",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_LB",
+				"description": "Runs the Listed Buildings API copy when entityName is 'listed-buildings' or empty (run-all).",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set loop start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(\n  empty(pipeline().parameters.entityName),\n  equals(pipeline().parameters.entityName, 'listed-buildings')\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "LB_Copy_Buildings",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:00.010",
+									"requestMethod": "GET"
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings",
+										"filePattern": "arrayOfObjects"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ListedBuildings",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "listed_building",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "LB_Copy_Outlines",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "LB_Copy_Buildings",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:00.010",
+									"requestMethod": "GET",
+									"paginationRules": {
+										"supportRFC5988": "true"
+									}
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings",
+										"filePattern": "arrayOfObjects"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ListedBuildingOutline",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "listed_building_outline",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "LB_Append_Success",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "LB_Copy_Outlines",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"Listed Buildings\",',\n    '\"status\":\"Succeeded\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":', string(div(sub(ticks(utcNow()), int(variables('loopStartTicks'))), 10000000)), ',',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "LB_Append_Failure_LB",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "LB_Copy_Buildings",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"Listed Buildings\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"error\":\"', replace(replace(replace(string(activity('LB_Copy_Buildings').Error.Message), '\"', ''''), '\\r', ' '), '\\n', ' '), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "LB_Mark_Failure_LB",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "LB_Append_Failure_LB",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						},
+						{
+							"name": "LB_Append_Failure_LBO",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "LB_Copy_Outlines",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "apiStatus",
+								"value": {
+									"value": "@json(concat(\n  '{',\n    '\"entity\":\"Listed Building Outlines\",',\n    '\"status\":\"Failed\",',\n    '\"recordsIngested\":0,',\n    '\"durationSeconds\":0,',\n    '\"error\":\"', replace(replace(replace(string(activity('LB_Copy_Outlines').Error.Message), '\"', ''''), '\\r', ' '), '\\n', ' '), '\",',\n    '\"runId\":\"', pipeline().RunId, '\"',\n  '}'\n))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "LB_Mark_Failure_LBO",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "LB_Append_Failure_LBO",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "hasFailure",
+								"value": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Output JSON",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "If_EID",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "If_AIE",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "If_LB",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apiStatusJson",
+					"value": {
+						"value": "@string(variables('apiStatus'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Return result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Output JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n  '\"results\":', string(variables('apiStatus')),\n  '}'\n)"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"entityName": {
+				"type": "string",
+				"defaultValue": ""
+			}
+		},
+		"variables": {
+			"hasFailure": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"loopStartTicks": {
+				"type": "String"
+			},
+			"apiStatus": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"apiStatusJson": {
+				"type": "String",
+				"defaultValue": "'[]'"
+			},
+			"env": {
+				"type": "String"
+			},
+			"rowsCopied": {
+				"type": "Integer",
+				"defaultValue": 0
+			}
+		},
+		"folder": {
+			"name": "utils/Ingest"
+		},
+		"annotations": []
+	}
+}
