@@ -1,7 +1,7 @@
 import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType, BooleanType
 from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import AppealS78StandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -12,8 +12,7 @@ from contextlib import ExitStack
 
 def generate_horizoncases_s78_row(**overrides):
     # h
-    """h
-    """
+    """h"""
     base = {
         "ingested_datetime": datetime(2025, 1, 1),
         "expected_from": datetime(2025, 1, 1),
@@ -320,7 +319,7 @@ def generate_casesitestrings_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -377,7 +376,7 @@ def generate_typeofprocedure_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": "TypeOfProcedure",
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -443,7 +442,7 @@ def generate_vw_addadditionaldata_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": "vw_AddAdditionalData",
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -506,7 +505,7 @@ def generate_vw_additionalfields_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -561,7 +560,7 @@ def generate_horizon_advert_attributes_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -616,7 +615,7 @@ def generate_typeoflevel_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -748,7 +747,7 @@ def generate_planningappdates_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -793,7 +792,7 @@ def generate_bis_leadcase_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -849,7 +848,7 @@ def generate_casestrings_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -906,7 +905,7 @@ def generate_horizon_case_info_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -951,7 +950,7 @@ def generate_horizon_case_dates_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -1050,7 +1049,7 @@ def generate_horizon_appeals_additional_data_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -1151,7 +1150,7 @@ def generate_horizon_appeal_grounds_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -1200,7 +1199,7 @@ def generate_horizon_notice_dates_row(**overrides):
         "modified_datetime": datetime(2025, 1, 1),
         "modified_by_process_name": None,
         "entity_name": None,
-        "file_id": None
+        "file_id": None,
     }
     return base | overrides
 
@@ -1248,7 +1247,7 @@ def generate_horizon_application_made_under_section_row(**overrides):
         "modified_by_process_name": None,
         "entity_name": None,
         "file_id": None,
-        "retrospectiveapplication": None
+        "retrospectiveapplication": None,
     }
     return base | overrides
 
@@ -1278,12 +1277,125 @@ def generate_horizon_application_made_under_section_schema():
 
 
 def generate_expected_row(**overrides):
-    base = {}
+    base = {
+        "ingested_datetime": datetime(2025, 1, 1),
+        "expected_from": datetime(2025, 1, 1),
+        "expected_to": datetime(2025, 1, 1),
+        "modified_datetime": datetime(2025, 1, 1),
+        "issueDateOfEnforcementNotice": datetime(2025, 1, 1),
+        "effectiveDateOfEnforcementNotice": datetime(2025, 1, 1),
+        "rn_final": 1,
+        "rn": 1,
+        "setRowNumber": 1,
+        "entity_name": "HorizonCases_s78",
+        "caseValidationOutcome": "Valid",
+        "abbreviation": "w",
+    }
     return base | overrides
 
 
 def generate_expected_schema():
-    return
+    return StructType(
+        [
+            StructField("ingested_datetime", TimestampType(), True),
+            StructField("expected_from", TimestampType(), True),
+            StructField("expected_to", TimestampType(), True),
+            StructField("casenodeid", StringType(), True),
+            StructField("subtype", StringType(), True),
+            StructField("modifydate", StringType(), True),
+            StructField("abbreviation", StringType(), True),
+            StructField("casereference", StringType(), True),
+            StructField("caseuniqueid", StringType(), True),
+            StructField("caseofficerid", StringType(), True),
+            StructField("caseofficerlogin", StringType(), True),
+            StructField("caseofficername", StringType(), True),
+            StructField("coemailaddress", StringType(), True),
+            StructField("input_file", StringType(), True),
+            StructField("ingested_by_process_name", StringType(), True),
+            StructField("modified_datetime", TimestampType(), True),
+            StructField("modified_by_process_name", StringType(), True),
+            StructField("entity_name", StringType(), True),
+            StructField("file_id", StringType(), True),
+            StructField("rn", IntegerType(), False),
+            StructField("casespecialism", StringType(), True),
+            StructField("caseCreatedDate", StringType(), True),
+            StructField("appealdocscomplete", StringType(), True),
+            StructField("startdate", StringType(), True),
+            StructField("appealwithdrawndate", StringType(), True),
+            StructField("casedecisiondate", StringType(), True),
+            StructField("datenotrecoveredorderecovered", StringType(), True),
+            StructField("daterecovered", StringType(), True),
+            StructField("originalcasedecisiondate", StringType(), True),
+            StructField("questionnairedue", StringType(), True),
+            StructField("questionnairereceived", StringType(), True),
+            StructField("interestedpartyrepsduedate", StringType(), True),
+            StructField("proofsdue", StringType(), True),
+            StructField("siteviewablefromroad", StringType(), True),
+            StructField("floorspaceinsquaremetres", StringType(), True),
+            StructField("costsappliedforindicator", StringType(), True),
+            StructField("procedureappellant", StringType(), True),
+            StructField("isthesitewithinanaonb", StringType(), True),
+            StructField("procedurelpa", StringType(), True),
+            StructField("inspectorneedtoentersite", StringType(), True),
+            StructField("sitegridreferenceeasting", StringType(), True),
+            StructField("sitegridreferencenorthing", StringType(), True),
+            StructField("sitewithinsssi", StringType(), True),
+            StructField("importantinformation", StringType(), True),
+            StructField("issueDateOfEnforcementNotice", TimestampType(), True),
+            StructField("effectiveDateOfEnforcementNotice", TimestampType(), True),
+            StructField(
+                "enforcementAppealGroundsDetails",
+                ArrayType(
+                    StructType(
+                        [StructField("appealGroundLetter", StringType(), True), StructField("groundForAppealStartDate", TimestampType(), True)]
+                    ),
+                    False,
+                ),
+                True,
+            ),
+            StructField("allocationLevel", StringType(), True),
+            StructField("allocationBand", StringType(), True),
+            StructField("applicationReference", StringType(), True),
+            StructField("typeOfPlanningApplication", StringType(), True),
+            StructField("applicationDate", StringType(), True),
+            StructField("applicationDecisionDate", StringType(), True),
+            StructField("applicationMadeUnderActSection", StringType(), True),
+            StructField("advertAttributeKey", StringType(), True),
+            StructField("advertType", StringType(), True),
+            StructField("setRowNumber", IntegerType(), True),
+            StructField("publicSafetyLpaIndicator", StringType(), True),
+            StructField("amenityLPAIndicator", StringType(), True),
+            StructField("publicSafetyGroundOutcome", StringType(), True),
+            StructField("amenityGroundOutcome", StringType(), True),
+            StructField("advertInPosition", StringType(), True),
+            StructField("siteOnHighwayLand", StringType(), True),
+            StructField("leadCaseReference", StringType(), True),
+            StructField("caseStatus", StringType(), True),
+            StructField("lpaCode", StringType(), True),
+            StructField("linkedCaseStatus", StringType(), True),
+            StructField("caseDecisionOutcome", StringType(), True),
+            StructField("jurisdiction", StringType(), True),
+            StructField("redeterminedIndicator", StringType(), True),
+            StructField("developmentType", StringType(), True),
+            StructField("procedureType", StringType(), True),
+            StructField("caseValidationOutcome", StringType(), True),
+            StructField("caseValidationDate", StringType(), True),
+            StructField("dateCostsReportDespatched", StringType(), True),
+            StructField("originalDevelopmentDescription", StringType(), True),
+            StructField("appellantCommentsSubmittedDate", StringType(), True),
+            StructField("appellantStatementSubmittedDate", StringType(), True),
+            StructField("lpaCommentsSubmittedDate", StringType(), True),
+            StructField("lpaProofsSubmittedDate", StringType(), True),
+            StructField("lpaStatementSubmittedDate", StringType(), True),
+            StructField("siteNoticesSentDate", StringType(), True),
+            StructField("statementDueDate", StringType(), True),
+            StructField("numberOfResidencesNetChange", StringType(), True),
+            StructField("caseProcedure", StringType(), True),
+            StructField("rn_final", IntegerType(), False),
+            StructField("preserveGrantLoan", BooleanType(), True),
+            StructField("consultHistoricEngland", BooleanType(), True),
+        ]
+    )
 
 
 class TestAppealS78StandardisationProcess(ETLTestCase):
@@ -1364,10 +1476,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                     caseuniqueid="10",
                 ),
             ),
-            schema=generate_horizoncases_s78_schema()
+            schema=generate_horizoncases_s78_schema(),
         )
         horizoncases_s78_table = f"{test_prefix}_horizoncases_s78"
-        self.write_existing_table(spark, horizoncases_s78, horizoncases_s78_table, "odw_standardised_db", "odw-standardised", horizoncases_s78_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizoncases_s78,
+            horizoncases_s78_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizoncases_s78_table,
+            "overwrite",
+        )
         # cs
         cases_specialisms = spark.createDataFrame(
             (
@@ -1381,12 +1501,19 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_cases_specialisms_row(casereference="8", casespecialism="Specialism H"),
                 generate_cases_specialisms_row(casereference="9", casespecialism="Specialism I"),
                 generate_cases_specialisms_row(casereference="10", casespecialism="Specialism J"),
-                
             ),
-            schema=generate_cases_specialisms_schema()
+            schema=generate_cases_specialisms_schema(),
         )
         cases_specialisms_table = f"{test_prefix}_cases_specialisms"
-        self.write_existing_table(spark, cases_specialisms, cases_specialisms_table, "odw_standardised_db", "odw-standardised", cases_specialisms_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            cases_specialisms,
+            cases_specialisms_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            cases_specialisms_table,
+            "overwrite",
+        )
         # cd
         vw_case_dates = spark.createDataFrame(
             (
@@ -1400,12 +1527,19 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_vw_case_dates_row(casenodeid="8"),
                 generate_vw_case_dates_row(casenodeid="9"),
                 generate_vw_case_dates_row(casenodeid="10"),
-
             ),
-            schema=generate_vw_case_dates_schema()
+            schema=generate_vw_case_dates_schema(),
         )
         vw_case_dates_table = f"{test_prefix}_vw_case_dates"
-        self.write_existing_table(spark, vw_case_dates, vw_case_dates_table, "odw_standardised_db", "odw-standardised", vw_case_dates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            vw_case_dates,
+            vw_case_dates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            vw_case_dates_table,
+            "overwrite",
+        )
         # cdd
         casedocumentdatesdates = spark.createDataFrame(
             (
@@ -1420,10 +1554,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_casedocumentdatesdates_row(casenodeid="9", appealrefno="9"),
                 generate_casedocumentdatesdates_row(casenodeid="10", appealrefno="10"),
             ),
-            schema=generate_casedocumentdatesdates_schema()
+            schema=generate_casedocumentdatesdates_schema(),
         )
         casedocumentdatesdates_table = f"{test_prefix}_casedocumentdatesdates"
-        self.write_existing_table(spark, casedocumentdatesdates, casedocumentdatesdates_table, "odw_standardised_db", "odw-standardised", casedocumentdatesdates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            casedocumentdatesdates,
+            casedocumentdatesdates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            casedocumentdatesdates_table,
+            "overwrite",
+        )
         # css
         casesitestrings = spark.createDataFrame(
             (
@@ -1498,10 +1640,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                     country="countrJ",
                 ),
             ),
-            schema=generate_casesitestrings_schema()
+            schema=generate_casesitestrings_schema(),
         )
         casesitestrings_table = f"{test_prefix}_casesitestrings"
-        self.write_existing_table(spark, casesitestrings, casesitestrings_table, "odw_standardised_db", "odw-standardised", casesitestrings_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            casesitestrings,
+            casesitestrings_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            casesitestrings_table,
+            "overwrite",
+        )
         # tp
         typeofprocedure = spark.createDataFrame(
             (
@@ -1516,10 +1666,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_typeofprocedure_row(id="9", name="nameI", proccode="codeI"),
                 generate_typeofprocedure_row(id="10", name="nameJ", proccode="codeJ"),
             ),
-            schema=generate_typeofprocedure_schema()
+            schema=generate_typeofprocedure_schema(),
         )
         typeofprocedure_table = f"{test_prefix}_typeofprocedure"
-        self.write_existing_table(spark, typeofprocedure, typeofprocedure_table, "odw_standardised_db", "odw-standardised", typeofprocedure_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            typeofprocedure,
+            typeofprocedure_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            typeofprocedure_table,
+            "overwrite",
+        )
         # aad_old
         vw_addadditionaldata = spark.createDataFrame(
             (
@@ -1534,28 +1692,84 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_vw_addadditionaldata_row(appealrefnumber="9", level="I"),
                 generate_vw_addadditionaldata_row(appealrefnumber="10", level="J"),
             ),
-            schema=generate_vw_addadditionaldata_schema()
+            schema=generate_vw_addadditionaldata_schema(),
         )
         vw_addadditionaldata_table = f"{test_prefix}_vw_addadditionaldata"
-        self.write_existing_table(spark, vw_addadditionaldata, vw_addadditionaldata_table, "odw_standardised_db", "odw-standardised", vw_addadditionaldata_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            vw_addadditionaldata,
+            vw_addadditionaldata_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            vw_addadditionaldata_table,
+            "overwrite",
+        )
         # af
         vw_additionalfields = spark.createDataFrame(
             (
-                generate_vw_additionalfields_row(appealrefnumber="1", casereference="1", importantinformation="infoA",),
-                generate_vw_additionalfields_row(appealrefnumber="2", casereference="2", importantinformation="infoB",),
-                generate_vw_additionalfields_row(appealrefnumber="3", casereference="3", importantinformation="infoC",),
-                generate_vw_additionalfields_row(appealrefnumber="4", casereference="4", importantinformation="infoD",),
-                generate_vw_additionalfields_row(appealrefnumber="5", casereference="5", importantinformation="infoE",),
-                generate_vw_additionalfields_row(appealrefnumber="6", casereference="6", importantinformation="infoF",),
-                generate_vw_additionalfields_row(appealrefnumber="7", casereference="7", importantinformation="infoG",),
-                generate_vw_additionalfields_row(appealrefnumber="8", casereference="8", importantinformation="infoH",),
-                generate_vw_additionalfields_row(appealrefnumber="9", casereference="9", importantinformation="infoI",),
-                generate_vw_additionalfields_row(appealrefnumber="10", casereference="10", importantinformation="infoJ",),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="1",
+                    casereference="1",
+                    importantinformation="infoA",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="2",
+                    casereference="2",
+                    importantinformation="infoB",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="3",
+                    casereference="3",
+                    importantinformation="infoC",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="4",
+                    casereference="4",
+                    importantinformation="infoD",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="5",
+                    casereference="5",
+                    importantinformation="infoE",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="6",
+                    casereference="6",
+                    importantinformation="infoF",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="7",
+                    casereference="7",
+                    importantinformation="infoG",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="8",
+                    casereference="8",
+                    importantinformation="infoH",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="9",
+                    casereference="9",
+                    importantinformation="infoI",
+                ),
+                generate_vw_additionalfields_row(
+                    appealrefnumber="10",
+                    casereference="10",
+                    importantinformation="infoJ",
+                ),
             ),
-            schema=generate_vw_additionalfields_schema()
+            schema=generate_vw_additionalfields_schema(),
         )
         vw_additionalfields_table = f"{test_prefix}_vw_additionalfields"
-        self.write_existing_table(spark, vw_additionalfields, vw_additionalfields_table, "odw_standardised_db", "odw-standardised", vw_additionalfields_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            vw_additionalfields,
+            vw_additionalfields_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            vw_additionalfields_table,
+            "overwrite",
+        )
         # haa
         horizon_advert_attributes = spark.createDataFrame(
             (
@@ -1570,10 +1784,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_advert_attributes_row(caseNodeId=9, caseUniqueId=9, advertType="adTypeI"),
                 generate_horizon_advert_attributes_row(caseNodeId=10, caseUniqueId=10, advertType="adTypeJ"),
             ),
-            schema=generate_horizon_advert_attributes_schema()
+            schema=generate_horizon_advert_attributes_schema(),
         )
         horizon_advert_attributes_table = f"{test_prefix}_horizon_advert_attributes"
-        self.write_existing_table(spark, horizon_advert_attributes, horizon_advert_attributes_table, "odw_standardised_db", "odw-standardised", horizon_advert_attributes_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_advert_attributes,
+            horizon_advert_attributes_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_advert_attributes_table,
+            "overwrite",
+        )
         # ctl
         typeoflevel = spark.createDataFrame(
             (
@@ -1588,10 +1810,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_typeoflevel_row(id=9, name="I", band="bandI"),
                 generate_typeoflevel_row(id=10, name="J", band="bandJ"),
             ),
-            schema=generate_typeoflevel_schema()
+            schema=generate_typeoflevel_schema(),
         )
         typeoflevel_table = f"{test_prefix}_TypeOfLevel"
-        self.write_existing_table(spark, typeoflevel, typeoflevel_table, "odw_standardised_db", "odw-standardised", typeoflevel_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            typeoflevel,
+            typeoflevel_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            typeoflevel_table,
+            "overwrite",
+        )
         # scd
         horizon_specialist_case_dates = spark.createDataFrame(
             (
@@ -1606,10 +1836,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_specialist_case_dates_row(appealrefnumber="9"),
                 generate_horizon_specialist_case_dates_row(appealrefnumber="10"),
             ),
-            schema=generate_horizon_specialist_case_dates_schema()
+            schema=generate_horizon_specialist_case_dates_schema(),
         )
         horizon_specialist_case_dates_table = f"{test_prefix}_horizon_specialist_case_dates"
-        self.write_existing_table(spark, horizon_specialist_case_dates, horizon_specialist_case_dates_table, "odw_standardised_db", "odw-standardised", horizon_specialist_case_dates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_specialist_case_dates,
+            horizon_specialist_case_dates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_specialist_case_dates_table,
+            "overwrite",
+        )
         # pas
         planningappstrings = spark.createDataFrame(
             (
@@ -1624,10 +1862,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_planningappstrings_row(casenodeid="9", planningapplicationtype="appTypeI"),
                 generate_planningappstrings_row(casenodeid="10", planningapplicationtype="appTypeJ"),
             ),
-            schema=generate_planningappstrings_schema()
+            schema=generate_planningappstrings_schema(),
         )
         planningappstrings_table = f"{test_prefix}_PlanningAppStrings"
-        self.write_existing_table(spark, planningappstrings, planningappstrings_table, "odw_standardised_db", "odw-standardised", planningappstrings_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            planningappstrings,
+            planningappstrings_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            planningappstrings_table,
+            "overwrite",
+        )
         # pad
         planningappdates = spark.createDataFrame(
             (
@@ -1642,10 +1888,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_planningappdates_row(casenodeid="9"),
                 generate_planningappdates_row(casenodeid="10"),
             ),
-            schema=generate_planningappdates_schema()
+            schema=generate_planningappdates_schema(),
         )
         planningappdates_table = f"{test_prefix}_PlanningAppDates"
-        self.write_existing_table(spark, planningappdates, planningappdates_table, "odw_standardised_db", "odw-standardised", planningappdates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            planningappdates,
+            planningappdates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            planningappdates_table,
+            "overwrite",
+        )
         # lc
         bis_leadcase = spark.createDataFrame(
             (
@@ -1658,12 +1912,20 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_bis_leadcase_row(casenodeid="7", leadcasenodeid="4"),
                 generate_bis_leadcase_row(casenodeid="8", leadcasenodeid="3"),
                 generate_bis_leadcase_row(casenodeid="9", leadcasenodeid="2"),
-                generate_bis_leadcase_row(casenodeid="10", leadcasenodeid="1")
+                generate_bis_leadcase_row(casenodeid="10", leadcasenodeid="1"),
             ),
-            schema=generate_bis_leadcase_schema()
+            schema=generate_bis_leadcase_schema(),
         )
         bis_leadcase_table = f"{test_prefix}_BIS_LeadCase"
-        self.write_existing_table(spark, bis_leadcase, bis_leadcase_table, "odw_standardised_db", "odw-standardised", bis_leadcase_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            bis_leadcase,
+            bis_leadcase_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            bis_leadcase_table,
+            "overwrite",
+        )
         # cs2
         casestrings = spark.createDataFrame(
             (
@@ -1678,10 +1940,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_casestrings_row(casenodeid="9", proceduretype="procTypeI"),
                 generate_casestrings_row(casenodeid="10", proceduretype="procTypeJ"),
             ),
-            schema=generate_casestrings_schema()
+            schema=generate_casestrings_schema(),
         )
         casestrings_table = f"{test_prefix}_CaseStrings"
-        self.write_existing_table(spark, casestrings, casestrings_table, "odw_standardised_db", "odw-standardised", casestrings_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            casestrings,
+            casestrings_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            casestrings_table,
+            "overwrite",
+        )
         # ci
         horizon_case_info = spark.createDataFrame(
             (
@@ -1696,10 +1966,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_case_info_row(appealrefnumber="9", validity="Valid"),
                 generate_horizon_case_info_row(appealrefnumber="10", validity="Valid"),
             ),
-            schema=generate_horizon_case_info_schema()
+            schema=generate_horizon_case_info_schema(),
         )
         horizon_case_info_table = f"{test_prefix}_horizon_case_info"
-        self.write_existing_table(spark, horizon_case_info, horizon_case_info_table, "odw_standardised_db", "odw-standardised", horizon_case_info_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_case_info,
+            horizon_case_info_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_case_info_table,
+            "overwrite",
+        )
         # cdh
         horizon_case_dates = spark.createDataFrame(
             (
@@ -1714,10 +1992,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_case_dates_row(appealrefnumber="9"),
                 generate_horizon_case_dates_row(appealrefnumber="10"),
             ),
-            schema=generate_horizon_case_dates_schema()
+            schema=generate_horizon_case_dates_schema(),
         )
         horizon_case_dates_table = f"{test_prefix}_horizon_case_dates"
-        self.write_existing_table(spark, horizon_case_dates, horizon_case_dates_table, "odw_standardised_db", "odw-standardised", horizon_case_dates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_case_dates,
+            horizon_case_dates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_case_dates_table,
+            "overwrite",
+        )
         # aad
         horizon_appeals_additional_data = spark.createDataFrame(
             (
@@ -1732,10 +2018,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_appeals_additional_data_row(appealrefnumber="9", processingstate="Complete", appellant="Ivy"),
                 generate_horizon_appeals_additional_data_row(appealrefnumber="10", processingstate="Complete", appellant="Jim"),
             ),
-            schema=generate_horizon_appeals_additional_data_schema()
+            schema=generate_horizon_appeals_additional_data_schema(),
         )
         horizon_appeals_additional_data_table = f"{test_prefix}_horizon_appeals_additional_data"
-        self.write_existing_table(spark, horizon_appeals_additional_data, horizon_appeals_additional_data_table, "odw_standardised_db", "odw-standardised", horizon_appeals_additional_data_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_appeals_additional_data,
+            horizon_appeals_additional_data_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_appeals_additional_data_table,
+            "overwrite",
+        )
         # hag
         horizon_appeal_grounds = spark.createDataFrame(
             (
@@ -1750,10 +2044,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_appeal_grounds_row(caseNodeId=9, appealGroundLetter="(i)"),
                 generate_horizon_appeal_grounds_row(caseNodeId=10, appealGroundLetter="(j)"),
             ),
-            schema=generate_horizon_appeal_grounds_schema()
+            schema=generate_horizon_appeal_grounds_schema(),
         )
         horizon_appeal_grounds_table = f"{test_prefix}_horizon_appeal_grounds"
-        self.write_existing_table(spark, horizon_appeal_grounds, horizon_appeal_grounds_table, "odw_standardised_db", "odw-standardised", horizon_appeal_grounds_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_appeal_grounds,
+            horizon_appeal_grounds_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_appeal_grounds_table,
+            "overwrite",
+        )
         # hnd
         horizon_notice_dates = spark.createDataFrame(
             (
@@ -1768,10 +2070,18 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_notice_dates_row(caseUniqueId=9, caseNodeId=9),
                 generate_horizon_notice_dates_row(caseUniqueId=10, caseNodeId=10),
             ),
-            schema=generate_horizon_notice_dates_schema()
+            schema=generate_horizon_notice_dates_schema(),
         )
         horizon_notice_dates_table = f"{test_prefix}_horizon_notice_dates"
-        self.write_existing_table(spark, horizon_notice_dates, horizon_notice_dates_table, "odw_standardised_db", "odw-standardised", horizon_notice_dates_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_notice_dates,
+            horizon_notice_dates_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_notice_dates_table,
+            "overwrite",
+        )
         # hmu
         horizon_application_made_under_section = spark.createDataFrame(
             (
@@ -1786,51 +2096,208 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                 generate_horizon_application_made_under_section_row(caseUniqueId=9, caseNodeId=9, applicationMadeUnderSection=9),
                 generate_horizon_application_made_under_section_row(caseUniqueId=10, caseNodeId=10, applicationMadeUnderSection=10),
             ),
-            schema=generate_horizon_application_made_under_section_schema()
+            schema=generate_horizon_application_made_under_section_schema(),
         )
         horizon_application_made_under_section_table = f"{test_prefix}_horizon_application_made_under_section"
-        self.write_existing_table(spark, horizon_application_made_under_section, horizon_application_made_under_section_table, "odw_standardised_db", "odw-standardised", horizon_application_made_under_section_table, "overwrite",)
+        self.write_existing_table(
+            spark,
+            horizon_application_made_under_section,
+            horizon_application_made_under_section_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_application_made_under_section_table,
+            "overwrite",
+        )
 
+        # Generated by feeding the test data into the original notebook and extracting the result
         expected_data = spark.createDataFrame(
             (
-                generate_expected_row(),
+                generate_expected_row(
+                    casenodeid="1",
+                    subtype="1",
+                    casereference="1",
+                    caseuniqueid="1",
+                    casespecialism="Specialism A",
+                    importantinformation="infoA",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="A",
+                    allocationBand="bandA",
+                    typeOfPlanningApplication="appTypeA",
+                    advertType="adTypeA",
+                    leadCaseReference="10",
+                    procedureType="procTypeA",
+                ),
+                generate_expected_row(
+                    casenodeid="10",
+                    subtype="10",
+                    casereference="10",
+                    caseuniqueid="10",
+                    casespecialism="Specialism J",
+                    importantinformation="infoJ",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(j)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="J",
+                    allocationBand="bandJ",
+                    typeOfPlanningApplication="appTypeJ",
+                    advertType="adTypeJ",
+                    leadCaseReference="1",
+                    procedureType="procTypeJ",
+                ),
+                generate_expected_row(
+                    casenodeid="2",
+                    subtype="2",
+                    casereference="2",
+                    caseuniqueid="2",
+                    casespecialism="Specialism B",
+                    importantinformation="infoB",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(b)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="B",
+                    allocationBand="bandB",
+                    typeOfPlanningApplication="appTypeB",
+                    advertType="adTypeB",
+                    leadCaseReference="9",
+                    procedureType="procTypeB",
+                ),
+                generate_expected_row(
+                    casenodeid="3",
+                    subtype="3",
+                    casereference="3",
+                    caseuniqueid="3",
+                    casespecialism="Specialism C",
+                    importantinformation="infoC",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(c)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="C",
+                    allocationBand="bandC",
+                    typeOfPlanningApplication="appTypeC",
+                    advertType="adTypeC",
+                    leadCaseReference="8",
+                    procedureType="procTypeC",
+                ),
+                generate_expected_row(
+                    casenodeid="4",
+                    subtype="4",
+                    casereference="4",
+                    caseuniqueid="4",
+                    casespecialism="Specialism D",
+                    importantinformation="infoD",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(d)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="D",
+                    allocationBand="bandD",
+                    typeOfPlanningApplication="appTypeD",
+                    advertType="adTypeD",
+                    leadCaseReference="7",
+                    procedureType="procTypeD",
+                ),
+                generate_expected_row(
+                    casenodeid="5",
+                    subtype="5",
+                    casereference="5",
+                    caseuniqueid="5",
+                    casespecialism="Specialism E",
+                    importantinformation="infoE",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(e)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="E",
+                    allocationBand="bandE",
+                    typeOfPlanningApplication="appTypeE",
+                    advertType="adTypeE",
+                    leadCaseReference="6",
+                    procedureType="procTypeE",
+                ),
+                generate_expected_row(
+                    casenodeid="6",
+                    subtype="6",
+                    casereference="6",
+                    caseuniqueid="6",
+                    casespecialism="Specialism F",
+                    importantinformation="infoF",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(f)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="F",
+                    allocationBand="bandF",
+                    typeOfPlanningApplication="appTypeF",
+                    advertType="adTypeF",
+                    leadCaseReference="5",
+                    procedureType="procTypeF",
+                ),
+                generate_expected_row(
+                    casenodeid="7",
+                    subtype="7",
+                    casereference="7",
+                    caseuniqueid="7",
+                    casespecialism="Specialism G",
+                    importantinformation="infoG",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(g)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="G",
+                    allocationBand="bandG",
+                    typeOfPlanningApplication="appTypeG",
+                    advertType="adTypeG",
+                    leadCaseReference="4",
+                    procedureType="procTypeG",
+                ),
+                generate_expected_row(
+                    casenodeid="8",
+                    subtype="8",
+                    casereference="8",
+                    caseuniqueid="8",
+                    casespecialism="Specialism H",
+                    importantinformation="infoH",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(h)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="H",
+                    allocationBand="bandH",
+                    typeOfPlanningApplication="appTypeH",
+                    advertType="adTypeH",
+                    leadCaseReference="3",
+                    procedureType="procTypeH",
+                ),
+                generate_expected_row(
+                    casenodeid="9",
+                    subtype="9",
+                    casereference="9",
+                    caseuniqueid="9",
+                    casespecialism="Specialism I",
+                    importantinformation="infoI",
+                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "(i)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                    allocationLevel="I",
+                    allocationBand="bandI",
+                    typeOfPlanningApplication="appTypeI",
+                    advertType="adTypeI",
+                    leadCaseReference="2",
+                    procedureType="procTypeI",
+                ),
             ),
-            schema=generate_expected_schema()
+            schema=generate_expected_schema(),
         )
         expected_output_table = f"{test_prefix}_horizon_appeal_s78"
         property_override_map = {
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_CASES_S78: horizoncases_s78_table,
-            AppealS78StandardisationProcess.STANDARDISED_CASES_SPECIALISMS: cases_specialisms_table,
-            AppealS78StandardisationProcess.STANDARDISED_VW_CASE_DATES: vw_case_dates_table,
-            AppealS78StandardisationProcess.STANDARDISED_CASE_DOCUMENT_DATES_DATES: casedocumentdatesdates_table,
-            AppealS78StandardisationProcess.STANDARDISED_CASE_SITE_STRINGS: casesitestrings_table,
-            AppealS78StandardisationProcess.STANDARDISED_TYPE_OF_PROCEDURE: typeofprocedure_table,
-            AppealS78StandardisationProcess.STANDARDISED_ADD_ADDITIONAL_DATA: vw_addadditionaldata_table,
-            AppealS78StandardisationProcess.STANDARDISED_ADDITIONAL_FIELDS: vw_additionalfields_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_ADVERT_ATTRIBUTES: horizon_advert_attributes_table,
-            AppealS78StandardisationProcess.STANDARDISED_TYPE_OF_LEVEL: typeoflevel_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_SPECIALIST_CASE_DATES: horizon_specialist_case_dates_table,
-            AppealS78StandardisationProcess.STANDARDISED_PLANNING_APP_STRINGS: planningappstrings_table,
-            AppealS78StandardisationProcess.STANDARDISED_PLANNING_APP_DATES: planningappdates_table,
-            AppealS78StandardisationProcess.STANDARDISED_LEAD_CASE: bis_leadcase_table,
-            AppealS78StandardisationProcess.STANDARDISED_CASE_STRINGS: casestrings_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_CASE_INFO: horizon_case_info_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_CASE_DATES: horizon_case_dates_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA: horizon_appeals_additional_data_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_APPEAL_GROUNDS: horizon_appeal_grounds_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_NOTICE_DATES: horizon_notice_dates_table,
-            AppealS78StandardisationProcess.STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION: horizon_application_made_under_section_table,
-            AppealS78StandardisationProcess.OUTPUT_TABLE: expected_output_table
+            "STANDARDISED_HORIZON_CASES_S78": horizoncases_s78_table,
+            "STANDARDISED_CASES_SPECIALISMS": cases_specialisms_table,
+            "STANDARDISED_VW_CASE_DATES": vw_case_dates_table,
+            "STANDARDISED_CASE_DOCUMENT_DATES_DATES": casedocumentdatesdates_table,
+            "STANDARDISED_CASE_SITE_STRINGS": casesitestrings_table,
+            "STANDARDISED_TYPE_OF_PROCEDURE": typeofprocedure_table,
+            "STANDARDISED_ADD_ADDITIONAL_DATA": vw_addadditionaldata_table,
+            "STANDARDISED_ADDITIONAL_FIELDS": vw_additionalfields_table,
+            "STANDARDISED_HORIZON_ADVERT_ATTRIBUTES": horizon_advert_attributes_table,
+            "STANDARDISED_TYPE_OF_LEVEL": typeoflevel_table,
+            "STANDARDISED_HORIZON_SPECIALIST_CASE_DATES": horizon_specialist_case_dates_table,
+            "STANDARDISED_PLANNING_APP_STRINGS": planningappstrings_table,
+            "STANDARDISED_PLANNING_APP_DATES": planningappdates_table,
+            "STANDARDISED_LEAD_CASE": bis_leadcase_table,
+            "STANDARDISED_CASE_STRINGS": casestrings_table,
+            "STANDARDISED_HORIZON_CASE_INFO": horizon_case_info_table,
+            "STANDARDISED_HORIZON_CASE_DATES": horizon_case_dates_table,
+            "STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA": horizon_appeals_additional_data_table,
+            "STANDARDISED_HORIZON_APPEAL_GROUNDS": horizon_appeal_grounds_table,
+            "STANDARDISED_HORIZON_NOTICE_DATES": horizon_notice_dates_table,
+            "STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION": horizon_application_made_under_section_table,
+            "OUTPUT_TABLE": expected_output_table,
         }
         with ExitStack() as stack:
             for s78_property, override_value in property_override_map.items():
-                property_name = s78_property.__name__
-                stack.enter_context(mock.patch.object(AppealS78StandardisationProcess, property_name, override_value))
+                stack.enter_context(mock.patch.object(AppealS78StandardisationProcess, s78_property, override_value))
             inst = AppealS78StandardisationProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_standardised_db.{expected_output_table}")
             assert_dataframes_equal(expected_data, actual_table_data)
 
-    def test__appeal_s78_standardisation_process__run__with_existing_data():
+    def test__appeal_s78_standardisation_process__run__with_existing_data(self):
         pass
