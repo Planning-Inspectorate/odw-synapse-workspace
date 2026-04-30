@@ -12,9 +12,6 @@ import pytest
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
-
 class TestAppealRepresentationCurationProcess(SparkTestCase):
     def test__appeal_representation__load_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
