@@ -1,7 +1,7 @@
-import pytest
 from contextlib import ExitStack
-from odw.core.etl.transformation.harmonised.checkmark_case_marking_harmonisation_process import (
-    CheckmarkCaseMarkingHarmonisationProcess,
+from odw.core.etl.transformation.harmonised.checkmark_reading_case_harmonisation_process import (
+    CheckmarkReadingCaseHarmonisationProcess,
+    _READING_CASE_COLUMNS,
 )
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -9,95 +9,36 @@ import mock
 from pyspark.sql.types import StructType, StructField, StringType
 
 
-_SAMPLE_ROW_FULL = (
-    "id-001",
-    "CASE/2025/0001",
-    "8",
-    "Y",
-    "Medium",
-    "9",
-    "Some detail",
-    "7",
-    "Coverage detail",
-    "8",
-    "L1",
-    "N",
-    "8",
-    "8",
-    "Considered",
-    "9",
-    "Considered",
-    "None",
-    "Allowed",
-    "L2",
-    "9",
-    "Acc detail",
-    "8",
-    "Struct detail",
-    "8",
-    "Y",
-)
+# Build a sample row by setting every column to a sentinel string, so we don't
+# have to manually maintain 65 string literals in sync with the column list.
+_SAMPLE_ROW_FULL = tuple(f"val-{i}" for i in range(len(_READING_CASE_COLUMNS)))
 
-
-_SOURCE_COLUMNS = [
-    "ID",
-    "case_reference",
-    "overall_mark",
-    "amendments_timeliness_mark",
-    "complexity",
-    "conditions_mark",
-    "conditions_detail",
-    "coverage_mark",
-    "coverage_detail",
-    "ground_a_mark",
-    "ground_a_iit_level",
-    "invalid_nullity",
-    "invalid_nullity_mark",
-    "legal_grounds_mark",
-    "legal_grounds_considered",
-    "non_legal_grounds_mark",
-    "non_legal_grounds_considered",
-    "other_grounds_affecting_complexity",
-    "outcome",
-    "overall_case_level_for_iit_progression",
-    "presentation_accuracy_mark",
-    "presentation_accuracy_detail",
-    "structure_reasoning_mark",
-    "structure_reasoning_detail",
-    "timeliness_mark",
-    "reading_complete_notification_needed",
-]
-
-
-_MODULE = "odw.core.etl.transformation.harmonised.checkmark_case_marking_harmonisation_process"
+_MODULE = "odw.core.etl.transformation.harmonised.checkmark_reading_case_harmonisation_process"
 
 
 def _build_input_df(spark, rows):
-    """Build a DataFrame with explicit string schema so NULLs don't break inference."""
-    schema = StructType([StructField(c, StringType(), True) for c in _SOURCE_COLUMNS])
+    schema = StructType([StructField(c, StringType(), True) for c in _READING_CASE_COLUMNS])
     return spark.createDataFrame(rows, schema=schema)
 
 
 def _patched_run(spark, df_in):
-    """Run process() with all the standard mocks the team uses."""
     with ExitStack() as stack:
         stack.enter_context(mock.patch(f"{_MODULE}.LoggingUtil"))
         stack.enter_context(
             mock.patch(f"{_MODULE}.Util.get_storage_account", return_value="test_storage")
         )
-        inst = CheckmarkCaseMarkingHarmonisationProcess(spark)
+        inst = CheckmarkReadingCaseHarmonisationProcess(spark)
         return inst.process(source_data={"source_data": df_in})
 
 
-class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
+class TestCheckmarkReadingCaseHarmonisationProcess(SparkTestCase):
 
     def test__process__adds_ingestion_date_as_timestamp(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         df_in = _build_input_df(spark, [_SAMPLE_ROW_FULL])
 
         data_to_write, _ = _patched_run(spark, df_in)
-        out_key = list(data_to_write.keys())[0]
-        df_out = data_to_write[out_key]["data"]
+        df_out = data_to_write[list(data_to_write.keys())[0]]["data"]
 
         assert "IngestionDate" in df_out.columns
         assert dict(df_out.dtypes)["IngestionDate"] == "timestamp"
@@ -107,8 +48,7 @@ class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
         df_in = _build_input_df(spark, [_SAMPLE_ROW_FULL])
 
         data_to_write, _ = _patched_run(spark, df_in)
-        out_key = list(data_to_write.keys())[0]
-        df_out = data_to_write[out_key]["data"]
+        df_out = data_to_write[list(data_to_write.keys())[0]]["data"]
 
         assert "RowID" in df_out.columns
         row = df_out.collect()[0]
@@ -130,7 +70,7 @@ class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         row_a = _SAMPLE_ROW_FULL
         row_b = list(_SAMPLE_ROW_FULL)
-        row_b[18] = "Dismissed"
+        row_b[0] = "DIFFERENT_CASE_REF"
         row_b = tuple(row_b)
         df_a = _build_input_df(spark, [row_a])
         df_b = _build_input_df(spark, [row_b])
@@ -145,8 +85,9 @@ class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
     def test__process__handles_null_columns(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         row_with_nulls = list(_SAMPLE_ROW_FULL)
-        row_with_nulls[6] = None
-        row_with_nulls[8] = None
+        row_with_nulls[5] = None
+        row_with_nulls[20] = None
+        row_with_nulls[40] = None
         df_in = _build_input_df(spark, [tuple(row_with_nulls)])
 
         data_to_write, _ = _patched_run(spark, df_in)
@@ -160,13 +101,17 @@ class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
         df_in = _build_input_df(spark, [_SAMPLE_ROW_FULL])
 
         data_to_write, _ = _patched_run(spark, df_in)
-        out_key = list(data_to_write.keys())[0]
-        write_metadata = data_to_write[out_key]
+        write_metadata = data_to_write[list(data_to_write.keys())[0]]
 
         assert write_metadata["write_mode"] == "overwrite"
         assert write_metadata["storage_kind"] == "ADLSG2-Table"
         assert write_metadata["file_format"] == "delta"
         assert write_metadata["container_name"] == "odw-harmonised"
+        assert write_metadata["blob_path"] == "reading_case"
+
+    def test__process__column_list_has_expected_count(self):
+        # Sanity check: legacy notebook had 65 business columns, ensure we kept all of them
+        assert len(_READING_CASE_COLUMNS) == 65
 
     def test__process__returns_success_result_with_insert_count(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -177,4 +122,4 @@ class TestCheckmarkCaseMarkingHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
-        assert result.metadata.activity_type == "CheckmarkCaseMarkingHarmonisationProcess"
+        assert result.metadata.activity_type == "CheckmarkReadingCaseHarmonisationProcess"

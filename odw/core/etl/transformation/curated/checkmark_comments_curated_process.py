@@ -7,25 +7,25 @@ from datetime import datetime
 from typing import Dict, Tuple
 
 
-class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
+class CheckmarkCommentsCuratedProcess(CurationProcess):
     """
-    Curated layer process for Checkmark pbi_case_marking — produces the Power BI
-    consumption table from the harmonised case_marking table.
+    Curated layer process for Checkmark pbi_comments — produces the Power BI
+    consumption table from the harmonised comments table.
 
     Truncate-load semantics: SELECT * from harmonised, overwrite curated. No
     transformation is applied at this layer; the curated table mirrors the
     harmonised table for Power BI consumption.
     """
 
-    SOURCE_TABLE = "odw_harmonised_db.case_marking"
-    OUTPUT_TABLE = "odw_curated_db.pbi_case_marking"
+    SOURCE_TABLE = "odw_harmonised_db.comments"
+    OUTPUT_TABLE = "odw_curated_db.pbi_comments"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:
-        return "checkmark-case-marking-curated"
+        return "checkmark-comments-curated"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         LoggingUtil().log_info(f"Loading harmonised data from {self.SOURCE_TABLE}")
@@ -51,10 +51,10 @@ class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "pbi_case_marking",
+                "table_name": "pbi_comments",
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "checkmarkdata/pbi_case_marking",
+                "blob_path": "checkmarkdata/pbi_comments",
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},

@@ -1,34 +1,40 @@
-from odw.core.etl.transformation.curated.curation_process import CurationProcess
+from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
 
 
-class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
-    """
-    Curated layer process for Checkmark pbi_case_marking — produces the Power BI
-    consumption table from the harmonised case_marking table.
+_REFERENCE_COLUMNS = [
+    "ID",
+    "value",
+]
 
-    Truncate-load semantics: SELECT * from harmonised, overwrite curated. No
-    transformation is applied at this layer; the curated table mirrors the
-    harmonised table for Power BI consumption.
+
+class CheckmarkCoverageReferenceHarmonisationProcess(HarmonisationProcess):
+    """
+    Harmonisation process for Checkmark coverage_reference reference data.
+
+    Truncate-load semantics: reads all rows from the standardised reference
+    table, adds IngestionDate (date) and an MD5-based RowID, and overwrites
+    the harmonised table.
     """
 
-    SOURCE_TABLE = "odw_harmonised_db.case_marking"
-    OUTPUT_TABLE = "odw_curated_db.pbi_case_marking"
+    SOURCE_TABLE = "odw_standardised_db.coveragereference"
+    OUTPUT_TABLE = "odw_harmonised_db.coverage_reference"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:
-        return "checkmark-case-marking-curated"
+        return "checkmark-coverage-reference-harmonised"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading harmonised data from {self.SOURCE_TABLE}")
+        LoggingUtil().log_info(f"Loading source data from {self.SOURCE_TABLE}")
         source_data = self.spark.sql(f"SELECT * FROM {self.SOURCE_TABLE}")
         return {
             "source_data": source_data,
@@ -37,12 +43,27 @@ class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
 
+        self.spark.sql("SET spark.sql.legacy.timeParserPolicy = LEGACY")
+
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         df: DataFrame = self.load_parameter("source_data", source_data)
 
-        # Curated is a straight pass-through from harmonised. The legacy
-        # notebook does CREATE OR REPLACE TABLE ... AS SELECT *, which becomes
-        # an overwrite write of the unchanged DataFrame.
+        df = df.select(*_REFERENCE_COLUMNS)
+        df = df.withColumn("IngestionDate", F.current_date())
+
+        hash_inputs = [
+            F.coalesce(F.trim(F.col(c).cast("string")), F.lit(""))
+            for c in _REFERENCE_COLUMNS
+        ]
+        df = df.withColumn("RowID", F.md5(F.concat_ws("|", *hash_inputs)))
+
+        null_rowid_count = df.filter(F.col("RowID").isNull()).count()
+        if null_rowid_count > 0:
+            LoggingUtil().log_error(
+                f"Data quality issue: {null_rowid_count} rows have NULL RowID values"
+            )
+        else:
+            LoggingUtil().log_info("Data quality check passed: No NULL RowID values found")
 
         insert_count = df.count()
 
@@ -50,11 +71,11 @@ class CheckmarkCaseMarkingCuratedProcess(CurationProcess):
             self.OUTPUT_TABLE: {
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
-                "database_name": "odw_curated_db",
-                "table_name": "pbi_case_marking",
+                "database_name": "odw_harmonised_db",
+                "table_name": "coverage_reference",
                 "storage_endpoint": Util.get_storage_account(),
-                "container_name": "odw-curated",
-                "blob_path": "checkmarkdata/pbi_case_marking",
+                "container_name": "odw-harmonised",
+                "blob_path": "coverage_reference",
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
