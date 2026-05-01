@@ -1607,7 +1607,7 @@
 								"waitOnCompletion": true,
 								"parameters": {
 									"entityName": {
-										"value": "@pipeline().parameters.apiEntityName",
+										"value": "@pipeline().parameters.apiEntitiesFilter",
 										"type": "Expression"
 									}
 								}
@@ -1635,6 +1635,33 @@
 									"value": "@replace(\n  replace(\n    string(activity('A_API_Ingest').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
 								}
+							}
+						},
+						{
+							"name": "Get API feed",
+							"description": "Get the enabled API  feed from master pipeline config",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'API'",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_main_config",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
 							}
 						}
 					]
