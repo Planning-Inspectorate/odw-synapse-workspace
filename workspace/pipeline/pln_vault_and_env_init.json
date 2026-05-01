@@ -380,6 +380,12 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "If_API",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"policy": {
@@ -691,6 +697,98 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "If_API",
+				"description": "Check if includeServiceBus is True or False",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If Condition1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.includeAPI\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Init Service Bus_copy1",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "service_bus_feed",
+								"value": {
+									"value": "@json('[]')",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Get API feed",
+							"description": "Get the enabled API feed from master pipeline config",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'API'\n  AND entity_name IS NOT NULL\n",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_odw_main_config",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "Set API feed",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Get API feed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "service_bus_feed",
+								"value": {
+									"value": "@if(\n  greater(length(pipeline().parameters.apiEntitiesFilter), 0),\n  pipeline().parameters.apiEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get API feed').output.value)),\n      not(empty(activity('Get API feed').output.value[0].entities))\n    ),\n    split(activity('Get API feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
 			}
 		],
 		"parameters": {
@@ -707,6 +805,14 @@
 				"defaultValue": true
 			},
 			"includeHorizon": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"apiEntitiesFilter": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"includeAPI": {
 				"type": "bool",
 				"defaultValue": true
 			}
