@@ -397,7 +397,7 @@
 				"typeProperties": {
 					"variableName": "runSummaryJson",
 					"value": {
-						"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"mipinsEntities\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n\n    '\"sbResult\":', if(equals(variables('sbResultJson'),'null'), 'null', variables('sbResultJson')), ',',\n    '\"hzResult\":', if(equals(variables('hzResultJson'),'null'), 'null', variables('hzResultJson')), ',',\n    '\"transformResult\":', if(equals(variables('transformResultJson'),'null'), 'null', variables('transformResultJson')), ',',\n    '\"mipinsResult\":', if(equals(variables('mipinsResultJson'),'null'), 'null', variables('mipinsResultJson')),\n\n  '}'\n)\n",
+						"value": "@concat(\n  '{',\n    '\"orchestrator\":\"pln_orchestrator\",',\n    '\"runId\":\"', pipeline().RunId, '\",',\n    '\"runContextJson\":', variables('runContextJson'), ',',\n    '\"sbEntities\":', string(variables('sbEntities')), ',',\n    '\"hzEntities\":', string(variables('hzEntities')), ',',\n    '\"mipinsEntities\":', string(pipeline().parameters.mipinsEntitiesFilter), ',',\n\n    '\"sbResult\":', if(equals(variables('sbResultJson'),'null'), 'null', variables('sbResultJson')), ',',\n    '\"hzResult\":', if(equals(variables('hzResultJson'),'null'), 'null', variables('hzResultJson')), ',',\n    '\"transformResult\":', if(equals(variables('transformResultJson'),'null'), 'null', variables('transformResultJson')), ',',\n    '\"mipinsResult\":', if(equals(variables('mipinsResultJson'),'null'), 'null', variables('mipinsResultJson')), ',',\n    '\"apiResult\":', if(equals(variables('apiResultJson'),'null'), 'null', variables('apiResultJson')),\n\n  '}'\n)\n",
 						"type": "Expression"
 					}
 				}
@@ -566,12 +566,18 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "ForEach_API_Results",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@or(\n  or(\n    greater(length(variables('sbFailedEntities')), 0),\n    greater(length(variables('hzFailedEntities')), 0)\n  ),\n  or(\n    greater(length(variables('transformFailedEntities')), 0),\n    greater(length(variables('mipinsFailedEntities')), 0)\n  )\n)\n",
+						"value": "@or(\n  or(\n    greater(length(variables('sbFailedEntities')), 0),\n    greater(length(variables('hzFailedEntities')), 0)\n  ),\n  or(\n    or(\n      greater(length(variables('transformFailedEntities')), 0),\n      greater(length(variables('mipinsFailedEntities')), 0)\n    ),\n    greater(length(variables('apiFailedEntities')), 0)\n  )\n)\n",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
@@ -689,7 +695,7 @@
 							"typeProperties": {
 								"variableName": "failureMessage",
 								"value": {
-									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('transformFailedEntities')), 0),\n    concat(\n      'Transform failed entities: ', join(variables('transformFailedEntities'), ', '),\n      '. Errors: ', join(variables('transformFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
+									"value": "@concat(\n  'One or more stages failed. ',\n  if(\n    greater(length(variables('sbFailedEntities')), 0),\n    concat(\n      'SB failed entities: ', join(variables('sbFailedEntities'), ', '),\n      '. Errors: ', join(variables('sbFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('hzFailedEntities')), 0),\n    concat(\n      'HZ failed entities: ', join(variables('hzFailedEntities'), ', '),\n      '. Errors: ', join(variables('hzFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('transformFailedEntities')), 0),\n    concat(\n      'Transform failed entities: ', join(variables('transformFailedEntities'), ', '),\n      '. Errors: ', join(variables('transformFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('mipinsFailedEntities')), 0),\n    concat(\n      'MiPINS failed entities: ', join(variables('mipinsFailedEntities'), ', '),\n      '. Errors: ', join(variables('mipinsFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  if(\n    greater(length(variables('apiFailedEntities')), 0),\n    concat(\n      'API failed entities: ', join(variables('apiFailedEntities'), ', '),\n      '. Errors: ', join(variables('apiFailedErrors'), ' | '),\n      '. '\n    ),\n    ''\n  ),\n  'Check orchestrator + entity manifests for details.'\n)\n",
 									"type": "Expression"
 								}
 							}
@@ -737,7 +743,7 @@
 										"type": "Expression"
 									},
 									"activityMessage": {
-										"value": "@concat(\n  'Orchestrator failed', '\\n',\n  '\\n',\n  'Failures detected', '\\n',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('• Service Bus failed: ', join(variables('sbFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('• Horizon failed: ', join(variables('hzFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('• Transform failed: ', join(variables('transformFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('• MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  '\\n',\n  'Manifest', '\\n',\n  '• ', variables('manifestPath')\n)\n",
+										"value": "@concat(\n  'Orchestrator failed', '\\n',\n  '\\n',\n  'Failures detected', '\\n',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('• Service Bus failed: ', join(variables('sbFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('• Horizon failed: ', join(variables('hzFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('• Transform failed: ', join(variables('transformFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('• MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('apiFailedEntities')), 0),\n    concat('• API failed: ', join(variables('apiFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  '\\n',\n  'Manifest', '\\n',\n  '• ', variables('manifestPath')\n)\n",
 										"type": "Expression"
 									},
 									"activityDuration": "0H:00M:00s",
@@ -1135,6 +1141,129 @@
 				}
 			},
 			{
+				"name": "Init_API_FailedEntities",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Return_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apiFailedEntities",
+					"value": {
+						"value": "@json('[]')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Init_API_FailedErrors",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Return_RunSummary",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apiFailedErrors",
+					"value": {
+						"value": "@json('[]')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach_API_Results",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Init_API_FailedEntities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Init_API_FailedErrors",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@if(\n  equals(variables('apiResultJson'), 'null'),\n  json('[]'),\n  json(variables('apiResultJson')).results\n)\n",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_API_Item_Failed",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().status,'Failed')\n",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Append API failed entity",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "apiFailedEntities",
+											"value": {
+												"value": "@item().entity\n",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "Append API failed error",
+										"type": "AppendVariable",
+										"dependsOn": [
+											{
+												"activity": "Append API failed entity",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "apiFailedErrors",
+											"value": {
+												"value": "@concat(item().entity, ': ', coalesce(item().error, 'Unknown error'))\n",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
 				"name": "If_RunTransform_And_Load",
 				"type": "IfCondition",
 				"dependsOn": [
@@ -1146,6 +1275,12 @@
 					},
 					{
 						"activity": "If_RunHZ_Ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "If_RunAPI_Ingest",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1525,7 +1660,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"variableName": "hzResultJson",
+								"variableName": "apiResultJson",
 								"value": {
 									"value": "@replace(\n  replace(\n    string(activity('A_API_Ingest').output.pipelineReturnValue.result),\n    '\\r',' '\n  ),\n  '\\n',' '\n)\n",
 									"type": "Expression"
@@ -1654,6 +1789,18 @@
 				"defaultValue": []
 			},
 			"transformFailedErrors": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"apiResultJson": {
+				"type": "String",
+				"defaultValue": "null"
+			},
+			"apiFailedEntities": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"apiFailedErrors": {
 				"type": "Array",
 				"defaultValue": []
 			},
