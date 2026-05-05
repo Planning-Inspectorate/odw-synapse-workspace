@@ -666,7 +666,6 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 assert expected_result == actual_result
 
     def test__appeal_s78_standardisation_process__generate_base_table(self):
-        test_name = "t_as78sp_gbt"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         # h_1row
