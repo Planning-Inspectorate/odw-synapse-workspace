@@ -383,10 +383,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             inst = AppealHasStandardisationProcess(spark)
             data_to_write, _ = inst.process(source_data)
 
-        rows = {
-            row["caseReference"]: row["caseProcedure"]
-            for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()
-        }
+        rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
 
         assert rows["HAS-001"] == "WR"
         assert rows["HAS-002"] == "IH"
@@ -909,8 +906,38 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         source_data["horizon_advert_attributes_df"] = spark.createDataFrame(
             [
-                ("HAS-001", "OLD-ATTR", "Old Advert", 1, "N", "N", "Old Safety", "Old Amenity", "N", "N", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-001", "NEW-ATTR", "New Advert", 2, "Y", "Y", "New Safety", "New Amenity", "Y", "Y", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    "HAS-001",
+                    "OLD-ATTR",
+                    "Old Advert",
+                    1,
+                    "N",
+                    "N",
+                    "Old Safety",
+                    "Old Amenity",
+                    "N",
+                    "N",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-001",
+                    "NEW-ATTR",
+                    "New Advert",
+                    2,
+                    "Y",
+                    "Y",
+                    "New Safety",
+                    "New Amenity",
+                    "Y",
+                    "Y",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [

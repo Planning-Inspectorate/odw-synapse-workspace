@@ -421,21 +421,22 @@ class TestAppealHasCuratedProcess(ETLTestCase):
 
         minimal_df = spark.createDataFrame(
             [("1001", "HAS-001", "valid", "HAS", "Y")],
-            T.StructType([
-                T.StructField("caseId", T.StringType(), True),
-                T.StructField("caseReference", T.StringType(), True),
-                T.StructField("caseStatus", T.StringType(), True),
-                T.StructField("caseType", T.StringType(), True),
-                T.StructField("IsActive", T.StringType(), True),
-            ])
+            T.StructType(
+                [
+                    T.StructField("caseId", T.StringType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("caseStatus", T.StringType(), True),
+                    T.StructField("caseType", T.StringType(), True),
+                    T.StructField("IsActive", T.StringType(), True),
+                ]
+            ),
         )
 
         source_data = _source_data(minimal_df)
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch(
-                "odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil") as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()

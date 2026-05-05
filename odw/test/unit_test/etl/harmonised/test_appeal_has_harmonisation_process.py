@@ -753,10 +753,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        active_counts = {
-            row["caseReference"]: row["count"]
-            for row in df.where(F.col("IsActive") == "Y").groupBy("caseReference").count().collect()
-        }
+        active_counts = {row["caseReference"]: row["count"] for row in df.where(F.col("IsActive") == "Y").groupBy("caseReference").count().collect()}
 
         assert active_counts == {"HAS-001": 1, "HAS-002": 1}
 
@@ -821,10 +818,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
                 )
             )
 
-        rows = {
-            row["caseStatus"]: row
-            for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()
-        }
+        rows = {row["caseStatus"]: row for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
 
         assert rows["old has"]["ValidTo"] == datetime(2025, 2, 1)
         assert rows["old has"]["IsActive"] == "N"

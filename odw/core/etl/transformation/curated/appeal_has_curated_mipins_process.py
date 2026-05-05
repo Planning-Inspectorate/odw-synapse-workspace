@@ -13,11 +13,7 @@ class AppealHasCuratedMipinsProcess(CurationProcess):
         return "appeal_has_curated_mipins_process"
 
     def load_data(self) -> dict[str, Any]:
-        raise NotImplementedError(
-            "AppealHasCuratedMipinsProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealHasCuratedMipinsProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError(
-            "AppealHasCuratedMipinsProcess.process() has not been implemented yet."
-        )
+        raise NotImplementedError("AppealHasCuratedMipinsProcess.process() has not been implemented yet.")
