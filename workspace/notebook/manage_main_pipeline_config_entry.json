@@ -114,31 +114,7 @@
 					]
 				},
 				"source": [
-					"# Set the details of the new entity below\n",
-					"\n",
-					"# Example:\n",
-					"# new_entity_key = 29\n",
-					"# system_name = \"Service bus\"\n",
-					"# object_name = \"Appeal Event Estimate\"\n",
-					"# entity_name = \"appeal-event-estimate\"\n",
-					"# is_enabled = False  # Set to True only after Function App is deployed\n",
-					"\n",
-					"new_entity_key =  0 # Run next cell to get the next available key\n",
-					"system_name = \"\"\n",
-					"object_name = \"\"\n",
-					"entity_name = \"\"\n",
-					"is_enabled = False  # Use the update cell at the bottom to enable it once function app is deployed using true\n",
-					"\n",
-					"# Delete a single entity by entity_name\n",
-					"entity_to_delete = \"\"\n",
-					"confirm_delete = False\n",
-					"\n",
-					"# Bulk delete all entries with a given system_name\n",
-					"delete_by_system_name = \"\"\n",
-					"\n",
-					"# Rename system_name for all entries matching rename_system_name_from\n",
-					"rename_system_name_from = \"\"\n",
-					"rename_system_name_to = \"\""
+					"# Set the details of the new entity below\n\n# Example:\n# new_entity_key = 29\n# system_name = \"Service bus\"\n# object_name = \"Appeal Event Estimate\"\n# entity_name = \"appeal-event-estimate\"\n# is_enabled = False  # Set to True only after Function App is deployed\n\nnew_entity_key =  0 # Run next cell to get the next available key\nsystem_name = \"\"\nobject_name = \"\"\nentity_name = \"\"\nis_enabled = False  # Use the update cell at the bottom to enable it once function app is deployed using true\n\n# Delete a single entity by entity_name\nentity_to_delete = \"\"\nconfirm_delete = False\n\n# Bulk delete all entries with a given system_name\ndelete_by_system_name = \"\"\n\n# Rename system_name for all entries matching rename_system_name_from\nrename_system_name_from = \"\"\nrename_system_name_to = \"\"\n\n# Rename entity_name for the entry matching rename_entity_name_for_object\nrename_entity_name_for_object = \"\"\nrename_entity_name_to = \"\""
 				],
 				"execution_count": null
 			},
@@ -433,6 +409,35 @@
 				],
 				"outputs": [],
 				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"execution_count": null,
+				"metadata": {},
+				"outputs": [],
+				"source": [
+					"### Rename entity_name by Object\n",
+					"if rename_entity_name_for_object and rename_entity_name_to:\n",
+					"    affected_df = spark.sql(f\"\"\"\n",
+					"        SELECT System_key, System_name, Object, entity_name\n",
+					"        FROM odw_config_db.main_pipeline_config\n",
+					"        WHERE Object = '{rename_entity_name_for_object}'\n",
+					"    \"\"\")\n",
+					"    count = affected_df.count()\n",
+					"    if count == 0:\n",
+					"        print(f\"No entries found with Object = '{rename_entity_name_for_object}'\")\n",
+					"    else:\n",
+					"        print(f\"Renaming entity_name for {count} entries with Object = '{rename_entity_name_for_object}' to '{rename_entity_name_to}'\")\n",
+					"        affected_df.show(truncate=False)\n",
+					"        spark.sql(f\"\"\"\n",
+					"            UPDATE odw_config_db.main_pipeline_config\n",
+					"            SET entity_name = '{rename_entity_name_to}'\n",
+					"            WHERE Object = '{rename_entity_name_for_object}'\n",
+					"        \"\"\")\n",
+					"        print(f\"Renamed {count} entries.\")\n",
+					"else:\n",
+					"    print(\"Skipped rename: rename_entity_name_for_object and rename_entity_name_to must both be set.\")"
+				]
 			}
 		]
 	}
