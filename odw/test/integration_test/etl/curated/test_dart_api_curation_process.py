@@ -1,4 +1,3 @@
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.dart_api_curation_process import DartAPICurationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
