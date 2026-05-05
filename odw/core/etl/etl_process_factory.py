@@ -13,6 +13,7 @@ from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_proces
 from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
 from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import ServiceUserHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
@@ -20,6 +21,8 @@ from odw.core.etl.transformation.curated.nsip_representation_curated_process imp
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+# from odw.core.etl.transformation.curated.appeal_service_user_curated_process import AppealServiceUserCuratedProcess    
+# from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import AppealServiceUserCuratedMipinsProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -39,6 +42,7 @@ class ETLProcessFactory:
         AieDocumentHarmonisationProcess,
         EntraIdHarmonisationProcess,
         ListedBuildingHarmonisationProcess,
+        ServiceUserHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
         NsipExamTimetableCuratedProcess,
@@ -46,6 +50,8 @@ class ETLProcessFactory:
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
         AppealDocumentCuratedProcess,
+        # AppealServiceUserCuratedProcess,
+        # AppealServiceUserCuratedMipinsProcess,
     }
 
     @classmethod
