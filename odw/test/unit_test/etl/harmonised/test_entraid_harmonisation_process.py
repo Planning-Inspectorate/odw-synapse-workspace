@@ -54,8 +54,14 @@ def _row_id(id, employee_id, given_name, surname, upn):
 def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employee_entra_id=1, valid_to=None):
     return (
         employee_entra_id,
-        id, employee_id, given_name, surname, upn,
-        "0", "EntraID", "ss1",
+        id,
+        employee_id,
+        given_name,
+        surname,
+        upn,
+        "0",
+        "EntraID",
+        "ss1",
         datetime(2024, 1, 1, 0, 0, 0),
         valid_to,
         _row_id(id, employee_id, given_name, surname, upn),

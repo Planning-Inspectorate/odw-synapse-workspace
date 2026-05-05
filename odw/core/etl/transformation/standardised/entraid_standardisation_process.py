@@ -103,11 +103,7 @@ class EntraIdStandardisationProcess(StandardisationProcess):
         raw_df: DataFrame = self.load_parameter("raw_entraid", source_data)
 
         LoggingUtil().log_info(f"Exploding EntraID records from folder {self._folder_name}")
-        std_df = (
-            raw_df
-            .select(F.explode(F.col("value")).alias("record"))
-            .select(*[F.col("record")[c].alias(c) for c in _ENTRAID_FIELDS])
-        )
+        std_df = raw_df.select(F.explode(F.col("value")).alias("record")).select(*[F.col("record")[c].alias(c) for c in _ENTRAID_FIELDS])
 
         # expected_from mirrors the ingest_adhoc convention: day prior to the folder date
         folder_date = datetime.strptime(self._folder_name, "%Y-%m-%d").date()

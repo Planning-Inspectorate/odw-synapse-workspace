@@ -130,8 +130,21 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
         # Step 3: New rows to insert with IsActive='Y'
         LoggingUtil().log_info("Building new/updated rows")
-        output_cols = ["EmployeeEntraId", "id", "employeeId", "givenName", "surname", "userPrincipalName",
-                       "Migrated", "ODTSourceSystem", "SourceSystemID", "IngestionDate", "ValidTo", "RowID", "IsActive"]
+        output_cols = [
+            "EmployeeEntraId",
+            "id",
+            "employeeId",
+            "givenName",
+            "surname",
+            "userPrincipalName",
+            "Migrated",
+            "ODTSourceSystem",
+            "SourceSystemID",
+            "IngestionDate",
+            "ValidTo",
+            "RowID",
+            "IsActive",
+        ]
 
         new_rows = candidates.select(
             F.lit(None).cast("long").alias("EmployeeEntraId"),
@@ -154,8 +167,7 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         changed_ids = candidates.filter(F.col("HistoricIsActive") == "Y").select("id")
         closing_date = F.to_timestamp(F.date_sub(F.current_date(), 1))
         old_versions = (
-            hrm_active
-            .join(changed_ids, "id")
+            hrm_active.join(changed_ids, "id")
             .withColumn("IsActive", F.lit("N"))
             .withColumn("ValidTo", closing_date.cast("string"))
             .select(*output_cols)
@@ -172,11 +184,7 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Reassigning EmployeeEntraId via ROW_NUMBER")
         win = Window.orderBy(F.col("EmployeeEntraId").asc_nulls_last())
         final_df = (
-            new_rows
-            .unionByName(old_versions)
-            .unionByName(unchanged)
-            .unionByName(historical)
-            .withColumn("EmployeeEntraId", F.row_number().over(win))
+            new_rows.unionByName(old_versions).unionByName(unchanged).unionByName(historical).withColumn("EmployeeEntraId", F.row_number().over(win))
         )
 
         insert_count = final_df.count()
