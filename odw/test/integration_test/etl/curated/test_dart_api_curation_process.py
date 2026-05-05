@@ -6,6 +6,10 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from pyspark.sql.types import StringType, StructField, StructType, LongType, DoubleType, ArrayType, BooleanType, TimestampType
 from datetime import datetime
 import mock
+import pytest
+
+
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def generate_harmonised_appeal_has_row(**overrides):

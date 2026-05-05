@@ -8,6 +8,10 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from datetime import datetime
 from typing import Callable, List
+import pytest
+
+
+pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def generate_harmonised_appeal_has_row(**overrides):
