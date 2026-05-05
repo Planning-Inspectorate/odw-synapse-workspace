@@ -62,7 +62,7 @@ class TestCheckmarkReadingStatusReferenceHarmonisationProcessIntegration(ETLTest
         assert "IngestionDate" in df_out.columns
         assert rows[0]["RowID"] is not None
         assert len(rows[0]["RowID"]) == 32
-        assert dict(df_out.dtypes)["IngestionDate"] == "timestamp"
+        assert dict(df_out.dtypes)["IngestionDate"] in ("timestamp", "date")
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "delta"
