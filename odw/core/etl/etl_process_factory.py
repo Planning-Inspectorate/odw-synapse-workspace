@@ -20,6 +20,43 @@ from odw.core.etl.transformation.curated.nsip_representation_curated_process imp
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+from odw.core.etl.transformation.harmonised.checkmark_case_marking_harmonisation_process import CheckmarkCaseMarkingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_comment_state_ref_harmonisation_process import CheckmarkCommentStateRefHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_comment_type_ref_harmonisation_process import CheckmarkCommentTypeRefHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_comments_harmonisation_process import CheckmarkCommentsHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_conditions_reference_harmonisation_process import CheckmarkConditionsReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_coverage_reference_harmonisation_process import CheckmarkCoverageReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_level_reference_harmonisation_process import CheckmarkLevelReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_outcome_reference_harmonisation_process import CheckmarkOutcomeReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_presentation_accuracy_detail_reference_harmonisation_process import CheckmarkPresentationAccuracyDetailReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_procedure_reference_harmonisation_process import CheckmarkProcedureReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_reading_case_harmonisation_process import CheckmarkReadingCaseHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_reading_status_reference_harmonisation_process import CheckmarkReadingStatusReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_reading_type_reference_harmonisation_process import CheckmarkReadingTypeReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_source_reference_harmonisation_process import CheckmarkSourceReferenceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.checkmark_structure_reasoning_detail_reference_harmonisation_process import CheckmarkStructureReasoningDetailReferenceHarmonisationProcess
+from odw.core.etl.transformation.curated.checkmark_case_marking_curated_process import CheckmarkCaseMarkingCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_comment_state_ref_curated_process import CheckmarkCommentStateRefCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_comment_type_ref_curated_process import CheckmarkCommentTypeRefCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_comments_curated_process import CheckmarkCommentsCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_conditions_reference_curated_process import CheckmarkConditionsReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_coverage_reference_curated_process import CheckmarkCoverageReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_level_reference_curated_process import CheckmarkLevelReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_outcome_reference_curated_process import CheckmarkOutcomeReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_presentation_accuracy_detail_reference_curated_process import CheckmarkPresentationAccuracyDetailReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_procedure_reference_curated_process import CheckmarkProcedureReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_reading_case_curated_process import CheckmarkReadingCaseCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_reading_status_reference_curated_process import CheckmarkReadingStatusReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_reading_type_reference_curated_process import CheckmarkReadingTypeReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_source_reference_curated_process import CheckmarkSourceReferenceCuratedProcess
+from odw.core.etl.transformation.curated.checkmark_structure_reasoning_detail_reference_curated_process import CheckmarkStructureReasoningDetailReferenceCuratedProcess
+
+
+
+
+
+
+
 from typing import Dict, List, Set, Type
 import json
 
@@ -46,6 +83,36 @@ class ETLProcessFactory:
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
         AppealDocumentCuratedProcess,
+        CheckmarkCommentStateRefHarmonisationProcess,
+        CheckmarkCommentTypeRefHarmonisationProcess,
+        CheckmarkCommentsHarmonisationProcess,
+        CheckmarkConditionsReferenceHarmonisationProcess,
+        CheckmarkCoverageReferenceHarmonisationProcess,
+        CheckmarkLevelReferenceHarmonisationProcess,
+        CheckmarkOutcomeReferenceHarmonisationProcess,
+        CheckmarkPresentationAccuracyDetailReferenceHarmonisationProcess,
+        CheckmarkProcedureReferenceHarmonisationProcess,
+        CheckmarkReadingCaseHarmonisationProcess,
+        CheckmarkReadingStatusReferenceHarmonisationProcess,
+        CheckmarkReadingTypeReferenceHarmonisationProcess,
+        CheckmarkSourceReferenceHarmonisationProcess,
+        CheckmarkStructureReasoningDetailReferenceHarmonisationProcess,
+        CheckmarkCaseMarkingCuratedProcess,
+        CheckmarkCommentStateRefCuratedProcess,
+        CheckmarkCommentTypeRefCuratedProcess,
+        CheckmarkCommentsCuratedProcess,
+        CheckmarkConditionsReferenceCuratedProcess,
+        CheckmarkCoverageReferenceCuratedProcess,
+        CheckmarkLevelReferenceCuratedProcess,
+        CheckmarkOutcomeReferenceCuratedProcess,
+        CheckmarkPresentationAccuracyDetailReferenceCuratedProcess,
+        CheckmarkProcedureReferenceCuratedProcess,
+        CheckmarkReadingCaseCuratedProcess,
+        CheckmarkReadingStatusReferenceCuratedProcess,
+        CheckmarkReadingTypeReferenceCuratedProcess,
+        CheckmarkSourceReferenceCuratedProcess,
+        CheckmarkStructureReasoningDetailReferenceCuratedProcess,
+        CheckmarkCaseMarkingHarmonisationProcess,
     }
 
     @classmethod
