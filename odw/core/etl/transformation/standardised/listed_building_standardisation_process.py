@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType
-import pyspark.sql.functions as F
 
 from odw.core.etl.transformation.standardised.standardisation_process import (
     StandardisationProcess,
