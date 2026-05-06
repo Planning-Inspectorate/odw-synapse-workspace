@@ -10,7 +10,7 @@ class DartAPICurationProcess(CurationProcess):
     HARMONISED_SB_APPEAL_EVENT = "sb_appeal_event"
     HARMONISED_PINS_INSPECTOR = "horizon_pins_inspector"
     HARMONISED_ENTRAID = "entraid"
-    HARMONISED_APPEAL_S78 = "horizon_appeal_s78"
+    HARMONISED_APPEAL_S78 = "appeal_s78"
     OUTPUT_TABLE = "dart_api"
 
     def __init__(self, spark):

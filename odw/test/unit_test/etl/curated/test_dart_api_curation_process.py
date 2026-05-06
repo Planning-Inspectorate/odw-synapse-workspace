@@ -621,7 +621,7 @@ def generate_harmonised_horizon_pins_inspector_schema():
     )
 
 
-def generate_harmonised_horizon_appeal_s78_row(**overrides):
+def generate_harmonised_appeal_s78_row(**overrides):
     base = {
         "caseReference": None,
         "AppealS78ID": 1,
@@ -860,7 +860,7 @@ def generate_harmonised_horizon_appeal_s78_row(**overrides):
     return base | overrides
 
 
-def generate_harmonised_horizon_appeal_s78_schema():
+def generate_harmonised_appeal_s78_schema():
     return StructType(
         [
             StructField("caseReference", StringType(), True),
@@ -1606,26 +1606,26 @@ class TestDartAPICurationProcess(SparkTestCase):
         self.assert_data_load(expected_data, "HARMONISED_PINS_INSPECTOR", test_case, DartAPICurationProcess._load_harmonised_horizon_pins_inspector)
 
     # Query 2
-    def test__dart_api_curation_process__load_harmonised_horizon_appeal_s78(self):
+    def test__dart_api_curation_process__load_harmonised_appeal_s78(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         kept_rows = [
-            generate_harmonised_horizon_appeal_s78_row(caseId=1),
-            generate_harmonised_horizon_appeal_s78_row(caseId=2),
-            generate_harmonised_horizon_appeal_s78_row(caseId=3),
+            generate_harmonised_appeal_s78_row(caseId=1),
+            generate_harmonised_appeal_s78_row(caseId=2),
+            generate_harmonised_appeal_s78_row(caseId=3),
         ]
         test_case = "t_dacp_lhas78"
-        appeal_has_data = spark.createDataFrame(
+        appeal_s78_data = spark.createDataFrame(
             kept_rows
             + [
-                generate_harmonised_horizon_appeal_s78_row(caseId=4, IsActive="N"),  # Inactive row
-                generate_harmonised_horizon_appeal_s78_row(caseId=5, lpaCode="Q9999"),
-                generate_harmonised_horizon_appeal_s78_row(caseId=6, caseReference=1),
-                generate_harmonised_horizon_appeal_s78_row(caseId=6, ODTSourceSystem="Some other system"),
+                generate_harmonised_appeal_s78_row(caseId=4, IsActive="N"),  # Inactive row
+                generate_harmonised_appeal_s78_row(caseId=5, lpaCode="Q9999"),
+                generate_harmonised_appeal_s78_row(caseId=6, caseReference=1),
+                generate_harmonised_appeal_s78_row(caseId=6, ODTSourceSystem="Some other system"),
             ],
-            schema=generate_harmonised_horizon_appeal_s78_schema(),
+            schema=generate_harmonised_appeal_s78_schema(),
         )
-        self.write_existing_table(spark, appeal_has_data, test_case, "odw_harmonised_db", "odw-harmonised", test_case, "overwrite")
-        expected_data = spark.createDataFrame(kept_rows, schema=generate_harmonised_appeal_has_schema())
+        self.write_existing_table(spark, appeal_s78_data, test_case, "odw_harmonised_db", "odw-harmonised", test_case, "overwrite")
+        expected_data = spark.createDataFrame(kept_rows, schema=generate_harmonised_appeal_s78_schema())
         with (
             mock.patch.object(DartAPICurationProcess, "__init__", return_value=None),
             mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_S78", test_case),
@@ -1636,7 +1636,7 @@ class TestDartAPICurationProcess(SparkTestCase):
     def test__dart_api_curation_process__load_data__calls_transformation_functions(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         mock_appeal_has = spark.createDataFrame([], schema=generate_harmonised_appeal_has_schema())
-        mock_appeal_s78 = spark.createDataFrame([], schema=generate_harmonised_horizon_appeal_s78_schema())
+        mock_appeal_s78 = spark.createDataFrame([], schema=generate_harmonised_appeal_s78_schema())
         mock_pins_lpa = spark.createDataFrame([], schema=generate_harmonised_pins_lpa_schema())
         mock_service_user = spark.createDataFrame([], schema=generate_harmonised_sb_service_user_schema())
         mock_appeal_event = spark.createDataFrame([], schema=generate_harmonised_sb_appeal_event_schema())
@@ -1804,8 +1804,8 @@ class TestDartAPICurationProcess(SparkTestCase):
 
     def test__dart_api_curation_process__aggregate_appeal_s78_data(self):
         self.assert_aggregation(
-            generate_harmonised_horizon_appeal_s78_row,
-            generate_harmonised_horizon_appeal_s78_schema,
+            generate_harmonised_appeal_s78_row,
+            generate_harmonised_appeal_s78_schema,
             DartAPICurationProcess._aggregate_appeal_s78_data,
         )
 
@@ -1862,11 +1862,11 @@ class TestDartAPICurationProcess(SparkTestCase):
                     caseReference="2",
                     lpaCode="B",
                     applicationReference="",  # Should be replaced with UNKNOWN
-                    enforcementNotice=False,  # Should become True
-                    isCorrectAppealType=False,  # Should become True
-                    appellantCostsAppliedFor=False,  # Should become True
-                    lpaCostsAppliedFor=False,  # Should become True
-                    changedDevelopmentDescription=False,  # Should become True
+                    enforcementNotice=False,  # Should become False
+                    isCorrectAppealType=False,  # Should become False
+                    appellantCostsAppliedFor=False,  # Should become False
+                    lpaCostsAppliedFor=False,  # Should become False
+                    changedDevelopmentDescription=False,  # Should become False
                 ),
                 generate_aggregate_row(
                     caseId=3,

@@ -348,7 +348,7 @@ def generate_harmonised_pins_lpa_row(**overrides):
         "IngestionDate": datetime(2025, 1, 1),
         "ValidTo": None,
         "RowID": None,
-        "IsActive": None,
+        "IsActive": "Y",
     }
     return base | overrides
 
@@ -411,7 +411,7 @@ def generate_harmonised_sb_service_user_row(**overrides):
         "IngestionDate": None,
         "ValidTo": None,
         "RowID": None,
-        "IsActive": None,
+        "IsActive": "Y",
         "message_id": None,
         "ServiceUserID": 1,
     }
@@ -478,7 +478,7 @@ def generate_harmonised_sb_appeal_event_row(**overrides):
         "IngestionDate": None,
         "ValidTo": None,
         "RowID": None,
-        "IsActive": None,
+        "IsActive": "Y",
         "message_id": None,
         "migrated": None,
         "AppealsEventId": 1,
@@ -531,7 +531,7 @@ def generate_harmonised_entraid_row(**overrides):
         "IngestionDate": None,
         "ValidTo": None,
         "RowID": None,
-        "IsActive": None,
+        "IsActive": "Y",
     }
     return base | overrides
 
@@ -581,7 +581,7 @@ def generate_harmonised_horizon_pins_inspector_row(**overrides):
         "ODTSourceSystem": None,
         "ValidTo": datetime(2025, 1, 1),
         "RowID": None,
-        "IsActive": None,
+        "IsActive": "Y",
         "SourceSystemID": None,
     }
     return base | overrides
@@ -619,93 +619,93 @@ def generate_harmonised_horizon_pins_inspector_schema():
     )
 
 
-def generate_harmonised_horizon_appeal_s78_row(**overrides):
+def generate_harmonised_appeal_s78_row(**overrides):
     base = {
-        "caseReference": None,
+        "caseReference": "6000001",
         "AppealS78ID": 1,
         "caseId": None,
-        "submissionId": None,
-        "caseStatus": None,
-        "caseType": None,
-        "caseProcedure": None,
-        "lpaCode": None,
-        "caseOfficerId": None,
-        "inspectorId": None,
-        "allocationLevel": None,
+        "submissionId": "",
+        "caseStatus": "validation",
+        "caseType": "D",
+        "caseProcedure": "written",
+        "lpaCode": "LOAD1",
+        "caseOfficerId": "",
+        "inspectorId": "",
+        "allocationLevel": "",
         "allocationBand": 0.0,
-        "caseSpecialisms": [""],
-        "caseSubmittedDate": None,
-        "caseCreatedDate": None,
-        "caseUpdatedDate": None,
-        "caseValidDate": None,
-        "caseValidationDate": None,
-        "caseValidationOutcome": None,
-        "caseValidationInvalidDetails": [""],
-        "caseValidationIncompleteDetails": [""],
-        "caseExtensionDate": None,
-        "caseStartedDate": None,
-        "casePublishedDate": None,
-        "linkedCaseStatus": None,
-        "leadCaseReference": None,
-        "lpaQuestionnaireDueDate": None,
-        "lpaQuestionnaireSubmittedDate": None,
-        "lpaQuestionnaireCreatedDate": None,
-        "lpaQuestionnairePublishedDate": None,
-        "lpaQuestionnaireValidationOutcome": None,
-        "lpaQuestionnaireValidationOutcomeDate": None,
-        "lpaQuestionnaireValidationDetails": [""],
-        "lpaStatement": None,
-        "caseWithdrawnDate": None,
-        "caseTransferredDate": None,
-        "transferredCaseClosedDate": None,
-        "caseDecisionOutcomeDate": None,
-        "caseDecisionPublishedDate": None,
-        "caseDecisionOutcome": None,
-        "caseCompletedDate": None,
+        "caseSpecialisms": ["specialismA"],
+        "caseSubmittedDate": "",
+        "caseCreatedDate": "",
+        "caseUpdatedDate": "",
+        "caseValidDate": "",
+        "caseValidationDate": "",
+        "caseValidationOutcome": "",
+        "caseValidationInvalidDetails": ["caseValidationInvalidDetails"],
+        "caseValidationIncompleteDetails": ["caseValidationIncompleteDetails"],
+        "caseExtensionDate": "",
+        "caseStartedDate": "",
+        "casePublishedDate": "",
+        "linkedCaseStatus": "",
+        "leadCaseReference": "",
+        "lpaQuestionnaireDueDate": "",
+        "lpaQuestionnaireSubmittedDate": "",
+        "lpaQuestionnaireCreatedDate": "",
+        "lpaQuestionnairePublishedDate": "",
+        "lpaQuestionnaireValidationOutcome": "",
+        "lpaQuestionnaireValidationOutcomeDate": "",
+        "lpaQuestionnaireValidationDetails": ["lpaQuestionnaireValidationDetails"],
+        "lpaStatement": "",
+        "caseWithdrawnDate": "",
+        "caseTransferredDate": "",
+        "transferredCaseClosedDate": "",
+        "caseDecisionOutcomeDate": "",
+        "caseDecisionPublishedDate": "",
+        "caseDecisionOutcome": "",
+        "caseCompletedDate": "",
         "enforcementNotice": True,
-        "applicationReference": None,
-        "applicationDate": None,
-        "applicationDecision": None,
-        "applicationDecisionDate": None,
-        "applicationDecisionDueDate": None,
-        "caseSubmissionDueDate": None,
-        "siteAddressLine1": None,
-        "siteAddressLine2": None,
-        "siteAddressTown": None,
-        "siteAddressCounty": None,
-        "siteAddressPostcode": None,
-        "siteAccessDetails": [""],
-        "siteSafetyDetails": [""],
-        "siteAreaSquareMetres": 0.0,
-        "floorSpaceSquareMetres": 0.0,
+        "applicationReference": "",
+        "applicationDate": "",
+        "applicationDecision": "refused",
+        "applicationDecisionDate": "",
+        "applicationDecisionDueDate": "",
+        "caseSubmissionDueDate": "",
+        "siteAddressLine1": "",
+        "siteAddressLine2": "",
+        "siteAddressTown": "",
+        "siteAddressCounty": "",
+        "siteAddressPostcode": "",
+        "siteAccessDetails": ["siteAccessDetails"],
+        "siteSafetyDetails": ["siteSafetyDetails"],
+        "siteAreaSquareMetres": 10.0,
+        "floorSpaceSquareMetres": 5.0,
         "isCorrectAppealType": True,
         "isGreenBelt": True,
         "inConservationArea": True,
         "ownsAllLand": True,
         "ownsSomeLand": True,
-        "knowsOtherOwners": None,
-        "knowsAllOwners": None,
+        "knowsOtherOwners": "",
+        "knowsAllOwners": "",
         "advertisedAppeal": True,
-        "notificationMethod": [""],
+        "notificationMethod": ["notificationMethod"],
         "ownersInformed": True,
-        "originalDevelopmentDescription": None,
+        "originalDevelopmentDescription": "",
         "changedDevelopmentDescription": True,
-        "newConditionDetails": None,
+        "newConditionDetails": "",
         "extraConditionsDetails": None,
-        "nearbyCaseReferences": [""],
+        "nearbyCaseReferences": ["nearbyCaseReferences"],
         "neighbouringSiteAddresses": [
             {
-                "neighbouringSiteAddressLine1": None,
-                "neighbouringSiteAddressLine2": None,
-                "neighbouringSiteAddressTown": None,
-                "neighbouringSiteAddressCounty": None,
-                "neighbouringSiteAddressPostcode": None,
-                "neighbouringSiteAccessDetails": None,
-                "neighbouringSiteSafetyDetails": None,
+                "neighbouringSiteAddressLine1": "",
+                "neighbouringSiteAddressLine2": "",
+                "neighbouringSiteAddressTown": "",
+                "neighbouringSiteAddressCounty": "",
+                "neighbouringSiteAddressPostcode": "",
+                "neighbouringSiteAccessDetails": "",
+                "neighbouringSiteSafetyDetails": "",
             }
         ],
-        "reasonForNeighbourVisits": None,
-        "affectedListedBuildingNumbers": [""],
+        "reasonForNeighbourVisits": "",
+        "affectedListedBuildingNumbers": ["affectedListedBuildingNumbers"],
         "changedListedBuildingNumbers": [""],
         "preserveGrantLoan": True,
         "consultHistoricEngland": True,
@@ -715,15 +715,15 @@ def generate_harmonised_horizon_appeal_s78_row(**overrides):
         "tenantAgriculturalHolding": True,
         "otherTenantsAgriculturalHolding": True,
         "informedTenantsAgriculturalHolding": True,
-        "appellantProcedurePreference": None,
-        "appellantProcedurePreferenceDetails": None,
+        "appellantProcedurePreference": "",
+        "appellantProcedurePreferenceDetails": "",
         "appellantProcedurePreferenceDuration": 0.0,
         "appellantProcedurePreferenceWitnessCount": 0.0,
-        "statusPlanningObligation": None,
+        "statusPlanningObligation": "",
         "affectsScheduledMonument": True,
         "hasProtectedSpecies": True,
         "isAonbNationalLandscape": True,
-        "designatedSitesNames": [""],
+        "designatedSitesNames": ["designatedSitesNames"],
         "isGypsyOrTravellerSite": True,
         "isPublicRightOfWay": True,
         "eiaEnvironmentalImpactSchedule": None,
@@ -734,23 +734,23 @@ def generate_harmonised_horizon_appeal_s78_row(**overrides):
         "eiaRequiresEnvironmentalStatement": True,
         "eiaCompletedEnvironmentalStatement": True,
         "hasStatutoryConsultees": True,
-        "consultedBodiesDetails": None,
+        "consultedBodiesDetails": "",
         "hasInfrastructureLevy": True,
         "isInfrastructureLevyFormallyAdopted": True,
-        "infrastructureLevyAdoptedDate": None,
-        "infrastructureLevyExpectedDate": None,
-        "lpaProcedurePreference": None,
-        "lpaProcedurePreferenceDetails": None,
+        "infrastructureLevyAdoptedDate": "",
+        "infrastructureLevyExpectedDate": "",
+        "lpaProcedurePreference": "",
+        "lpaProcedurePreferenceDetails": "",
         "lpaProcedurePreferenceDuration": 0.0,
-        "caseworkReason": None,
-        "importantInformation": None,
-        "jurisdiction": None,
+        "caseworkReason": "",
+        "importantInformation": "",
+        "jurisdiction": "",
         "redeterminedIndicator": None,
-        "dateCostsReportDespatched": None,
-        "dateNotRecoveredOrDerecovered": None,
-        "dateRecovered": None,
-        "originalCaseDecisionDate": None,
-        "targetDate": None,
+        "dateCostsReportDespatched": "",
+        "dateNotRecoveredOrDerecovered": "",
+        "dateRecovered": "",
+        "originalCaseDecisionDate": "",
+        "targetDate": "",
         "appellantCommentsSubmittedDate": None,
         "appellantStatementDueDate": None,
         "appellantStatementSubmittedDate": None,
@@ -765,45 +765,27 @@ def generate_harmonised_horizon_appeal_s78_row(**overrides):
         "statementDueDate": None,
         "caseManagementConferenceDate": None,
         "numberOfResidencesNetChange": 0.0,
-        "siteGridReferenceEasting": None,
-        "siteGridReferenceNorthing": None,
+        "siteGridReferenceEasting": "",
+        "siteGridReferenceNorthing": "",
         "siteViewableFromRoad": True,
         "siteWithinSSSI": True,
-        "typeOfPlanningApplication": None,
-        "developmentType": None,
+        "typeOfPlanningApplication": "householder-planning",
+        "developmentType": "",
         "statementOfCommonGroundDueDate": None,
         "planningObligationDueDate": None,
         "hasLandownersPermission": True,
         "wasApplicationRefusedDueToHighwayOrTraffic": True,
         "didAppellantSubmitCompletePhotosAndPlans": True,
         "isSiteInAreaOfSpecialControlAdverts": True,
-        "advertDetails": [
-            {
-                "advertType": None,
-                "isAdvertInPosition": True,
-                "isSiteOnHighwayLand": True,
-            }
-        ],
-        "padsSapId": None,
+        "advertDetails": [{"advertType": "", "isAdvertInPosition": True, "isSiteOnHighwayLand": True}],
+        "padsSapId": "",
         "enforcementNoticeReference": None,
         "descriptionOfAllegedBreach": None,
         "dateAppellantContactedPins": None,
         "ownerOccupancyStatus": None,
         "occupancyConditionsMet": True,
-        "enforcementAppealGroundsDetails": [
-            {
-                "appealGroundLetter": None,
-                "groundForAppealStartDate": None,
-                "groundFacts": None,
-            }
-        ],
-        "applicationElbAppealGroundsDetails": [
-            {
-                "appealGroundLetter": None,
-                "groundForAppealStartDate": None,
-                "groundFacts": None,
-            }
-        ],
+        "enforcementAppealGroundsDetails": [{"appealGroundLetter": None, "groundForAppealStartDate": None, "groundFacts": None}],
+        "applicationElbAppealGroundsDetails": [{"appealGroundLetter": None, "groundForAppealStartDate": None, "groundFacts": None}],
         "applicationMadeAndFeePaid": True,
         "noticeRelatesToBuildingEngineeringMiningOther": True,
         "changeOfUseRefuseOrWaste": True,
@@ -845,20 +827,20 @@ def generate_harmonised_horizon_appeal_s78_row(**overrides):
         "screeningOpinionIndicatesEiaRequired": True,
         "significantChangesAffectingApplicationAppellant": [{"value": None, "comment": ""}],
         "significantChangesAffectingApplicationLpa": [{"value": None, "comment": ""}],
-        "migrated": None,
+        "migrated": "1",
         "ODTSourceSystem": "ODT",
-        "SourceSystemID": None,
+        "SourceSystemID": "5",
         "IngestionDate": datetime(2025, 1, 1),
-        "ValidTo": None,
-        "RowID": None,
-        "IsActive": None,
-        "message_id": None,
+        "ValidTo": "",
+        "RowID": "",
+        "IsActive": "Y",
+        "message_id": "",
         "listOfDocumentsBeforeDecision": None,
     }
     return base | overrides
 
 
-def generate_harmonised_horizon_appeal_s78_schema():
+def generate_harmonised_appeal_s78_schema():
     return StructType(
         [
             StructField("caseReference", StringType(), True),
@@ -1136,7 +1118,7 @@ def generate_harmonised_horizon_appeal_s78_schema():
 
 def generate_cleaned_row(**overrides):
     base = {
-        "caseId": 1,
+        "caseId": "1",
         "caseReference": "60000001",
         "caseStatus": "validation",
         "caseType": "D",
@@ -1195,6 +1177,8 @@ def generate_cleaned_row(**overrides):
         "affectedListedBuildingNumbers": ["affectedListedBuildingNumbers"],
         "appellantCostsAppliedFor": True,
         "lpaCostsAppliedFor": True,
+        "appellantName": "A B",
+        "inspectorName": "A X",
     }
     return base | overrides
 
@@ -1285,9 +1269,7 @@ class TestDartAPICurationProcess(ETLTestCase):
         appeal_has = spark.createDataFrame(
             (
                 generate_harmonised_appeal_has_row(caseId=1, lpaCode="A", caseReference=60000001, inspectorId="insId1", caseOfficerId="insId7"),
-                generate_harmonised_appeal_has_row(
-                    caseId=2, lpaCode="B", caseReference=60000002, inspectorId="insId2", inspcaseOfficerIdectorId="insId6"
-                ),
+                generate_harmonised_appeal_has_row(caseId=2, lpaCode="B", caseReference=60000002, inspectorId="insId2", caseOfficerId="insId6"),
                 generate_harmonised_appeal_has_row(caseId=3, lpaCode="C", caseReference=60000003, inspectorId="insId3", caseOfficerId="insId5"),
                 generate_harmonised_appeal_has_row(
                     caseId=4, lpaCode="D", caseReference=60000004, inspectorId="insId4", caseOfficerId="insId4"
@@ -1310,20 +1292,20 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         appeal_s78 = spark.createDataFrame(
             (
-                generate_harmonised_horizon_appeal_s78_row(
+                generate_harmonised_appeal_s78_row(
                     caseId=6, lpaCode="F", caseReference=60000006, inspectorId="insId6", caseOfficerId="insId2"
                 ),  # For the dropped service_user row
-                generate_harmonised_horizon_appeal_s78_row(
+                generate_harmonised_appeal_s78_row(
                     caseId=7, lpaCode="G", caseReference=60000007, inspectorId="insId7", caseOfficerId="insId1"
                 ),  # For the dropped appeal_event row
-                generate_harmonised_horizon_appeal_s78_row(
+                generate_harmonised_appeal_s78_row(
                     caseId=8, lpaCode="H", caseReference=60000008, inspectorId="insId10", caseOfficerId="insId7"
                 ),  # For the dropped entraid_ins row
-                generate_harmonised_horizon_appeal_s78_row(
+                generate_harmonised_appeal_s78_row(
                     caseId=9, lpaCode="I", caseReference=60000009, inspectorId="insId7", caseOfficerId="insId10"
                 ),  # For the dropped entraid_co row
             ),
-            schema=generate_harmonised_appeal_has_schema(),
+            schema=generate_harmonised_appeal_s78_schema(),
         )
         appeal_s78_table = f"{test_case}_appeal_s78"
         self.write_existing_table(
@@ -1356,7 +1338,7 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         sb_service_user = spark.createDataFrame(
             (
-                generate_harmonised_sb_service_user_row(LPAId=1, firstName="A", caseReference=60000001, serviceUserType="Appellant"),
+                generate_harmonised_sb_service_user_row(LPAId=1, firstName="A", caseReference=60000001, serviceUserType="Appellant", lastName="B"),
                 generate_harmonised_sb_service_user_row(LPAId=2, firstName="B", caseReference=60000002, serviceUserType="Appellant"),
                 generate_harmonised_sb_service_user_row(LPAId=3, firstName="C", caseReference=60000003, serviceUserType="Appellant"),
                 generate_harmonised_sb_service_user_row(
@@ -1397,10 +1379,16 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         entraid = spark.createDataFrame(
             (
-                generate_harmonised_entraid_row(EmployeeEntraId=1, givenName="A", id="insId1", userPrincipalName="x@pins.gov.uk"),  # ent_ins
-                generate_harmonised_entraid_row(EmployeeEntraId=2, givenName="B", id="insId2", userPrincipalName="y@pins.gov.uk"),  # ent_ins
-                generate_harmonised_entraid_row(EmployeeEntraId=3, givenName="C", id="insId3", userPrincipalName="z@pins.gov.uk"),  # ent_co
-                generate_harmonised_entraid_row(EmployeeEntraId=10, givenName="Z", id="insId10", isActive="N"),  # Should be dropped
+                generate_harmonised_entraid_row(
+                    EmployeeEntraId=1, givenName="A", surname="X", id="insId1", userPrincipalName="x@pins.gov.uk"
+                ),  # ent_ins
+                generate_harmonised_entraid_row(
+                    EmployeeEntraId=2, givenName="B", surname="Y", id="insId2", userPrincipalName="y@pins.gov.uk"
+                ),  # ent_ins
+                generate_harmonised_entraid_row(
+                    EmployeeEntraId=3, givenName="C", surname="Z", id="insId3", userPrincipalName="z@pins.gov.uk"
+                ),  # ent_co
+                generate_harmonised_entraid_row(EmployeeEntraId=10, givenName="Z", surname="AA", id="insId10", isActive="N"),  # Should be dropped
             ),
             schema=generate_harmonised_entraid_schema(),
         )
@@ -1436,30 +1424,21 @@ class TestDartAPICurationProcess(ETLTestCase):
         expected_curated_data_after_writing = spark.createDataFrame(
             (
                 generate_cleaned_row(
-                    caseId=1,
-                    caseReference="60000001",
-                    lpaCode="A",
+                    caseId=1, caseReference="60000001", lpaCode="A", applicationReference="UNKNOWN", appellantName="A B", inspectorName="A X"
                 ),
-                generate_cleaned_row(
-                    caseId=2,
-                    caseReference="60000002",
-                    lpaCode="B",
-                ),
-                generate_cleaned_row(
-                    caseId=3,
-                    caseReference="60000003",
-                    lpaCode="C",
-                ),
+                generate_cleaned_row(caseId=2, caseReference="60000002", lpaCode="B", applicationReference="UNKNOWN", inspectorName="B Y"),
+                generate_cleaned_row(caseId=3, caseReference="60000003", lpaCode="C", applicationReference="UNKNOWN", inspectorName="C Z"),
                 generate_cleaned_row(
                     caseId=4,
                     caseReference="60000004",
                     lpaCode="D",
+                    applicationReference="UNKNOWN",
                 ),
-                generate_cleaned_row(
-                    caseId=5,
-                    caseReference="60000005",
-                    lpaCode="E",
-                ),
+                generate_cleaned_row(caseId=5, caseReference="60000005", lpaCode="E", applicationReference="UNKNOWN", caseOfficerName="C Z"),
+                generate_cleaned_row(caseId=6, caseReference="60000006", lpaCode="F", applicationReference="UNKNOWN", caseOfficerName="B Y"),
+                generate_cleaned_row(caseId=7, caseReference="60000007", lpaCode="G", applicationReference="UNKNOWN", caseOfficerName="A X"),
+                generate_cleaned_row(caseId=8, caseReference="60000008", lpaCode="H", applicationReference="UNKNOWN", inspectorName="Z AA"),
+                generate_cleaned_row(caseId=9, caseReference="60000009", lpaCode="I", applicationReference="UNKNOWN", caseOfficerName="Z AA"),
             ),
             schema=generate_cleaned_schema(),
         )
@@ -1469,9 +1448,9 @@ class TestDartAPICurationProcess(ETLTestCase):
             mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_HAS", appeal_has_table),
             mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_LPA", pins_lpa_table),
             mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_SERVICE_USER", sb_service_user_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_APPEAL_EVENT", sb_appeal_event),
+            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_APPEAL_EVENT", sb_appeal_event_table),
             mock.patch.object(DartAPICurationProcess, "HARMONISED_ENTRAID", entraid_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_INSPECTOR", horizon_pins_inspector),
+            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_INSPECTOR", horizon_pins_inspector_table),
             mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_S78", appeal_s78_table),
             mock.patch.object(DartAPICurationProcess, "OUTPUT_TABLE", expected_curated_table),
         ):
