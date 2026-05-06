@@ -1,15 +1,11 @@
 import uuid
 import mock
-import pytest
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -171,7 +167,7 @@ def _curated_row(**overrides):
 
 
 class TestAppealDocumentCuratedProcess(ETLTestCase):
-    def setup(self):
+    def setup_method(self):
         self.test_suffix = uuid.uuid4().hex
 
     def compare_curated_data(self, expected_df: DataFrame, actual_df: DataFrame):
