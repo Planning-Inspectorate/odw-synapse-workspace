@@ -1,5 +1,4 @@
 import mock
-import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.listed_building_curated_process import ListedBuildingCuratedProcess
