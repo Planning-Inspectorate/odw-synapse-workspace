@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal
-import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
@@ -297,9 +296,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
 
         source_df = _df(spark, [_base_row()])
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -353,9 +351,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = df.collect()
@@ -374,9 +371,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -397,9 +393,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].collect()
 
@@ -453,9 +448,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].collect()
 
@@ -478,9 +472,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -502,9 +495,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -519,9 +511,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         duplicate = _base_row(caseReference="7000001")
         source_df = _df(spark, [duplicate, duplicate])
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -533,9 +524,8 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
 
         source_df = spark.createDataFrame([], _harmonised_schema())
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil"):
-            inst = AppealHasCuratedMipinsProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedMipinsProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]

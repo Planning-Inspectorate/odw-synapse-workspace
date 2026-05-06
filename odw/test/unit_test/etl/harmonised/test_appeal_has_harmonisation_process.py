@@ -1,5 +1,4 @@
 from datetime import datetime
-import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
@@ -328,9 +327,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = {row["caseReference"]: row for row in df.collect()}
@@ -356,9 +354,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = {row["caseStatus"]: row for row in df.orderBy("IngestionDate").collect()}
@@ -383,9 +380,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -405,9 +401,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -487,9 +482,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(_source_data(spark, service_bus_data, horizon_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("IngestionDate", F.desc("ODTSourceSystem"))
         rows = df.collect()
@@ -518,9 +512,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -545,9 +538,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -565,9 +557,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -638,9 +629,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(_source_data(spark, horizon_data=horizon_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(_source_data(spark, horizon_data=horizon_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -659,9 +649,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
 
         service_bus_data = _sb_df(spark, [duplicate_row, duplicate_row])
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -689,9 +678,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -719,9 +707,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("RowID").collect()
 
@@ -747,9 +734,8 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -775,15 +761,14 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(
-                _source_data(
-                    spark,
-                    service_bus_data=service_bus_data,
-                    appeal_s78_data=appeal_s78_data,
-                )
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            _source_data(
+                spark,
+                service_bus_data=service_bus_data,
+                appeal_s78_data=appeal_s78_data,
             )
+        )
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -808,15 +793,14 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil"):
-            inst = AppealHasHarmonisationProcess(spark)
-            data_to_write, _ = inst.process(
-                _source_data(
-                    spark,
-                    service_bus_data=service_bus_data,
-                    appeal_s78_data=appeal_s78_data,
-                )
+        inst = AppealHasHarmonisationProcess(spark)
+        data_to_write, _ = inst.process(
+            _source_data(
+                spark,
+                service_bus_data=service_bus_data,
+                appeal_s78_data=appeal_s78_data,
             )
+        )
 
         rows = {row["caseStatus"]: row for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
 

@@ -1,10 +1,11 @@
-import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 from odw.core.etl.transformation.curated.appeal_has_curated_process import AppealHasCuratedProcess
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
+
 
 pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
@@ -493,29 +494,49 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(_mixed_active_inactive_harmonised_df(spark)))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(_mixed_active_inactive_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
-        row = df.collect()[0]
 
+        actual_df = df.select(
+            "caseReference",
+            "caseId",
+            "caseStatus",
+            "caseType",
+            "caseProcedure",
+            "lpaCode",
+            "caseSpecialisms",
+            "siteAreaSquareMetres",
+            "floorSpaceSquareMetres",
+            "importantInformation",
+            "padsSapId",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    "HAS-001",
+                    "1001",
+                    "valid",
+                    "HAS",
+                    "WR",
+                    "LPA01",
+                    ["Advertisements", "Listed Building"],
+                    1000.0,
+                    50.0,
+                    "Important info",
+                    "SAP-001",
+                )
+            ],
+            actual_df.schema,
+        )
+
+        assert_dataframes_equal(actual_df, expected_df)
         assert df.count() == 1
         assert df.columns == CURATED_COLUMNS
         assert "IsActive" not in df.columns
-
-        assert row["caseReference"] == "HAS-001"
-        assert row["caseId"] == "1001"
-        assert row["caseStatus"] == "valid"
-        assert row["caseType"] == "HAS"
-        assert row["caseProcedure"] == "WR"
-        assert row["lpaCode"] == "LPA01"
-        assert row["caseSpecialisms"] == ["Advertisements", "Listed Building"]
-        assert row["siteAreaSquareMetres"] == 1000.0
-        assert row["floorSpaceSquareMetres"] == 50.0
-        assert row["importantInformation"] == "Important info"
-        assert row["padsSapId"] == "SAP-001"
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
@@ -526,9 +547,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(_minimal_missing_columns_df(spark)))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(_minimal_missing_columns_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -550,9 +570,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
 
         inactive_df = _mixed_active_inactive_harmonised_df(spark).where("IsActive = 'N'")
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(inactive_df))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(inactive_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -563,9 +582,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(_empty_harmonised_df(spark)))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(_empty_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -578,9 +596,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__preserves_duplicate_active_rows_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(_duplicate_active_harmonised_df(spark)))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(_duplicate_active_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -591,9 +608,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__keeps_expected_write_config_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(_active_harmonised_df(spark)))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(_active_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
 
@@ -613,9 +629,8 @@ class TestAppealHasCuratedProcess(SparkTestCase):
 
         source_df = lower_y.unionByName(spaced_y).unionByName(inactive)
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil"):
-            inst = AppealHasCuratedProcess(spark)
-            data_to_write, result = inst.process(_source_data(source_df))
+        inst = AppealHasCuratedProcess(spark)
+        data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 

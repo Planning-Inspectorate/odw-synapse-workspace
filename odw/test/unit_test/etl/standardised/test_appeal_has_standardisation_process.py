@@ -1,7 +1,8 @@
-import mock
 import pytest
 import pyspark.sql.types as T
+from pyspark.sql import DataFrame
 from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -27,7 +28,16 @@ def _empty_df(spark, schema):
 def _minimal_hzn_cases_has_df(spark):
     return spark.createDataFrame(
         [
-            ("HAS-001", 1001, "HAS", "2025-01-10", "2025-01-11", "2025-01-12", "2025-01-13", 1),
+            (
+                "HAS-001",
+                1001,
+                "HAS",
+                "2025-01-10",
+                "2025-01-11",
+                "2025-01-12",
+                "2025-01-13",
+                1,
+            ),
         ],
         _metadata_schema(
             [
@@ -258,20 +268,78 @@ def _minimal_source_data(spark, hzn_cases_has_df):
 
 
 class TestRefAppealHasStandardisationProcess(SparkTestCase):
+    def test__appeal_has_standardisation_process__load_data__loads_expected_source_tables(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        inst = AppealHasStandardisationProcess(spark)
+
+        expected_keys = {
+            "hzn_cases_has_df",
+            "cases_specialism_df",
+            "vw_case_dates_df",
+            "CaseDocumentDatesDates_df",
+            "CaseSiteStrings_df",
+            "vw_AddAdditionalData_df",
+            "vw_AdditionalFields_df",
+            "horizon_advert_attributes_df",
+            "Horizon_vw_curr_TypeOfLevel_df",
+            "Horizon_vw_BIS_SpecialistCaseDates_df",
+            "Horizon_vw_BIS_PlanningAppStrings_df",
+            "Horizon_vw_BIS_PlanningAppDates_df",
+            "Horizon_vw_BIS_LeadCase_df",
+            "Horizon_vw_BIS_CaseStrings_df",
+            "Horizon_vw_BIS_CaseInfo_df",
+            "Horizon_vw_BIS_CaseDates_df",
+            "Horizon_vw_BIS_AppealsAdditionalData_df",
+            "Horizon_vw_BIS_CaseSiteCategoryAdditionalStr_df",
+            "Horizon_ODW_vw_Inspector_Cases_df",
+        }
+
+        source_data = inst.load_data()
+
+        assert set(source_data.keys()) == expected_keys
+
+        for key in expected_keys:
+            assert source_data[key] is not None
+            assert isinstance(source_data[key], DataFrame)
+
     def test__appeal_has_standardisation_process__process__maps_base_has_columns_and_uses_overwrite(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, result = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, result = inst.process(
+            _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        row = df.collect()[0]
 
-        assert row["caseReference"] == "HAS-001"
-        assert row["caseId"] == 1001
-        assert row["caseType"] == "HAS"
-        assert row["caseUpdatedDate"] == "2025-01-10"
+        actual_df = df.select(
+            "caseReference",
+            "caseId",
+            "caseType",
+            "caseUpdatedDate",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    "HAS-001",
+                    1001,
+                    "HAS",
+                    "2025-01-10",
+                ),
+            ],
+            T.StructType(
+                [
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("caseId", T.IntegerType(), True),
+                    T.StructField("caseType", T.StringType(), True),
+                    T.StructField("caseUpdatedDate", T.StringType(), True),
+                ]
+            ),
+        )
+
+        assert_dataframes_equal(actual_df, expected_df)
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
@@ -280,8 +348,26 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         hzn_cases_has_df = spark.createDataFrame(
             [
-                ("HAS-001", 1001, "OLD", "2025-01-01", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-001", 1002, "NEW", "2025-02-01", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    "HAS-001",
+                    1001,
+                    "OLD",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-001",
+                    1002,
+                    "NEW",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [
@@ -293,9 +379,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, result = inst.process(_minimal_source_data(spark, hzn_cases_has_df))
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, result = inst.process(_minimal_source_data(spark, hzn_cases_has_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -312,9 +397,30 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         source_data = _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
         source_data["cases_specialism_df"] = spark.createDataFrame(
             [
-                ("HAS-001", "Listed Building", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-001", "Advertisements", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-001", "Advertisements", "2025-01-01", "2025-01-01", "2025-01-01", 1),
+                (
+                    "HAS-001",
+                    "Listed Building",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-001",
+                    "Advertisements",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-001",
+                    "Advertisements",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
                 ("HAS-001", "", "2025-01-01", "2025-01-01", "2025-01-01", 1),
                 ("HAS-001", None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
             ],
@@ -326,9 +432,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -339,10 +444,46 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         hzn_cases_has_df = spark.createDataFrame(
             [
-                ("HAS-001", 1001, "HAS", "2025-01-10", "2025-01-10", "2025-01-10", "2025-01-10", 1),
-                ("HAS-002", 1002, "HAS", "2025-01-10", "2025-01-10", "2025-01-10", "2025-01-10", 1),
-                ("HAS-003", 1003, "HAS", "2025-01-10", "2025-01-10", "2025-01-10", "2025-01-10", 1),
-                ("HAS-004", 1004, "HAS", "2025-01-10", "2025-01-10", "2025-01-10", "2025-01-10", 1),
+                (
+                    "HAS-001",
+                    1001,
+                    "HAS",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    1,
+                ),
+                (
+                    "HAS-002",
+                    1002,
+                    "HAS",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    1,
+                ),
+                (
+                    "HAS-003",
+                    1003,
+                    "HAS",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    1,
+                ),
+                (
+                    "HAS-004",
+                    1004,
+                    "HAS",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    1,
+                ),
             ],
             _metadata_schema(
                 [
@@ -357,10 +498,74 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         source_data = _minimal_source_data(spark, hzn_cases_has_df)
         source_data["vw_AddAdditionalData_df"] = spark.createDataFrame(
             [
-                ("HAS-001", None, None, "Written Reps", None, None, None, None, None, None, None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-002", None, None, "Hearing", None, None, None, None, None, None, None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-003", None, None, None, None, "Public Inquiry", None, None, None, None, None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-004", None, None, "Not Known", None, None, None, None, None, None, None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
+                (
+                    "HAS-001",
+                    None,
+                    None,
+                    "Written Reps",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-002",
+                    None,
+                    None,
+                    "Hearing",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-003",
+                    None,
+                    None,
+                    None,
+                    None,
+                    "Public Inquiry",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-004",
+                    None,
+                    None,
+                    "Not Known",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
             ],
             _metadata_schema(
                 [
@@ -379,11 +584,13 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
-        rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
+        rows = {
+            row["caseReference"]: row["caseProcedure"]
+            for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()
+        }
 
         assert rows["HAS-001"] == "WR"
         assert rows["HAS-002"] == "IH"
@@ -396,8 +603,34 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         source_data = _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
         source_data["CaseSiteStrings_df"] = spark.createDataFrame(
             [
-                (1001, None, "Old line 1", "Old line 2", "Old Town", "Old County", "OLD", "UK", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                (1001, None, "New line 1", "New line 2", "New Town", "New County", "NEW", "UK", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    1001,
+                    None,
+                    "Old line 1",
+                    "Old line 2",
+                    "Old Town",
+                    "Old County",
+                    "OLD",
+                    "UK",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    1001,
+                    None,
+                    "New line 1",
+                    "New line 2",
+                    "New Town",
+                    "New County",
+                    "NEW",
+                    "UK",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [
@@ -413,9 +646,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, result = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, result = inst.process(source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -433,7 +665,17 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         source_data = _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
 
         source_data["Horizon_vw_BIS_PlanningAppStrings_df"] = spark.createDataFrame(
-            [(1001, "APP-REF-001", "Full Planning", "2025-01-01", "2025-01-01", "2025-01-01", 1)],
+            [
+                (
+                    1001,
+                    "APP-REF-001",
+                    "Full Planning",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                )
+            ],
             _metadata_schema(
                 [
                     T.StructField("casenodeid", T.IntegerType(), True),
@@ -455,7 +697,21 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         )
 
         source_data["Horizon_vw_BIS_CaseStrings_df"] = spark.createDataFrame(
-            [(1001, "Valid", "LPA01", "Linked", "Allowed", "HAS", "N", "2025-01-01", "2025-01-01", "2025-01-01", 1)],
+            [
+                (
+                    1001,
+                    "Valid",
+                    "LPA01",
+                    "Linked",
+                    "Allowed",
+                    "HAS",
+                    "N",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                )
+            ],
             _metadata_schema(
                 [
                     T.StructField("casenodeid", T.IntegerType(), True),
@@ -469,9 +725,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -569,9 +824,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -644,9 +898,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -700,7 +953,24 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         )
 
         source_data["Horizon_vw_BIS_AppealsAdditionalData_df"] = spark.createDataFrame(
-            [("HAS-001", None, None, None, None, None, None, None, None, 1.25, "2025-01-01", "2025-01-01", "2025-01-01", 1)],
+            [
+                (
+                    "HAS-001",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    1.25,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                )
+            ],
             _metadata_schema(
                 [
                     T.StructField("appealrefnumber", T.StringType(), True),
@@ -717,9 +987,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -769,9 +1038,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -788,9 +1056,10 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
     def test__appeal_has_standardisation_process__process__keeps_expected_final_column_order(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(
+            _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -861,8 +1130,24 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         source_data["Horizon_vw_BIS_PlanningAppStrings_df"] = spark.createDataFrame(
             [
-                (1001, "OLD-APP-REF", "Old Planning", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                (1001, "NEW-APP-REF", "New Planning", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    1001,
+                    "OLD-APP-REF",
+                    "Old Planning",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    1001,
+                    "NEW-APP-REF",
+                    "New Planning",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [
@@ -875,8 +1160,32 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         source_data["Horizon_vw_BIS_CaseStrings_df"] = spark.createDataFrame(
             [
-                (1001, "Old Status", "OLD-LPA", "Old Link", "Old Decision", "Old Jurisdiction", "Y", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                (1001, "New Status", "NEW-LPA", "New Link", "New Decision", "New Jurisdiction", "N", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    1001,
+                    "Old Status",
+                    "OLD-LPA",
+                    "Old Link",
+                    "Old Decision",
+                    "Old Jurisdiction",
+                    "Y",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    1001,
+                    "New Status",
+                    "NEW-LPA",
+                    "New Link",
+                    "New Decision",
+                    "New Jurisdiction",
+                    "N",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [
@@ -957,8 +1266,22 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         source_data["Horizon_ODW_vw_Inspector_Cases_df"] = spark.createDataFrame(
             [
-                ("HAS-001", "OLD-INSPECTOR", "2025-01-01", "2025-01-01", "2025-01-01", 1),
-                ("HAS-001", "NEW-INSPECTOR", "2025-02-01", "2025-02-01", "2025-02-01", 2),
+                (
+                    "HAS-001",
+                    "OLD-INSPECTOR",
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
+                (
+                    "HAS-001",
+                    "NEW-INSPECTOR",
+                    "2025-02-01",
+                    "2025-02-01",
+                    "2025-02-01",
+                    2,
+                ),
             ],
             _metadata_schema(
                 [
@@ -968,9 +1291,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
@@ -993,7 +1315,16 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
 
         hzn_cases_has_df = spark.createDataFrame(
             [
-                ("HAS-001", 1001, "HAS", "2025-01-10", "2025-01-10", "2025-01-10", "2025-01-10", 1),
+                (
+                    "HAS-001",
+                    1001,
+                    "HAS",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    "2025-01-10",
+                    1,
+                ),
             ],
             _metadata_schema(
                 [
@@ -1008,7 +1339,23 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         source_data = _minimal_source_data(spark, hzn_cases_has_df)
         source_data["vw_AddAdditionalData_df"] = spark.createDataFrame(
             [
-                ("HAS-001", None, None, "", None, "Written Reps", None, None, None, None, None, "2025-01-01", "2025-01-01", "2025-01-01", 1),
+                (
+                    "HAS-001",
+                    None,
+                    None,
+                    "",
+                    None,
+                    "Written Reps",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2025-01-01",
+                    "2025-01-01",
+                    "2025-01-01",
+                    1,
+                ),
             ],
             _metadata_schema(
                 [
@@ -1027,9 +1374,8 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil"):
-            inst = AppealHasStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data)
+        inst = AppealHasStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
 
