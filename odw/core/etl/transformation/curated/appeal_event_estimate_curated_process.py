@@ -3,14 +3,13 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
 
 
 class AppealEventEstimateCuratedProcess(CurationProcess):
     """
-    ETL process for curating Appeal Event Estimate data from service bus and Horizon sources.
+    ETL process for curating Appeal Event Estimate data.
 
     # Example usage via py_etl_orchestrator
 
@@ -23,7 +22,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
     """
 
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_event_estimate"
-    OUTPUT_TABLE = "odw_curated_db.appeal_event_estimate_curated_mipins"
+    OUTPUT_TABLE = "odw_curated_db.appeal_event_estimate"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
@@ -34,29 +33,18 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
-        Load source data, selecting only the columns needed from service bus.
+        Load source data, selecting only the columns needed from harmonised.
         """
         LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")
         harmonised_appeal_event_estimate = self.spark.sql(f"""
-            SELECT DISTINCT
-                AppealsEstimateEventID,
-                ID,
+            SELECT
+                id,
                 caseReference,
                 preparationTime,
                 sittingTime,
-                reportingTime,
-                migrated,
-                ODTSourceSystem,
-                SourceSystemID,
-                IngestionDate,
-                ValidTo,
-                ROWID,
-                ISActive
+                reportingTime
             FROM {self.HARMONISED_TABLE}
-            WHERE
-                ODTSourceSystem = 'ODT'
-                AND (IngestionDate IS NULL OR IngestionDate >= TIMESTAMP('1900-01-01'))
-                AND (ValidTo IS NULL OR ValidTo >= TIMESTAMP('1900-01-01'))
+            WHERE IsActive = 'Y'
         """)
 
         # Resolve the output table path so process() stays pure transformation.
@@ -76,26 +64,15 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
         Apply curated transformations to the loaded source data.
-        Converts UTC timestamp columns to Europe/London timezone.
+        Reads from harmonised Appeal Event Estimate and writes to curated.
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         dataFrame: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
         table_path = self.load_parameter("table_path", source_data)
 
-        # Convert UTC timestamps to Europe/London timezone
-        timestamp_columns = ["IngestionDate", "ValidTO"]
-        for column_name in timestamp_columns:
-            dataFrame = dataFrame.withColumn(
-                column_name,
-                F.to_timestamp(
-                    F.from_utc_timestamp(F.col(column_name), "Europe/London"),
-                    "yyyy-MM-dd'T'HH:mm:ss.SSS",
-                ),
-            )
-
         insert_count = dataFrame.count()
-        LoggingUtil().log_info(f"Curated Appeal Event Estimate MIPINS row count: {insert_count}")
+        LoggingUtil().log_info(f"Curated Appeal Event Estimate row count: {insert_count}")
 
         end_exec_time = datetime.now()
         data_to_write = {
@@ -103,10 +80,10 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
                 "data": dataFrame,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "appeal_event_estimate_curated_mipins",
+                "table_name": "appeal_event_estimate",
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "appeal_event_estimate_curated_mipins",
+                "blob_path": "appeal_event_estimate",
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
