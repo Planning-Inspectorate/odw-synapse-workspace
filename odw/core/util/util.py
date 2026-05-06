@@ -44,9 +44,10 @@ class Util:
     @classmethod
     def is_non_production_environment(cls) -> bool:
         """
-        Return True if the current environment is DEV only.
+        Return True if the current environment is DEV, TEST, or BUILD.
         """
-        return cls.get_environment() == "DEV"
+        env = cls.get_environment().lower()
+        return env in ("dev", "test", "build")
 
     @classmethod
     def get_storage_account(cls) -> str:
