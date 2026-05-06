@@ -296,6 +296,7 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
     flow without writing to ADLS while still validating the legacy MIPINS filters,
     casts, output columns and write configuration
     """
+
     def test__appeal_has_curated_mipins_process__run__writes_legacy_mipins_output_end_to_end(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
