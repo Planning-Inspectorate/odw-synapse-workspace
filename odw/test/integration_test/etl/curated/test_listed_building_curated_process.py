@@ -7,8 +7,6 @@ from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-
-
 def _harmonised_schema():
     return StructType(
         [

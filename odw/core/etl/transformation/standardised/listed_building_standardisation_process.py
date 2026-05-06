@@ -32,9 +32,7 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
         source_data = {
             "listed_building_data": raw_source_data.get("listed_building_data"),
-            "listed_building_outline_data": raw_source_data.get(
-                "listed_building_outline_data"
-            ),
+            "listed_building_outline_data": raw_source_data.get("listed_building_outline_data"),
         }
 
         outputs, result = self.process(source_data=source_data)
@@ -43,45 +41,49 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
 
     @staticmethod
     def get_listed_building_schema() -> StructType:
-        return StructType([
-            StructField("dataset", StringType(), True),
-            StructField("end-date", StringType(), True),
-            StructField("entity", StringType(), True),
-            StructField("entry-date", StringType(), True),
-            StructField("geometry", StringType(), True),
-            StructField("name", StringType(), True),
-            StructField("organisation-entity", StringType(), True),
-            StructField("point", StringType(), True),
-            StructField("prefix", StringType(), True),
-            StructField("reference", StringType(), True),
-            StructField("start-date", StringType(), True),
-            StructField("typology", StringType(), True),
-            StructField("documentation-url", StringType(), True),
-            StructField("listed-building-grade", StringType(), True),
-        ])
+        return StructType(
+            [
+                StructField("dataset", StringType(), True),
+                StructField("end-date", StringType(), True),
+                StructField("entity", StringType(), True),
+                StructField("entry-date", StringType(), True),
+                StructField("geometry", StringType(), True),
+                StructField("name", StringType(), True),
+                StructField("organisation-entity", StringType(), True),
+                StructField("point", StringType(), True),
+                StructField("prefix", StringType(), True),
+                StructField("reference", StringType(), True),
+                StructField("start-date", StringType(), True),
+                StructField("typology", StringType(), True),
+                StructField("documentation-url", StringType(), True),
+                StructField("listed-building-grade", StringType(), True),
+            ]
+        )
 
     @staticmethod
     def get_listed_building_outline_schema() -> StructType:
-        return StructType([
-            StructField("address", StringType(), True),
-            StructField("address-text", StringType(), True),
-            StructField("dataset", StringType(), True),
-            StructField("document-url", StringType(), True),
-            StructField("documentation-url", StringType(), True),
-            StructField("end-date", StringType(), True),
-            StructField("entity", StringType(), True),
-            StructField("entry-date", StringType(), True),
-            StructField("geometry", StringType(), True),
-            StructField("listed-building", StringType(), True),
-            StructField("name", StringType(), True),
-            StructField("notes", StringType(), True),
-            StructField("organisation-entity", StringType(), True),
-            StructField("point", StringType(), True),
-            StructField("prefix", StringType(), True),
-            StructField("reference", StringType(), True),
-            StructField("start-date", StringType(), True),
-            StructField("typology", StringType(), True),
-        ])
+        return StructType(
+            [
+                StructField("address", StringType(), True),
+                StructField("address-text", StringType(), True),
+                StructField("dataset", StringType(), True),
+                StructField("document-url", StringType(), True),
+                StructField("documentation-url", StringType(), True),
+                StructField("end-date", StringType(), True),
+                StructField("entity", StringType(), True),
+                StructField("entry-date", StringType(), True),
+                StructField("geometry", StringType(), True),
+                StructField("listed-building", StringType(), True),
+                StructField("name", StringType(), True),
+                StructField("notes", StringType(), True),
+                StructField("organisation-entity", StringType(), True),
+                StructField("point", StringType(), True),
+                StructField("prefix", StringType(), True),
+                StructField("reference", StringType(), True),
+                StructField("start-date", StringType(), True),
+                StructField("typology", StringType(), True),
+            ]
+        )
 
     def _get_date_folder(self, kwargs: Dict) -> str:
         date_folder = kwargs.get("date_folder") or kwargs.get("run_date")
@@ -130,9 +132,7 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         self._safe_log_info(f"Reading Listed Building Outline from {lbo_path}")
 
         listed_buildings_raw = self.spark.read.option("multiline", "true").json(lb_path)
-        listed_building_outline_raw = self.spark.read.option(
-            "multiline", "true"
-        ).json(lbo_path)
+        listed_building_outline_raw = self.spark.read.option("multiline", "true").json(lbo_path)
 
         listed_buildings_df = self._flatten_entities(listed_buildings_raw)
         listed_building_outline_df = self._flatten_entities(listed_building_outline_raw)
@@ -149,12 +149,8 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         if not source_data:
             raise ValueError("process requires source_data dictionary")
 
-        lb_raw = source_data.get("listed_building") or source_data.get(
-            "listed_building_data"
-        )
-        lbo_raw = source_data.get("listed_building_outline") or source_data.get(
-            "listed_building_outline_data"
-        )
+        lb_raw = source_data.get("listed_building") or source_data.get("listed_building_data")
+        lbo_raw = source_data.get("listed_building_outline") or source_data.get("listed_building_outline_data")
 
         lb_df = self._flatten_entities(lb_raw)
         lbo_df = self._flatten_entities(lbo_raw)
@@ -188,9 +184,7 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
                     update_count=0,
                     delete_count=0,
                     activity_type=self.__class__.__name__,
-                    duration_seconds=(
-                        end_exec_time - start_exec_time
-                    ).total_seconds(),
+                    duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
                 )
             ),
         )

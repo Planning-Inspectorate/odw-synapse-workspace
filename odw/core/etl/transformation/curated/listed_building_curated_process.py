@@ -20,9 +20,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
-        raise NotImplementedError(
-            "ListedBuildingCuratedProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Any]:
         """
@@ -43,15 +41,12 @@ class ListedBuildingCuratedProcess(CurationProcess):
         deduped_df = active_df.dropDuplicates(["reference"])
 
         # 3. Transform schema + filter NULL entity ✅
-        curated_df = (
-            deduped_df.select(
-                F.col("entity").cast(LongType()).alias("entity"),
-                F.col("reference"),
-                F.col("name"),
-                F.col("listedBuildingGrade"),
-            )
-            .filter(F.col("entity").isNotNull())
-        )
+        curated_df = deduped_df.select(
+            F.col("entity").cast(LongType()).alias("entity"),
+            F.col("reference"),
+            F.col("name"),
+            F.col("listedBuildingGrade"),
+        ).filter(F.col("entity").isNotNull())
 
         insert_count = 0
         update_count = 0
@@ -60,17 +55,11 @@ class ListedBuildingCuratedProcess(CurationProcess):
         if source_data.get("target_exists") and "target_data" in source_data:
             target_df = source_data["target_data"]
 
-            joined_df = curated_df.join(
-                target_df, ["entity", "reference"], "inner"
-            )
+            joined_df = curated_df.join(target_df, ["entity", "reference"], "inner")
 
             if joined_df.count() > 0:
                 first_row = joined_df.collect()[0]
-                target_row = (
-                    target_df
-                    .filter(F.col("entity") == first_row["entity"])
-                    .collect()[0]
-                )
+                target_row = target_df.filter(F.col("entity") == first_row["entity"]).collect()[0]
 
                 # Identical → no insert, no update
                 if first_row["name"] == target_row["name"]:
