@@ -445,7 +445,6 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert {
             "insert_count": result.metadata.insert_count,
