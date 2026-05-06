@@ -31,10 +31,24 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     ]
 
     _OUTPUT_COLUMNS = [
-        "dataset", "endDate", "entity", "entryDate", "geometry",
-        "listedBuildingGrade", "name", "organisationEntity", "point",
-        "prefix", "reference", "startDate", "typology",
-        "documentationUrl", "dateReceived", "rowID", "validTo", "isActive"
+        "dataset",
+        "endDate",
+        "entity",
+        "entryDate",
+        "geometry",
+        "listedBuildingGrade",
+        "name",
+        "organisationEntity",
+        "point",
+        "prefix",
+        "reference",
+        "startDate",
+        "typology",
+        "documentationUrl",
+        "dateReceived",
+        "rowID",
+        "validTo",
+        "isActive",
     ]
 
     def __init__(self, spark: SparkSession, debug: bool = False):
@@ -51,27 +65,19 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def _rename_source(self, df: DataFrame) -> DataFrame:
         return (
             df.withColumnRenamed("end-date", "endDate")
-              .withColumnRenamed("entry-date", "entryDate")
-              .withColumnRenamed("listed-building-grade", "listedBuildingGrade")
-              .withColumnRenamed("organisation-entity", "organisationEntity")
-              .withColumnRenamed("start-date", "startDate")
-              .withColumnRenamed("documentation-url", "documentationUrl")
+            .withColumnRenamed("entry-date", "entryDate")
+            .withColumnRenamed("listed-building-grade", "listedBuildingGrade")
+            .withColumnRenamed("organisation-entity", "organisationEntity")
+            .withColumnRenamed("start-date", "startDate")
+            .withColumnRenamed("documentation-url", "documentationUrl")
         )
 
     def _add_harmonised_fields(self, df: DataFrame) -> DataFrame:
         return (
             df.withColumn("dateReceived", F.current_date())
-              .withColumn(
-                  "rowID",
-                  F.md5(
-                      F.concat(*[
-                          F.coalesce(F.col(c).cast("string"), F.lit("."))
-                          for c in self._ROW_ID_COLUMNS
-                      ])
-                  )
-              )
-              .withColumn("validTo", F.lit(None).cast(TimestampType()))
-              .withColumn("isActive", F.lit("Y"))
+            .withColumn("rowID", F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in self._ROW_ID_COLUMNS])))
+            .withColumn("validTo", F.lit(None).cast(TimestampType()))
+            .withColumn("isActive", F.lit("Y"))
         )
 
     def process(self, **kwargs) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
@@ -86,61 +92,38 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         # ✅ Initial load
         if not target_exists or target_df is None:
-            return self._result(
-                staged_df,
-                start_exec_time,
-                insert_count=staged_df.count(),
-                update_count=0
-            )
+            return self._result(staged_df, start_exec_time, insert_count=staged_df.count(), update_count=0)
 
         active_target = target_df.filter(F.col("isActive") == "Y")
 
         # ✅ ENTITY + REFERENCE join (legacy rule)
         joined = staged_df.alias("src").join(
-            active_target.alias("tgt"),
-            (F.col("src.reference") == F.col("tgt.reference")) &
-            (F.col("src.entity") == F.col("tgt.entity")),
-            "left"
+            active_target.alias("tgt"), (F.col("src.reference") == F.col("tgt.reference")) & (F.col("src.entity") == F.col("tgt.entity")), "left"
         )
 
-        # ✅ Changed rows     
+        # ✅ Changed rows
         changed = joined.filter(
-    F.col("tgt.rowID").isNotNull() &
-    (
-        F.concat_ws("||", *[F.coalesce(F.col(f"src.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS]) !=
-        F.concat_ws("||", *[F.coalesce(F.col(f"tgt.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS])
-    )
-)
-
+            F.col("tgt.rowID").isNotNull()
+            & (
+                F.concat_ws("||", *[F.coalesce(F.col(f"src.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS])
+                != F.concat_ws("||", *[F.coalesce(F.col(f"tgt.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS])
+            )
+        )
 
         # ✅ Candidate new rows
-        candidate_new = joined.filter(
-            F.col("tgt.rowID").isNull()
-        ).select("src.*")
+        candidate_new = joined.filter(F.col("tgt.rowID").isNull()).select("src.*")
 
         # ==========================================================
         # ✅ CRITICAL FIX: Prevent duplicate identical active rows
         # Match on BUSINESS FIELDS (not just rowID)
         # ==========================================================
         existing_active_business = active_target.select(self._ROW_ID_COLUMNS).distinct()
-        new_inserts = (
-    candidate_new.alias("n")
-    .join(
-        existing_active_business.alias("e"),
-        [F.col(f"n.{c}").eqNullSafe(F.col(f"e.{c}")) for c in self._ROW_ID_COLUMNS],
-        "left_anti"
-    )
-)
-
-    
-
+        new_inserts = candidate_new.alias("n").join(
+            existing_active_business.alias("e"), [F.col(f"n.{c}").eqNullSafe(F.col(f"e.{c}")) for c in self._ROW_ID_COLUMNS], "left_anti"
+        )
 
         # ✅ Expire old rows
-        expired = (
-            changed.select("tgt.*")
-            .withColumn("validTo", F.current_timestamp())
-            .withColumn("isActive", F.lit("N"))
-        )
+        expired = changed.select("tgt.*").withColumn("validTo", F.current_timestamp()).withColumn("isActive", F.lit("N"))
 
         # ✅ New versions
         new_versions = changed.select("src.*")
@@ -148,37 +131,23 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         # ✅ Preserve existing rows
         changed_refs = [r["reference"] for r in changed.select("tgt.reference").distinct().collect()]
 
-        preserved_target = target_df.filter(
-            (F.col("isActive") == "N") |
-            (~F.col("reference").isin(changed_refs))
-        )
+        preserved_target = target_df.filter((F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs)))
 
-        final_df = (
-            preserved_target
-            .unionByName(expired)
-            .unionByName(new_versions)
-            .unionByName(new_inserts)
-        )
+        final_df = preserved_target.unionByName(expired).unionByName(new_versions).unionByName(new_inserts)
 
         # ==========================================================
         # ✅ Legacy INSERT count (new reference only)
         # ==========================================================
         existing_refs = target_df.select("reference").distinct()
 
-        true_inserts = (
-            new_inserts.alias("n")
-            .join(existing_refs.alias("e"), "reference", "left_anti")
-        )
+        true_inserts = new_inserts.alias("n").join(existing_refs.alias("e"), "reference", "left_anti")
 
         # ==========================================================
         # ✅ Legacy UPDATE count
         # - same entity changes
         # - OR reference reuse
         # ==========================================================
-        reference_reuse_updates = (
-            new_inserts.alias("n")
-            .join(existing_refs.alias("e"), "reference", "inner")
-        )
+        reference_reuse_updates = new_inserts.alias("n").join(existing_refs.alias("e"), "reference", "inner")
 
         return self._result(
             final_df,
@@ -187,13 +156,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             update_count=changed.count() + reference_reuse_updates.count(),
         )
 
-    def _result(
-        self,
-        df: DataFrame,
-        start_exec_time: datetime,
-        insert_count: int,
-        update_count: int
-    ) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
+    def _result(self, df: DataFrame, start_exec_time: datetime, insert_count: int, update_count: int) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
 
         end_exec_time = datetime.now()
 
