@@ -1,3 +1,4 @@
+import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
@@ -242,6 +243,17 @@ def _minimal_harmonised_schema():
 
 def _empty_harmonised_df(spark):
     return spark.createDataFrame([], _harmonised_schema())
+
+
+def _process_under_test(spark):
+    with mock.patch(
+        "odw.core.etl.transformation.curated.curated_process.CuratedProcess.__init__",
+        return_value=None,
+    ):
+        inst = AppealHasCuratedProcess(spark)
+
+    inst.spark = spark
+    return inst
 
 
 def _active_harmonised_df(spark):
@@ -494,7 +506,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(_mixed_active_inactive_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
@@ -547,7 +559,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(_minimal_missing_columns_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -570,7 +582,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
 
         inactive_df = _mixed_active_inactive_harmonised_df(spark).where("IsActive = 'N'")
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(inactive_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -582,7 +594,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(_empty_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -596,7 +608,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__preserves_duplicate_active_rows_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(_duplicate_active_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -608,7 +620,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
     def test__appeal_has_curated_process__process__keeps_expected_write_config_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(_active_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
@@ -629,7 +641,7 @@ class TestAppealHasCuratedProcess(SparkTestCase):
 
         source_df = lower_y.unionByName(spaced_y).unionByName(inactive)
 
-        inst = AppealHasCuratedProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]

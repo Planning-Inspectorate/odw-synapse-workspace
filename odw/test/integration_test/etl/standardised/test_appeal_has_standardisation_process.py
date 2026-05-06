@@ -1,6 +1,7 @@
 import mock
 import pytest
 import pyspark.sql.types as T
+from odw.test.util.assertion import assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -575,65 +576,113 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
             ),
         )
 
+        inst = AppealHasStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_has_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        rows = {row["caseReference"]: row for row in actual_df.orderBy("caseReference").collect()}
+        actual_result_df = actual_df.select(
+            "caseReference",
+            "caseId",
+            "caseType",
+            "caseProcedure",
+            "allocationLevel",
+            "allocationBand",
+            "caseSpecialisms",
+            "siteAddressLine1",
+            "siteAddressTown",
+            "siteAddressPostcode",
+            "siteAreaSquareMetres",
+            "floorSpaceSquareMetres",
+            "originalDevelopmentDescription",
+            "caseStatus",
+            "lpaCode",
+            "leadCaseReference",
+            "caseValidationOutcome",
+            "caseValidationDate",
+            "dateCostsReportDespatched",
+            "isGreenBelt",
+            "inConservationArea",
+            "inspectorId",
+            "importantinformation",
+            "advertAttributeKey",
+        )
+
+        expected_result_df = spark.createDataFrame(
+            [
+                (
+                    "HAS-001",
+                    1001,
+                    "HAS",
+                    "WR",
+                    "Level 1",
+                    "Band A",
+                    "Advertisements, Listed Building",
+                    "Line 1",
+                    "Town 1",
+                    "AA1 1AA",
+                    15000.0,
+                    50.0,
+                    "Development 1",
+                    "Valid",
+                    "LPA01",
+                    "LEAD-001",
+                    "Valid appeal",
+                    "2025-07-01",
+                    "2025-08-01",
+                    "Y",
+                    "N",
+                    "INSPECTOR-001",
+                    "Important info 1",
+                    "ATTR-001",
+                ),
+                (
+                    "HAS-002",
+                    1002,
+                    "HAS",
+                    "LI",
+                    "Level 2",
+                    "Band B",
+                    "Enforcement",
+                    "Line 3",
+                    "Town 2",
+                    "BB1 1BB",
+                    20000.0,
+                    75.0,
+                    "Development 2",
+                    "Started",
+                    "LPA02",
+                    "LEAD-002",
+                    "Invalid appeal",
+                    "2025-07-02",
+                    "2025-08-02",
+                    "N",
+                    "Y",
+                    "INSPECTOR-002",
+                    "Important info 2",
+                    "ATTR-002",
+                ),
+            ],
+            actual_result_df.schema,
+        )
+
+        assert_dataframes_equal(actual_result_df, expected_result_df)
+
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 2,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
         assert actual_df.count() == 2
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
-
-        assert rows["HAS-001"]["caseId"] == 1001
-        assert rows["HAS-001"]["caseType"] == "HAS"
-        assert rows["HAS-001"]["caseProcedure"] == "WR"
-        assert rows["HAS-001"]["allocationLevel"] == "Level 1"
-        assert rows["HAS-001"]["allocationBand"] == "Band A"
-        assert rows["HAS-001"]["caseSpecialisms"] == "Advertisements, Listed Building"
-        assert rows["HAS-001"]["siteAddressLine1"] == "Line 1"
-        assert rows["HAS-001"]["siteAddressTown"] == "Town 1"
-        assert rows["HAS-001"]["siteAreaSquareMetres"] == 15000.0
-        assert rows["HAS-001"]["floorSpaceSquareMetres"] == 50.0
-        assert rows["HAS-001"]["originalDevelopmentDescription"] == "Development 1"
-        assert rows["HAS-001"]["caseStatus"] == "Valid"
-        assert rows["HAS-001"]["lpaCode"] == "LPA01"
-        assert rows["HAS-001"]["leadCaseReference"] == "LEAD-001"
-        assert rows["HAS-001"]["caseValidationOutcome"] == "Valid appeal"
-        assert rows["HAS-001"]["caseValidationDate"] == "2025-07-01"
-        assert rows["HAS-001"]["dateCostsReportDespatched"] == "2025-08-01"
-        assert rows["HAS-001"]["isGreenBelt"] == "Y"
-        assert rows["HAS-001"]["inConservationArea"] == "N"
-        assert rows["HAS-001"]["inspectorId"] == "INSPECTOR-001"
-        assert rows["HAS-001"]["importantinformation"] == "Important info 1"
-        assert rows["HAS-001"]["advertAttributeKey"] == "ATTR-001"
-
-        assert rows["HAS-002"]["caseId"] == 1002
-        assert rows["HAS-002"]["caseProcedure"] == "LI"
-        assert rows["HAS-002"]["allocationLevel"] == "Level 2"
-        assert rows["HAS-002"]["allocationBand"] == "Band B"
-        assert rows["HAS-002"]["caseSpecialisms"] == "Enforcement"
-        assert rows["HAS-002"]["siteAddressPostcode"] == "BB1 1BB"
-        assert rows["HAS-002"]["siteAreaSquareMetres"] == 20000.0
-        assert rows["HAS-002"]["caseStatus"] == "Started"
-        assert rows["HAS-002"]["lpaCode"] == "LPA02"
-        assert rows["HAS-002"]["leadCaseReference"] == "LEAD-002"
-        assert rows["HAS-002"]["caseValidationOutcome"] == "Invalid appeal"
-        assert rows["HAS-002"]["isGreenBelt"] == "N"
-        assert rows["HAS-002"]["inConservationArea"] == "Y"
-        assert rows["HAS-002"]["inspectorId"] == "INSPECTOR-002"
-        assert rows["HAS-002"]["advertAttributeKey"] == "ATTR-002"

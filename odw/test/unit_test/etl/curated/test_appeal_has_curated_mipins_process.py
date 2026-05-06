@@ -1,8 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
+import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -286,6 +288,17 @@ def _df(spark, rows):
     return spark.createDataFrame(rows, _harmonised_schema())
 
 
+def _process_under_test(spark):
+    with mock.patch(
+        "odw.core.etl.transformation.curated.curated_process.CuratedProcess.__init__",
+        return_value=None,
+    ):
+        inst = AppealHasCuratedMipinsProcess(spark)
+
+    inst.spark = spark
+    return inst
+
+
 def _source_data(harmonised_data):
     return {"harmonised_data": harmonised_data}
 
@@ -296,46 +309,82 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
 
         source_df = _df(spark, [_base_row()])
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
-        row = df.collect()[0]
+        actual_df = df.select(
+            "caseId",
+            "caseReference",
+            "allocationBand",
+            "caseValidationIncompleteDetails",
+            "lpaQuestionnaireValidationDetails",
+            "enforcementNotice",
+            "siteAreaSquareMetres",
+            "floorSpaceSquareMetres",
+            "isCorrectAppealType",
+            "isGreenBelt",
+            "inConservationArea",
+            "ownsAllLand",
+            "ownsSomeLand",
+            "advertisedAppeal",
+            "ownersInformed",
+            "changedDevelopmentDescription",
+            "neighbouringSiteAddresses",
+            "appellantCostsAppliedFor",
+            "lpaCostsAppliedFor",
+            "caseSubmittedDate",
+            "IngestionDate",
+            "ValidTo",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    7000001,
+                    "7000001",
+                    Decimal("7"),
+                    "[Missing plan]",
+                    "[Accepted]",
+                    True,
+                    True,
+                    Decimal("123"),
+                    True,
+                    False,
+                    True,
+                    False,
+                    True,
+                    True,
+                    False,
+                    True,
+                    "[Neighbour address]",
+                    True,
+                    False,
+                    datetime(2025, 6, 1, 13, 0),
+                    datetime(2025, 6, 1, 13, 0),
+                    datetime(2025, 6, 1, 13, 0),
+                )
+            ],
+            actual_df.schema,
+        )
 
         assert df.columns == OUTPUT_COLUMNS
         assert df.count() == 1
-
-        assert row["caseId"] == 7000001
-        assert row["caseReference"] == "7000001"
-        assert row["allocationBand"] == Decimal("7")
-        assert row["caseValidationIncompleteDetails"] == "[Missing plan]"
-        assert row["lpaQuestionnaireValidationDetails"] == "[Accepted]"
-        assert row["enforcementNotice"] is True
-        assert row["siteAreaSquareMetres"] is True
-        assert row["floorSpaceSquareMetres"] == Decimal("123")
-        assert row["isCorrectAppealType"] is True
-        assert row["isGreenBelt"] is False
-        assert row["inConservationArea"] is True
-        assert row["ownsAllLand"] is False
-        assert row["ownsSomeLand"] is True
-        assert row["advertisedAppeal"] is True
-        assert row["ownersInformed"] is False
-        assert row["changedDevelopmentDescription"] is True
-        assert row["neighbouringSiteAddresses"] == "[Neighbour address]"
-        assert row["appellantCostsAppliedFor"] is True
-        assert row["lpaCostsAppliedFor"] is False
-
-        assert row["caseSubmittedDate"] == datetime(2025, 6, 1, 13, 0)
-        assert row["IngestionDate"] == datetime(2025, 6, 1, 13, 0)
-        assert row["ValidTo"] == datetime(2025, 6, 1, 13, 0)
+        assert_dataframes_equal(actual_df, expected_df)
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
         assert "partition_by" not in write_config
-        assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 0
-        assert result.metadata.delete_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 1,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
     def test__appeal_has_curated_mipins_process__process__applies_legacy_source_and_reference_filters(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -351,7 +400,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -371,7 +420,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -393,7 +442,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].collect()
@@ -448,7 +497,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].collect()
@@ -472,7 +521,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -495,7 +544,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -511,7 +560,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         duplicate = _base_row(caseReference="7000001")
         source_df = _df(spark, [duplicate, duplicate])
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -524,7 +573,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
 
         source_df = spark.createDataFrame([], _harmonised_schema())
 
-        inst = AppealHasCuratedMipinsProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]

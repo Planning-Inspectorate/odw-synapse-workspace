@@ -1,6 +1,6 @@
+import mock
 import pytest
 import pyspark.sql.types as T
-from pyspark.sql import DataFrame
 from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -19,6 +19,17 @@ def _metadata_schema(extra_fields):
             T.StructField("file_id", T.IntegerType(), True),
         ]
     )
+
+
+def _process_under_test(spark):
+    with mock.patch(
+        "odw.core.etl.transformation.standardised.standardisation_process.StandardisationProcess.__init__",
+        return_value=None,
+    ):
+        inst = AppealHasStandardisationProcess(spark)
+
+    inst.spark = spark
+    return inst
 
 
 def _empty_df(spark, schema):
@@ -271,7 +282,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
     def test__appeal_has_standardisation_process__load_data__loads_expected_source_tables(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
 
         expected_keys = {
             "hzn_cases_has_df",
@@ -295,18 +306,25 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             "Horizon_ODW_vw_Inspector_Cases_df",
         }
 
-        source_data = inst.load_data()
+        mock_df = _empty_df(
+            spark,
+            T.StructType([T.StructField("id", T.StringType(), True)]),
+        )
+
+        with mock.patch.object(spark, "sql", return_value=mock_df) as mock_sql:
+            source_data = inst.load_data()
 
         assert set(source_data.keys()) == expected_keys
 
         for key in expected_keys:
-            assert source_data[key] is not None
-            assert isinstance(source_data[key], DataFrame)
+            assert source_data[key] is mock_df
+
+        assert mock_sql.call_count == len(expected_keys)
 
     def test__appeal_has_standardisation_process__process__maps_base_has_columns_and_uses_overwrite(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -377,7 +395,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_minimal_source_data(spark, hzn_cases_has_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -430,7 +448,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -582,7 +600,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
@@ -641,7 +659,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -720,7 +738,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -819,7 +837,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -893,7 +911,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -982,7 +1000,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -1033,7 +1051,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -1051,7 +1069,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
     def test__appeal_has_standardisation_process__process__keeps_expected_final_column_order(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -1284,7 +1302,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -1367,7 +1385,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             ),
         )
 
-        inst = AppealHasStandardisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]

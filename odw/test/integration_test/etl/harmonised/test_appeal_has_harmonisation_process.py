@@ -4,6 +4,7 @@ import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
 from pyspark.sql import functions as F
+from odw.test.util.assertion import assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import AppealHasHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -356,73 +357,108 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
 
         source_data = _source_data(spark, service_bus_data, horizon_data, appeal_s78_data)
 
+        inst = AppealHasHarmonisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
 
-        rows = {(row["caseReference"], row["IngestionDate"]): row for row in df.collect()}
-
-        assert df.count() == 3
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 3,
+            "update_count": 0,
+            "delete_count": 0,
+        }
         assert write_config["write_mode"] == "overwrite"
         assert write_config["partition_by"] == ["IsActive"]
         assert write_config["file_format"] == "delta"
-        assert result.metadata.insert_count == 3
 
-        assert rows[("HAS-001", datetime(2025, 1, 1))]["IsActive"] == "N"
-        assert rows[("HAS-001", datetime(2025, 1, 1))]["ValidTo"] == datetime(2025, 2, 1)
-        assert rows[("HAS-001", datetime(2025, 2, 1))]["IsActive"] == "Y"
-        assert rows[("HAS-001", datetime(2025, 2, 1))]["ValidTo"] is None
+        actual_df = df.select(
+            "caseReference",
+            "IngestionDate",
+            "ValidTo",
+            "IsActive",
+            "ODTSourceSystem",
+            "caseSpecialisms",
+            "caseStatus",
+            "siteAddressPostcode",
+        )
 
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["ODTSourceSystem"] == "HORIZON"
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["caseSpecialisms"] == ["Listed Building", "Advertisements"]
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["ValidTo"] == datetime(2025, 4, 1)
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["IsActive"] == "N"
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["caseStatus"] == "horizon submitted"
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["siteAddressPostcode"] == "BB1 1BB"
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    "HAS-001",
+                    datetime(2025, 1, 1),
+                    datetime(2025, 2, 1),
+                    "N",
+                    "ODT",
+                    ["Advertisements"],
+                    "submitted",
+                    "AA1 1AA",
+                ),
+                (
+                    "HAS-001",
+                    datetime(2025, 2, 1),
+                    None,
+                    "Y",
+                    "ODT",
+                    ["Advertisements"],
+                    "valid",
+                    "AA1 1AA",
+                ),
+                (
+                    "HAS-002",
+                    datetime(2025, 3, 1),
+                    datetime(2025, 4, 1),
+                    "N",
+                    "HORIZON",
+                    ["Listed Building", "Advertisements"],
+                    "horizon submitted",
+                    "BB1 1BB",
+                ),
+            ],
+            actual_df.schema,
+        )
+
+        assert_dataframes_equal(actual_df, expected_df)
 
     def test__appeal_has_harmonisation_process__run__empty_sources_write_empty_output_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(spark)
 
+        inst = AppealHasHarmonisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.count() == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 0,
+            "update_count": 0,
+            "delete_count": 0,
+        }
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
         assert data_to_write[inst.OUTPUT_TABLE]["file_format"] == "delta"
-        assert result.metadata.insert_count == 0
 
     def test__appeal_has_harmonisation_process__run__covers_scd2_duplicates_ties_s78_and_schema_end_to_end_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -531,28 +567,27 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
 
         source_data = _source_data(spark, service_bus_data, horizon_data, appeal_s78_data)
 
+        inst = AppealHasHarmonisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
 
-        rows = {(row["caseReference"], row["IngestionDate"]): row for row in df.collect()}
-
-        assert df.count() == 3
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 3,
+            "update_count": 0,
+            "delete_count": 0,
+        }
         assert df.where(F.col("caseReference").isNull()).count() == 0
         assert df.where(F.col("IsActive") == "Y").groupBy("caseReference").count().where("count > 1").count() == 0
 
@@ -560,18 +595,48 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
         assert write_config["partition_by"] == ["IsActive"]
         assert write_config["file_format"] == "delta"
         assert df.columns == [field.name for field in _appeal_has_schema()]
-        assert result.metadata.insert_count == 3
 
-        assert rows[("HAS-001", datetime(2025, 1, 1))]["IsActive"] == "N"
-        assert rows[("HAS-001", datetime(2025, 1, 1))]["ValidTo"] == datetime(2025, 2, 1)
-        assert rows[("HAS-001", datetime(2025, 1, 1))]["AppealsHasID"] == 1
+        actual_df = df.select(
+            "caseReference",
+            "IngestionDate",
+            "ValidTo",
+            "IsActive",
+            "AppealsHasID",
+            "ODTSourceSystem",
+            "caseSpecialisms",
+        )
 
-        assert rows[("HAS-001", datetime(2025, 2, 1))]["IsActive"] == "Y"
-        assert rows[("HAS-001", datetime(2025, 2, 1))]["ValidTo"] is None
-        assert rows[("HAS-001", datetime(2025, 2, 1))]["AppealsHasID"] == 2
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    "HAS-001",
+                    datetime(2025, 1, 1),
+                    datetime(2025, 2, 1),
+                    "N",
+                    1,
+                    "ODT",
+                    ["Advertisements"],
+                ),
+                (
+                    "HAS-001",
+                    datetime(2025, 2, 1),
+                    None,
+                    "Y",
+                    2,
+                    "ODT",
+                    ["Advertisements"],
+                ),
+                (
+                    "HAS-002",
+                    datetime(2025, 3, 1),
+                    datetime(2025, 4, 1),
+                    "N",
+                    3,
+                    "HORIZON",
+                    ["Listed Building", "Advertisements"],
+                ),
+            ],
+            actual_df.schema,
+        )
 
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["ODTSourceSystem"] == "HORIZON"
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["IngestionDate"] == datetime(2025, 3, 1)
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["caseSpecialisms"] == ["Listed Building", "Advertisements"]
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["ValidTo"] == datetime(2025, 4, 1)
-        assert rows[("HAS-002", datetime(2025, 3, 1))]["IsActive"] == "N"
+        assert_dataframes_equal(actual_df, expected_df)

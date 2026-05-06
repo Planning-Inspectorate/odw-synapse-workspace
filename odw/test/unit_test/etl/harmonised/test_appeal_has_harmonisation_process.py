@@ -1,3 +1,4 @@
+import mock
 from datetime import datetime
 import pytest
 import pyspark.sql.types as T
@@ -201,6 +202,17 @@ def _empty_df(spark, schema):
     return spark.createDataFrame([], schema)
 
 
+def _process_under_test(spark):
+    with mock.patch(
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
+        return_value=None,
+    ):
+        inst = AppealHasHarmonisationProcess(spark)
+
+    inst.spark = spark
+    return inst
+
+
 def _base_sb_row(**overrides):
     row = {field.name: None for field in _appeal_has_schema()}
     row.update(
@@ -327,7 +339,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -354,7 +366,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -380,7 +392,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -401,7 +413,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -482,7 +494,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("IngestionDate", F.desc("ODTSourceSystem"))
@@ -512,7 +524,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -538,7 +550,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -557,7 +569,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
@@ -629,7 +641,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, horizon_data=horizon_data))
 
         row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
@@ -649,7 +661,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
 
         service_bus_data = _sb_df(spark, [duplicate_row, duplicate_row])
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -678,7 +690,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -707,7 +719,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         rows = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("RowID").collect()
@@ -734,7 +746,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -761,7 +773,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(
             _source_data(
                 spark,
@@ -793,7 +805,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             ],
         )
 
-        inst = AppealHasHarmonisationProcess(spark)
+        inst = _process_under_test(spark)
         data_to_write, _ = inst.process(
             _source_data(
                 spark,

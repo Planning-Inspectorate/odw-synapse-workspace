@@ -4,6 +4,7 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
+from odw.test.util.assertion import assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -304,67 +305,78 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         )
         source_data = _source_data(source_df)
 
+        inst = AppealHasCuratedMipinsProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedMipinsProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
-        row = df.collect()[0]
+        actual_df = df.select(
+            "caseId",
+            "caseReference",
+            "lpaCode",
+            "allocationBand",
+            "enforcementNotice",
+            "siteAreaSquareMetres",
+            "floorSpaceSquareMetres",
+            "caseSubmittedDate",
+            "IngestionDate",
+            "ValidTo",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    7000001,
+                    "7000001",
+                    "Q1234",
+                    Decimal("7"),
+                    True,
+                    True,
+                    Decimal("123"),
+                    datetime(2025, 6, 1, 13, 0),
+                    datetime(2025, 6, 1, 13, 0),
+                    datetime(2025, 6, 1, 13, 0),
+                )
+            ],
+            actual_df.schema,
+        )
 
         assert df.count() == 1
         assert df.columns == OUTPUT_COLUMNS
-
-        assert row["caseId"] == 7000001
-        assert row["caseReference"] == "7000001"
-        assert row["lpaCode"] == "Q1234"
-        assert row["allocationBand"] == Decimal("7")
-        assert row["enforcementNotice"] is True
-        assert row["siteAreaSquareMetres"] is True
-        assert row["floorSpaceSquareMetres"] == Decimal("123")
-        assert row["caseSubmittedDate"] == datetime(2025, 6, 1, 13, 0)
-        assert row["IngestionDate"] == datetime(2025, 6, 1, 13, 0)
-        assert row["ValidTo"] == datetime(2025, 6, 1, 13, 0)
+        assert_dataframes_equal(actual_df, expected_df)
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
         assert "partition_by" not in write_config
 
-        assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 0
-        assert result.metadata.delete_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 1,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
     def test__appeal_has_curated_mipins_process__run__empty_source_writes_empty_output_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(spark.createDataFrame([], _harmonised_schema()))
 
+        inst = AppealHasCuratedMipinsProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedMipinsProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
@@ -374,7 +386,15 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         assert df.columns == OUTPUT_COLUMNS
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
-        assert result.metadata.insert_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 0,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
     def test__appeal_has_curated_mipins_process__run__filters_pre_1900_dates_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -391,24 +411,25 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         )
         source_data = _source_data(source_df)
 
+        inst = AppealHasCuratedMipinsProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_mipins_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedMipinsProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         df = mock_write.call_args[0][0][inst.OUTPUT_TABLE]["data"]
         rows = df.collect()
 
         assert df.count() == 1
         assert rows[0]["caseReference"] == "7000001"
-        assert result.metadata.insert_count == 1
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 1,
+            "update_count": 0,
+            "delete_count": 0,
+        }

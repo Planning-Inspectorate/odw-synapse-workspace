@@ -1,6 +1,7 @@
 import mock
 import pytest
 import pyspark.sql.types as T
+from odw.test.util.assertion import assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_has_curated_process import AppealHasCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -305,25 +306,17 @@ class TestAppealHasCuratedProcess(ETLTestCase):
 
         source_data = _source_data(_harmonised_df(spark))
 
+        inst = AppealHasCuratedProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
-        rows = {row["caseReference"]: row for row in df.collect()}
 
         assert df.count() == 1
         assert df.columns == CURATED_COLUMNS
@@ -333,78 +326,139 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         assert write_config["file_format"] == "parquet"
         assert "partition_by" not in write_config
 
-        assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 0
-        assert result.metadata.delete_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 1,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
-        assert rows["HAS-001"]["caseId"] == "1001"
-        assert rows["HAS-001"]["submissionId"] == "SUB-001"
-        assert rows["HAS-001"]["caseStatus"] == "valid"
-        assert rows["HAS-001"]["caseType"] == "HAS"
-        assert rows["HAS-001"]["caseProcedure"] == "WR"
-        assert rows["HAS-001"]["lpaCode"] == "LPA01"
-        assert rows["HAS-001"]["caseOfficerId"] == "OFFICER-001"
-        assert rows["HAS-001"]["inspectorId"] == "INSPECTOR-001"
-        assert rows["HAS-001"]["allocationLevel"] == "Level 1"
-        assert rows["HAS-001"]["allocationBand"] == "Band A"
-        assert rows["HAS-001"]["caseSpecialisms"] == ["Advertisements", "Listed Building"]
-        assert rows["HAS-001"]["caseCreatedDate"] == "2025-01-02"
-        assert rows["HAS-001"]["caseUpdatedDate"] == "2025-01-03"
-        assert rows["HAS-001"]["caseValidationDate"] == "2025-01-03"
-        assert rows["HAS-001"]["caseValidationOutcome"] == "Valid appeal"
-        assert rows["HAS-001"]["linkedCaseStatus"] == "Linked"
-        assert rows["HAS-001"]["leadCaseReference"] == "LEAD-001"
-        assert rows["HAS-001"]["lpaQuestionnaireDueDate"] == "2025-01-05"
-        assert rows["HAS-001"]["lpaQuestionnaireSubmittedDate"] == "2025-01-06"
-        assert rows["HAS-001"]["caseDecisionOutcomeDate"] == "2025-01-07"
-        assert rows["HAS-001"]["caseDecisionOutcome"] == "Allowed"
-        assert rows["HAS-001"]["caseCompletedDate"] == "2025-01-08"
-        assert rows["HAS-001"]["applicationReference"] == "APP-REF-001"
-        assert rows["HAS-001"]["applicationDate"] == "2025-01-09"
-        assert rows["HAS-001"]["applicationDecisionDate"] == "2025-01-10"
-        assert rows["HAS-001"]["siteAddressLine1"] == "Line 1"
-        assert rows["HAS-001"]["siteAddressLine2"] == "Line 2"
-        assert rows["HAS-001"]["siteAddressTown"] == "Town 1"
-        assert rows["HAS-001"]["siteAddressCounty"] == "County 1"
-        assert rows["HAS-001"]["siteAddressPostcode"] == "AA1 1AA"
-        assert rows["HAS-001"]["siteAreaSquareMetres"] == 1000.0
-        assert rows["HAS-001"]["floorSpaceSquareMetres"] == 50.0
-        assert rows["HAS-001"]["isGreenBelt"] == "Y"
-        assert rows["HAS-001"]["inConservationArea"] == "N"
-        assert rows["HAS-001"]["originalDevelopmentDescription"] == "Development 1"
-        assert rows["HAS-001"]["typeOfPlanningApplication"] == "Full Planning"
-        assert rows["HAS-001"]["dateCostsReportDespatched"] == "2025-01-11"
-        assert rows["HAS-001"]["dateNotRecoveredOrDerecovered"] == "2025-01-12"
-        assert rows["HAS-001"]["dateRecovered"] == "2025-01-13"
-        assert rows["HAS-001"]["importantInformation"] == "Important info 1"
-        assert rows["HAS-001"]["isAonbNationalLandscape"] == "Y"
-        assert rows["HAS-001"]["jurisdiction"] == "HAS"
-        assert rows["HAS-001"]["lpaProcedurePreference"] == "Written Reps"
-        assert rows["HAS-001"]["originalCaseDecisionDate"] == "2025-01-14"
-        assert rows["HAS-001"]["redeterminedIndicator"] == "N"
-        assert rows["HAS-001"]["siteGridReferenceEasting"] == "123"
-        assert rows["HAS-001"]["siteGridReferenceNorthing"] == "456"
-        assert rows["HAS-001"]["padsSapId"] == "SAP-001"
+        actual_df = df.select(
+            "caseId",
+            "caseReference",
+            "submissionId",
+            "caseStatus",
+            "caseType",
+            "caseProcedure",
+            "lpaCode",
+            "caseOfficerId",
+            "inspectorId",
+            "allocationLevel",
+            "allocationBand",
+            "caseSpecialisms",
+            "caseCreatedDate",
+            "caseUpdatedDate",
+            "caseValidationDate",
+            "caseValidationOutcome",
+            "linkedCaseStatus",
+            "leadCaseReference",
+            "lpaQuestionnaireDueDate",
+            "lpaQuestionnaireSubmittedDate",
+            "caseDecisionOutcomeDate",
+            "caseDecisionOutcome",
+            "caseCompletedDate",
+            "applicationReference",
+            "applicationDate",
+            "applicationDecisionDate",
+            "siteAddressLine1",
+            "siteAddressLine2",
+            "siteAddressTown",
+            "siteAddressCounty",
+            "siteAddressPostcode",
+            "siteAreaSquareMetres",
+            "floorSpaceSquareMetres",
+            "isGreenBelt",
+            "inConservationArea",
+            "originalDevelopmentDescription",
+            "typeOfPlanningApplication",
+            "dateCostsReportDespatched",
+            "dateNotRecoveredOrDerecovered",
+            "dateRecovered",
+            "importantInformation",
+            "isAonbNationalLandscape",
+            "jurisdiction",
+            "lpaProcedurePreference",
+            "originalCaseDecisionDate",
+            "redeterminedIndicator",
+            "siteGridReferenceEasting",
+            "siteGridReferenceNorthing",
+            "padsSapId",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                (
+                    "1001",
+                    "HAS-001",
+                    "SUB-001",
+                    "valid",
+                    "HAS",
+                    "WR",
+                    "LPA01",
+                    "OFFICER-001",
+                    "INSPECTOR-001",
+                    "Level 1",
+                    "Band A",
+                    ["Advertisements", "Listed Building"],
+                    "2025-01-02",
+                    "2025-01-03",
+                    "2025-01-03",
+                    "Valid appeal",
+                    "Linked",
+                    "LEAD-001",
+                    "2025-01-05",
+                    "2025-01-06",
+                    "2025-01-07",
+                    "Allowed",
+                    "2025-01-08",
+                    "APP-REF-001",
+                    "2025-01-09",
+                    "2025-01-10",
+                    "Line 1",
+                    "Line 2",
+                    "Town 1",
+                    "County 1",
+                    "AA1 1AA",
+                    1000.0,
+                    50.0,
+                    "Y",
+                    "N",
+                    "Development 1",
+                    "Full Planning",
+                    "2025-01-11",
+                    "2025-01-12",
+                    "2025-01-13",
+                    "Important info 1",
+                    "Y",
+                    "HAS",
+                    "Written Reps",
+                    "2025-01-14",
+                    "N",
+                    "123",
+                    "456",
+                    "SAP-001",
+                )
+            ],
+            actual_df.schema,
+        )
+
+        assert_dataframes_equal(actual_df, expected_df)
 
     def test__appeal_has_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(_empty_harmonised_df(spark))
 
+        inst = AppealHasCuratedProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         write_config = data_to_write[inst.OUTPUT_TABLE]
@@ -414,7 +468,15 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         assert df.columns == CURATED_COLUMNS
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
-        assert result.metadata.insert_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 0,
+            "update_count": 0,
+            "delete_count": 0,
+        }
 
     def test__appeal_has_curated_process__run__adds_missing_columns_as_null_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -434,20 +496,13 @@ class TestAppealHasCuratedProcess(ETLTestCase):
 
         source_data = _source_data(minimal_df)
 
+        inst = AppealHasCuratedProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_has_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = AppealHasCuratedProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run()
 
         df = mock_write.call_args[0][0][inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -457,6 +512,12 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         for col_name in CURATED_COLUMNS:
             if col_name not in {"caseId", "caseReference", "caseStatus", "caseType"}:
                 assert row[col_name] is None
-        assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 0
-        assert result.metadata.delete_count == 0
+        assert {
+            "insert_count": result.metadata.insert_count,
+            "update_count": result.metadata.update_count,
+            "delete_count": result.metadata.delete_count,
+        } == {
+            "insert_count": 1,
+            "update_count": 0,
+            "delete_count": 0,
+        }
