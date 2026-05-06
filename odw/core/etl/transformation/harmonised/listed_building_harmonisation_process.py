@@ -47,7 +47,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "listed_building_harmonisation_process"
+        return "Listed Building Harmonisation"
 
     def _rename_source(self, df: DataFrame) -> DataFrame:
         return (
