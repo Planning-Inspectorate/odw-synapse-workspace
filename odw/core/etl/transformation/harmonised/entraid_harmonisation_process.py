@@ -132,8 +132,8 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Building new/updated rows")
         output_cols = [
             "EmployeeEntraId",
-            "id",
             "employeeId",
+            "id",
             "givenName",
             "surname",
             "userPrincipalName",
@@ -148,8 +148,8 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
         new_rows = candidates.select(
             F.lit(None).cast("long").alias("EmployeeEntraId"),
-            F.col("id"),
             F.col("employeeId"),
+            F.col("id"),
             F.col("givenName"),
             F.col("surname"),
             F.col("userPrincipalName"),
@@ -164,12 +164,12 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
         # Step 4: Close old versions of changed records
         LoggingUtil().log_info("Closing old versions of changed records")
-        changed_ids = candidates.filter(F.col("HistoricIsActive") == "Y").select("id")
-        closing_date = F.to_timestamp(F.date_sub(F.current_date(), 1))
+        changed = candidates.filter(F.col("HistoricIsActive") == "Y").select("id", F.col("IngestionDate").alias("new_IngestionDate"))
         old_versions = (
-            hrm_active.join(changed_ids, "id")
+            hrm_active.join(changed, "id")
             .withColumn("IsActive", F.lit("N"))
-            .withColumn("ValidTo", closing_date.cast("string"))
+            .withColumn("ValidTo", F.to_timestamp(F.date_sub(F.col("new_IngestionDate"), 1)).cast("string"))
+            .drop("new_IngestionDate")
             .select(*output_cols)
         )
 

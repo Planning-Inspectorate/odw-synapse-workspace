@@ -160,7 +160,7 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         by_active = {row["IsActive"]: row for row in df.collect()}
         assert by_active["Y"]["givenName"] == "NewFirst"
         assert by_active["N"]["givenName"] == "OldFirst"
-        assert by_active["N"]["ValidTo"] is not None
+        assert by_active["N"]["ValidTo"] == "2024-01-31 00:00:00"
 
     # ------------------------------------------------------------------
     # process – unchanged records
