@@ -307,9 +307,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = AppealHasStandardisationProcess(spark)
-        data_to_write, result = inst.process(
-            _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
-        )
+        data_to_write, result = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -587,10 +585,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = AppealHasStandardisationProcess(spark)
         data_to_write, _ = inst.process(source_data)
 
-        rows = {
-            row["caseReference"]: row["caseProcedure"]
-            for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()
-        }
+        rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
 
         assert rows["HAS-001"] == "WR"
         assert rows["HAS-002"] == "IH"
@@ -1057,9 +1052,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = AppealHasStandardisationProcess(spark)
-        data_to_write, _ = inst.process(
-            _minimal_source_data(spark, _minimal_hzn_cases_has_df(spark))
-        )
+        data_to_write, _ = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
