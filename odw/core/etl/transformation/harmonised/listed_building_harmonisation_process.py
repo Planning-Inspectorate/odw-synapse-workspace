@@ -7,7 +7,6 @@ from pyspark.sql.types import TimestampType
 
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from odw.core.util.logging_util import LoggingUtil
 
 
 class ListedBuildingHarmonisationProcess(HarmonisationProcess):
