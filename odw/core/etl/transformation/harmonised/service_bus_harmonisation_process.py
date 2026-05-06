@@ -165,7 +165,6 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         new_data = new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
         new_data = new_data.union(update_rows).union(unupdated_rows).dropDuplicates()
 
-        new_data = new_data.cache()
         insert_count = new_data.count()
 
         hrm_table_snake_case = hrm_table.replace("-", "_")
