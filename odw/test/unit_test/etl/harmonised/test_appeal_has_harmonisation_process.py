@@ -4,6 +4,7 @@ import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
 from pyspark.sql import functions as F
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import AppealHasHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -343,16 +344,25 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = {row["caseReference"]: row for row in df.collect()}
+        actual_df = df.select(
+            "caseReference",
+            "ODTSourceSystem",
+            "caseSpecialisms",
+            "migrated",
+            "IsActive",
+            "AppealsHasID",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                ("HAS-001", "ODT", ["Advertisements"], "0", "Y", None),
+                ("HAS-002", "HORIZON", ["Listed Building", "Advertisements"], "0", "Y", 1),
+            ],
+            actual_df.schema,
+        )
 
         assert df.count() == 2
-        assert rows["HAS-001"]["ODTSourceSystem"] == "ODT"
-        assert rows["HAS-001"]["IsActive"] == "Y"
-        assert rows["HAS-002"]["ODTSourceSystem"] == "HORIZON"
-        assert rows["HAS-002"]["caseSpecialisms"] == ["Listed Building", "Advertisements"]
-        assert rows["HAS-002"]["migrated"] == "0"
-        assert rows["HAS-002"]["IsActive"] == "Y"
-        assert rows["HAS-002"]["AppealsHasID"] == 1
+        assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
     def test__appeal_has_harmonisation_process__process__builds_scd2_history_for_changed_state_like_legacy(self):
@@ -370,15 +380,23 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = {row["caseStatus"]: row for row in df.orderBy("IngestionDate").collect()}
+        actual_df = df.select(
+            "caseStatus",
+            "IsActive",
+            "ValidTo",
+            "AppealsHasID",
+        )
+
+        expected_df = spark.createDataFrame(
+            [
+                ("submitted", "N", datetime(2025, 2, 1), 1),
+                ("valid", "Y", None, 2),
+            ],
+            actual_df.schema,
+        )
 
         assert df.count() == 2
-        assert rows["submitted"]["IsActive"] == "N"
-        assert rows["submitted"]["ValidTo"] == datetime(2025, 2, 1)
-        assert rows["valid"]["IsActive"] == "Y"
-        assert rows["valid"]["ValidTo"] is None
-        assert rows["submitted"]["AppealsHasID"] == 1
-        assert rows["valid"]["AppealsHasID"] == 2
+        assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
     def test__appeal_has_harmonisation_process__process__drops_duplicate_unchanged_state_like_legacy(self):

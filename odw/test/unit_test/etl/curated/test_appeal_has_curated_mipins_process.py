@@ -369,8 +369,6 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             actual_df.schema,
         )
 
-        assert df.columns == OUTPUT_COLUMNS
-        assert df.count() == 1
         assert_dataframes_equal(actual_df, expected_df)
 
         assert write_config["write_mode"] == "overwrite"

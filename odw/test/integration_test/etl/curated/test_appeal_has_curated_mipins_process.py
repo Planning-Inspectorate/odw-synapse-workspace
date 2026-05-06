@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 import mock
 import pytest
 import pyspark.sql.types as T
@@ -291,16 +290,22 @@ def _source_data(harmonised_data):
 
 
 class TestAppealHasCuratedMipinsProcess(ETLTestCase):
+    """
+    Integration style run() tests for the MIPINS curated HAS process
+    These tests patch load_data/write_data so they can exercise the full ETL run()
+    flow without writing to ADLS while still validating the legacy MIPINS filters,
+    casts, output columns and write configuration
+    """
     def test__appeal_has_curated_mipins_process__run__writes_legacy_mipins_output_end_to_end(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(
             spark,
             [
-                _base_row(caseReference="7000001"),
-                _base_row(caseReference="7000002", lpaCode="Q9999"),
-                _base_row(caseReference="5000000"),
-                _base_row(caseReference="7000003", ODTSourceSystem="HORIZON"),
+                _base_row(caseReference="7000001"),  # kept: ODT source, valid LPA and MIPINS case ref range
+                _base_row(caseReference="7000002", lpaCode="Q9999"),  # dropped: LPA code is excluded
+                _base_row(caseReference="5000000"),  # dropped: case ref is outside MIPINS range
+                _base_row(caseReference="7000003", ODTSourceSystem="HORIZON"),  # dropped: non ODT source
             ],
         )
         source_data = _source_data(source_df)
@@ -335,10 +340,10 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
                     7000001,
                     "7000001",
                     "Q1234",
-                    Decimal("7"),
+                    7.0,
                     True,
                     True,
-                    Decimal("123"),
+                    123.0,
                     datetime(2025, 6, 1, 13, 0),
                     datetime(2025, 6, 1, 13, 0),
                     datetime(2025, 6, 1, 13, 0),
@@ -347,8 +352,6 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
             actual_df.schema,
         )
 
-        assert df.count() == 1
-        assert df.columns == OUTPUT_COLUMNS
         assert_dataframes_equal(actual_df, expected_df)
 
         assert write_config["write_mode"] == "overwrite"

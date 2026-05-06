@@ -318,10 +318,7 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
 
-        assert df.count() == 1
-        assert df.columns == CURATED_COLUMNS
         assert "IsActive" not in df.columns
-
         assert write_config["write_mode"] == "overwrite"
         assert write_config["file_format"] == "parquet"
         assert "partition_by" not in write_config

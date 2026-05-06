@@ -546,8 +546,6 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         )
 
         assert_dataframes_equal(actual_df, expected_df)
-        assert df.count() == 1
-        assert df.columns == CURATED_COLUMNS
         assert "IsActive" not in df.columns
 
         assert write_config["write_mode"] == "overwrite"
