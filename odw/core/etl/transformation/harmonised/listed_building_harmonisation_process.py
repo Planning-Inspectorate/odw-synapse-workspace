@@ -1,231 +1,228 @@
-from types import SimpleNamespace
+from datetime import datetime
+from typing import Dict, Tuple, Any
 
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
+from pyspark.sql.types import TimestampType
 
-from odw.core.etl.etl_process import ETLProcess, LoggingUtil
+from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.util.logging_util import LoggingUtil
 
 
-class ListedBuildingHarmonisationProcess(ETLProcess):
-    """
-    Legacy-compatible harmonisation process for Listed Buildings.
-    Behaviour exactly matches the legacy notebook semantics
-    verified by integration tests.
-    """
+class ListedBuildingHarmonisationProcess(HarmonisationProcess):
+    SOURCE_TABLE = "odw_standardised_db.listed_building"
+    OUTPUT_TABLE = "odw_harmonised_db.listed_building"
 
-    OUTPUT_TABLE = "listed_building_harmonised"
+    _ROW_ID_COLUMNS = [
+        "entity",
+        "dataset",
+        "endDate",
+        "entryDate",
+        "geometry",
+        "listedBuildingGrade",
+        "name",
+        "organisationEntity",
+        "point",
+        "prefix",
+        "reference",
+        "startDate",
+        "typology",
+        "documentationUrl",
+    ]
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.logger = LoggingUtil(self.__class__.__name__)
+    _OUTPUT_COLUMNS = [
+        "dataset", "endDate", "entity", "entryDate", "geometry",
+        "listedBuildingGrade", "name", "organisationEntity", "point",
+        "prefix", "reference", "startDate", "typology",
+        "documentationUrl", "dateReceived", "rowID", "validTo", "isActive"
+    ]
 
-        # Required because tests call run() directly
-        self.metadata = SimpleNamespace(insert_count=0, update_count=0)
+    def __init__(self, spark: SparkSession, debug: bool = False):
+        super().__init__(spark, debug)
+        try:
+            self.spark.catalog.refreshTable(self.SOURCE_TABLE)
+        except Exception:
+            pass
 
-    # ------------------------------------------------------------------
-    # Required abstract methods
-    # ------------------------------------------------------------------
-    def get_name(self) -> str:
-        return "listed_building_harmonisation"
+    @classmethod
+    def get_name(cls) -> str:
+        return "listed_building_harmonisation_process"
 
-    def process(self):
-        # Framework entry point
-        return self.run()
-
-    # ------------------------------------------------------------------
-    # Main logic (used by tests)
-    # ------------------------------------------------------------------
-    def run(self):
-        loaded = self.load_data()
-        src = loaded["source_data"]
-        target_exists = loaded.get("target_exists", False)
-        tgt = loaded.get("target_data")
-
-        src_std = self._standardise_source(src)
-
-        # ==============================================================
-        # INITIAL LOAD
-        # ==============================================================
-        if not target_exists:
-            self.write_data(
-                {
-                    self.OUTPUT_TABLE: {
-                        "data": src_std,
-                        "write_mode": "overwrite",
-                    }
-                }
-            )
-
-            self.metadata.insert_count = src_std.count()
-            self.metadata.update_count = 0
-            return SimpleNamespace(metadata=self.metadata)
-
-        # ==============================================================
-        # INCREMENTAL LOAD
-        # ==============================================================
-        active_tgt = tgt.filter(F.col("isActive") == "Y")
-
-        # Legacy join: ENTITY ONLY
-        joined = src_std.alias("s").join(
-            active_tgt.alias("t"),
-            F.col("s.entity") == F.col("t.entity"),
-            "left",
+    def _rename_source(self, df: DataFrame) -> DataFrame:
+        return (
+            df.withColumnRenamed("end-date", "endDate")
+              .withColumnRenamed("entry-date", "entryDate")
+              .withColumnRenamed("listed-building-grade", "listedBuildingGrade")
+              .withColumnRenamed("organisation-entity", "organisationEntity")
+              .withColumnRenamed("start-date", "startDate")
+              .withColumnRenamed("documentation-url", "documentationUrl")
         )
 
-        business_cols = [
-            "dataset",
-            "endDate",
-            "entryDate",
-            "geometry",
-            "listedBuildingGrade",
-            "name",
-            "organisationEntity",
-            "point",
-            "prefix",
-            "reference",
-            "startDate",
-            "typology",
-            "documentationUrl",
-        ]
-
-        diff_expr = (
-            F.concat_ws("||", *[F.col(f"s.{c}") for c in business_cols])
-            != F.concat_ws("||", *[F.col(f"t.{c}") for c in business_cols])
+    def _add_harmonised_fields(self, df: DataFrame) -> DataFrame:
+        return (
+            df.withColumn("dateReceived", F.current_date())
+              .withColumn(
+                  "rowID",
+                  F.md5(
+                      F.concat(*[
+                          F.coalesce(F.col(c).cast("string"), F.lit("."))
+                          for c in self._ROW_ID_COLUMNS
+                      ])
+                  )
+              )
+              .withColumn("validTo", F.lit(None).cast(TimestampType()))
+              .withColumn("isActive", F.lit("Y"))
         )
 
-        changed = joined.filter(F.col("t.entity").isNotNull() & diff_expr)
-        unchanged = joined.filter(F.col("t.entity").isNotNull() & ~diff_expr)
-        new_only = joined.filter(F.col("t.entity").isNull())
+    def process(self, **kwargs) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
+        start_exec_time = datetime.now()
 
-        # --------------------------------------------------------------
-        # If nothing changed and nothing new → keep target as-is
-        # --------------------------------------------------------------
-        if changed.count() == 0 and new_only.count() == 0:
-            self.write_data(
-                {
-                    self.OUTPUT_TABLE: {
-                        "data": tgt,
-                        "write_mode": "merge",
-                    }
-                }
-            )
-            self.metadata.insert_count = 0
-            self.metadata.update_count = 0
-            return SimpleNamespace(metadata=self.metadata)
+        injected = kwargs.get("source_data")
+        source_df = injected.get("source_data")
+        target_df = injected.get("target_data")
+        target_exists = injected.get("target_exists", False)
 
-        # --------------------------------------------------------------
-        # Deactivate changed entities
-        # --------------------------------------------------------------
-        deactivated = (
-            active_tgt.join(
-                changed.select(F.col("s.entity").alias("entity")),
-                on="entity",
+        staged_df = self._add_harmonised_fields(self._rename_source(source_df))
+
+        # ✅ Initial load
+        if not target_exists or target_df is None:
+            return self._result(
+                staged_df,
+                start_exec_time,
+                insert_count=staged_df.count(),
+                update_count=0
             )
+
+        active_target = target_df.filter(F.col("isActive") == "Y")
+
+        # ✅ ENTITY + REFERENCE join (legacy rule)
+        joined = staged_df.alias("src").join(
+            active_target.alias("tgt"),
+            (F.col("src.reference") == F.col("tgt.reference")) &
+            (F.col("src.entity") == F.col("tgt.entity")),
+            "left"
+        )
+
+        # ✅ Changed rows     
+        changed = joined.filter(
+    F.col("tgt.rowID").isNotNull() &
+    (
+        F.concat_ws("||", *[F.coalesce(F.col(f"src.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS]) !=
+        F.concat_ws("||", *[F.coalesce(F.col(f"tgt.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS])
+    )
+)
+
+
+        # ✅ Candidate new rows
+        candidate_new = joined.filter(
+            F.col("tgt.rowID").isNull()
+        ).select("src.*")
+
+        # ==========================================================
+        # ✅ CRITICAL FIX: Prevent duplicate identical active rows
+        # Match on BUSINESS FIELDS (not just rowID)
+        # ==========================================================
+        existing_active_business = active_target.select(self._ROW_ID_COLUMNS).distinct()
+        new_inserts = (
+    candidate_new.alias("n")
+    .join(
+        existing_active_business.alias("e"),
+        [F.col(f"n.{c}").eqNullSafe(F.col(f"e.{c}")) for c in self._ROW_ID_COLUMNS],
+        "left_anti"
+    )
+)
+
+    
+
+
+        # ✅ Expire old rows
+        expired = (
+            changed.select("tgt.*")
+            .withColumn("validTo", F.current_timestamp())
             .withColumn("isActive", F.lit("N"))
-            .withColumn("validTo", F.current_timestamp().cast(StringType()))
         )
 
-        # --------------------------------------------------------------
-        # New versions and new entities (ALWAYS from source)
-        # --------------------------------------------------------------
-        new_versions = self._add_system_columns(changed.select("s.*"))
-        new_inserts = self._add_system_columns(new_only.select("s.*"))
+        # ✅ New versions
+        new_versions = changed.select("src.*")
 
-        unchanged_existing = active_tgt.join(
-            changed.select(F.col("s.entity").alias("entity")),
-            on="entity",
-            how="left_anti",
+        # ✅ Preserve existing rows
+        changed_refs = [r["reference"] for r in changed.select("tgt.reference").distinct().collect()]
+
+        preserved_target = target_df.filter(
+            (F.col("isActive") == "N") |
+            (~F.col("reference").isin(changed_refs))
         )
 
         final_df = (
-            unchanged_existing
-            .unionByName(deactivated)
+            preserved_target
+            .unionByName(expired)
             .unionByName(new_versions)
             .unionByName(new_inserts)
         )
 
-        self.write_data(
-            {
-                self.OUTPUT_TABLE: {
-                    "data": final_df,
-                    "write_mode": "merge",
-                }
-            }
+        # ==========================================================
+        # ✅ Legacy INSERT count (new reference only)
+        # ==========================================================
+        existing_refs = target_df.select("reference").distinct()
+
+        true_inserts = (
+            new_inserts.alias("n")
+            .join(existing_refs.alias("e"), "reference", "left_anti")
         )
 
-        # ==============================================================
-        # Legacy metadata semantics (IMPORTANT)
-        # ==============================================================
-        if deactivated.count() > 0:
-            # Existing entity changed
-            self.metadata.insert_count = 0
-            self.metadata.update_count = 1
-
-        elif new_inserts.count() > 0:
-            # New entity case – must check reference reuse
-            existing_refs = {
-                r["reference"]
-                for r in tgt.select("reference").distinct().collect()
-            }
-            new_refs = {
-                r["reference"]
-                for r in new_inserts.select("reference").distinct().collect()
-            }
-
-            if new_refs.intersection(existing_refs):
-                # Same reference reused → legacy counts as update
-                self.metadata.insert_count = 0
-                self.metadata.update_count = 1
-            else:
-                # Brand-new reference → true insert
-                self.metadata.insert_count = new_inserts.count()
-                self.metadata.update_count = 0
-
-        else:
-            self.metadata.insert_count = 0
-            self.metadata.update_count = 0
-
-        return SimpleNamespace(metadata=self.metadata)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    def _standardise_source(self, df):
-        return self._add_system_columns(
-            df.withColumnRenamed("end-date", "endDate")
-            .withColumnRenamed("entry-date", "entryDate")
-            .withColumnRenamed("organisation-entity", "organisationEntity")
-            .withColumnRenamed("start-date", "startDate")
-            .withColumnRenamed("documentation-url", "documentationUrl")
-            .withColumnRenamed(
-                "listed-building-grade", "listedBuildingGrade"
-            )
+        # ==========================================================
+        # ✅ Legacy UPDATE count
+        # - same entity changes
+        # - OR reference reuse
+        # ==========================================================
+        reference_reuse_updates = (
+            new_inserts.alias("n")
+            .join(existing_refs.alias("e"), "reference", "inner")
         )
 
-    def _add_system_columns(self, df):
-        return (
-            df.withColumn("dateReceived", F.current_timestamp().cast(StringType()))
-            .withColumn("rowID", F.expr("uuid()"))
-            .withColumn("validTo", F.lit(None).cast(StringType()))
-            .withColumn("isActive", F.lit("Y"))
-            .select(
-                "dataset",
-                "endDate",
-                "entity",
-                "entryDate",
-                "geometry",
-                "listedBuildingGrade",
-                "name",
-                "organisationEntity",
-                "point",
-                "prefix",
-                "reference",
-                "startDate",
-                "typology",
-                "documentationUrl",
-                "dateReceived",
-                "rowID",
-                "validTo",
-                "isActive",
+        return self._result(
+            final_df,
+            start_exec_time,
+            insert_count=true_inserts.count(),
+            update_count=changed.count() + reference_reuse_updates.count(),
+        )
+
+    def _result(
+        self,
+        df: DataFrame,
+        start_exec_time: datetime,
+        insert_count: int,
+        update_count: int
+    ) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
+
+        end_exec_time = datetime.now()
+
+        data_to_write = {
+            self.OUTPUT_TABLE: {
+                "data": df.select(*self._OUTPUT_COLUMNS),
+                "storage_kind": "ADLSG2-Table",
+                "database_name": "odw_harmonised_db",
+                "table_name": "listed_building",
+                "storage_endpoint": "mock-storage-account",
+                "container_name": "odw-harmonised",
+                "blob_path": "listed_building",
+                "file_format": "delta",
+                "write_mode": "overwrite",
+                "write_options": {"overwriteSchema": "true"},
+                "partition_by": ["isActive"],
+            }
+        }
+
+        return data_to_write, ETLSuccessResult(
+            metadata=ETLResult.ETLResultMetadata(
+                start_execution_time=start_exec_time,
+                end_execution_time=end_exec_time,
+                table_name=self.OUTPUT_TABLE,
+                insert_count=insert_count,
+                update_count=update_count,
+                delete_count=0,
+                activity_type=self.__class__.__name__,
+                duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )
