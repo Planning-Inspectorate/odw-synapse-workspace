@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "13f27553-2097-43fa-a531-7b30398c9cd3"
+				"spark.autotune.trackingId": "19cff849-fd3f-4cdd-8005-6dd177efd533"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -86,7 +86,8 @@
 					"import pyspark.sql.functions as F\n",
 					"from pyspark.sql.utils import AnalysisException\n",
 					"from datetime import datetime, date\n",
-					"from pyspark.sql import DataFrame"
+					"from pyspark.sql import DataFrame\n",
+					"import json"
 				],
 				"execution_count": null
 			},
@@ -147,24 +148,46 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def ensure_column(db: str, table: str, column: str, dtype: str) -> None:\n",
+					"def drop_column_from_table(db: str, table: str, column: str) -> str:\n",
+					"    \"\"\"\n",
+					"    Drop a column from a Delta table with proper exception handling.\n",
+					"    Returns error message if any exception occurs, empty string if successful.\n",
+					"    \"\"\"\n",
 					"    full_table = f\"{db}.{table}\"\n",
-					"    if not spark.catalog.tableExists(full_table):\n",
-					"        print(f\"Table {full_table} does not exist yet; skipping ALTER ADD COLUMNS.\")\n",
-					"        return\n",
-					"    current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
-					"    if column.lower() in current_cols:\n",
-					"        print(f\"Column '{column}' already exists in {full_table}; skipping ALTER.\")\n",
-					"        return\n",
+					"    error_msg = \"\"\n",
+					"    \n",
 					"    try:\n",
-					"        spark.sql(f\"ALTER TABLE {full_table} ADD COLUMNS ({column} {dtype})\")\n",
-					"        print(f\"Added column '{column} {dtype}' to {full_table}.\")\n",
-					"    except AnalysisException as e:\n",
-					"        print(f\"ALTER TABLE failed for {full_table}: {e}\")\n",
+					"        if not spark.catalog.tableExists(full_table):\n",
+					"            print(f\"Table {full_table} does not exist; skipping DROP COLUMN.\")\n",
+					"            return \"\"\n",
+					"        \n",
+					"        current_cols = [f.name.lower() for f in spark.table(full_table).schema.fields]\n",
+					"        if column.lower() not in current_cols:\n",
+					"            print(f\"Column '{column}' does not exist in {full_table}. No action needed.\")\n",
+					"            return \"\"\n",
+					"        \n",
+					"        try:\n",
+					"            spark.sql(f\"\"\"\n",
+					"                ALTER TABLE {full_table} SET TBLPROPERTIES (\n",
+					"                    'delta.columnMapping.mode' = 'name',\n",
+					"                    'delta.minReaderVersion' = '2',\n",
+					"                    'delta.minWriterVersion' = '5'\n",
+					"                )\n",
+					"            \"\"\")\n",
+					"            spark.sql(f\"ALTER TABLE {full_table} DROP COLUMN {column}\")\n",
+					"            print(f\"Column '{column}' dropped from {full_table}.\")\n",
+					"        except AnalysisException as e:\n",
+					"            error_msg = f\"ALTER TABLE failed for {full_table}: {str(e)}\\n\"\n",
+					"            print(error_msg)\n",
+					"        except Exception as e:\n",
+					"            error_msg = f\"Unexpected error during ALTER TABLE {full_table}: {str(e)}\\n\"\n",
+					"            print(error_msg)\n",
+					"    \n",
 					"    except Exception as e:\n",
-					"        print(f\"Unexpected error during ALTER TABLE {full_table}: {e}\")\n",
-					"\n",
-					""
+					"        error_msg = f\"Unexpected error in drop_column_from_table for {full_table}: {str(e)}\\n\"\n",
+					"        print(error_msg)\n",
+					"    \n",
+					"    return error_msg"
 				],
 				"execution_count": null
 			},
@@ -172,8 +195,10 @@
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"    # Ensure estimatedPrelimMeetingDate is availiable in sb_nsip_meeting, As of now kept as string to match other similar fileds like meetingDate Ideally should be timestamp\n",
-					"    ensure_column(\"odw_harmonised_db\", \"sb_nsip_meeting\", \"estimatedPrelimMeetingDate\", \"string\")"
+					"    column_drop_error = drop_column_from_table(\"odw_harmonised_db\", \"sb_nsip_meeting\", \"estimatedPrelimMeetingDate\")\n",
+					"    if column_drop_error:\n",
+					"        error_message += column_drop_error\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -261,7 +286,6 @@
 					"    F.col(\"meeting.planningInspectorateRole\").alias(\"planningInspectorateRole\"),\n",
 					"    F.col(\"meeting.meetingDate\").alias(\"meetingDate\"),\n",
 					"    F.col(\"meeting.meetingType\").alias(\"meetingType\"),\n",
-					"    F.col(\"meeting.estimatedPrelimMeetingDate\").alias(\"estimatedPrelimMeetingDate\"),\n",
 					"    \"Migrated\",\n",
 					"    \"ODTSourceSystem\",\n",
 					"    \"SourceSystemID\",\n",
@@ -275,7 +299,7 @@
 					"# Use ALL columns that uniquely identify a record\n",
 					"business_key_cols = [\"NSIPProjectInfoInternalID\", \"caseId\", \"meetingId\"]\n",
 					"change_tracking_cols = [ \"meetingAgenda\",\n",
-					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\",\"estimatedPrelimMeetingDate\"]\n",
+					"    \"planningInspectorateRole\", \"meetingType\", \"meetingDate\"]\n",
 					"\n",
 					"source_df = service_bus_exploded \\\n",
 					"    .withColumn(\"business_key\", F.sha2(F.concat_ws(\"~\", *business_key_cols), 256)) \\\n",
@@ -358,10 +382,10 @@
 					"            \"left\"\n",
 					"        ).withColumn(\n",
 					"            \"IsActive\",\n",
-					"            when(F.col(\"expire.NSIPMeetingId\").isNotNull(), F.lit(\"N\")).otherwise(F.col(\"target.IsActive\"))\n",
+					"            F.when(F.col(\"expire.NSIPMeetingId\").isNotNull(), F.lit(\"N\")).otherwise(F.col(\"target.IsActive\"))\n",
 					"        ).withColumn(\n",
 					"            \"ValidTo\",\n",
-					"            when(F.col(\"expire.NSIPMeetingId\").isNotNull(), F.current_timestamp()).otherwise(F.col(\"target.ValidTo\"))\n",
+					"            F.when(F.col(\"expire.NSIPMeetingId\").isNotNull(), F.current_timestamp()).otherwise(F.col(\"target.ValidTo\"))\n",
 					"        ).select(\"target.*\", \"IsActive\", \"ValidTo\").drop(\"business_key\")\n",
 					"        \n",
 					"        expired_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(spark_table_final)\n",
