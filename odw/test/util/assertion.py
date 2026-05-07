@@ -12,6 +12,11 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     """
     Check that the two dataframes match. Raises an assertion error if there is a mismatch
     """
+    if expected is None and actual is None:
+        # Both are none, so the data matches
+        return
+    assert isinstance(expected, DataFrame), f"Expected expected to be a dataframe, but was of type {type(expected)}"
+    assert isinstance(actual, DataFrame), f"Expected actual to be a dataframe, but was of type {type(actual)}"
     schema_mismatch = set(expected.schema).symmetric_difference(set(actual.schema))
     exception_message = ""
     if schema_mismatch:
