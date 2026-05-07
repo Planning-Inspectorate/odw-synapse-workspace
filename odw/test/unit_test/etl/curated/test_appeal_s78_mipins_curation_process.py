@@ -1,5 +1,4 @@
 from odw.core.etl.transformation.curated.appeal_s78_mipins_curation_process import AppealS78MIPINSCurationProcess
-from odw.core.util.util import Util
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal
