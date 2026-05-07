@@ -16,7 +16,9 @@ class ListedBuildingCuratedProcess(CurationProcess):
         super().__init__(spark)
         self.spark = spark
 
-    def get_name(self) -> str:
+    # ✅ FIX: changed to classmethod
+    @classmethod
+    def get_name(cls) -> str:
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
