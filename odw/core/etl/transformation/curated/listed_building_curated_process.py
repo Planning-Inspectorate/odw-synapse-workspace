@@ -1,7 +1,7 @@
 from typing import Any, Tuple, Dict
 
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
-from odw.core.etl.etl_process import LoggingUtil
+from odw.core.util.logging_util import LoggingUtil
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType
 
@@ -16,13 +16,15 @@ class ListedBuildingCuratedProcess(CurationProcess):
         super().__init__(spark)
         self.spark = spark
 
-    # ✅ FIX: changed to classmethod
+    # ✅ FIXED: must be classmethod (NOT self)
     @classmethod
     def get_name(cls) -> str:
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
-        raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "ListedBuildingCuratedProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Any]:
         """
@@ -42,7 +44,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
         # 2. Deduplicate by business key
         deduped_df = active_df.dropDuplicates(["reference"])
 
-        # 3. Transform schema + filter NULL entity ✅
+        # 3. Transform schema + filter NULL entity
         curated_df = deduped_df.select(
             F.col("entity").cast(LongType()).alias("entity"),
             F.col("reference"),
@@ -61,7 +63,9 @@ class ListedBuildingCuratedProcess(CurationProcess):
 
             if joined_df.count() > 0:
                 first_row = joined_df.collect()[0]
-                target_row = target_df.filter(F.col("entity") == first_row["entity"]).collect()[0]
+                target_row = target_df.filter(
+                    F.col("entity") == first_row["entity"]
+                ).collect()[0]
 
                 # Identical → no insert, no update
                 if first_row["name"] == target_row["name"]:
@@ -76,11 +80,11 @@ class ListedBuildingCuratedProcess(CurationProcess):
                     final_df = curated_df
 
             else:
-                # ✅ New entity → insert
+                # New entity → insert
                 insert_count = curated_df.count()
                 update_count = 0
 
-                # ✅ Preserve existing target rows
+                # Preserve existing target rows
                 final_df = target_df.unionByName(curated_df)
 
         else:
