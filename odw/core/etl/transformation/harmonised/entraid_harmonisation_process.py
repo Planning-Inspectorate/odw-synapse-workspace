@@ -67,6 +67,10 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         hrm_data = self.spark.sql(f"SELECT * FROM {self.HRM_TABLE}")
 
         LoggingUtil().log_info(f"Loading source system fact from {self.SOURCE_SYSTEM_TABLE}")
+        # EntraID has no dedicated row in main_sourcesystem_fact; it shares the SAP HR
+        # SourceSystemID because EntraID users are resolved against SAP HR employee records
+        # (via employeeId). ODTSourceSystem is still set to 'EntraID' to record the actual
+        # data origin.
         source_system = self.spark.sql(f"""
             SELECT SourceSystemID
             FROM {self.SOURCE_SYSTEM_TABLE}

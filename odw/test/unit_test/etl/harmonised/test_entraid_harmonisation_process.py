@@ -22,8 +22,8 @@ _STD_SCHEMA = T.StructType(
 _HRM_SCHEMA = T.StructType(
     [
         T.StructField("EmployeeEntraId", T.LongType(), True),
-        T.StructField("id", T.StringType(), True),
         T.StructField("employeeId", T.StringType(), True),
+        T.StructField("id", T.StringType(), True),
         T.StructField("givenName", T.StringType(), True),
         T.StructField("surname", T.StringType(), True),
         T.StructField("userPrincipalName", T.StringType(), True),
@@ -54,8 +54,8 @@ def _row_id(id, employee_id, given_name, surname, upn):
 def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employee_entra_id=1, valid_to=None):
     return (
         employee_entra_id,
-        id,
         employee_id,
+        id,
         given_name,
         surname,
         upn,
