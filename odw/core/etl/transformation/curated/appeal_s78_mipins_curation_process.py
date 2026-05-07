@@ -11,10 +11,10 @@ class AppealS78MIPINSCurationProcess(CurationProcess):
 
     def load_data(self, **kwargs):
         raise NotImplementedError("AppealS78MIPINSCurationProcess.load_data() has not been implemented yet.")
-    
+
     def _filter_data(self, appeals_s78_data: DataFrame) -> DataFrame:
         raise NotImplementedError("AppealS78MIPINSCurationProcess._filter_data() has not been implemented yet.")
-    
+
     def _clean_data(self, appeals_s78_data: DataFrame) -> DataFrame:
         raise NotImplementedError("AppealS78MIPINSCurationProcess._clean_data() has not been implemented yet.")
 

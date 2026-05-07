@@ -544,39 +544,39 @@ def generate_curated_appeal_s78_row(**overrides):
         "allocationLevel": "allocationLevelValue",
         "allocationBand": Decimal("0"),
         "caseSpecialisms": [],
-        "caseSubmittedDate": datetime.datetime(2025, 1, 1, 0, 0),
-        "caseCreatedDate": datetime.datetime(2025, 1, 2, 0, 0),
-        "caseUpdatedDate": datetime.datetime(2025, 1, 3, 0, 0),
-        "caseValidDate": datetime.datetime(2025, 1, 4, 0, 0),
-        "caseValidationDate": datetime.datetime(2025, 1, 5, 0, 0),
+        "caseSubmittedDate": datetime(2025, 1, 1, 0, 0),
+        "caseCreatedDate": datetime(2025, 1, 2, 0, 0),
+        "caseUpdatedDate": datetime(2025, 1, 3, 0, 0),
+        "caseValidDate": datetime(2025, 1, 4, 0, 0),
+        "caseValidationDate": datetime(2025, 1, 5, 0, 0),
         "caseValidationOutcome": "caseValidationOutcomeValue",
         "caseValidationInvalidDetails": [],
         "caseValidationIncompleteDetails": "[caseValidationIncompleteDetailsA, caseValidationIncompleteDetailsB]",
-        "caseExtensionDate": datetime.datetime(2025, 1, 6, 0, 0),
-        "caseStartedDate": datetime.datetime(2025, 1, 7, 0, 0),
-        "casePublishedDate": datetime.datetime(2025, 1, 8, 0, 0),
+        "caseExtensionDate": datetime(2025, 1, 6, 0, 0),
+        "caseStartedDate": datetime(2025, 1, 7, 0, 0),
+        "casePublishedDate": datetime(2025, 1, 8, 0, 0),
         "linkedCaseStatus": "linkedCaseStatusValue",
         "leadCaseReference": "leadCaseReferenceValue",
-        "lpaQuestionnaireDueDate": datetime.datetime(2025, 1, 9, 0, 0),
-        "lpaQuestionnaireSubmittedDate": datetime.datetime(2025, 1, 10, 0, 0),
-        "lpaQuestionnaireCreatedDate": datetime.datetime(2025, 1, 11, 0, 0),
-        "lpaQuestionnairePublishedDate": datetime.datetime(2025, 1, 12, 0, 0),
+        "lpaQuestionnaireDueDate": datetime(2025, 1, 9, 0, 0),
+        "lpaQuestionnaireSubmittedDate": datetime(2025, 1, 10, 0, 0),
+        "lpaQuestionnaireCreatedDate": datetime(2025, 1, 11, 0, 0),
+        "lpaQuestionnairePublishedDate": datetime(2025, 1, 12, 0, 0),
         "lpaQuestionnaireValidationOutcome": "lpaQuestionnaireValidationOutcomeValue",
-        "lpaQuestionnaireValidationOutcomeDate": datetime.datetime(2025, 1, 13, 0, 0),
+        "lpaQuestionnaireValidationOutcomeDate": datetime(2025, 1, 13, 0, 0),
         "lpaQuestionnaireValidationDetails": "[lpaQuestionnaireValidationDetailsA, lpaQuestionnaireValidationDetailsB]",
-        "caseWithdrawnDate": datetime.datetime(2025, 1, 14, 0, 0),
-        "caseTransferredDate": datetime.datetime(2025, 1, 15, 0, 0),
-        "transferredCaseClosedDate": datetime.datetime(2025, 1, 16, 0, 0),
-        "caseDecisionOutcomeDate": datetime.datetime(2025, 1, 17, 0, 0),
-        "caseDecisionPublishedDate": datetime.datetime(2025, 1, 18, 0, 0),
+        "caseWithdrawnDate": datetime(2025, 1, 14, 0, 0),
+        "caseTransferredDate": datetime(2025, 1, 15, 0, 0),
+        "transferredCaseClosedDate": datetime(2025, 1, 16, 0, 0),
+        "caseDecisionOutcomeDate": datetime(2025, 1, 17, 0, 0),
+        "caseDecisionPublishedDate": datetime(2025, 1, 18, 0, 0),
         "caseDecisionOutcome": "caseDecisionOutcomeValue",
-        "caseCompletedDate": datetime.datetime(2025, 1, 19, 0, 0),
+        "caseCompletedDate": datetime(2025, 1, 19, 0, 0),
         "enforcementNotice": True,
         "applicationReference": "applicationReferenceValue",
-        "applicationDate": datetime.datetime(2025, 1, 20, 0, 0),
+        "applicationDate": datetime(2025, 1, 20, 0, 0),
         "applicationDecision": "applicationDecisionValue",
-        "applicationDecisionDate": datetime.datetime(2025, 1, 21, 0, 0),
-        "caseSubmissionDueDate": datetime.datetime(2025, 1, 22, 0, 0),
+        "applicationDecisionDate": datetime(2025, 1, 21, 0, 0),
+        "caseSubmissionDueDate": datetime(2025, 1, 22, 0, 0),
         "siteAddressLine1": "siteAddressLine1Value",
         "siteAddressLine2": "siteAddressLine2Value",
         "siteAddressTown": "siteAddressTownValue",
@@ -584,7 +584,7 @@ def generate_curated_appeal_s78_row(**overrides):
         "siteAddressPostcode": "siteAddressPostcodeValue",
         "siteAccessDetails": "[siteAccessDetailsA, siteAccessDetailsB]",
         "siteSafetyDetails": "[siteSafetyDetailsA, siteSafetyDetailsB]",
-        "siteAreaSquareMetres": False,
+        "siteAreaSquareMetres": Decimal("0"),
         "floorSpaceSquareMetres": Decimal("0"),
         "isCorrectAppealType": True,
         "isGreenBelt": True,
@@ -631,8 +631,8 @@ def generate_curated_appeal_s78_row(**overrides):
         "consultedBodiesDetails": "consultedBodiesDetailsValue",
         "hasInfrastructureLevy": True,
         "isInfrastructureLevyFormallyAdopted": True,
-        "infrastructureLevyAdoptedDate": datetime.datetime(2025, 1, 23, 0, 0),
-        "infrastructureLevyExpectedDate": datetime.datetime(2025, 1, 24, 0, 0),
+        "infrastructureLevyAdoptedDate": datetime(2025, 1, 23, 0, 0),
+        "infrastructureLevyExpectedDate": datetime(2025, 1, 24, 0, 0),
         "lpaProcedurePreference": "lpaProcedurePreferenceValue",
         "lpaProcedurePreferenceDetails": "lpaProcedurePreferenceDetailsValue",
         "lpaProcedurePreferenceDuration": 0.0,
@@ -647,14 +647,14 @@ def generate_curated_appeal_s78_row(**overrides):
         "appellantCommentsSubmittedDate": "2025-01-01T00:00:00.000Z",
         "appellantStatementSubmittedDate": "2025-01-01T00:00:00.000Z",
         "appellantProofsSubmittedDate": "2025-01-01T00:00:00.000Z",
-        "finalCommentsDueDate": datetime.datetime(2025, 1, 25, 0, 0),
-        "interestedPartyRepsDueDate": datetime.datetime(2025, 1, 26, 0, 0),
+        "finalCommentsDueDate": datetime(2025, 1, 25, 0, 0),
+        "interestedPartyRepsDueDate": datetime(2025, 1, 26, 0, 0),
         "lpaCommentsSubmittedDate": "2025-01-01T00:00:00.000Z",
         "lpaProofsSubmittedDate": "2025-01-01T00:00:00.000Z",
         "lpaStatementSubmittedDate": "2025-01-01T00:00:00.000Z",
         "proofsOfEvidenceDueDate": "2025-01-01T00:00:00.000Z",
         "siteNoticesSentDate": "2025-01-01T00:00:00.000Z",
-        "statementDueDate": datetime.datetime(2025, 1, 27, 0, 0),
+        "statementDueDate": datetime(2025, 1, 27, 0, 0),
         "reasonForNeighbourVisits": "reasonForNeighbourVisitsValue",
         "numberOfResidencesNetChange": 0.0,
         "siteGridReferenceEasting": "siteGridReferenceEastingValue",
@@ -665,8 +665,8 @@ def generate_curated_appeal_s78_row(**overrides):
         "preserveGrantLoan": True,
         "consultHistoricEngland": True,
         "padsSapId": "padsSapIdValue",
-        "IngestionDate": datetime.datetime(2025, 1, 28, 0, 0),
-        "ValidTo": datetime.datetime(2025, 1, 29, 0, 0),
+        "IngestionDate": datetime(2025, 1, 28, 0, 0),
+        "ValidTo": datetime(2025, 1, 29, 0, 0),
         "IsActive": "IsActiveValue",
         "planningObligationDueDate": None,
         "statementOfCommonGroundDueDate": None,
@@ -1077,10 +1077,6 @@ class TestAppealS78MIPinsCurationProcess(SparkTestCase):
 
     def test__appeal_s78_mipins_curation_process__clean_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        # distinct
-        # casting
-        # with columns
-        # TODO need to generate data
         appeal_s78 = spark.createDataFrame(
             (
                 generate_appeal_s78_schema(),
@@ -1094,4 +1090,16 @@ class TestAppealS78MIPinsCurationProcess(SparkTestCase):
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_mipins_curation_process__process(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        appeal_s78 = spark.createDataFrame([], schema=generate_appeal_s78_schema())
+        source_data = {"appeal_s78": appeal_s78}
+        expected_return_value = "b"
+        with (
+            mock.patch.object(AppealS78MIPINSCurationProcess, "__init__", return_value=None),
+            mock.patch.object(AppealS78MIPINSCurationProcess, "_filter_data", return_value="a"),
+            mock.patch.object(AppealS78MIPINSCurationProcess, "_clean_data", return_value=expected_return_value),
+        ):
+            return_value = AppealS78MIPINSCurationProcess().process(source_data_map=source_data)
+            AppealS78MIPINSCurationProcess._filter_data.assert_called_once_with(appeal_s78)
+            AppealS78MIPINSCurationProcess._clean_data.assert_called_once_with("a")
+            assert expected_return_value == return_value
