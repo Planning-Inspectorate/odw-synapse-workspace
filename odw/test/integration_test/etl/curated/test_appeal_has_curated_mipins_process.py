@@ -3,6 +3,7 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
+from pyspark.sql import functions as F
 from odw.test.util.assertion import assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
@@ -285,6 +286,19 @@ def _df(spark, rows):
     return spark.createDataFrame(rows, _harmonised_schema())
 
 
+def _df_with_old_dates(spark, rows, date_cols):
+    schema = _harmonised_schema()
+
+    for col_name in date_cols:
+        schema[col_name].dataType = T.StringType()
+
+    cleaned_rows = [{key: value.isoformat() if isinstance(value, datetime) else value for key, value in row.asDict().items()} for row in rows]
+
+    df = spark.createDataFrame(cleaned_rows, schema=schema)
+
+    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
+
+
 def _source_data(harmonised_data):
     return {"harmonised_data": harmonised_data}
 
@@ -403,7 +417,7 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
     def test__appeal_has_curated_mipins_process__run__filters_pre_1900_dates_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _df(
+        source_df = _df_with_old_dates(
             spark,
             [
                 _base_row(caseReference="7000001"),
@@ -412,6 +426,7 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
                     caseSubmittedDate=datetime(1899, 12, 31),
                 ),
             ],
+            date_cols=["caseSubmittedDate"],
         )
         source_data = _source_data(source_df)
 
