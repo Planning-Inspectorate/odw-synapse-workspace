@@ -4,6 +4,7 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
+from pyspark.sql import functions as F
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -288,6 +289,19 @@ def _df(spark, rows):
     return spark.createDataFrame(rows, _harmonised_schema())
 
 
+def _df_with_old_dates(spark, rows, date_cols):
+    schema = _harmonised_schema()
+
+    for col_name in date_cols:
+        schema[col_name].dataType = T.StringType()
+
+    cleaned_rows = [{key: value.isoformat() if isinstance(value, datetime) else value for key, value in row.asDict().items()} for row in rows]
+
+    df = spark.createDataFrame(cleaned_rows, schema=schema)
+
+    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
+
+
 def _process_under_test(spark):
     with mock.patch(
         "odw.core.etl.transformation.curated.curated_process.CuratedProcess.__init__",
@@ -430,7 +444,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
     def test__appeal_has_curated_mipins_process__process__filters_rows_with_pre_1900_dates_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _df(
+        source_df = _df_with_old_dates(
             spark,
             [
                 _base_row(caseReference="7000001"),
@@ -438,6 +452,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
                 _base_row(caseReference="7000003", applicationDecisionDueDate=datetime(1899, 12, 31)),
                 _base_row(caseReference="7000004", IngestionDate=datetime(1899, 12, 31)),
             ],
+            date_cols=["caseCreatedDate", "applicationDecisionDueDate", "IngestionDate"],
         )
 
         inst = _process_under_test(spark)
@@ -484,7 +499,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _df(
+        source_df = _df_with_old_dates(
             spark,
             [
                 _base_row(caseReference="7000001"),
@@ -493,6 +508,7 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
                     **{date_column: datetime(1899, 12, 31)},
                 ),
             ],
+            date_cols=[date_column],
         )
 
         inst = _process_under_test(spark)
