@@ -22,9 +22,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
-        raise NotImplementedError(
-            "ListedBuildingCuratedProcess.load_data() has not been implemented yet."
-        )
+        raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Any]:
         """
@@ -63,9 +61,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
 
             if joined_df.count() > 0:
                 first_row = joined_df.collect()[0]
-                target_row = target_df.filter(
-                    F.col("entity") == first_row["entity"]
-                ).collect()[0]
+                target_row = target_df.filter(F.col("entity") == first_row["entity"]).collect()[0]
 
                 # Identical → no insert, no update
                 if first_row["name"] == target_row["name"]:
