@@ -93,8 +93,7 @@ class AppealServiceUserCuratedProcess(CurationProcess):
         harmonised_service_user: DataFrame = self.load_parameter("harmonised_service_user", source_data)
 
         df = harmonised_service_user.filter(
-            (harmonised_service_user["sourceSystem"] == "back-office-appeals")
-            | (harmonised_service_user["serviceUserType"] == "Appellant")
+            (harmonised_service_user["sourceSystem"] == "back-office-appeals") | (harmonised_service_user["serviceUserType"] == "Appellant")
         )
 
         insert_count = df.count()
