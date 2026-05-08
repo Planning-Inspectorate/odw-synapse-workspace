@@ -1,7 +1,6 @@
 import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 from pyspark.sql import DataFrame
 from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess

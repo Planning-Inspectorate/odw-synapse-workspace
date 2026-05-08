@@ -1,7 +1,6 @@
 import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.listed_building_curated_process import ListedBuildingCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
