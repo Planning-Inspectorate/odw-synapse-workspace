@@ -289,14 +289,37 @@ def _df(spark, rows):
 def _df_with_old_dates(spark, rows, date_cols):
     schema = _harmonised_schema()
 
-    for col_name in date_cols:
-        schema[col_name].dataType = T.StringType()
+    schema_fields = []
+    for field in schema.fields:
+        if field.name in date_cols:
+            schema_fields.append(T.StructField(field.name, T.StringType(), True))
+        else:
+            schema_fields.append(field)
 
-    cleaned_rows = [{key: value.isoformat() if isinstance(value, datetime) else value for key, value in row.asDict().items()} for row in rows]
+    updated_schema = T.StructType(schema_fields)
 
-    df = spark.createDataFrame(cleaned_rows, schema=schema)
+    cleaned_rows = []
 
-    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
+    for row in rows:
+        row_dict = row.asDict()
+        updated_row = {}
+
+        for key, value in row_dict.items():
+            if key in date_cols and isinstance(value, datetime):
+                updated_row[key] = value.isoformat()
+            else:
+                updated_row[key] = value
+
+        cleaned_rows.append(updated_row)
+
+    df = spark.createDataFrame(cleaned_rows, schema=updated_schema)
+
+    return df.withColumns(
+        {
+            col_name: F.col(col_name).cast("timestamp")
+            for col_name in date_cols
+        }
+    )
 
 
 def _source_data(harmonised_data):

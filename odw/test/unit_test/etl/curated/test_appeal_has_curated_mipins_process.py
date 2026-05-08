@@ -292,19 +292,31 @@ def _df(spark, rows):
 def _df_with_old_dates(spark, rows, date_cols):
     schema = _harmonised_schema()
 
-    for col_name in date_cols:
-        schema[col_name].dataType = T.StringType()
+    for field in schema.fields:
+        if field.name in date_cols:
+            field.dataType = T.StringType()
 
-    cleaned_rows = [{key: value.isoformat() if isinstance(value, datetime) else value for key, value in row.asDict().items()} for row in rows]
+    cleaned_rows = []
+    for row in rows:
+        row_dict = row.asDict()
+
+        for col_name in date_cols:
+            value = row_dict.get(col_name)
+            if isinstance(value, datetime):
+                row_dict[col_name] = value.isoformat()
+
+        cleaned_rows.append(row_dict)
 
     df = spark.createDataFrame(cleaned_rows, schema=schema)
 
-    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
+    return df.withColumns(
+        {col_name: F.col(col_name).cast("timestamp") for col_name in date_cols}
+    )
 
 
 def _process_under_test(spark):
     with mock.patch(
-        "odw.core.etl.transformation.curated.curated_process.CuratedProcess.__init__",
+        "odw.core.etl.transformation.curated.curation_process.CurationProcess.__init__",
         return_value=None,
     ):
         inst = AppealHasCuratedMipinsProcess(spark)

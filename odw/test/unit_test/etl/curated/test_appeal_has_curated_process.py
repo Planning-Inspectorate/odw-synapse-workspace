@@ -247,7 +247,7 @@ def _empty_harmonised_df(spark):
 
 def _process_under_test(spark):
     with mock.patch(
-        "odw.core.etl.transformation.curated.curated_process.CuratedProcess.__init__",
+        "odw.core.etl.transformation.curated.curation_process.CurationProcess.__init__",
         return_value=None,
     ):
         inst = AppealHasCuratedProcess(spark)
@@ -372,115 +372,19 @@ def _active_harmonised_df(spark):
 
 def _mixed_active_inactive_harmonised_df(spark):
     active = _active_harmonised_df(spark)
-    inactive = spark.createDataFrame(
-        [
-            (
-                "1002",
-                "HAS-002",
-                "SUB-002",
-                "inactive",
-                "HAS",
-                "LI",
-                "LPA02",
-                None,
-                None,
-                None,
-                None,
-                ["Enforcement"],
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                "N",
-            )
-        ],
-        _harmonised_schema(),
+
+    inactive = (
+        active
+        .withColumn("caseId", F.lit("1002"))
+        .withColumn("caseReference", F.lit("HAS-002"))
+        .withColumn("submissionId", F.lit("SUB-002"))
+        .withColumn("caseStatus", F.lit("inactive"))
+        .withColumn("caseProcedure", F.lit("LI"))
+        .withColumn("lpaCode", F.lit("LPA02"))
+        .withColumn("caseSpecialisms", F.array(F.lit("Enforcement")))
+        .withColumn("IsActive", F.lit("N"))
     )
+
     return active.unionByName(inactive)
 
 
