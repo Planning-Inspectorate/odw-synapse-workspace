@@ -309,9 +309,7 @@ def _df_with_old_dates(spark, rows, date_cols):
 
     df = spark.createDataFrame(cleaned_rows, schema=schema)
 
-    return df.withColumns(
-        {col_name: F.col(col_name).cast("timestamp") for col_name in date_cols}
-    )
+    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
 
 
 def _process_under_test(spark):

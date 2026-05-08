@@ -374,8 +374,7 @@ def _mixed_active_inactive_harmonised_df(spark):
     active = _active_harmonised_df(spark)
 
     inactive = (
-        active
-        .withColumn("caseId", F.lit("1002"))
+        active.withColumn("caseId", F.lit("1002"))
         .withColumn("caseReference", F.lit("HAS-002"))
         .withColumn("submissionId", F.lit("SUB-002"))
         .withColumn("caseStatus", F.lit("inactive"))
