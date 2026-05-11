@@ -6,7 +6,7 @@ class AppealHasStandardisationProcess(StandardisationProcess):
     OUTPUT_TABLE = "horizon_appeal_has"
     STANDARDISED_DB = "odw_standardised_db"
     STANDARDISED_CASES_SPECIALISMS = "cases_specialisms"
-    STANDARDISED_HORIZON_CASES_S78 = "horizoncases_has"
+    STANDARDISED_HORIZON_CASES_HAS = "horizoncases_has"
     STANDARDISED_VW_CASE_DATES = "vw_case_dates"
     STANDARDISED_CASE_DOCUMENT_DATES_DATES = "casedocumentdatesdates"
     STANDARDISED_CASE_SITE_STRINGS = "casesitestrings"

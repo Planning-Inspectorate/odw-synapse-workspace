@@ -2007,7 +2007,7 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         )
         output_table = f"{test_case}_horizon_appeal_has"
         property_override_map = {
-            "STANDARDISED_HORIZON_CASES_S78": horizon_cases_has,
+            "STANDARDISED_HORIZON_CASES_HAS": horizon_cases_has,
             "STANDARDISED_CASES_SPECIALISMS": cases_specialisms_table,
             "STANDARDISED_VW_CASE_DATES": vw_case_dates_table,
             "STANDARDISED_CASE_DOCUMENT_DATES_DATES": casedocumentdatesdates_table,
