@@ -64,12 +64,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def get_name(cls) -> str:
         return "listed_building_harmonisation_process"
 
-    def _safe_log_info(self, message: str) -> None:
-        try:
-            LoggingUtil().log_info(message)
-        except Exception:
-            pass
-
     def _rename_source(self, df: DataFrame) -> DataFrame:
         return (
             df.withColumnRenamed("end-date", "endDate")
@@ -81,20 +75,20 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         )
 
     def _add_harmonised_fields(self, df: DataFrame) -> DataFrame:
-        return (
-            df.withColumn("dateReceived", F.current_date())
-            .withColumn(
-                "rowID",
-                F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in self._ROW_ID_COLUMNS])),
-            )
-            .withColumn("validTo", F.lit(None).cast(TimestampType()))
-            .withColumn("isActive", F.lit("Y"))
-        )
+        return df.withColumns({
+            "dateReceived": F.current_date(),
+            "rowID": F.md5(F.concat(*[
+                F.coalesce(F.col(c).cast("string"), F.lit("."))
+                for c in self._ROW_ID_COLUMNS
+            ])),
+            "validTo": F.lit(None).cast(TimestampType()),
+            "isActive": F.lit("Y"),
+        })
 
     def process(self, **kwargs) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
         start_exec_time = datetime.now()
 
-        self._safe_log_info("Starting listed_building harmonisation process")
+        LoggingUtil().log_info("Starting listed_building harmonisation process")
 
         injected = kwargs.get("source_data")
         source_df = injected.get("source_data")
@@ -111,20 +105,21 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
                 update_count=0,
             )
 
-            self._safe_log_info("Initial load completed")
+            LoggingUtil().log_info("Initial load completed")
             return result
 
         active_target = target_df.filter(F.col("isActive") == "Y")
 
         joined = staged_df.alias("src").join(
             active_target.alias("tgt"),
-            (F.col("src.reference") == F.col("tgt.reference")) & (F.col("src.entity") == F.col("tgt.entity")),
+            (F.col("src.reference") == F.col("tgt.reference")) &
+            (F.col("src.entity") == F.col("tgt.entity")),
             "left",
         )
 
         changed = joined.filter(
-            F.col("tgt.rowID").isNotNull()
-            & (
+            F.col("tgt.rowID").isNotNull() &
+            (
                 F.concat_ws(
                     "||",
                     *[F.coalesce(F.col(f"src.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS],
@@ -146,15 +141,25 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             "left_anti",
         )
 
-        expired = changed.select("tgt.*").withColumn("validTo", F.current_timestamp()).withColumn("isActive", F.lit("N"))
+        expired = changed.select("tgt.*").withColumns({
+            "validTo": F.current_timestamp(),
+            "isActive": F.lit("N"),
+        })
 
         new_versions = changed.select("src.*")
 
         changed_refs = [r["reference"] for r in changed.select("tgt.reference").distinct().collect()]
 
-        preserved_target = target_df.filter((F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs)))
+        preserved_target = target_df.filter(
+            (F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs))
+        )
 
-        final_df = preserved_target.unionByName(expired).unionByName(new_versions).unionByName(new_inserts)
+        final_df = (
+            preserved_target
+            .unionByName(expired)
+            .unionByName(new_versions)
+            .unionByName(new_inserts)
+        )
 
         existing_refs = target_df.select("reference").distinct()
 
@@ -169,7 +174,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             update_count=changed.count() + reference_reuse_updates.count(),
         )
 
-        self._safe_log_info("Completed listed_building harmonisation process")
+        LoggingUtil().log_info("Completed listed_building harmonisation process")
 
         return result
 
