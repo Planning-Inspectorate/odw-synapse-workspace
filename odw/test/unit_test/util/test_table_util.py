@@ -12,6 +12,10 @@ from typing import List, Dict
 
 
 class TestTableUtil(SparkTestCase):
+    @pytest.fixture(scope="module", autouse=True)
+    def setup(self, request):
+        yield
+
     DESCRIPTION_SCHEMA = StructType(
         [
             StructField("format", StringType(), True),
