@@ -8,8 +8,9 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import AppealHasHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _appeal_has_schema():
