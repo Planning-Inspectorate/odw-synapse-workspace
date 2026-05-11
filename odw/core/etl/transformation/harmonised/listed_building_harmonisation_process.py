@@ -64,7 +64,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def get_name(cls) -> str:
         return "listed_building_harmonisation_process"
 
-    # ✅ SAFE LOGGER (no pipeline break risk)
     def _safe_log_info(self, message: str) -> None:
         try:
             LoggingUtil().log_info(message)
@@ -95,7 +94,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     def process(self, **kwargs) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
         start_exec_time = datetime.now()
 
-        # ✅ Logging start
         self._safe_log_info("Starting listed_building harmonisation process")
 
         injected = kwargs.get("source_data")
@@ -105,7 +103,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         staged_df = self._add_harmonised_fields(self._rename_source(source_df))
 
-        # ✅ Initial load
         if not target_exists or target_df is None:
             result = self._result(
                 staged_df,
@@ -119,14 +116,12 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         active_target = target_df.filter(F.col("isActive") == "Y")
 
-        # ✅ ENTITY + REFERENCE join
         joined = staged_df.alias("src").join(
             active_target.alias("tgt"),
             (F.col("src.reference") == F.col("tgt.reference")) & (F.col("src.entity") == F.col("tgt.entity")),
             "left",
         )
 
-        # ✅ Changed rows
         changed = joined.filter(
             F.col("tgt.rowID").isNotNull()
             & (
@@ -141,10 +136,8 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             )
         )
 
-        # ✅ Candidate new rows
         candidate_new = joined.filter(F.col("tgt.rowID").isNull()).select("src.*")
 
-        # ✅ Prevent duplicate identical active rows
         existing_active_business = active_target.select(self._ROW_ID_COLUMNS).distinct()
 
         new_inserts = candidate_new.alias("n").join(
@@ -153,25 +146,20 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             "left_anti",
         )
 
-        # ✅ Expire old rows
         expired = changed.select("tgt.*").withColumn("validTo", F.current_timestamp()).withColumn("isActive", F.lit("N"))
 
-        # ✅ New versions
         new_versions = changed.select("src.*")
 
-        # ✅ Preserve existing rows
         changed_refs = [r["reference"] for r in changed.select("tgt.reference").distinct().collect()]
 
         preserved_target = target_df.filter((F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs)))
 
         final_df = preserved_target.unionByName(expired).unionByName(new_versions).unionByName(new_inserts)
 
-        # ✅ INSERT count
         existing_refs = target_df.select("reference").distinct()
 
         true_inserts = new_inserts.alias("n").join(existing_refs.alias("e"), "reference", "left_anti")
 
-        # ✅ UPDATE count
         reference_reuse_updates = new_inserts.alias("n").join(existing_refs.alias("e"), "reference", "inner")
 
         result = self._result(
@@ -181,7 +169,6 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             update_count=changed.count() + reference_reuse_updates.count(),
         )
 
-        # ✅ Logging end
         self._safe_log_info("Completed listed_building harmonisation process")
 
         return result
