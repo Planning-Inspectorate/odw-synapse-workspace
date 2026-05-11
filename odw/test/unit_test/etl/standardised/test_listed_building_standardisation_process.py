@@ -405,9 +405,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         assert LISTED_BUILDING_OUTPUT_TABLE in data_to_write
         assert LISTED_BUILDING_OUTLINE_OUTPUT_TABLE in data_to_write
@@ -422,9 +421,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
 
@@ -474,9 +472,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
 
@@ -534,9 +531,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -579,9 +575,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         assert data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"] == "overwrite"
@@ -596,9 +591,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -651,9 +645,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_multirow_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -671,9 +664,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -691,9 +683,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -711,9 +702,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
         listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
@@ -731,9 +721,8 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
-        with mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil"):
-            inst = ListedBuildingStandardisationProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = ListedBuildingStandardisationProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
 
@@ -750,20 +739,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
 
@@ -827,20 +809,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
 
@@ -912,20 +887,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_multirow_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
@@ -950,20 +918,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
@@ -982,20 +943,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
@@ -1016,20 +970,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
@@ -1048,20 +995,13 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
         }
 
+        inst = ListedBuildingStandardisationProcess(spark)
+
         with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.standardised.listed_building_standardisation_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
-            inst = ListedBuildingStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                inst.run()
+            inst.run()
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
