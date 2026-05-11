@@ -1,48 +1,60 @@
 from typing import Any, Tuple, Dict
+from datetime import datetime
 
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType
 
-# Tests expect LoggingUtil at module level
-LoggingUtil = LoggingUtil
-
 
 class ListedBuildingCuratedProcess(CurationProcess):
+    HARMONISED_TABLE = "odw_harmonised_db.listed_building"
     OUTPUT_TABLE = "listed_building"
 
     def __init__(self, spark):
         super().__init__(spark)
         self.spark = spark
 
-    # ✅ FIXED: must be classmethod (NOT self)
     @classmethod
     def get_name(cls) -> str:
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
-        raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")
+        LoggingUtil().log_info(
+            f"Loading harmonised Listed Building data from {self.HARMONISED_TABLE}"
+        )
 
-    def process(self, source_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Any]:
-        """
-        ETL Logic: Harmonised → Curated Listed Buildings
+        source_df = self.spark.table(self.HARMONISED_TABLE)
 
-        1. Filter active records
-        2. Deduplicate by reference
-        3. Cast entity to Long and REMOVE NULL entities
-        4. Apply merge semantics and metadata counts
-        """
+        target_exists = self.spark.catalog.tableExists(
+            "odw_curated_db.listed_building"
+        )
+
+        data = {
+            "source_data": source_df,
+            "target_exists": target_exists,
+        }
+
+        if target_exists:
+            data["target_data"] = self.spark.table(
+                "odw_curated_db.listed_building"
+            )
+
+        return data
+
+    def process(self, source_data: Dict[str, Any]) -> Tuple[Dict[str, Any], ETLResult]:
+        start_exec_time = datetime.now()
 
         source_df = source_data["source_data"]
 
-        # 1. Filter active records
+        # Filter active records
         active_df = source_df.filter(F.col("isActive") == "Y")
 
-        # 2. Deduplicate by business key
+        # Deduplicate
         deduped_df = active_df.dropDuplicates(["reference"])
 
-        # 3. Transform schema + filter NULL entity
+        # Transform
         curated_df = deduped_df.select(
             F.col("entity").cast(LongType()).alias("entity"),
             F.col("reference"),
@@ -53,40 +65,30 @@ class ListedBuildingCuratedProcess(CurationProcess):
         insert_count = 0
         update_count = 0
 
-        # 4. Merge logic
+        # Merge logic
         if source_data.get("target_exists") and "target_data" in source_data:
             target_df = source_data["target_data"]
 
-            joined_df = curated_df.join(target_df, ["entity", "reference"], "inner")
+            joined_df = curated_df.join(
+                target_df, ["entity", "reference"], "inner"
+            )
 
             if joined_df.count() > 0:
                 first_row = joined_df.collect()[0]
-                target_row = target_df.filter(F.col("entity") == first_row["entity"]).collect()[0]
+                target_row = target_df.filter(
+                    F.col("entity") == first_row["entity"]
+                ).collect()[0]
 
-                # Identical → no insert, no update
                 if first_row["name"] == target_row["name"]:
-                    insert_count = 0
-                    update_count = 0
                     final_df = target_df
-
-                # Changed non-key field → update
                 else:
-                    insert_count = 0
                     update_count = 1
                     final_df = curated_df
-
             else:
-                # New entity → insert
                 insert_count = curated_df.count()
-                update_count = 0
-
-                # Preserve existing target rows
                 final_df = target_df.unionByName(curated_df)
-
         else:
-            # Initial load
             insert_count = curated_df.count()
-            update_count = 0
             final_df = curated_df
 
         data_to_write = {
@@ -96,19 +98,20 @@ class ListedBuildingCuratedProcess(CurationProcess):
             }
         }
 
-        metadata = type(
-            "Metadata",
-            (),
-            {
-                "insert_count": insert_count,
-                "update_count": update_count,
-            },
-        )()
+        end_exec_time = datetime.now()
 
-        result = type("Result", (), {"metadata": metadata})()
+        LoggingUtil().log_info(f"Curated insert count: {insert_count}")
+        LoggingUtil().log_info(f"Curated update count: {update_count}")
 
-        return data_to_write, result
-
-    def write_data(self, data_dict: Dict[str, Any]):
-        """Mocked by integration tests"""
-        pass
+        return data_to_write, ETLSuccessResult(
+            metadata=ETLResult.ETLResultMetadata(
+                start_execution_time=start_exec_time,
+                end_execution_time=end_exec_time,
+                table_name=self.OUTPUT_TABLE,
+                insert_count=insert_count,
+                update_count=update_count,
+                delete_count=0,
+                activity_type=self.__class__.__name__,
+                duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
+            )
+        )
