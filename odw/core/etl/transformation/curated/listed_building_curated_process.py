@@ -21,15 +21,11 @@ class ListedBuildingCuratedProcess(CurationProcess):
         return "listed_building_curated_process"
 
     def load_data(self) -> Dict[str, Any]:
-        LoggingUtil().log_info(
-            f"Loading harmonised Listed Building data from {self.HARMONISED_TABLE}"
-        )
+        LoggingUtil().log_info(f"Loading harmonised Listed Building data from {self.HARMONISED_TABLE}")
 
         source_df = self.spark.table(self.HARMONISED_TABLE)
 
-        target_exists = self.spark.catalog.tableExists(
-            "odw_curated_db.listed_building"
-        )
+        target_exists = self.spark.catalog.tableExists("odw_curated_db.listed_building")
 
         data = {
             "source_data": source_df,
@@ -37,9 +33,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
         }
 
         if target_exists:
-            data["target_data"] = self.spark.table(
-                "odw_curated_db.listed_building"
-            )
+            data["target_data"] = self.spark.table("odw_curated_db.listed_building")
 
         return data
 
@@ -69,15 +63,11 @@ class ListedBuildingCuratedProcess(CurationProcess):
         if source_data.get("target_exists") and "target_data" in source_data:
             target_df = source_data["target_data"]
 
-            joined_df = curated_df.join(
-                target_df, ["entity", "reference"], "inner"
-            )
+            joined_df = curated_df.join(target_df, ["entity", "reference"], "inner")
 
             if joined_df.count() > 0:
                 first_row = joined_df.collect()[0]
-                target_row = target_df.filter(
-                    F.col("entity") == first_row["entity"]
-                ).collect()[0]
+                target_row = target_df.filter(F.col("entity") == first_row["entity"]).collect()[0]
 
                 if first_row["name"] == target_row["name"]:
                     final_df = target_df
