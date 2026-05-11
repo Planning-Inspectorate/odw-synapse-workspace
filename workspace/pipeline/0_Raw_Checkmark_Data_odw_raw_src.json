@@ -3495,6 +3495,177 @@
 					},
 					"numExecutors": null
 				}
+			},
+			{
+				"name": "Checkmark_nsi",
+				"description": "This is ingesting data into ODW Raw from miPINS checkmark table structure_reasoning_detail_reference",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Checkmark_Structure_Reasoning_Detail_Reference",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "dbo.structure_reasoning_detail_reference"
+					},
+					{
+						"name": "Destination",
+						"value": "odw-raw/@{concat('Checkmark', '/', formatDateTime(utcnow(), 'yyyy-MM-dd'))}/@{'StructureReasoningDetailReference.csv'}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"isolationLevel": "ReadCommitted",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "ID",
+									"type": "Int32",
+									"physicalType": "int"
+								},
+								"sink": {
+									"name": "ID",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "email",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "email",
+									"type": "String",
+									"physicalType": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "name",
+									"type": "String",
+									"physicalType": "nvarchar"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "checkmark_nsi",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "mipins_check_mark_data",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileName": "nsi.csv"
+						}
+					}
+				]
+			},
+			{
+				"name": "Checkmark_nsi_csv",
+				"description": "The ingestion of Checkmark case data from MiPINS Checksum schema has failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Checkmark_nsi",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": "The ingestion of Checkmark nsi  in 0_Raw_Checkmark_data pipeline has failed within Soruce to Raw ",
+					"errorCode": "Checkmark_nsi_Reference"
+				}
+			},
+			{
+				"name": "Logging Failed Activities-22",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Checkmark_nsi_csv",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_fail_activity_logging",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"output": {
+							"value": {
+								"value": "@activity('Checkmark_nsi').output.message",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
 			}
 		],
 		"folder": {
