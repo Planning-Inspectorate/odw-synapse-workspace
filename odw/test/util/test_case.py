@@ -1,10 +1,12 @@
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.core.util.logging_util import LoggingUtil
 import gc
 from pyspark.sql import SparkSession, DataFrame
 from odw.test.util.util import format_to_adls_path
 from typing import Dict, Any
 import logging
 import pytest
+import mock
 
 
 class TestCase:
@@ -53,6 +55,15 @@ class SparkTestCase(TestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         spark.catalog.clearCache()
         gc.collect()
+
+    @pytest.fixture(scope="module", autouse=True)
+    def setup(self, request):
+        with (
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        ):
+            yield
 
     def write_existing_table(
         self,
