@@ -4,6 +4,10 @@ from odw.core.etl.transformation.harmonised.harmonsation_process import Harmonis
 
 class AppealHasHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "appeal_has"
+    SERVICE_BUS_TABLE = "sb_appeal_has"
+    HORIZON_TABLE = "horizon_appeal_has"
+    GROUP_RESOLVER_TABLE = "GroupResolver"
+    S78_TABLE = "appeal_s78"
 
     def __init__(self, spark):
         super().__init__(spark)
