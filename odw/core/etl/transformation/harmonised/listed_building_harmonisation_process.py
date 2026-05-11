@@ -75,15 +75,14 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
         )
 
     def _add_harmonised_fields(self, df: DataFrame) -> DataFrame:
-        return df.withColumns({
-            "dateReceived": F.current_date(),
-            "rowID": F.md5(F.concat(*[
-                F.coalesce(F.col(c).cast("string"), F.lit("."))
-                for c in self._ROW_ID_COLUMNS
-            ])),
-            "validTo": F.lit(None).cast(TimestampType()),
-            "isActive": F.lit("Y"),
-        })
+        return df.withColumns(
+            {
+                "dateReceived": F.current_date(),
+                "rowID": F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in self._ROW_ID_COLUMNS])),
+                "validTo": F.lit(None).cast(TimestampType()),
+                "isActive": F.lit("Y"),
+            }
+        )
 
     def process(self, **kwargs) -> Tuple[Dict[str, Dict[str, Any]], ETLResult]:
         start_exec_time = datetime.now()
@@ -112,14 +111,13 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
         joined = staged_df.alias("src").join(
             active_target.alias("tgt"),
-            (F.col("src.reference") == F.col("tgt.reference")) &
-            (F.col("src.entity") == F.col("tgt.entity")),
+            (F.col("src.reference") == F.col("tgt.reference")) & (F.col("src.entity") == F.col("tgt.entity")),
             "left",
         )
 
         changed = joined.filter(
-            F.col("tgt.rowID").isNotNull() &
-            (
+            F.col("tgt.rowID").isNotNull()
+            & (
                 F.concat_ws(
                     "||",
                     *[F.coalesce(F.col(f"src.{c}"), F.lit("##NULL##")) for c in self._ROW_ID_COLUMNS],
@@ -141,25 +139,20 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
             "left_anti",
         )
 
-        expired = changed.select("tgt.*").withColumns({
-            "validTo": F.current_timestamp(),
-            "isActive": F.lit("N"),
-        })
+        expired = changed.select("tgt.*").withColumns(
+            {
+                "validTo": F.current_timestamp(),
+                "isActive": F.lit("N"),
+            }
+        )
 
         new_versions = changed.select("src.*")
 
         changed_refs = [r["reference"] for r in changed.select("tgt.reference").distinct().collect()]
 
-        preserved_target = target_df.filter(
-            (F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs))
-        )
+        preserved_target = target_df.filter((F.col("isActive") == "N") | (~F.col("reference").isin(changed_refs)))
 
-        final_df = (
-            preserved_target
-            .unionByName(expired)
-            .unionByName(new_versions)
-            .unionByName(new_inserts)
-        )
+        final_df = preserved_target.unionByName(expired).unionByName(new_versions).unionByName(new_inserts)
 
         existing_refs = target_df.select("reference").distinct()
 
