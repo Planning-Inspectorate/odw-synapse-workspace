@@ -1,6 +1,7 @@
 import hashlib
 import mock
-#import pytest
+
+# import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
@@ -15,7 +16,7 @@ from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process i
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-#pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _invoice_struct():

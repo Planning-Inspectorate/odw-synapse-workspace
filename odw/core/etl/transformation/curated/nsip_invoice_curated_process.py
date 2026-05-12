@@ -1,20 +1,20 @@
 from typing import Dict, Tuple
 from datetime import datetime
- 
+
 from pyspark.sql import DataFrame, SparkSession, functions as F
- 
+
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
- 
- 
+
+
 class NsipInvoiceCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Invoice data from the harmonised layer.
- 
+
     # Example usage via py_etl_orchestrator
- 
+
     ```
     input_arguments = {
         "entity_stage_name": "nsip-invoice-curated",
@@ -22,17 +22,17 @@ class NsipInvoiceCuratedProcess(CurationProcess):
     }
     ```
     """
- 
+
     HARMONISED_TABLE = "odw_harmonised_db.sb_nsip_invoice"
     OUTPUT_TABLE = "odw_curated_db.nsip_invoice"
- 
+
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
- 
+
     @classmethod
     def get_name(cls) -> str:
         return "nsip-invoice-curated"
- 
+
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
         Load source data, selecting only the columns needed downstream.
@@ -56,11 +56,11 @@ class NsipInvoiceCuratedProcess(CurationProcess):
             FROM {self.HARMONISED_TABLE}
             WHERE IsActive = 'Y'
         """)
- 
+
         return {
             "harmonised_nsip_invoice": harmonised_nsip_invoice,
         }
- 
+
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
         Apply curated transformations to the loaded source data.
@@ -70,7 +70,7 @@ class NsipInvoiceCuratedProcess(CurationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_nsip_invoice: DataFrame = self.load_parameter("harmonised_nsip_invoice", source_data)
- 
+
         df = harmonised_nsip_invoice.select(
             F.col("caseId"),
             F.col("caseReference"),
@@ -84,10 +84,10 @@ class NsipInvoiceCuratedProcess(CurationProcess):
             F.col("refundAmount"),
             F.col("IsActive"),
         ).distinct()
- 
+
         insert_count = df.count()
         LoggingUtil().log_info(f"Curated NSIP Invoice row count: {insert_count}")
- 
+
         end_exec_time = datetime.now()
         data_to_write = {
             self.OUTPUT_TABLE: {
