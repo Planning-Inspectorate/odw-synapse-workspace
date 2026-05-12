@@ -13,8 +13,8 @@ class AppealServiceUserCuratedProcess(CurationProcess):
     def get_name(self) -> str:
         return "appeal_service_user_curated_process"
 
-    def load_data(self) -> dict[str, Any]:
+    def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("AppealServiceUserCuratedProcess.load_data() has not been implemented yet.")
 
-    def process(self, source_data: dict[str, Any]):
+    def process(self, source_data: dict[str, Any], **kwargs):
         raise NotImplementedError("AppealServiceUserCuratedProcess.process() has not been implemented yet.")

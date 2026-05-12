@@ -4,6 +4,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import AppealServiceUserCuratedMipinsProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.test_case import SparkTestCase
 
 pytestmark = pytest.mark.xfail(reason="Curation logic not implemented yet")
@@ -157,6 +158,9 @@ def _source_data(spark, sb_rows=None, service_user_rows=None):
 
 
 class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
+    def compare_curated_data(self, expected_data, actual_data):
+        assert_dataframes_equal(expected_data, actual_data)
+
     def test__appeal_service_user_curated_mipins_process__get_name__returns_expected_name(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedMipinsProcess(spark)
@@ -209,16 +213,44 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         inst = AppealServiceUserCuratedMipinsProcess(spark)
         data_to_write, result = inst.process(source_data=source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        actual_data = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert row["id"] == "SB-001"
-        assert row["caseReference"] == "APP-001"
-        assert row["FirstName"] == "Service"
-        assert row["lastName"] == "Bus"
-        assert row["sourceSystem"] == "Back Office"
-        assert row["sourceSUID"] == "SB-001"
-        assert row["ODTSourceSystem"] == "Back Office"
-        assert row["IsActive"] == "Y"
+        expected_data = spark.createDataFrame(
+            [
+                (
+                    "SB-001",
+                    "APP-001",
+                    "Mr",
+                    "Service",
+                    "Bus",
+                    "1 Service Street",
+                    "Flat 1",
+                    "Bristol",
+                    "Somerset",
+                    "BS1 1AA",
+                    "United Kingdom",
+                    "Service Org",
+                    "Company",
+                    "Owner",
+                    "111",
+                    "222",
+                    "333",
+                    "service@example.com",
+                    "https://service.example.com",
+                    "Appellant",
+                    "Back Office",
+                    "SB-001",
+                    "Back Office",
+                    "2024-01-01 00:00:00",
+                    None,
+                    "",
+                    "Y",
+                )
+            ],
+            schema=_output_schema(),
+        )
+
+        self.compare_curated_data(expected_data, actual_data)
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
@@ -229,16 +261,44 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         inst = AppealServiceUserCuratedMipinsProcess(spark)
         data_to_write, result = inst.process(source_data=source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        actual_data = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert row["id"] == "SU-001"
-        assert row["caseReference"] == "APP-002"
-        assert row["FirstName"] == "Harmonised"
-        assert row["lastName"] == "User"
-        assert row["sourceSystem"] == "Horizon"
-        assert row["sourceSUID"] == "SU-001"
-        assert row["ODTSourceSystem"] == "Horizon"
-        assert row["IsActive"] == "Y"
+        expected_data = spark.createDataFrame(
+            [
+                (
+                    "SU-001",
+                    "APP-002",
+                    "Ms",
+                    "Harmonised",
+                    "User",
+                    "2 Harmonised Street",
+                    "Flat 2",
+                    "London",
+                    "Greater London",
+                    "SW1A 1AA",
+                    "United Kingdom",
+                    "Harmonised Org",
+                    "Charity",
+                    "Agent",
+                    "444",
+                    "555",
+                    "666",
+                    "harmonised@example.com",
+                    "https://harmonised.example.com",
+                    "Agent",
+                    "Horizon",
+                    "SU-001",
+                    "Horizon",
+                    "2024-02-01 00:00:00",
+                    None,
+                    "",
+                    "Y",
+                )
+            ],
+            schema=_output_schema(),
+        )
+
+        self.compare_curated_data(expected_data, actual_data)
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 

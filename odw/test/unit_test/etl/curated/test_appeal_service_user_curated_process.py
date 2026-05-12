@@ -120,7 +120,6 @@ def _source_data(spark, service_user_rows=None):
             service_user_rows or [],
             schema=_harmonised_service_user_schema(),
         ),
-        "target_exists": False,
     }
 
 
