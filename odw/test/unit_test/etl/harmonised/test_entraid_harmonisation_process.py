@@ -1,6 +1,8 @@
 import hashlib
 from datetime import datetime
 
+import mock
+import pytest
 import pyspark.sql.types as T
 
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
@@ -91,6 +93,14 @@ def _process_under_test(spark):
 
 
 class TestEntraIdHarmonisationProcess(SparkTestCase):
+    @pytest.fixture(autouse=True)
+    def patch_storage(self):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.entraid_harmonisation_process.Util.get_storage_account",
+            return_value="teststorage.dfs.core.windows.net/",
+        ):
+            yield
+
     # ------------------------------------------------------------------
     # get_name
     # ------------------------------------------------------------------
