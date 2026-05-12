@@ -23,7 +23,7 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
     """
 
     HARMONISED_TABLE = "odw_harmonised_db.nsip_s51_advice"
-    OUTPUT_TABLE = "odw_curated_db.s51_advice"
+    OUTPUT_TABLE = "s51_advice"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
@@ -114,14 +114,14 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
 
         end_exec_time = datetime.now()
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_curated_db.{self.OUTPUT_TABLE}": {
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "s51_advice",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "s51_advice",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
@@ -131,7 +131,7 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_curated_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
