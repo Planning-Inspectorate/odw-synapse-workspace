@@ -20,6 +20,7 @@ class LoggingUtil:
     @staticmethod
     def get_logger(name: str):
         import logging
+
         return logging.getLogger(name)
 
 
@@ -47,16 +48,12 @@ class NsipInvoiceHarmonisationProcess:
 
     def _current_ingestion_timestamp(self):
         if self._run_ingestion_timestamp is None:
-            self._run_ingestion_timestamp = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.000000+0000"
-            )
+            self._run_ingestion_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000000+0000")
         return self._run_ingestion_timestamp
 
     def _current_valid_to_timestamp(self):
         if self._run_valid_to_timestamp is None:
-            self._run_valid_to_timestamp = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.000000+0000"
-            )
+            self._run_valid_to_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000000+0000")
         return self._run_valid_to_timestamp
 
     def _source_schema(self):
@@ -192,11 +189,7 @@ class NsipInvoiceHarmonisationProcess:
         return F.md5(F.concat(*exprs))
 
     def _apply_rowid(self, df: DataFrame) -> DataFrame:
-        return (
-            df.withColumn("NewIsActive", F.col("IsActive"))
-            .withColumn("RowID", self._rowid_expr())
-            .drop("NewIsActive")
-        )
+        return df.withColumn("NewIsActive", F.col("IsActive")).withColumn("RowID", self._rowid_expr()).drop("NewIsActive")
 
     def run(self):
         self._run_ingestion_timestamp = None
@@ -278,9 +271,7 @@ class NsipInvoiceHarmonisationProcess:
             else:
                 existing_df = self.spark.createDataFrame([], self._target_schema())
 
-        existing_max_ingestion = existing_df.select(
-            F.max("IngestionDate").alias("max_ingestion")
-        ).collect()[0]["max_ingestion"]
+        existing_max_ingestion = existing_df.select(F.max("IngestionDate").alias("max_ingestion")).collect()[0]["max_ingestion"]
 
         if existing_max_ingestion is not None:
             source_df = source_df.filter(F.col("IngestionDate") > F.lit(existing_max_ingestion))
@@ -304,7 +295,10 @@ class NsipInvoiceHarmonisationProcess:
                 F.when(
                     F.col("caseId").isNull() | F.col("invoice.invoiceNumber").isNull(),
                     F.lit(0),
-                ).otherwise(F.lit(1)).cast("int").alias("Migrated"),
+                )
+                .otherwise(F.lit(1))
+                .cast("int")
+                .alias("Migrated"),
                 F.col("ODTSourceSystem").cast("string").alias("ODTSourceSystem"),
                 F.col("SourceSystemID").cast("string").alias("SourceSystemID"),
                 F.lit(self._current_ingestion_timestamp()).cast("string").alias("IngestionDate"),
@@ -337,9 +331,7 @@ class NsipInvoiceHarmonisationProcess:
             )
             return data_to_write, result
 
-        existing_max_id = existing_df.select(
-            F.max("NSIPInvoiceID").alias("max_id")
-        ).collect()[0]["max_id"]
+        existing_max_id = existing_df.select(F.max("NSIPInvoiceID").alias("max_id")).collect()[0]["max_id"]
         next_id_start = 1 if existing_max_id is None else int(existing_max_id) + 1
 
         new_id_window = Window.orderBy(
@@ -350,46 +342,38 @@ class NsipInvoiceHarmonisationProcess:
             F.col("caseReference").asc_nulls_last(),
         )
 
-        new_rows_df = (
-            exploded_df.withColumn(
-                "NSIPInvoiceID",
-                (F.row_number().over(new_id_window) + F.lit(next_id_start - 1)).cast("long"),
-            ).select(
-                "NSIPInvoiceID",
-                "caseId",
-                "caseReference",
-                "invoiceStage",
-                "invoiceNumber",
-                "amountDue",
-                "paymentDueDate",
-                "invoicedDate",
-                "paymentDate",
-                "refundCreditNoteNumber",
-                "refundAmount",
-                "refundIssueDate",
-                "Migrated",
-                "ODTSourceSystem",
-                "SourceSystemID",
-                "IngestionDate",
-                "ValidTo",
-                "IsActive",
-                "NSIPProjectInfoInternalID",
-            )
+        new_rows_df = exploded_df.withColumn(
+            "NSIPInvoiceID",
+            (F.row_number().over(new_id_window) + F.lit(next_id_start - 1)).cast("long"),
+        ).select(
+            "NSIPInvoiceID",
+            "caseId",
+            "caseReference",
+            "invoiceStage",
+            "invoiceNumber",
+            "amountDue",
+            "paymentDueDate",
+            "invoicedDate",
+            "paymentDate",
+            "refundCreditNoteNumber",
+            "refundAmount",
+            "refundIssueDate",
+            "Migrated",
+            "ODTSourceSystem",
+            "SourceSystemID",
+            "IngestionDate",
+            "ValidTo",
+            "IsActive",
+            "NSIPProjectInfoInternalID",
         )
 
         changed_groups_df = new_rows_df.select(*group_cols).distinct()
 
-        existing_unchanged_df = existing_df.join(
-            changed_groups_df, on=group_cols, how="left_anti"
-        ).select(*output_cols)
+        existing_unchanged_df = existing_df.join(changed_groups_df, on=group_cols, how="left_anti").select(*output_cols)
 
-        existing_changed_df = existing_df.join(
-            changed_groups_df, on=group_cols, how="inner"
-        ).select(*output_cols)
+        existing_changed_df = existing_df.join(changed_groups_df, on=group_cols, how="inner").select(*output_cols)
 
-        candidates_df = existing_changed_df.unionByName(
-            new_rows_df.withColumn("RowID", F.lit(None).cast("string")).select(*output_cols)
-        )
+        candidates_df = existing_changed_df.unionByName(new_rows_df.withColumn("RowID", F.lit(None).cast("string")).select(*output_cols))
 
         precedence_window = Window.partitionBy(*group_cols).orderBy(
             F.col("NSIPProjectInfoInternalID").desc_nulls_last(),
@@ -405,8 +389,7 @@ class NsipInvoiceHarmonisationProcess:
             )
             .withColumn(
                 "ValidTo",
-                F.when(F.col("_rn") == 1, F.lit(None).cast("string"))
-                .otherwise(F.lit(self._current_valid_to_timestamp()).cast("string")),
+                F.when(F.col("_rn") == 1, F.lit(None).cast("string")).otherwise(F.lit(self._current_valid_to_timestamp()).cast("string")),
             )
             .drop("_rn")
             .select(*output_cols)
