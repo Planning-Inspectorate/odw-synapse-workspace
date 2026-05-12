@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
-from typing import Any
 
+from pyspark import StorageLevel
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
+    ArrayType,
+    DoubleType,
     IntegerType,
     LongType,
     StringType,
@@ -11,212 +13,429 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.etl_result import ETLSuccessResult
 
 
-class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
+class LoggingUtil:
+    @staticmethod
+    def get_logger(name: str):
+        import logging
+        return logging.getLogger(name)
+
+
+class NsipInvoiceHarmonisationProcess:
+    SOURCE_TABLE = "odw_harmonised_db.sb_nsip_project"
+    TARGET_TABLE = "odw_harmonised_db.sb_nsip_invoice"
     OUTPUT_TABLE = "sb_nsip_invoice"
 
     def __init__(self, spark):
-        super().__init__(spark)
         self.spark = spark
+        self.logger = LoggingUtil.get_logger(__name__)
+        self.input_data = {}
+        self._run_ingestion_timestamp = None
+        self._run_valid_to_timestamp = None
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls):
         return "nsip_invoice_harmonisation_process"
 
-    def _current_ingestion_timestamp(self) -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    def get_input_table_names(self) -> list[str]:
+        return ["sb_nsip_project", "sb_nsip_invoice"]
 
-    def _empty_target_df(self) -> DataFrame:
-        schema = StructType(
+    def get_output_table_names(self) -> list[str]:
+        return ["sb_nsip_invoice"]
+
+    def _current_ingestion_timestamp(self):
+        if self._run_ingestion_timestamp is None:
+            self._run_ingestion_timestamp = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.000000+0000"
+            )
+        return self._run_ingestion_timestamp
+
+    def _current_valid_to_timestamp(self):
+        if self._run_valid_to_timestamp is None:
+            self._run_valid_to_timestamp = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.000000+0000"
+            )
+        return self._run_valid_to_timestamp
+
+    def _source_schema(self):
+        invoice_schema = StructType(
             [
-                StructField("NSIPInvoiceID", LongType(), False),
-                StructField("CaseId", StringType(), True),
-                StructField("InvoiceNumber", StringType(), True),
-                StructField("SupplierReference", StringType(), True),
-                StructField("Description", StringType(), True),
-                StructField("Amount", StringType(), True),
-                StructField("CreatedDate", StringType(), True),
-                StructField("ModifiedDate", StringType(), True),
-                StructField("DeletedFlag", StringType(), True),
-                StructField("IngestionDate", StringType(), True),
-                StructField("Migrated", IntegerType(), True),
-                StructField("ValidFrom", StringType(), True),
-                StructField("ValidTo", StringType(), True),
-                StructField("IsActive", StringType(), True),
-                StructField("RowID", StringType(), True),
+                StructField("invoiceStage", StringType(), True),
+                StructField("invoiceNumber", StringType(), True),
+                StructField("amountDue", DoubleType(), True),
+                StructField("paymentDueDate", StringType(), True),
+                StructField("invoicedDate", StringType(), True),
+                StructField("paymentDate", StringType(), True),
+                StructField("refundCreditNoteNumber", StringType(), True),
+                StructField("refundAmount", DoubleType(), True),
+                StructField("refundIssueDate", StringType(), True),
             ]
         )
-        return self.spark.createDataFrame([], schema)
 
-    def _table_exists(self, table_name: str) -> bool:
+        return StructType(
+            [
+                StructField("NSIPProjectInfoInternalID", LongType(), True),
+                StructField("caseId", LongType(), True),
+                StructField("caseReference", StringType(), True),
+                StructField("invoices", ArrayType(invoice_schema), True),
+                StructField("ODTSourceSystem", StringType(), True),
+                StructField("SourceSystemID", StringType(), True),
+                StructField("IngestionDate", StringType(), True),
+            ]
+        )
+
+    def _target_schema(self):
+        return StructType(
+            [
+                StructField("NSIPInvoiceID", LongType(), True),
+                StructField("caseId", LongType(), True),
+                StructField("caseReference", StringType(), True),
+                StructField("invoiceStage", StringType(), True),
+                StructField("invoiceNumber", StringType(), True),
+                StructField("amountDue", DoubleType(), True),
+                StructField("paymentDueDate", StringType(), True),
+                StructField("invoicedDate", StringType(), True),
+                StructField("paymentDate", StringType(), True),
+                StructField("refundCreditNoteNumber", StringType(), True),
+                StructField("refundAmount", DoubleType(), True),
+                StructField("refundIssueDate", StringType(), True),
+                StructField("Migrated", IntegerType(), True),
+                StructField("ODTSourceSystem", StringType(), True),
+                StructField("SourceSystemID", StringType(), True),
+                StructField("IngestionDate", StringType(), True),
+                StructField("ValidTo", StringType(), True),
+                StructField("RowID", StringType(), True),
+                StructField("IsActive", StringType(), True),
+                StructField("NSIPProjectInfoInternalID", LongType(), True),
+            ]
+        )
+
+    def _standardise_output(self, df: DataFrame) -> DataFrame:
+        return df.select(
+            F.col("NSIPInvoiceID").cast("long").alias("NSIPInvoiceID"),
+            F.col("caseId").cast("long").alias("caseId"),
+            F.col("caseReference").cast("string").alias("caseReference"),
+            F.col("invoiceStage").cast("string").alias("invoiceStage"),
+            F.col("invoiceNumber").cast("string").alias("invoiceNumber"),
+            F.col("amountDue").cast("double").alias("amountDue"),
+            F.col("paymentDueDate").cast("string").alias("paymentDueDate"),
+            F.col("invoicedDate").cast("string").alias("invoicedDate"),
+            F.col("paymentDate").cast("string").alias("paymentDate"),
+            F.col("refundCreditNoteNumber").cast("string").alias("refundCreditNoteNumber"),
+            F.col("refundAmount").cast("double").alias("refundAmount"),
+            F.col("refundIssueDate").cast("string").alias("refundIssueDate"),
+            F.col("Migrated").cast("int").alias("Migrated"),
+            F.col("ODTSourceSystem").cast("string").alias("ODTSourceSystem"),
+            F.col("SourceSystemID").cast("string").alias("SourceSystemID"),
+            F.col("IngestionDate").cast("string").alias("IngestionDate"),
+            F.col("ValidTo").cast("string").alias("ValidTo"),
+            F.col("RowID").cast("string").alias("RowID"),
+            F.col("IsActive").cast("string").alias("IsActive"),
+            F.col("NSIPProjectInfoInternalID").cast("long").alias("NSIPProjectInfoInternalID"),
+        )
+
+    def load_data(self, **kwargs):
         try:
-            return bool(self.spark.catalog.tableExists(table_name))
+            source_df = self.spark.table(self.SOURCE_TABLE)
         except Exception:
-            return False
+            source_df = self.spark.createDataFrame([], self._source_schema())
 
-    def _read_target_df(self) -> DataFrame:
-        target_table = f"odw_harmonised_db.{self.OUTPUT_TABLE}"
-        if self._table_exists(target_table):
-            return self.spark.table(target_table)
-        return self._empty_target_df()
+        try:
+            target_df = self.spark.table(self.TARGET_TABLE)
+        except Exception:
+            target_df = self.spark.createDataFrame([], self._target_schema())
 
-    def load_data(self) -> dict[str, Any]:
-        source_df = self.spark.table("odw_harmonised_db.sb_nsip_project")
-        target_df = self._read_target_df()
-        return {
-            "source_df": source_df,
-            "target_df": target_df,
+        self.input_data = {
+            "sb_nsip_project": source_df,
+            "sb_nsip_invoice": target_df,
         }
+        return self.input_data
 
-    def _build_row_id(self, df: DataFrame) -> DataFrame:
-        row_id_columns = [
-            "CaseId",
-            "InvoiceNumber",
-            "SupplierReference",
-            "Description",
-            "Amount",
-            "CreatedDate",
-            "ModifiedDate",
-            "DeletedFlag",
-            "IngestionDate",
+    def write_data(self, data_to_write):
+        final_df = self._standardise_output(data_to_write[self.OUTPUT_TABLE]["data"])
+
+        try:
+            self.spark.sql(f"DELETE FROM {self.TARGET_TABLE}")
+        except Exception:
+            pass
+
+        final_df.write.format("delta").mode("append").saveAsTable(self.TARGET_TABLE)
+
+    def _is_empty_df(self, df: DataFrame) -> bool:
+        return len(df.limit(1).collect()) == 0
+
+    def _rowid_expr(self):
+        ordered_cols = [
+            "NSIPInvoiceID",
+            "NSIPProjectInfoInternalID",
+            "caseId",
+            "caseReference",
+            "invoiceStage",
+            "invoiceNumber",
+            "amountDue",
+            "paymentDueDate",
+            "invoicedDate",
+            "paymentDate",
+            "refundCreditNoteNumber",
+            "refundAmount",
+            "refundIssueDate",
             "Migrated",
-            "ValidFrom",
+            "ODTSourceSystem",
+            "SourceSystemID",
+            "IngestionDate",
             "ValidTo",
-            "IsActive",
+            "NewIsActive",
         ]
+        exprs = [F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in ordered_cols]
+        return F.md5(F.concat(*exprs))
 
-        exprs = [F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in row_id_columns]
-        return df.withColumn("RowID", F.md5(F.concat_ws("||", *exprs)))
+    def _apply_rowid(self, df: DataFrame) -> DataFrame:
+        return (
+            df.withColumn("NewIsActive", F.col("IsActive"))
+            .withColumn("RowID", self._rowid_expr())
+            .drop("NewIsActive")
+        )
 
-    def _transform_source(self, source_df: DataFrame, target_df: DataFrame) -> DataFrame:
-        current_ts = self._current_ingestion_timestamp()
+    def run(self):
+        self._run_ingestion_timestamp = None
+        self._run_valid_to_timestamp = None
 
-        max_target_ingestion = target_df.select(F.max(F.col("IngestionDate")).alias("max_ingestion")).collect()[0]["max_ingestion"]
+        start_time = datetime.now(timezone.utc)
+
+        self.load_data()
+        data_to_write, result = self.process()
+        self.write_data(data_to_write)
+
+        end_time = datetime.now(timezone.utc)
+
+        if result is None:
+            insert_count = data_to_write[self.OUTPUT_TABLE]["data"].count()
+            result = ETLSuccessResult(
+                metadata={
+                    "insert_count": insert_count,
+                    "update_count": 0,
+                    "start_execution_time": start_time.isoformat(),
+                    "end_execution_time": end_time.isoformat(),
+                    "activity_type": "nsip_invoice_harmonisation_process",
+                    "duration_seconds": (end_time - start_time).total_seconds(),
+                }
+            )
+
+        return result
+
+    def process(self, source_data=None):
+        start_time = datetime.now(timezone.utc)
+
+        output_cols = [
+            "NSIPInvoiceID",
+            "caseId",
+            "caseReference",
+            "invoiceStage",
+            "invoiceNumber",
+            "amountDue",
+            "paymentDueDate",
+            "invoicedDate",
+            "paymentDate",
+            "refundCreditNoteNumber",
+            "refundAmount",
+            "refundIssueDate",
+            "Migrated",
+            "ODTSourceSystem",
+            "SourceSystemID",
+            "IngestionDate",
+            "ValidTo",
+            "RowID",
+            "IsActive",
+            "NSIPProjectInfoInternalID",
+        ]
+        group_cols = ["caseId", "invoiceNumber"]
+
+        if source_data is None:
+            source_df = self.input_data["sb_nsip_project"].select(
+                "NSIPProjectInfoInternalID",
+                "caseId",
+                "caseReference",
+                "invoices",
+                "ODTSourceSystem",
+                "SourceSystemID",
+                "IngestionDate",
+            )
+            existing_df = self._standardise_output(self.input_data["sb_nsip_invoice"])
+        else:
+            source_df = source_data["source_data"].select(
+                "NSIPProjectInfoInternalID",
+                "caseId",
+                "caseReference",
+                "invoices",
+                "ODTSourceSystem",
+                "SourceSystemID",
+                "IngestionDate",
+            )
+            if source_data.get("target_exists") and source_data.get("target_data") is not None:
+                existing_df = self._standardise_output(source_data["target_data"])
+            else:
+                existing_df = self.spark.createDataFrame([], self._target_schema())
+
+        existing_max_ingestion = existing_df.select(
+            F.max("IngestionDate").alias("max_ingestion")
+        ).collect()[0]["max_ingestion"]
+
+        if existing_max_ingestion is not None:
+            source_df = source_df.filter(F.col("IngestionDate") > F.lit(existing_max_ingestion))
 
         exploded_df = (
-            source_df
-            .filter(F.col("invoices").isNotNull())
-            .withColumn("invoice", F.explode(F.col("invoices")))
+            source_df.filter(F.col("invoices").isNotNull())
+            .withColumn("invoice", F.explode("invoices"))
             .select(
-                F.col("caseId").cast("string").alias("CaseId"),
-                F.col("invoice.invoiceNumber").cast("string").alias("InvoiceNumber"),
-                F.col("invoice.supplierReference").cast("string").alias("SupplierReference"),
-                F.col("invoice.description").cast("string").alias("Description"),
-                F.col("invoice.amount").cast("string").alias("Amount"),
-                F.col("invoice.createdDate").cast("string").alias("CreatedDate"),
-                F.col("invoice.modifiedDate").cast("string").alias("ModifiedDate"),
-                F.col("invoice.deleted").cast("string").alias("DeletedFlag"),
-                F.col("ingestionDate").cast("string").alias("IngestionDate"),
+                F.col("NSIPProjectInfoInternalID").cast("long").alias("NSIPProjectInfoInternalID"),
+                F.col("caseId").cast("long").alias("caseId"),
+                F.col("caseReference").cast("string").alias("caseReference"),
+                F.col("invoice.invoiceStage").cast("string").alias("invoiceStage"),
+                F.col("invoice.invoiceNumber").cast("string").alias("invoiceNumber"),
+                F.col("invoice.amountDue").cast("double").alias("amountDue"),
+                F.col("invoice.paymentDueDate").cast("string").alias("paymentDueDate"),
+                F.col("invoice.invoicedDate").cast("string").alias("invoicedDate"),
+                F.col("invoice.paymentDate").cast("string").alias("paymentDate"),
+                F.col("invoice.refundCreditNoteNumber").cast("string").alias("refundCreditNoteNumber"),
+                F.col("invoice.refundAmount").cast("double").alias("refundAmount"),
+                F.col("invoice.refundIssueDate").cast("string").alias("refundIssueDate"),
+                F.when(
+                    F.col("caseId").isNull() | F.col("invoice.invoiceNumber").isNull(),
+                    F.lit(0),
+                ).otherwise(F.lit(1)).cast("int").alias("Migrated"),
+                F.col("ODTSourceSystem").cast("string").alias("ODTSourceSystem"),
+                F.col("SourceSystemID").cast("string").alias("SourceSystemID"),
+                F.lit(self._current_ingestion_timestamp()).cast("string").alias("IngestionDate"),
+                F.lit(None).cast("string").alias("ValidTo"),
+                F.lit("Y").cast("string").alias("IsActive"),
             )
         )
 
-        if max_target_ingestion is not None:
-            exploded_df = exploded_df.filter(F.col("IngestionDate") > F.lit(max_target_ingestion))
+        if self._is_empty_df(exploded_df):
+            final_df = self._apply_rowid(existing_df.select(*output_cols)).persist(StorageLevel.MEMORY_AND_DISK)
+            final_df.count()
 
-        existing_max_id = target_df.select(F.max(F.col("NSIPInvoiceID")).alias("max_id")).collect()[0]["max_id"]
-        start_id = 0 if existing_max_id is None else int(existing_max_id)
+            data_to_write = {
+                self.OUTPUT_TABLE: {
+                    "data": final_df,
+                    "write_mode": "overwrite",
+                }
+            }
 
-        id_window = Window.orderBy(
-            F.col("CaseId"),
-            F.col("InvoiceNumber"),
-            F.col("IngestionDate"),
+            end_time = datetime.now(timezone.utc)
+            result = ETLSuccessResult(
+                metadata={
+                    "insert_count": 0,
+                    "update_count": 0,
+                    "start_execution_time": start_time.isoformat(),
+                    "end_execution_time": end_time.isoformat(),
+                    "activity_type": "nsip_invoice_harmonisation_process",
+                    "duration_seconds": (end_time - start_time).total_seconds(),
+                }
+            )
+            return data_to_write, result
+
+        existing_max_id = existing_df.select(
+            F.max("NSIPInvoiceID").alias("max_id")
+        ).collect()[0]["max_id"]
+        next_id_start = 1 if existing_max_id is None else int(existing_max_id) + 1
+
+        new_id_window = Window.orderBy(
+            F.col("IngestionDate").asc_nulls_last(),
+            F.col("NSIPProjectInfoInternalID").asc_nulls_last(),
+            F.col("caseId").asc_nulls_last(),
+            F.col("invoiceNumber").asc_nulls_last(),
+            F.col("caseReference").asc_nulls_last(),
         )
 
         new_rows_df = (
-            exploded_df
-            .withColumn("NSIPInvoiceID", (F.row_number().over(id_window) + F.lit(start_id)).cast("long"))
-            .withColumn("Migrated", F.lit(1))
-            .withColumn("ValidFrom", F.lit(current_ts))
-            .withColumn("ValidTo", F.lit(None).cast("string"))
-            .withColumn("IsActive", F.lit("Y"))
-            .select(
+            exploded_df.withColumn(
                 "NSIPInvoiceID",
-                "CaseId",
-                "InvoiceNumber",
-                "SupplierReference",
-                "Description",
-                "Amount",
-                "CreatedDate",
-                "ModifiedDate",
-                "DeletedFlag",
-                "IngestionDate",
+                (F.row_number().over(new_id_window) + F.lit(next_id_start - 1)).cast("long"),
+            ).select(
+                "NSIPInvoiceID",
+                "caseId",
+                "caseReference",
+                "invoiceStage",
+                "invoiceNumber",
+                "amountDue",
+                "paymentDueDate",
+                "invoicedDate",
+                "paymentDate",
+                "refundCreditNoteNumber",
+                "refundAmount",
+                "refundIssueDate",
                 "Migrated",
-                "ValidFrom",
+                "ODTSourceSystem",
+                "SourceSystemID",
+                "IngestionDate",
                 "ValidTo",
                 "IsActive",
+                "NSIPProjectInfoInternalID",
             )
         )
 
-        if new_rows_df.rdd.isEmpty():
-            return target_df
+        changed_groups_df = new_rows_df.select(*group_cols).distinct()
 
-        combined_df = target_df.select(
-            "NSIPInvoiceID",
-            "CaseId",
-            "InvoiceNumber",
-            "SupplierReference",
-            "Description",
-            "Amount",
-            "CreatedDate",
-            "ModifiedDate",
-            "DeletedFlag",
-            "IngestionDate",
-            "Migrated",
-            "ValidFrom",
-            "ValidTo",
-            "IsActive",
-            "RowID",
-        ).unionByName(
-            new_rows_df.withColumn("RowID", F.lit(None).cast("string")),
-            allowMissingColumns=True,
+        existing_unchanged_df = existing_df.join(
+            changed_groups_df, on=group_cols, how="left_anti"
+        ).select(*output_cols)
+
+        existing_changed_df = existing_df.join(
+            changed_groups_df, on=group_cols, how="inner"
+        ).select(*output_cols)
+
+        candidates_df = existing_changed_df.unionByName(
+            new_rows_df.withColumn("RowID", F.lit(None).cast("string")).select(*output_cols)
         )
 
-        active_window = Window.partitionBy("CaseId", "InvoiceNumber").orderBy(
-            F.col("IngestionDate").desc(),
-            F.col("NSIPInvoiceID").desc(),
+        precedence_window = Window.partitionBy(*group_cols).orderBy(
+            F.col("NSIPProjectInfoInternalID").desc_nulls_last(),
+            F.col("IngestionDate").desc_nulls_last(),
+            F.col("NSIPInvoiceID").desc_nulls_last(),
         )
 
-        final_df = (
-            combined_df
-            .withColumn("rn", F.row_number().over(active_window))
-            .withColumn("IsActive", F.when(F.col("rn") == 1, F.lit("Y")).otherwise(F.lit("N")))
+        resolved_changed_df = (
+            candidates_df.withColumn("_rn", F.row_number().over(precedence_window))
+            .withColumn(
+                "IsActive",
+                F.when(F.col("_rn") == 1, F.lit("Y")).otherwise(F.lit("N")),
+            )
             .withColumn(
                 "ValidTo",
-                F.when(F.col("rn") == 1, F.lit(None).cast("string")).otherwise(F.lit(current_ts))
+                F.when(F.col("_rn") == 1, F.lit(None).cast("string"))
+                .otherwise(F.lit(self._current_valid_to_timestamp()).cast("string")),
             )
-            .drop("rn")
+            .drop("_rn")
+            .select(*output_cols)
         )
 
-        final_df = self._build_row_id(final_df)
+        final_df = existing_unchanged_df.unionByName(resolved_changed_df).select(*output_cols)
+        final_df = self._apply_rowid(final_df).persist(StorageLevel.MEMORY_AND_DISK)
+        final_df.count()
 
-        return final_df.select(
-            "NSIPInvoiceID",
-            "CaseId",
-            "InvoiceNumber",
-            "SupplierReference",
-            "Description",
-            "Amount",
-            "CreatedDate",
-            "ModifiedDate",
-            "DeletedFlag",
-            "IngestionDate",
-            "Migrated",
-            "ValidFrom",
-            "ValidTo",
-            "IsActive",
-            "RowID",
-        )
+        insert_count = new_rows_df.count()
+        update_count = resolved_changed_df.where(F.col("IsActive") == "N").count()
 
-    def process(self, source_data: dict[str, Any]):
-        source_df = source_data["source_df"]
-        target_df = source_data["target_df"]
-
-        final_df = self._transform_source(source_df, target_df)
-
-        return {
-            "dataframe": final_df,
-            "output_table": self.OUTPUT_TABLE,
-            "database": "odw_harmonised_db",
-            "write_mode": "overwrite",
+        data_to_write = {
+            self.OUTPUT_TABLE: {
+                "data": final_df,
+                "write_mode": "overwrite",
+            }
         }
+
+        end_time = datetime.now(timezone.utc)
+        result = ETLSuccessResult(
+            metadata={
+                "insert_count": insert_count,
+                "update_count": update_count,
+                "start_execution_time": start_time.isoformat(),
+                "end_execution_time": end_time.isoformat(),
+                "activity_type": "nsip_invoice_harmonisation_process",
+                "duration_seconds": (end_time - start_time).total_seconds(),
+            }
+        )
+
+        return data_to_write, result
