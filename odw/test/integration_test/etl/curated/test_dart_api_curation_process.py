@@ -1,15 +1,15 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.dart_api_curation_process import DartAPICurationProcess
+from odw.core.etl.transformation.curated.dart_api_curation_process import DartApiCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql.types import StringType, StructField, StructType, LongType, DoubleType, ArrayType, BooleanType, TimestampType
 from datetime import datetime
 import mock
-import pytest
+#import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+#pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def generate_harmonised_appeal_has_row(**overrides):
@@ -1263,7 +1263,7 @@ def generate_cleaned_schema():
     )
 
 
-class TestDartAPICurationProcess(ETLTestCase):
+class TestDartApiCuratedProcess(ETLTestCase):
     def assert_etl_process(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
         appeal_has = spark.createDataFrame(
@@ -1444,17 +1444,17 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         expected_curated_table = f"{test_case}_dart_api"
         with (
-            mock.patch.object(DartAPICurationProcess, "__init__", return_value=None),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_HAS", appeal_has_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_LPA", pins_lpa_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_SERVICE_USER", sb_service_user_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_APPEAL_EVENT", sb_appeal_event_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_ENTRAID", entraid_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_INSPECTOR", horizon_pins_inspector_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_S78", appeal_s78_table),
-            mock.patch.object(DartAPICurationProcess, "OUTPUT_TABLE", expected_curated_table),
+            mock.patch.object(DartApiCuratedProcess, "__init__", return_value=None),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_APPEAL_HAS", appeal_has_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_PINS_LPA", pins_lpa_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_SB_SERVICE_USER", sb_service_user_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_SB_APPEAL_EVENT", sb_appeal_event_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_ENTRAID", entraid_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_PINS_INSPECTOR", horizon_pins_inspector_table),
+            mock.patch.object(DartApiCuratedProcess, "HARMONISED_APPEAL_S78", appeal_s78_table),
+            mock.patch.object(DartApiCuratedProcess, "OUTPUT_TABLE", expected_curated_table),
         ):
-            inst = DartAPICurationProcess(spark)
+            inst = DartApiCuratedProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_curated_db.{expected_curated_table}")
@@ -1463,7 +1463,7 @@ class TestDartAPICurationProcess(ETLTestCase):
     def test__dart_api_curation_process__run__with_no_existing_data(self):
         """
         - Given I have existing appeals data in the harmonised layer
-        - When I call DartAPICurationProcess.run
+        - When I call DartApiCuratedProcess.run
         - Then the `dart_api` table should be created
         """
         self.assert_etl_process("t_dacp_r_wned")
@@ -1471,7 +1471,7 @@ class TestDartAPICurationProcess(ETLTestCase):
     def test__dart_api_curation_process__run__withexisting_data(self):
         """
         - Given I have existing appeals data in the harmonised layer with an existing curated dart api table
-        - When I call DartAPICurationProcess.run
+        - When I call DartApiCuratedProcess.run
         - Then the `dart_api` table should be created which overwrites the existing data
         """
         test_case = "t_dacp_r_wed"
