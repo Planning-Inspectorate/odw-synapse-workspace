@@ -1,5 +1,5 @@
 import mock
-import pytest
+#import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     IntegerType,
@@ -14,7 +14,7 @@ from odw.core.etl.transformation.curated.nsip_invoice_curated_process import Nsi
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+#pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():

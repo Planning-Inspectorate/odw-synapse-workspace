@@ -1,5 +1,5 @@
 import mock
-import pytest
+#import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import DataFrame
@@ -17,7 +17,7 @@ from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process i
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _invoice_struct():
