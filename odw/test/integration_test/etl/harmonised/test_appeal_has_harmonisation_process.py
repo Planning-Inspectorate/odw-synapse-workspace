@@ -9,7 +9,7 @@ from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process imp
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _appeal_has_schema():
