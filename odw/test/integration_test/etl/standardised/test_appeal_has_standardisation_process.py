@@ -1,6 +1,5 @@
 import mock
 import pytest
-import pyspark.sql.types as T
 from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
