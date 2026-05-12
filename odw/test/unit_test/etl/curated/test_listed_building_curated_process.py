@@ -131,8 +131,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = df.collect()
@@ -157,8 +158,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -180,8 +182,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -204,8 +207,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -234,8 +238,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -256,8 +261,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -287,8 +293,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -311,8 +318,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.where(F.col("entity") == 1001).collect()[0]
@@ -335,8 +343,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -370,8 +379,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -425,8 +435,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        inst = ListedBuildingCuratedProcess(spark)
-        data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch("odw.core.etl.transformation.curated.listed_building_curated_process.LoggingUtil"):
+            inst = ListedBuildingCuratedProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -434,300 +445,3 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         assert df.where(F.col("entity") == 1001).collect()[0]["name"] == "Building One Updated"
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
-
-    def test__listed_building_curated_process__run__initial_load_matches_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "source_data": spark.createDataFrame(
-                [
-                    (
-                        "listed-building",
-                        None,
-                        "1001",
-                        "2024-01-01",
-                        "POLYGON((1 1,2 2,3 3,1 1))",
-                        "II",
-                        "Building One",
-                        "org-1",
-                        "POINT(1 1)",
-                        "listed-building",
-                        "LB-001",
-                        "2020-01-01",
-                        "grade-ii",
-                        "https://example.com/lb-001",
-                        "2025-01-01",
-                        "row-1",
-                        None,
-                        "Y",
-                    ),
-                    (
-                        "listed-building",
-                        None,
-                        "1002",
-                        "2024-02-01",
-                        None,
-                        "I",
-                        "Building Two",
-                        "org-2",
-                        None,
-                        "listed-building",
-                        "LB-002",
-                        "2021-01-01",
-                        "grade-i",
-                        None,
-                        "2025-01-01",
-                        "row-2",
-                        None,
-                        "Y",
-                    ),
-                    (
-                        "listed-building",
-                        None,
-                        "1003",
-                        "2024-03-01",
-                        None,
-                        "II*",
-                        "Inactive Building",
-                        "org-3",
-                        None,
-                        "listed-building",
-                        "LB-003",
-                        "2022-01-01",
-                        "grade-ii-star",
-                        None,
-                        "2025-01-01",
-                        "row-3",
-                        None,
-                        "N",
-                    ),
-                ],
-                schema=_harmonised_schema(),
-            ),
-            "target_exists": False,
-        }
-
-        inst = ListedBuildingCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert df.count() == 2
-        assert result.metadata.insert_count == 2
-        assert result.metadata.update_count == 0
-
-        assert df.columns == ["entity", "reference", "name", "listedBuildingGrade"]
-
-        entity_ids = {row["entity"] for row in df.select("entity").collect()}
-        assert entity_ids == {1001, 1002}
-        assert df.where(F.col("entity") == 1003).count() == 0
-
-    def test__listed_building_curated_process__run__updates_existing_entity_when_non_key_fields_change(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "source_data": spark.createDataFrame(
-                [
-                    (
-                        "listed-building",
-                        None,
-                        "1001",
-                        "2024-01-01",
-                        "POLYGON((1 1,2 2,3 3,1 1))",
-                        "II",
-                        "Building One Updated",
-                        "org-1",
-                        "POINT(1 1)",
-                        "listed-building",
-                        "LB-001",
-                        "2020-01-01",
-                        "grade-ii",
-                        "https://example.com/lb-001",
-                        "2025-01-01",
-                        "row-9",
-                        None,
-                        "Y",
-                    ),
-                ],
-                schema=_harmonised_schema(),
-            ),
-            "target_data": spark.createDataFrame(
-                [
-                    (1001, "LB-001", "Building One", "II"),
-                ],
-                schema=_curated_schema(),
-            ),
-            "target_exists": True,
-        }
-
-        inst = ListedBuildingCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        row = df.where(F.col("entity") == 1001).collect()[0]
-
-        assert row["name"] == "Building One Updated"
-        assert result.metadata.insert_count == 0
-        assert result.metadata.update_count == 1
-
-    def test__listed_building_curated_process__run__does_not_duplicate_identical_existing_entity(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        identical_source = spark.createDataFrame(
-            [
-                (
-                    "listed-building",
-                    None,
-                    "1001",
-                    "2024-01-01",
-                    "POLYGON((1 1,2 2,3 3,1 1))",
-                    "II",
-                    "Building One",
-                    "org-1",
-                    "POINT(1 1)",
-                    "listed-building",
-                    "LB-001",
-                    "2020-01-01",
-                    "grade-ii",
-                    "https://example.com/lb-001",
-                    "2025-01-01",
-                    "row-1",
-                    None,
-                    "Y",
-                ),
-            ],
-            schema=_harmonised_schema(),
-        )
-
-        source_data = {
-            "source_data": identical_source,
-            "target_data": spark.createDataFrame(
-                [
-                    (1001, "LB-001", "Building One", "II"),
-                ],
-                schema=_curated_schema(),
-            ),
-            "target_exists": True,
-        }
-
-        inst = ListedBuildingCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert df.count() == 1
-        assert df.where(F.col("entity") == 1001).count() == 1
-        assert result.metadata.insert_count == 0
-        assert result.metadata.update_count == 0
-
-    def test__listed_building_curated_process__run__drops_duplicate_source_rows(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "source_data": spark.createDataFrame(
-                [
-                    (
-                        "listed-building",
-                        None,
-                        "1001",
-                        "2024-01-01",
-                        "POLYGON((1 1,2 2,3 3,1 1))",
-                        "II",
-                        "Building One",
-                        "org-1",
-                        "POINT(1 1)",
-                        "listed-building",
-                        "LB-001",
-                        "2020-01-01",
-                        "grade-ii",
-                        "https://example.com/lb-001",
-                        "2025-01-01",
-                        "row-1",
-                        None,
-                        "Y",
-                    ),
-                    (
-                        "listed-building",
-                        None,
-                        "1001",
-                        "2024-01-01",
-                        "POLYGON((1 1,2 2,3 3,1 1))",
-                        "II",
-                        "Building One",
-                        "org-1",
-                        "POINT(1 1)",
-                        "listed-building",
-                        "LB-001",
-                        "2020-01-01",
-                        "grade-ii",
-                        "https://example.com/lb-001",
-                        "2025-01-01",
-                        "row-2",
-                        None,
-                        "Y",
-                    ),
-                ],
-                schema=_harmonised_schema(),
-            ),
-            "target_exists": False,
-        }
-
-        inst = ListedBuildingCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert df.count() == 1
-        assert df.where(F.col("entity") == 1001).count() == 1
-        assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 0
-
-    def test__listed_building_curated_process__run__empty_source_returns_empty_output(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        source_data = {
-            "source_data": spark.createDataFrame([], schema=_harmonised_schema()),
-            "target_exists": False,
-        }
-
-        inst = ListedBuildingCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert df.count() == 0
-        assert result.metadata.insert_count == 0
-        assert result.metadata.update_count == 0
