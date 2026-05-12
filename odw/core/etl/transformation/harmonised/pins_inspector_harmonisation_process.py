@@ -71,10 +71,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
             )
         )
 
-        qualified_name = (
-            f"mssql://pins-synw-odw-{env_name.lower()}-uks-ondemand.sql.azuresynapse.net"
-            "/odw_harmonised_db/dbo/pins_inspector"
-        )
+        qualified_name = f"mssql://pins-synw-odw-{env_name.lower()}-uks-ondemand.sql.azuresynapse.net/odw_harmonised_db/dbo/pins_inspector"
 
         try:
             from notebookutils import mssparkutils

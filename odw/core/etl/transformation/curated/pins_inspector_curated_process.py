@@ -125,10 +125,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
 
         t_struct = ",".join([f"'`{c}`', t.`{c}`" for c in non_key_cols])
         s_struct = ",".join([f"'`{c}`', s.`{c}`" for c in non_key_cols])
-        hash_diff_cond = (
-            f"sha2(to_json(named_struct({t_struct})), 256) "
-            f"<> sha2(to_json(named_struct({s_struct})), 256)"
-        )
+        hash_diff_cond = f"sha2(to_json(named_struct({t_struct})), 256) <> sha2(to_json(named_struct({s_struct})), 256)"
 
         (
             delta_table.alias("t")

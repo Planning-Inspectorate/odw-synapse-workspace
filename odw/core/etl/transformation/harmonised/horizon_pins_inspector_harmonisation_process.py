@@ -61,8 +61,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             hzn_src = hzn_src.withColumn("IngestionDate", ing_col)
 
         return (
-            hzn_src
-            .withColumn("Migrated", F.lit("0"))
+            hzn_src.withColumn("Migrated", F.lit("0"))
             .withColumn("ODTSourceSystem", F.lit("HORIZON"))
             .withColumn("ValidTo", F.lit(None).cast("string"))
             .withColumn("RowID", F.lit(""))
@@ -80,9 +79,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             256,
         )
 
-        norm_row_id = F.when(
-            F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")
-        ).otherwise(F.col("RowID"))
+        norm_row_id = F.when(F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")).otherwise(F.col("RowID"))
 
         # tie-breaker row_number within (horizonId, IngestionDate, ODTSourceSystem)
         w_tie = W.partitionBy("horizonId", "IngestionDate", "ODTSourceSystem").orderBy(
@@ -102,11 +99,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             F.col("normRowID").asc(),
             F.col("fallback_hash").asc(),
         )
-        ordered = (
-            ordered.withColumn("dup_rn", F.row_number().over(w_dup))
-            .filter(F.col("dup_rn") == 1)
-            .drop("dup_rn")
-        )
+        ordered = ordered.withColumn("dup_rn", F.row_number().over(w_dup)).filter(F.col("dup_rn") == 1).drop("dup_rn")
 
         # Timeline ordering within each inspector
         w_ing = W.partitionBy("horizonId").orderBy(

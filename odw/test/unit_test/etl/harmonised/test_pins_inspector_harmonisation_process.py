@@ -126,7 +126,7 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
             spark,
             live_dim_rows=[("0012345", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
             entraid_rows=[
-                ("entra-match", "12345", "Y"),    # short → padded "0012345" → matches live_dim
+                ("entra-match", "12345", "Y"),  # short → padded "0012345" → matches live_dim
                 ("entra-no-match", "0012345", "Y"),  # 7 chars → padded "000012345" → no match
             ],
         )
