@@ -7,40 +7,41 @@ from odw.core.etl.transformation.standardised.entraid_standardisation_process im
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-_VALUE_SCHEMA = T.StructType(
-    [
-        T.StructField("id", T.StringType(), True),
-        T.StructField("employeeId", T.StringType(), True),
-        T.StructField("givenName", T.StringType(), True),
-        T.StructField("surname", T.StringType(), True),
-        T.StructField("userPrincipalName", T.StringType(), True),
-    ]
-)
 
-_RAW_ENTRAID_SCHEMA = T.StructType(
-    [
-        T.StructField("value", T.ArrayType(_VALUE_SCHEMA), True),
-    ]
-)
+def _value_schema():
+    return T.StructType(
+        [
+            T.StructField("id", T.StringType(), True),
+            T.StructField("employeeId", T.StringType(), True),
+            T.StructField("givenName", T.StringType(), True),
+            T.StructField("surname", T.StringType(), True),
+            T.StructField("userPrincipalName", T.StringType(), True),
+        ]
+    )
+
+
+def _raw_entraid_schema():
+    return T.StructType(
+        [
+            T.StructField("value", T.ArrayType(_value_schema()), True),
+        ]
+    )
 
 
 def _raw_df(spark, records):
-    return spark.createDataFrame([([dict(r) for r in records],)], _RAW_ENTRAID_SCHEMA)
+    return spark.createDataFrame([([dict(r) for r in records],)], _raw_entraid_schema())
 
 
 def _empty_raw_df(spark):
-    return spark.createDataFrame([([],)], _RAW_ENTRAID_SCHEMA)
+    return spark.createDataFrame([([],)], _raw_entraid_schema())
 
 
 class TestEntraIdStandardisationProcess(SparkTestCase):
     def _run_process(self, raw_df, folder_name="2024-01-15"):
         spark = PytestSparkSessionUtil().get_spark_session()
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.entraid_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.transformation.standardised.entraid_standardisation_process.LoggingUtil"),
+        with mock.patch(
+            "odw.core.etl.transformation.standardised.entraid_standardisation_process.Util.get_storage_account",
+            return_value="test_storage",
         ):
             inst = EntraIdStandardisationProcess(spark)
             inst._folder_name = folder_name
@@ -79,13 +80,12 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
     # process – schema
     # ------------------------------------------------------------------
 
-    def test__process__output_contains_expected_columns(self):
+    def test__process__output_has_expected_column_order(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = _raw_df(spark, [{"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}])
         data_to_write, _ = self._run_process(raw_df)
-        cols = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].columns
-        for col in ("id", "employeeId", "givenName", "surname", "userPrincipalName", "expected_from"):
-            assert col in cols, f"Expected column '{col}' in output"
+        df = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"]
+        assert df.columns == ["id", "employeeId", "givenName", "surname", "userPrincipalName", "expected_from"]
 
     # ------------------------------------------------------------------
     # process – field values
