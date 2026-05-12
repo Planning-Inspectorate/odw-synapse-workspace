@@ -18,8 +18,8 @@ class ServiceUserHarmonisationProcess(HarmonisationProcess):
     def get_name(self) -> str:
         return "service_user_harmonisation_process"
 
-    def load_data(self) -> dict[str, Any]:
+    def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("ServiceUserHarmonisationProcess.load_data() has not been implemented yet.")
 
-    def process(self, source_data: dict[str, Any]):
+    def process(self, source_data: dict[str, Any], **kwargs):
         raise NotImplementedError("ServiceUserHarmonisationProcess.process() has not been implemented yet.")
