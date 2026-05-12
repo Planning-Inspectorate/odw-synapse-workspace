@@ -102,76 +102,21 @@ class EmailMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.EMAIL", "Email Address", "Email Address Column Name"}
 
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        """Mask the email local part using native Spark column expressions.
+        """Hash the email address using SHA-256 of the lowercased value.
 
-        Keeps the first and last character of the local part and replaces the
-        middle with '*'. The domain is preserved unchanged. Non-email strings
-        are masked end-to-end keeping only first and last character.
+        Normalising to lowercase before hashing ensures the same email stored in
+        different cases across tables produces the same hash, enabling reliable
+        joins on the anonymised column. Nulls are preserved.
         """
-        col_expr = F.col(column).cast("string")
-        has_at = col_expr.contains("@")
-        local_part = F.split(col_expr, "@").getItem(0)
-        domain_part = F.split(col_expr, "@").getItem(1)
-        masked_local = F.regexp_replace(local_part, r"(?<=.).(?=.)", "*")
-        email_result = F.concat(masked_local, F.lit("@"), domain_part)
-        non_email_result = F.regexp_replace(col_expr, r"(?<=.).(?=.)", "*")
-        result = F.when(F.col(column).isNull(), None).otherwise(F.when(has_at, email_result).otherwise(non_email_result))
+        result = F.when(F.col(column).isNull(), None).otherwise(F.sha2(F.lower(F.col(column).cast("string")), 256))
         return df.withColumn(column, result)
 
 
 class NameMaskStrategy(BaseStrategy):
     classification_names = {"MICROSOFT.PERSONAL.NAME", "First Name", "Last Name", "Names Column Name", "All Full Names"}
 
-    @staticmethod
-    def _mask_first_only_expr(col: Column) -> Column:
-        """Keep the first character, replace the rest with '*'.
-        Uses a lookbehind so any character that has a preceding character is replaced.
-        """
-        return F.regexp_replace(col, r"(?<=.).", "*")
-
-    @staticmethod
-    def _mask_last_only_expr(col: Column) -> Column:
-        """Keep the last character, replace the rest with '*'.
-        Uses a lookahead so any character that has a following character is replaced.
-        """
-        return F.regexp_replace(col, r".(?=.)", "*")
-
-    @staticmethod
-    def _mask_fullname_expr(col: Column) -> Column:
-        """Mask a full name: keep first char of first token and last char of last token.
-        Single-token names fall back to mask_keep_first_last (first and last char).
-        """
-        tokens = F.split(col, r"\s+")
-        n = F.size(tokens)
-        first_token = tokens.getItem(0)
-        last_token = tokens.getItem(n - 1)
-        masked_first = NameMaskStrategy._mask_first_only_expr(first_token)
-        masked_last = NameMaskStrategy._mask_last_only_expr(last_token)
-        middle_masked = F.transform(
-            F.slice(tokens, 2, n - 2),
-            lambda t: F.regexp_replace(t, ".", "*"),
-        )
-        return F.when(n == 1, BaseStrategy.mask_keep_first_last(col)).otherwise(
-            F.array_join(
-                F.concat(F.array(masked_first), middle_masked, F.array(masked_last)),
-                " ",
-            )
-        )
-
     def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
-        col_expr = F.col(column).cast("string")
-        classes = set(context.get("classifications") or [])
-        if classes.intersection(self.classification_names):
-            result = F.when(F.col(column).isNull(), None).otherwise(
-                F.when(col_expr.rlike(r"\s+"), self._mask_fullname_expr(col_expr)).otherwise(self._mask_first_only_expr(col_expr))
-            )
-        else:
-            cname = column.lower()
-            if "name" in cname and "first" not in cname and "last" not in cname:
-                result = F.when(F.col(column).isNull(), None).otherwise(self._mask_fullname_expr(col_expr))
-            else:
-                result = BaseStrategy.mask_keep_first_last(F.col(column))
-        return df.withColumn(column, result)
+        return df.withColumn(column, F.when(F.col(column).isNull(), None).otherwise(F.lit("REDACTED")))
 
 
 class BirthDateStrategy(BaseStrategy):
@@ -195,12 +140,62 @@ class SalaryStrategy(BaseStrategy):
         return df.withColumn(column, BaseStrategy.random_int_from_seed(seed, 20000, 100000).cast("int"))
 
 
+class PostcodeStrategy(BaseStrategy):
+    classification_names = {"UK Postcode"}
+
+    def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        col_expr = F.col(column).cast("string")
+        result = F.when(F.col(column).isNull(), None).otherwise(F.split(F.trim(col_expr), r"\s+").getItem(0))
+        return df.withColumn(column, result)
+
+
+class AddressStrategy(BaseStrategy):
+    classification_names = {
+        "Address Line 1",
+        "Address Line 2",
+        "Street Address",
+        "Postcode",
+        "All Physical Addresses",
+        "MICROSOFT.PERSONAL.PHYSICALADDRESS",  # Microsoft Purview classification
+    }
+
+    def apply(self, df: DataFrame, column: str, seed: Column, context: dict) -> DataFrame:
+        """Redact address fields in non-production environments.
+
+        Handles both simple string columns and struct (nested) columns.
+        For struct columns (e.g. 'address' with fields like addressLine1, addressLine2),
+        all nested fields are redacted.
+        """
+        from pyspark.sql.types import StructType
+
+        col_type = dict(df.dtypes).get(column)
+
+        if col_type and col_type.startswith("struct"):
+            schema = df.schema[column].dataType
+            if isinstance(schema, StructType):
+                redacted_fields = []
+                for field in schema.fields:
+                    if field.name.lower() == "postcode":
+                        pc = F.col(f"`{column}`.`{field.name}`")
+                        redacted_fields.append(
+                            F.when(pc.isNull(), None).otherwise(F.split(F.trim(pc.cast("string")), r"\s+").getItem(0)).alias(field.name)
+                        )
+                    else:
+                        redacted_fields.append(F.lit("REDACTED").alias(field.name))
+                redacted_struct = F.struct(*redacted_fields)
+                return df.withColumn(column, F.when(F.col(f"`{column}`").isNotNull(), redacted_struct).otherwise(None))
+
+        return df.withColumn(column, F.when(F.col(f"`{column}`").isNotNull(), F.lit("REDACTED")).otherwise(None))
+
+
 def default_strategies() -> List[BaseStrategy]:
     return [
         NINumberStrategy(),
         EmailMaskStrategy(),
         NameMaskStrategy(),
+        PostcodeStrategy(),
         BirthDateStrategy(),
         AgeStrategy(),
         SalaryStrategy(),
+        AddressStrategy(),
     ]

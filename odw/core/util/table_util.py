@@ -45,20 +45,20 @@ class TableUtil:
     @LoggingUtil.logging_to_appins
     def delete_table_contents(cls, spark: SparkSession, db_name: str, table_name: str):
         """
-        Delete the content from the given table in the given database. This should be used for
-        tables that use delta format as the underlying storage mechanism
+        Delete the content from the given table in the given database.
+
+        NOTE:
+        This implementation drops the table entirely. This is intentional for ETL flows
+        that recreate tables (e.g. temp table -> rename pattern), and avoids expensive
+        DELETE operations that can cause performance and memory issues.
 
         :param db_name: Name of the database the table belongs to
         :param table_name: The name of the table to delete
         """
-        if spark.catalog.tableExists(f"{db_name}.{table_name}"):
-            table_details_query = spark.sql(f"DESCRIBE DETAIL {db_name}.{table_name}")
-            num_tables = table_details_query.count()
-            if num_tables > 1:
-                raise RuntimeError("too many locations associated with the table!")
-            else:
-                spark.sql(f"DELETE FROM {db_name}.{table_name}")
-                spark.sql(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
-                LoggingUtil().log_info(f"Deleted the content from table {db_name}.{table_name}")
+        full_table_name = f"{db_name}.{table_name}"
+
+        if spark.catalog.tableExists(full_table_name):
+            spark.sql(f"DROP TABLE IF EXISTS {full_table_name}")
+            LoggingUtil().log_info(f"Dropped table {full_table_name}")
         else:
-            LoggingUtil().log_info("Table does not exist")
+            LoggingUtil().log_info(f"Table {full_table_name} does not exist")

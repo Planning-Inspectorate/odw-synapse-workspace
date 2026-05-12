@@ -9,7 +9,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 import requests
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.column import Column
-from azure.identity import DefaultAzureCredential  # type: ignore
 
 from .base import (
     BaseStrategy,
@@ -239,6 +238,9 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
                 return token
         except Exception:
             pass
+        # Lazy import to avoid typing_extensions.Sentinel import error in Synapse
+        from azure.identity import DefaultAzureCredential  # type: ignore
+
         return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
@@ -529,11 +531,21 @@ class AnonymisationEngine:
             run_id=self.run_id,
         )
 
+        # Diagnostic: log every column Purview returned and its raw classifications so we can
+        # see exactly which columns were scanned and whether expected PII columns (e.g. postcode)
+        # were classified at all, and if so under what name.
+        _log_event(
+            "purview.columns_raw",
+            columns={item.get("column_name"): item.get("classifications") for item in (cols or []) if isinstance(item, dict)},
+            run_id=self.run_id,
+        )
+
         # Determine which columns will be anonymised (respecting classification_allowlist and strategies)
         allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
         df_aug = df
         target_cols: List[str] = []
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
+        skipped: List[dict] = []
         for item in cols or []:
             if not isinstance(item, dict):
                 continue
@@ -541,14 +553,26 @@ class AnonymisationEngine:
             col_norm = _norm_col_name(col_name)
             actual_col = norm_to_actual.get(col_norm)
             if not actual_col:
+                skipped.append({"column": col_name, "reason": "not_in_dataframe", "classifications": item.get("classifications")})
                 continue
-            classes = set(item.get("classifications") or [])
-            if allowlist is not None:
-                classes = {c for c in classes if c in allowlist}
+            raw_classes = set(item.get("classifications") or [])
+            classes = {c for c in raw_classes if c in allowlist} if allowlist is not None else raw_classes
             if not classes:
+                skipped.append({"column": col_name, "reason": "no_allowlisted_classification", "raw_classifications": sorted(raw_classes)})
                 continue
-            if any(classes.intersection(strat.classification_names) for strat in self.strategies):
-                target_cols.append(actual_col)
+            has_matching_strategy = any(classes.intersection(strat.classification_names) for strat in self.strategies)
+            if has_matching_strategy:
+                if actual_col not in target_cols:
+                    target_cols.append(actual_col)
+            else:
+                skipped.append({"column": col_name, "reason": "no_matching_strategy", "allowlisted_classifications": sorted(classes)})
+
+        if skipped:
+            _log_event(
+                "apply_from_purview.columns_skipped",
+                skipped=skipped,
+                run_id=self.run_id,
+            )
 
         _log_event(
             "apply_from_purview.columns_selected",
