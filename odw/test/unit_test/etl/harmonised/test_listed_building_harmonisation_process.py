@@ -1,10 +1,8 @@
 import hashlib
-import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
-from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 

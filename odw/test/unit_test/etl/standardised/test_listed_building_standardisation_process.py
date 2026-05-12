@@ -1,4 +1,3 @@
-import mock
 import pytest
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 from odw.core.etl.transformation.standardised.listed_building_standardisation_process import ListedBuildingStandardisationProcess

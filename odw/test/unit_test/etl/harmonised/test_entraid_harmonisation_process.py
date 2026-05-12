@@ -1,7 +1,6 @@
 import hashlib
 from datetime import datetime
 
-import mock
 import pyspark.sql.types as T
 
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
