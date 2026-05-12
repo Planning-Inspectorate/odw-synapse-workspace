@@ -1,4 +1,5 @@
 import hashlib
+import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
@@ -122,23 +123,6 @@ def _expected_rowid_for_standardised_row(row):
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
 
 
-def _source_data(spark, source_rows=None, target_df=None):
-    sd = {
-        "source_data": spark.createDataFrame(source_rows or [], _standardised_schema()),
-        "target_exists": target_df is not None,
-    }
-    if target_df is not None:
-        sd["target_data"] = target_df
-    return sd
-
-
-def _existing_harmonised_df(spark):
-    return spark.createDataFrame(
-        [_harmonised_row()],
-        schema=_harmonised_schema(),
-    )
-
-
 class TestListedBuildingHarmonisationProcess(SparkTestCase):
     def test__listed_building_harmonisation_process__get_name__returns_expected_name(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -150,8 +134,18 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data=_source_data(spark, [_standardised_row()]))
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                [_standardised_row()],
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -172,20 +166,60 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data=_source_data(spark, [_standardised_row()]))
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                [_standardised_row()],
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.columns == [field.name for field in _harmonised_schema()]
+        assert df.columns == [
+            "dataset",
+            "endDate",
+            "entity",
+            "entryDate",
+            "geometry",
+            "listedBuildingGrade",
+            "name",
+            "organisationEntity",
+            "point",
+            "prefix",
+            "reference",
+            "startDate",
+            "typology",
+            "documentationUrl",
+            "dateReceived",
+            "rowID",
+            "validTo",
+            "isActive",
+        ]
 
     def test__listed_building_harmonisation_process__process__calculates_rowid_like_legacy(
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+
         source_row = _standardised_row()
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data=_source_data(spark, [source_row]))
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                [source_row],
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("rowID").collect()[0]
@@ -196,6 +230,7 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+
         source_row = _standardised_row(
             **{
                 "end-date": None,
@@ -205,8 +240,18 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
                 "documentation-url": None,
             }
         )
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data=_source_data(spark, [source_row]))
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                [source_row],
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("rowID").collect()[0]
@@ -217,12 +262,23 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+
         source_rows = [
             _standardised_row(entity="1001", reference="LB-001"),
             _standardised_row(entity="1002", reference="LB-002", name="Building Two"),
         ]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data=_source_data(spark, source_rows))
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -236,8 +292,17 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data=_source_data(spark))
+
+        empty_df = spark.createDataFrame([], schema=_standardised_schema())
+
+        source_data = {
+            "source_data": empty_df,
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -250,9 +315,23 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_rows = [_standardised_row(), _standardised_row()]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(source_data=_source_data(spark, source_rows))
+
+        source_rows = [
+            _standardised_row(),
+            _standardised_row(),
+        ]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -265,11 +344,31 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_rows = [_standardised_row(entity="1001", reference="LB-001", name="Building One Updated")]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(
-            source_data=_source_data(spark, source_rows, target_df=_existing_harmonised_df(spark))
-        )
+
+        source_rows = [
+            _standardised_row(
+                entity="1001",
+                reference="LB-001",
+                name="Building One Updated",
+            ),
+        ]
+        existing_rows = [_harmonised_row()]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows,
+                schema=_harmonised_schema(),
+            ),
+            "target_exists": True,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -291,20 +390,36 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
+
         source_row = _standardised_row()
         expected_rowid = _expected_rowid_for_standardised_row(source_row)
-        existing_df = spark.createDataFrame(
-            [_harmonised_row(name="Building One", rowID=expected_rowid)],
-            schema=_harmonised_schema(),
-        )
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(
-            source_data=_source_data(spark, [source_row], target_df=existing_df)
-        )
+
+        existing_rows = [
+            _harmonised_row(
+                name="Building One",
+                rowID=expected_rowid,
+            )
+        ]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                [source_row],
+                schema=_standardised_schema(),
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows,
+                schema=_harmonised_schema(),
+            ),
+            "target_exists": True,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        entity_rows = df.where(F.col("entity") == "1001")
 
+        entity_rows = df.where(F.col("entity") == "1001")
         assert entity_rows.count() == 1
         assert entity_rows.where(F.col("isActive") == "Y").count() == 1
         assert entity_rows.where(F.col("isActive") == "N").count() == 0
@@ -315,11 +430,27 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_rows = [_standardised_row(entity="1002", reference="LB-002", name="Building Two")]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(
-            source_data=_source_data(spark, source_rows, target_df=_existing_harmonised_df(spark))
-        )
+
+        source_rows = [
+            _standardised_row(entity="1002", reference="LB-002", name="Building Two"),
+        ]
+        existing_rows = [_harmonised_row()]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows,
+                schema=_harmonised_schema(),
+            ),
+            "target_exists": True,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -332,11 +463,27 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_rows = [_standardised_row(entity="9999", reference="LB-001", name="Moved Entity")]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, result = inst.process(
-            source_data=_source_data(spark, source_rows, target_df=_existing_harmonised_df(spark))
-        )
+
+        source_rows = [
+            _standardised_row(entity="9999", reference="LB-001", name="Moved Entity"),
+        ]
+        existing_rows = [_harmonised_row()]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows,
+                schema=_harmonised_schema(),
+            ),
+            "target_exists": True,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -351,9 +498,23 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         self,
     ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_rows = [_standardised_row(name="Version A"), _standardised_row(name="Version B")]
-        inst = ListedBuildingHarmonisationProcess(spark)
-        data_to_write, _ = inst.process(source_data=_source_data(spark, source_rows))
+
+        source_rows = [
+            _standardised_row(name="Version A"),
+            _standardised_row(name="Version B"),
+        ]
+
+        source_data = {
+            "source_data": spark.createDataFrame(
+                source_rows,
+                schema=_standardised_schema(),
+            ),
+            "target_exists": False,
+        }
+
+        with mock.patch("odw.core.etl.transformation.harmonised.listed_building_harmonisation_process.LoggingUtil"):
+            inst = ListedBuildingHarmonisationProcess(spark)
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = df.select("name", "rowID").orderBy("name").collect()
