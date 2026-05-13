@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0722aa39-7f98-43d3-9b92-787110a659f9"
+				"spark.autotune.trackingId": "b4fdbd98-e9fe-4b08-adbd-71dd4d6d937b"
 			}
 		},
 		"metadata": {
@@ -74,7 +74,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +95,7 @@
 				"source": [
 					"entity_name='appeal-has'"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +110,7 @@
 					"import pyspark.sql.functions as F\r\n",
 					"import re"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -120,7 +120,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -143,7 +143,7 @@
 					"start_exec_time = datetime.now()\r\n",
 					"print(source_path)"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -182,7 +182,7 @@
 					"    return result[0][0].strftime(\"%Y-%m-%dT%H:%M:%S.%f\") + \"+0000\"\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -200,7 +200,7 @@
 					"display(df)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -209,39 +209,37 @@
 					"max_ingested_datetime=get_max_file_date(table_df)\r\n",
 					"print(max_ingested_datetime)"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"def count_new_items_recursive(path: str, max_date) -> int:\r\n",
-					"\r\n",
-					"    # ✅ auto-convert if string\r\n",
 					"    if isinstance(max_date, str):\r\n",
 					"        max_date = datetime.strptime(\r\n",
-					"            max_date, \"%Y-%m-%dT%H:%M:%S.%f+0000\"\r\n",
-					"        )\r\n",
-					"\r\n",
+					"            max_date, \"%Y-%m-%dT%H:%M:%S.%f+0000\" )\r\n",
 					"    count = 0\r\n",
-					"\r\n",
 					"    try:\r\n",
 					"        items = mssparkutils.fs.ls(path)\r\n",
-					"\r\n",
 					"        for item in items:\r\n",
-					"            item_time = datetime.fromtimestamp(item.modifyTime / 1000)\r\n",
-					"\r\n",
 					"            if item.isDir:\r\n",
 					"                count += count_new_items_recursive(item.path, max_date)\r\n",
 					"            else:\r\n",
+					"                match = re.search(\r\n",
+					"                    r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}_\\d{2}_\\d{2}\\.\\d{6}\\+0000)',\r\n",
+					"                    item.path)\r\n",
+					"                if not match:\r\n",
+					"                    continue\r\n",
+					"                file_timestamp_str = match.group(1)\r\n",
+					"                file_timestamp_str = file_timestamp_str.replace(\"_\", \":\")\r\n",
+					"                item_time = datetime.strptime(file_timestamp_str,\"%Y-%m-%dT%H:%M:%S.%f+0000\")\r\n",
 					"                if max_date is None or item_time > max_date:\r\n",
 					"                    count += 1\r\n",
-					"\r\n",
 					"    except Exception as e:\r\n",
 					"        print(f\"Error reading path {path}: {e}\")\r\n",
-					"\r\n",
 					"    return count"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -249,14 +247,14 @@
 					"new_count = count_new_items_recursive(source_path, max_ingested_datetime)\r\n",
 					"print(f\"New items after max date: {new_count}\")"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"mssparkutils.notebook.exit(str(new_count))"
 				],
-				"execution_count": null
+				"execution_count": 23
 			}
 		]
 	}
