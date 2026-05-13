@@ -70,7 +70,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
     """
 
     HORIZON_TABLE = "odw_standardised_db.aie_document_data"
-    OUTPUT_TABLE = f"aie_document_data"
+    OUTPUT_TABLE = "aie_document_data"
     PRIMARY_KEY = "TEMP_PK"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
