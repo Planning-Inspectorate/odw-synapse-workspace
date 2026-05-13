@@ -5,7 +5,7 @@ from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
@@ -41,30 +41,9 @@ def _empty_harmonised_df(spark):
 def _harmonised_df(spark):
     df = spark.createDataFrame(
         [
-            (
-                "AEE-001",
-                "APP-001",
-                None,
-                "3 hours",
-                "1 hour",
-                "Y",
-            ),
-            (
-                "AEE-002",
-                "APP-002",
-                "4 hours",
-                "5 hours",
-                "2 hours",
-                "N",
-            ),
-            (
-                "AEE-003",
-                "APP-003",
-                "6 hours",
-                "7 hours",
-                None,
-                None,
-            ),
+            ("AEE-001", "APP-001", None, "3 hours", "1 hour", "Y"),
+            ("AEE-002", "APP-002", "4 hours", "5 hours", "2 hours", "N"),
+            ("AEE-003", "APP-003", "6 hours", "7 hours", None, None),
         ],
         _harmonised_schema(),
     )
@@ -72,33 +51,63 @@ def _harmonised_df(spark):
     return df.withColumn("extraColumn", F.lit("ignore me"))
 
 
-def _source_data(harmonised_data):
-    return {"harmonised_data": harmonised_data}
+def _minimal_harmonised_df(spark):
+    return spark.createDataFrame(
+        [("AEE-001", "APP-001", "Y")],
+        T.StructType(
+            [
+                T.StructField("id", T.StringType(), True),
+                T.StructField("caseReference", T.StringType(), True),
+                T.StructField("IsActive", T.StringType(), True),
+            ]
+        ),
+    )
 
 
 class TestAppealEventEstimateCuratedProcess(ETLTestCase):
-    def test__appeal_event_estimate_curated_process__run__curates_active_harmonised_rows_end_to_end_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
+    def _run_process(self, spark, test_case: str, source_df):
+        harmonised_table = f"{test_case}_sb_appeal_event_estimate"
+        curated_table = f"{test_case}_appeal_event_estimate"
 
-        source_data = _source_data(_harmonised_df(spark))
-
-        inst = AppealEventEstimateCuratedProcess(spark)
+        self.write_existing_table(
+            spark,
+            source_df,
+            harmonised_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_table,
+            "overwrite",
+        )
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(
+                AppealEventEstimateCuratedProcess,
+                "SOURCE_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(
+                AppealEventEstimateCuratedProcess,
+                "OUTPUT_TABLE",
+                curated_table,
+            ),
         ):
+            inst = AppealEventEstimateCuratedProcess(spark)
             result = inst.run()
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        write_config = data_to_write[inst.OUTPUT_TABLE]
-        df = write_config["data"]
+        actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
-        assert "IsActive" not in df.columns
-        assert "extraColumn" not in df.columns
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "parquet"
-        assert "partition_by" not in write_config
+        return actual_df, result
+
+    def test__appeal_event_estimate_curated_process__run__curates_active_harmonised_rows_end_to_end_like_legacy(self):
+        test_case = "t_aeec_r_cahr"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        actual_df, result = self._run_process(spark, test_case, _harmonised_df(spark))
+
+        assert actual_df.columns == CURATED_COLUMNS
+        assert "IsActive" not in actual_df.columns
+        assert "extraColumn" not in actual_df.columns
 
         assert {
             "insert_count": result.metadata.insert_count,
@@ -110,7 +119,7 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
             "delete_count": 0,
         }
 
-        actual_df = df.select(
+        actual_selected_df = actual_df.select(
             "id",
             "caseReference",
             "preparationTime",
@@ -120,40 +129,21 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
 
         expected_df = spark.createDataFrame(
             [
-                (
-                    "AEE-001",
-                    "APP-001",
-                    None,
-                    "3 hours",
-                    "1 hour",
-                )
+                ("AEE-001", "APP-001", None, "3 hours", "1 hour"),
             ],
-            actual_df.schema,
+            actual_selected_df.schema,
         )
 
-        assert_dataframes_equal(actual_df, expected_df)
+        assert_dataframes_equal(actual_selected_df, expected_df)
 
     def test__appeal_event_estimate_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+        test_case = "t_aeec_r_ehs"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = _source_data(_empty_harmonised_df(spark))
+        actual_df, result = self._run_process(spark, test_case, _empty_harmonised_df(spark))
 
-        inst = AppealEventEstimateCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        write_config = data_to_write[inst.OUTPUT_TABLE]
-        df = write_config["data"]
-
-        assert df.count() == 0
-        assert df.columns == CURATED_COLUMNS
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "parquet"
+        assert actual_df.count() == 0
+        assert actual_df.columns == CURATED_COLUMNS
 
         assert {
             "insert_count": result.metadata.insert_count,
@@ -166,33 +156,14 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
         }
 
     def test__appeal_event_estimate_curated_process__run__adds_missing_columns_as_null_like_curated_framework(self):
+        test_case = "t_aeec_r_amc"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        minimal_df = spark.createDataFrame(
-            [("AEE-001", "APP-001", "Y")],
-            T.StructType(
-                [
-                    T.StructField("id", T.StringType(), True),
-                    T.StructField("caseReference", T.StringType(), True),
-                    T.StructField("IsActive", T.StringType(), True),
-                ]
-            ),
-        )
+        actual_df, result = self._run_process(spark, test_case, _minimal_harmonised_df(spark))
 
-        source_data = _source_data(minimal_df)
+        row = actual_df.collect()[0]
 
-        inst = AppealEventEstimateCuratedProcess(spark)
-
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        df = mock_write.call_args[0][0][inst.OUTPUT_TABLE]["data"]
-        row = df.collect()[0]
-
-        assert df.columns == CURATED_COLUMNS
+        assert actual_df.columns == CURATED_COLUMNS
         assert row["id"] == "AEE-001"
         assert row["caseReference"] == "APP-001"
 

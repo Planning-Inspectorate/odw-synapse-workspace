@@ -6,7 +6,7 @@ from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import AppealEventEstimateCuratedMipinsProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
@@ -139,33 +139,87 @@ def _harmonised_df(spark):
     return df.withColumn("extraColumn", F.lit("ignore me"))
 
 
-def _source_data(harmonised_data):
-    return {"harmonised_data": harmonised_data}
+def _existing_curated_schema():
+    return T.StructType(
+        [
+            T.StructField("AppealsEstimateEventID", T.StringType(), True),
+            T.StructField("ID", T.StringType(), True),
+            T.StructField("caseReference", T.StringType(), True),
+            T.StructField("preparationTime", T.StringType(), True),
+            T.StructField("sittingTime", T.StringType(), True),
+            T.StructField("reportingTime", T.StringType(), True),
+            T.StructField("migrated", T.StringType(), True),
+            T.StructField("ODTSourceSystem", T.StringType(), True),
+            T.StructField("SourceSystemID", T.StringType(), True),
+            T.StructField("IngestionDate", T.TimestampType(), True),
+            T.StructField("ValidTo", T.TimestampType(), True),
+            T.StructField("ROWID", T.StringType(), True),
+            T.StructField("ISActive", T.StringType(), True),
+        ]
+    )
+
+
+def _existing_curated_df(spark):
+    return spark.createDataFrame(
+        [
+            (
+                "OLD-EVENT",
+                "OLD-ID",
+                "OLD-CASE",
+                "old prep",
+                "old sitting",
+                "old reporting",
+                "N",
+                "ODT",
+                "OLD-SRC",
+                datetime(2020, 1, 1, 0, 0, 0),
+                datetime(2020, 1, 2, 0, 0, 0),
+                "OLD-ROW",
+                "Y",
+            )
+        ],
+        _existing_curated_schema(),
+    )
 
 
 class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
-    def test__appeal_event_estimate_curated_mipins_process__run__curates_mipins_rows_end_to_end_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
+    def _run_process(self, spark, test_case: str):
+        harmonised_table = f"{test_case}_sb_appeal_event_estimate"
+        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
 
-        source_data = _source_data(_harmonised_df(spark))
-
-        inst = AppealEventEstimateCuratedMipinsProcess(spark)
+        self.write_existing_table(
+            spark,
+            _harmonised_df(spark),
+            harmonised_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_table,
+            "overwrite",
+        )
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(
+                AppealEventEstimateCuratedMipinsProcess,
+                "SOURCE_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(
+                AppealEventEstimateCuratedMipinsProcess,
+                "OUTPUT_TABLE",
+                curated_table,
+            ),
         ):
+            inst = AppealEventEstimateCuratedMipinsProcess(spark)
             result = inst.run()
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        write_config = data_to_write[inst.OUTPUT_TABLE]
-        df = write_config["data"]
+        actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
-        assert df.columns == CURATED_COLUMNS
-        assert "extraColumn" not in df.columns
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "parquet"
-        assert "partition_by" not in write_config
+        return actual_df, result
+
+    def _assert_curation(self, spark, actual_df, result):
+        assert actual_df.columns == CURATED_COLUMNS
+        assert "extraColumn" not in actual_df.columns
 
         assert {
             "insert_count": result.metadata.insert_count,
@@ -177,7 +231,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
             "delete_count": 0,
         }
 
-        actual_df = df.select(
+        actual_selected_df = actual_df.select(
             "AppealsEstimateEventID",
             "ID",
             "caseReference",
@@ -226,32 +280,77 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
                     "N",
                 ),
             ],
-            actual_df.schema,
+            actual_selected_df.schema,
         )
 
-        assert_dataframes_equal(actual_df, expected_df)
+        assert_dataframes_equal(actual_selected_df, expected_df)
 
-    def test__appeal_event_estimate_curated_mipins_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__run__creates_output_table_when_missing_like_legacy(self):
+        test_case = "t_aeecm_r_cotwm"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = _source_data(_empty_harmonised_df(spark))
+        actual_df, result = self._run_process(spark, test_case)
 
-        inst = AppealEventEstimateCuratedMipinsProcess(spark)
+        self._assert_curation(spark, actual_df, result)
+
+    def test__appeal_event_estimate_curated_mipins_process__run__overwrites_existing_output_table_like_legacy(self):
+        test_case = "t_aeecm_r_oeot"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
+
+        self.write_existing_table(
+            spark,
+            _existing_curated_df(spark),
+            curated_table,
+            "odw_curated_db",
+            "odw-curated",
+            curated_table,
+            "overwrite",
+        )
+
+        actual_df, result = self._run_process(spark, test_case)
+
+        assert actual_df.where("ID = 'OLD-ID'").count() == 0
+        self._assert_curation(spark, actual_df, result)
+
+    def test__appeal_event_estimate_curated_mipins_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+        test_case = "t_aeecm_r_ehs"
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        harmonised_table = f"{test_case}_sb_appeal_event_estimate"
+        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
+
+        self.write_existing_table(
+            spark,
+            _empty_harmonised_df(spark),
+            harmonised_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_table,
+            "overwrite",
+        )
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(
+                AppealEventEstimateCuratedMipinsProcess,
+                "SOURCE_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(
+                AppealEventEstimateCuratedMipinsProcess,
+                "OUTPUT_TABLE",
+                curated_table,
+            ),
         ):
+            inst = AppealEventEstimateCuratedMipinsProcess(spark)
             result = inst.run()
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        write_config = data_to_write[inst.OUTPUT_TABLE]
-        df = write_config["data"]
+        actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
-        assert df.count() == 0
-        assert df.columns == CURATED_COLUMNS
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "parquet"
+        assert actual_df.count() == 0
+        assert actual_df.columns == CURATED_COLUMNS
 
         assert {
             "insert_count": result.metadata.insert_count,
