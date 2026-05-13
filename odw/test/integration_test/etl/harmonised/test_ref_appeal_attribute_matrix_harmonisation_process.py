@@ -1,12 +1,9 @@
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
-
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):

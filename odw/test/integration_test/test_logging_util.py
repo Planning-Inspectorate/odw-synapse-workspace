@@ -1,14 +1,16 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.config import TEST_CONFIG
-from azure.identity import AzureCliCredential
+
+# from azure.identity import AzureCliCredential
 import requests
 from uuid import uuid4
 import mock
 import pytest
 
 
-APP_INSIGHTS_TOKEN = AzureCliCredential().get_token("https://api.applicationinsights.io/.default").token
+# APP_INSIGHTS_TOKEN = AzureCliCredential().get_token("https://api.applicationinsights.io/.default").token
+APP_INSIGHTS_TOKEN = None
 JOB_ID = uuid4()
 
 

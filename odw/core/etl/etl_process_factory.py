@@ -20,6 +20,11 @@ from odw.core.etl.transformation.curated.nsip_representation_curated_process imp
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+
+from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
+from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
+from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
+
 from typing import Dict, List, Set, Type
 import json
 
@@ -46,6 +51,9 @@ class ETLProcessFactory:
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
         AppealDocumentCuratedProcess,
+        AppealAttributeMatrixStandardisationProcess,
+        AppealAttributeMatrixHarmonisationProcess,
+        AppealAttributeMatrixCuratedProcess,
     }
 
     @classmethod
