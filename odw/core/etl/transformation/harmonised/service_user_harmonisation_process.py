@@ -1,0 +1,25 @@
+from typing import Any
+
+from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+
+
+class ServiceUserHarmonisationProcess(HarmonisationProcess):
+    OUTPUT_TABLE = "service_user"
+
+    SERVICE_BUS_TABLE = "sb_service_user"
+    HZN_SERVICE_USER_TABLE = "horizon_case_involvement"
+    HZN_NSIP_PROJECT_TABLE = "horizon_nsip_data"
+    HZN_NSIP_REPRESENTATION_TABLE = "horizon_nsip_relevant_representation"
+
+    def __init__(self, spark):
+        super().__init__(spark)
+        self.spark = spark
+
+    def get_name(self) -> str:
+        return "service_user_harmonisation_process"
+
+    def load_data(self, **kwargs) -> dict[str, Any]:
+        raise NotImplementedError("ServiceUserHarmonisationProcess.load_data() has not been implemented yet.")
+
+    def process(self, source_data: dict[str, Any], **kwargs):
+        raise NotImplementedError("ServiceUserHarmonisationProcess.process() has not been implemented yet.")
