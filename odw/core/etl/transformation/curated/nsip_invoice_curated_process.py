@@ -101,7 +101,7 @@ class NsipInvoiceCuratedProcess(CurationProcess):
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
                 "table_name": "nsip_invoice",
-                "storage_endpoint": Util.get_storage_account(),
+                "storage_endpoint": "",
                 "container_name": "odw-curated",
                 "blob_path": "nsip_invoice",
                 "file_format": "parquet",
