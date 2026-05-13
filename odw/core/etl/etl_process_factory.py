@@ -11,7 +11,7 @@ from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_proces
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
 from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process import AppealDocumentHarmonisationProcess
-from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AiEDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
 from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
@@ -39,7 +39,7 @@ class ETLProcessFactory:
         NsipMeetingHarmonisationProcess,
         NsipInvoiceHarmonisationProcess,
         AppealDocumentHarmonisationProcess,
-        AiEDocumentHarmonisationProcess,
+        AieDocumentHarmonisationProcess,
         EntraIdHarmonisationProcess,
         ListedBuildingHarmonisationProcess,
         NsipDocumentCuratedProcess,

@@ -31,7 +31,7 @@ class NsipInvoiceCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-invoice-curated"
+        return "nsip_invoice_curated_process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
@@ -69,7 +69,13 @@ class NsipInvoiceCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_nsip_invoice: DataFrame = self.load_parameter("harmonised_nsip_invoice", source_data)
+
+        harmonised_nsip_invoice: DataFrame = source_data.get("harmonised_nsip_invoice")
+        if harmonised_nsip_invoice is None:
+            harmonised_nsip_invoice = source_data.get("source_data")
+
+        if harmonised_nsip_invoice is None:
+            raise ValueError("NsipInvoiceCuratedProcess requires a harmonised_nsip_invoice parameter to be provided, but was missing")
 
         df = harmonised_nsip_invoice.select(
             F.col("caseId"),
