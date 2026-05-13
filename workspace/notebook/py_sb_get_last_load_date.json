@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dc30c0e0-ad77-46f9-90eb-1c3169eb7b04"
+				"spark.autotune.trackingId": "85a0b698-2480-4ed5-a6e0-ceff147041ee"
 			}
 		},
 		"metadata": {
@@ -56,7 +56,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": 106
 			},
 			{
 				"cell_type": "code",
@@ -74,7 +74,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -96,7 +96,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": 34
+				"execution_count": 108
 			},
 			{
 				"cell_type": "code",
@@ -111,7 +111,7 @@
 					"import pyspark.sql.functions as F\r\n",
 					"import re"
 				],
-				"execution_count": 5
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -121,7 +121,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 8
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,7 @@
 					"start_exec_time = datetime.now()\r\n",
 					"print(source_path)"
 				],
-				"execution_count": 29
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
@@ -161,16 +161,30 @@
 					}
 				},
 				"source": [
-					"@logging_to_appins\r\n",
-					"def get_max_value_from_column(target_table: str, column_name: str) -> datetime:\r\n",
-					"    df = spark.table(target_table)\r\n",
-					"    max_value = df.agg(F.max(column_name)).collect()[0][0]\r\n",
 					"\r\n",
-					"    if max_value is None:\r\n",
-					"       return None\r\n",
-					"    return max_value"
+					"def get_max_file_date(df: DataFrame) -> str | None:\r\n",
+					"\r\n",
+					"    date_pattern = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}_\\d{2}_\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
+					"\r\n",
+					"    df_with_date = df.withColumn(\r\n",
+					"        \"file_date\",\r\n",
+					"        F.regexp_extract(F.col(\"input_file\"), date_pattern, 1)\r\n",
+					"    ).withColumn(\r\n",
+					"        \"file_date\",\r\n",
+					"        F.to_timestamp(\"file_date\", \"yyyy-MM-dd'T'HH_mm_ss.SSSSSS+0000\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    result = df_with_date.agg(F.max(\"file_date\")).collect()\r\n",
+					"\r\n",
+					"    if not result or result[0][0] is None:\r\n",
+					"        print(\"Warning: No valid dates found in input_file column.\")\r\n",
+					"        return None\r\n",
+					"\r\n",
+					"\r\n",
+					"    return result[0][0].strftime(\"%Y-%m-%dT%H:%M:%S.%f\") + \"+0000\"\r\n",
+					""
 				],
-				"execution_count": 30
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
@@ -182,40 +196,45 @@
 				},
 				"source": [
 					"%%pyspark\r\n",
-					"df = spark.sql(\"SELECT max(ingested_datetime) FROM `odw_standardised_db`.`sb_appeal_has`\")\r\n",
-					"df.show(10)"
+					"# df = spark.sql(\"SELECT max(ingested_datetime) FROM `odw_standardised_db`.`sb_appeal_has`\")\r\n",
+					"df = spark.sql(\"SELECT * FROM `odw_standardised_db`.`sb_appeal_has` where ingested_datetime in (SELECT max(ingested_datetime) FROM `odw_standardised_db`.`sb_appeal_has`)\")\r\n",
+					"# df.show(10)\r\n",
+					"display(df)\r\n",
+					""
 				],
-				"execution_count": 33
+				"execution_count": 113
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"max_ingested_datetime = get_max_value_from_column(\r\n",
-					"    target_table=target_table,\r\n",
-					"    column_name='ingested_datetime'\r\n",
-					")\r\n",
+					"table_df = spark.table(target_table)\r\n",
+					"max_ingested_datetime=get_max_file_date(table_df)\r\n",
 					"print(max_ingested_datetime)"
 				],
-				"execution_count": 35
+				"execution_count": 114
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"def count_new_items_recursive(path: str, max_date: datetime) -> int:\r\n",
+					"def count_new_items_recursive(path: str, max_date) -> int:\r\n",
+					"\r\n",
+					"    # ✅ auto-convert if string\r\n",
+					"    if isinstance(max_date, str):\r\n",
+					"        max_date = datetime.strptime(\r\n",
+					"            max_date, \"%Y-%m-%dT%H:%M:%S.%f+0000\"\r\n",
+					"        )\r\n",
+					"\r\n",
 					"    count = 0\r\n",
 					"\r\n",
 					"    try:\r\n",
 					"        items = mssparkutils.fs.ls(path)\r\n",
 					"\r\n",
 					"        for item in items:\r\n",
-					"            # ✅ correct property\r\n",
 					"            item_time = datetime.fromtimestamp(item.modifyTime / 1000)\r\n",
 					"\r\n",
 					"            if item.isDir:\r\n",
-					"                # go into subfolders\r\n",
 					"                count += count_new_items_recursive(item.path, max_date)\r\n",
 					"            else:\r\n",
-					"                # count only files after max date\r\n",
 					"                if max_date is None or item_time > max_date:\r\n",
 					"                    count += 1\r\n",
 					"\r\n",
@@ -224,7 +243,7 @@
 					"\r\n",
 					"    return count"
 				],
-				"execution_count": 36
+				"execution_count": 121
 			},
 			{
 				"cell_type": "code",
@@ -232,14 +251,14 @@
 					"new_count = count_new_items_recursive(source_path, max_ingested_datetime)\r\n",
 					"print(f\"New items after max date: {new_count}\")"
 				],
-				"execution_count": 37
+				"execution_count": 122
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"mssparkutils.notebook.exit(str(new_count))"
 				],
-				"execution_count": null
+				"execution_count": 123
 			}
 		]
 	}
