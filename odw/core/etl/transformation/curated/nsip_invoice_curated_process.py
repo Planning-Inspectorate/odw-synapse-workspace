@@ -6,7 +6,6 @@ from pyspark.sql import DataFrame, SparkSession, functions as F
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
 
 
 class NsipInvoiceCuratedProcess(CurationProcess):
