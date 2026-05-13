@@ -4,9 +4,6 @@ from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import pyspark.sql.types as T
-import pytest
-
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):

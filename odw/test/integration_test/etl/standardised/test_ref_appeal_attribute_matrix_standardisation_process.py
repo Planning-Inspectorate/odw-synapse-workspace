@@ -1,12 +1,9 @@
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 import pyspark.sql.types as T
-
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
