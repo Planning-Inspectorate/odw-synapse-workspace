@@ -8,7 +8,6 @@ from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 from pyspark.sql import DataFrame
 from datetime import datetime
 import mock
-from pyspark.sql import functions as F
 
 pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
