@@ -152,8 +152,9 @@ class TestNSIPDocumentCurationProcess(SparkTestCase):
                     "curated_projects": curated_projects,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -168,6 +169,6 @@ class TestNSIPDocumentCurationProcess(SparkTestCase):
         assert rows[2]["publishedStatus"] == "ready_to_publish"
         assert rows[2]["documentCaseStage"] == "post_decision"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_document"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "nsip_document"
         assert result.metadata.insert_count == 2

@@ -43,8 +43,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     "harmonised_meeting": harmonised_meeting,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["meetingId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -52,6 +53,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
         assert rows["M-1"]["meetingDate"] == "2025-01-05"
         assert rows["M-2"]["meetingAgenda"] == "agenda-2"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_meeting"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "nsip_meeting"
         assert result.metadata.insert_count == 2

@@ -327,7 +327,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         actual_df = df.select(
             "caseReference",
@@ -356,7 +356,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         )
 
         assert_dataframes_equal(actual_df, expected_df)
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
     def test__appeal_has_standardisation_process__process__keeps_latest_has_row_per_case_reference_like_legacy(self):
@@ -398,7 +398,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_minimal_source_data(spark, hzn_cases_has_df))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"]
         row = df.collect()[0]
 
         assert df.count() == 1
@@ -451,7 +451,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["caseSpecialisms"] == "Advertisements, Listed Building"
 
@@ -603,7 +603,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
+        rows = {row["caseReference"]: row["caseProcedure"] for row in data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()}
 
         assert rows["HAS-001"] == "WR"
         assert rows["HAS-002"] == "IH"
@@ -662,7 +662,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data)
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"]
         row = df.collect()[0]
 
         assert df.count() == 1
@@ -741,7 +741,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["applicationReference"] == "APP-REF-001"
         assert row["typeOfPlanningApplication"] == "Full Planning"
@@ -840,7 +840,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["caseCreatedDate"] == "2025-01-01"
         assert row["caseStartedDate"] == "2025-01-03"
@@ -914,7 +914,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["importantinformation"] == "Important info text"
         assert row["leadCaseReference"] == "LEAD-001"
@@ -1003,7 +1003,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["siteAreaSquareMetres"] == 12500.0
         assert row["floorSpaceSquareMetres"] == 50.0
@@ -1054,7 +1054,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["advertAttributeKey"] == "ATTR-001"
         assert row["advertType"] == "Poster"
@@ -1072,7 +1072,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_minimal_source_data(spark, _minimal_hzn_cases_has_df(spark)))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.columns == [
             "caseReference",
@@ -1305,7 +1305,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["applicationReference"] == "NEW-APP-REF"
         assert row["typeOfPlanningApplication"] == "New Planning"
@@ -1388,7 +1388,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data)
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["lpaProcedurePreference"] == "Written Reps"
         assert row["caseProcedure"] is None
@@ -1734,7 +1734,7 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
             result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         actual_result_df = actual_df.select(
             "caseReference",
@@ -1834,4 +1834,4 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         }
 
         assert actual_df.count() == 2
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert data_to_write[f"odw_standardised_db.{inst.OUTPUT_TABLE}"]["write_mode"] == "overwrite"

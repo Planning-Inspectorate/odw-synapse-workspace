@@ -215,8 +215,9 @@ class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
                     "sb_primary_keys": sb_primary_keys,
                 }
             )
+        expected_data_entry = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -228,6 +229,6 @@ class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
         assert "SourceSystemID" not in rows[10]
         assert "SourceSystemID" not in rows[20]
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["partition_by"] == ["IsActive"]
         assert result.metadata.insert_count == 2

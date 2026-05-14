@@ -134,7 +134,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        output_columns = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].columns
+        output_columns = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].columns
         assert "TEMP_PK" not in output_columns
 
     def test__process__output_contains_required_columns(self):
@@ -144,7 +144,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        output_columns = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].columns
+        output_columns = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].columns
         for col in ("AIEDocumentDataID", "RowID", "IsActive", "ValidTo", "Migrated", "ODTSourceSystem", "IngestionDate"):
             assert col in output_columns, f"Expected column '{col}' in output"
 
@@ -159,7 +159,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        rows = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
+        rows = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].collect()
         assert len(rows) == 1
         assert rows[0]["IsActive"] == "Y"
 
@@ -174,7 +174,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"]
         rows = {row["IngestionDate"]: row for row in df.collect()}
 
         assert rows[datetime(2024, 2, 1)]["IsActive"] == "Y"
@@ -191,7 +191,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"]
         active_count = df.filter(df["IsActive"] == "Y").count()
         assert active_count == 2
 
@@ -206,7 +206,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        rows = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
+        rows = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].collect()
         assert rows[0]["AIEDocumentDataID"] is not None
         assert rows[0]["AIEDocumentDataID"] == 1
 
@@ -220,7 +220,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"]
         ids = sorted([row["AIEDocumentDataID"] for row in df.collect()])
         assert ids == [1, 2]
 
@@ -235,7 +235,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        rows = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
+        rows = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].collect()
         assert rows[0]["ValidTo"] is None
 
     def test__process__valid_to_set_for_historical_record(self):
@@ -249,7 +249,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        df = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"]
         rows = {row["IngestionDate"]: row for row in df.collect()}
 
         assert rows[datetime(2024, 2, 1)]["ValidTo"] is None
@@ -268,7 +268,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, _ = self._run_process(horizon_data)
-        rows = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
+        rows = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]["data"].collect()
         # RowID must be a non-empty MD5 hex string (32 chars)
         assert rows[0]["RowID"] is not None
         assert len(rows[0]["RowID"]) == 32
@@ -284,7 +284,7 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
             _HORIZON_SCHEMA,
         )
         data_to_write, result = self._run_process(horizon_data)
-        write_config = data_to_write[AieDocumentHarmonisationProcess.OUTPUT_TABLE]
+        write_config = data_to_write[f"odw_harmonised_db.{AieDocumentHarmonisationProcess.OUTPUT_TABLE}"]
 
         assert write_config["write_mode"] == "overwrite"
         assert write_config["partition_by"] == ["IsActive"]

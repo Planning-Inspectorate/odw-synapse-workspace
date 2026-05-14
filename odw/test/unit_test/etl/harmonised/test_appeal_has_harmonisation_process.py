@@ -343,7 +343,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
         actual_df = df.select(
             "caseReference",
             "ODTSourceSystem",
@@ -379,7 +379,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
         actual_df = df.select(
             "caseStatus",
             "IsActive",
@@ -413,7 +413,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert df.collect()[0]["caseStatus"] == "submitted"
@@ -434,7 +434,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert df.collect()[0]["caseReference"] == "HAS-001"
@@ -516,7 +516,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, horizon_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("IngestionDate", F.desc("ODTSourceSystem"))
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].orderBy("IngestionDate", F.desc("ODTSourceSystem"))
         rows = df.collect()
 
         assert df.count() == 2
@@ -546,7 +546,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["caseReference"] == "HAS-001"
         assert row["ValidTo"] == datetime(2025, 2, 1)
@@ -572,7 +572,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["caseReference"] == "HAS-001"
         assert row["ValidTo"] is None
@@ -591,7 +591,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data))
 
-        write_config = data_to_write[inst.OUTPUT_TABLE]
+        write_config = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]
         df = write_config["data"]
 
         assert df.columns == [field.name for field in _appeal_has_schema()]
@@ -664,7 +664,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, horizon_data=horizon_data))
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["caseReference"] == "HAS-001"
         assert row["IngestionDate"] == datetime(2025, 1, 5)
@@ -684,7 +684,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert result.metadata.insert_count == 1
@@ -713,7 +713,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert result.metadata.insert_count == 1
@@ -742,7 +742,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
-        rows = data_to_write[inst.OUTPUT_TABLE]["data"].orderBy("RowID").collect()
+        rows = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].orderBy("RowID").collect()
 
         assert len(rows) == 2
         assert rows[0]["RowID"] == "a-row"
@@ -769,7 +769,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, service_bus_data=service_bus_data))
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         active_counts = {row["caseReference"]: row["count"] for row in df.where(F.col("IsActive") == "Y").groupBy("caseReference").count().collect()}
 
@@ -802,7 +802,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             )
         )
 
-        row = data_to_write[inst.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
 
         assert row["ValidTo"] == datetime(2025, 3, 1)
         assert row["IsActive"] == "N"
@@ -834,7 +834,7 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             )
         )
 
-        rows = {row["caseStatus"]: row for row in data_to_write[inst.OUTPUT_TABLE]["data"].collect()}
+        rows = {row["caseStatus"]: row for row in data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()}
 
         assert rows["old has"]["ValidTo"] == datetime(2025, 2, 1)
         assert rows["old has"]["IsActive"] == "N"

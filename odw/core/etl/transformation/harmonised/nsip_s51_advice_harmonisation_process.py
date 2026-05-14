@@ -65,7 +65,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
 
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_s51_advice"
     HORIZON_TABLE = "odw_standardised_db.horizon_nsip_advice"
-    OUTPUT_TABLE = "odw_harmonised_db.nsip_s51_advice"
+    OUTPUT_TABLE = "nsip_s51_advice"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
