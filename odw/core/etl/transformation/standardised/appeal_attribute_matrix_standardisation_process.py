@@ -7,7 +7,7 @@ from pyspark.sql.functions import col
 from datetime import datetime
 from typing import Dict
 import re
-from odw.core.util.logging_util import LoggingUtil
+from odw.core.util.logging_util import LoggingUtil  # noqa: F401
 
 
 class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
