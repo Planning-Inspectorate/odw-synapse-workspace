@@ -4,7 +4,6 @@ from odw.core.etl.transformation.curated.entraid_mipins_curation_process import 
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-from datetime import datetime
 from pyspark.sql.types import StructType, StructField, LongType, StringType, IntegerType
 import mock
 

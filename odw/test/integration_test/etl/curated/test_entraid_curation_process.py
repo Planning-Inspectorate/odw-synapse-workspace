@@ -4,7 +4,6 @@ from odw.core.etl.transformation.curated.entraid_curation_process import EntraID
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-from datetime import datetime
 from pyspark.sql.types import StructType, StructField, LongType, StringType
 import mock
 
@@ -130,7 +129,7 @@ class TestEntraIDCurationProcess(ETLTestCase):
             result = inst.run()
             assert_etl_result_successful(result)
             actual_data = spark.table(f"odw_curated_db.{curated_table}")
-            assert_etl_result_successful(expected_data, actual_data)
+            assert_dataframes_equal(expected_data, actual_data)
 
     def test__entraid_curation_process__run__with_no_existing_data(self):
         """

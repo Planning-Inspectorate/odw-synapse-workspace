@@ -2,7 +2,6 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.etl.etl_result import ETLResult
 from pyspark.sql import DataFrame
 from typing import Tuple, Dict
-from typing import Any
 
 
 class EntraIDCurationProcess(CurationProcess):
