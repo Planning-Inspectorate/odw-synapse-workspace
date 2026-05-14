@@ -66,9 +66,12 @@ class TestEntraIDCurationProcess(SparkTestCase):
             ),
         )
         entraid_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, entraid_table, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
+        self.write_existing_table(spark, entraid_data, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
         expected_read_data = entraid_data
-        with mock.patch.object(EntraIDCurationProcess, "__init__", return_value=None):
+        with (
+            mock.patch.object(EntraIDCurationProcess, "__init__", return_value=None),
+            mock.patch.object(EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table),
+        ):
             inst = EntraIDCurationProcess()
             read_data = inst.load_data()
             assert isinstance(read_data, dict) and "horizon_entraid" in read_data
