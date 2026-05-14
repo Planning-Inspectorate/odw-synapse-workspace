@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, Tuple
 
 
-class AppealEventEstimateCuratedMIPINSProcess(CurationProcess):
+class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
     """
     ETL process for curating Appeal Event Estimate data from service bus and Horizon sources.
 
