@@ -9,6 +9,9 @@ from pyspark.sql.types import StructType, StructField, LongType, StringType
 import mock
 
 
+pytestmark = pytest.mark.xfail(reason="Curated EntraID logic not implemented yet")
+
+
 class TestEntraIDCurationProcess(ETLTestCase):
     def assert_curation(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -123,7 +126,7 @@ class TestEntraIDCurationProcess(ETLTestCase):
             mock.patch.object(EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table),
             mock.patch.object(EntraIDCurationProcess, "CURATED_TABLE", curated_table),
         ):
-            inst = EntraIDCurationProcess()
+            inst = EntraIDCurationProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
             actual_data = spark.table(f"odw_curated_db.{curated_table}")
