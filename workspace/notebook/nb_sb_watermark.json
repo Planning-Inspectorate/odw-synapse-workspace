@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1e471421-c6be-47b8-8b07-996eb4e1867c"
+				"spark.autotune.trackingId": "7f7507a5-c2ee-4774-84d1-8a52c6eba7c7"
 			}
 		},
 		"metadata": {
@@ -70,6 +70,7 @@
 				"source": [
 					"try:\n",
 					"    entity_name='nsip-document'\n",
+					"    recordsIngested=0\n",
 					"except NameError:\n",
 					"    entity_name = \"\"   # for interactive testing\n",
 					"\n",
@@ -81,9 +82,10 @@
 					"entity_name = (entity_name or \"\").strip()\n",
 					"\n",
 					"if not entity_name:\n",
-					"    raise ValueError(\"Missing required param: entity_name\")"
+					"    raise ValueError(\"Missing required param: entity_name\")\n",
+					"    "
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -105,9 +107,11 @@
 					"from pyspark.sql import Row\n",
 					"import json\n",
 					"import datetime\n",
-					"import uuid"
+					"import uuid\n",
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import current_timestamp, current_date"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -132,7 +136,7 @@
 					"def _utc_now_ts():\n",
 					"    return datetime.datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -153,9 +157,10 @@
 					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
 					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"target_table: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
-					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\""
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\n",
+					"service_bus_watermarks_table_path = f\"abfss://odw-meta-db@{storage_account}.dfs.core.windows.net/delta/pln_service_bus_watermarks\""
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -173,15 +178,17 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.functions import current_timestamp, col\n",
-					"\n",
+					"# -------------------------------------------------------\n",
+					"# 1. Ensure DB\n",
+					"# -------------------------------------------------------\n",
+					"spark.sql(\"CREATE DATABASE IF NOT EXISTS odw_meta_db\")\n",
 					"spark.sql(\"USE odw_meta_db\")\n",
 					"\n",
 					"# -------------------------------------------------------\n",
-					"# 1. Create Table (NEW STRUCTURE ✅)\n",
+					"# 2. Create table ONLY if not exists ✅\n",
 					"# -------------------------------------------------------\n",
-					"spark.sql(\"\"\"\n",
-					"CREATE TABLE IF NOT EXISTS pln_service_bus_watermarks (\n",
+					"spark.sql(f\"\"\"\n",
+					"CREATE TABLE IF NOT EXISTS odw_meta_db.pln_service_bus_watermarks (\n",
 					"  entity_name       STRING,\n",
 					"  last_ingest_time  TIMESTAMP,\n",
 					"  ingest_date       DATE,\n",
@@ -190,10 +197,13 @@
 					"  updated_at        TIMESTAMP\n",
 					")\n",
 					"USING DELTA\n",
+					"LOCATION '{service_bus_watermarks_table_path}'\n",
 					"\"\"\")\n",
 					"\n",
+					"print(\"✅ Table ensured (created only if not exists)\")\n",
+					"\n",
 					"# -------------------------------------------------------\n",
-					"# 2. Get MAX(message_enqueued_time_utc) from target table ✅\n",
+					"# 3. Get MAX(message_enqueued_time_utc)\n",
 					"# -------------------------------------------------------\n",
 					"max_time_df = spark.sql(f\"\"\"\n",
 					"    SELECT MAX(message_enqueued_time_utc) AS max_time\n",
@@ -202,14 +212,18 @@
 					"\n",
 					"max_time = max_time_df.collect()[0][\"max_time\"]\n",
 					"\n",
+					"# Handle empty case\n",
+					"if max_time is None:\n",
+					"    print(\"⚠️ No data found in target table\")\n",
+					"\n",
 					"# -------------------------------------------------------\n",
-					"# 3. Create DataFrame for MERGE ✅\n",
+					"# 4. Prepare DataFrame\n",
 					"# -------------------------------------------------------\n",
 					"wm_df = spark.createDataFrame([\n",
 					"    (\n",
 					"        entity_name,\n",
 					"        max_time,\n",
-					"        int(recordsIngested),\n",
+					"        recordsIngested,\n",
 					"        status\n",
 					"    )\n",
 					"], [\n",
@@ -217,16 +231,16 @@
 					"    \"last_ingest_time\",\n",
 					"    \"number_files\",\n",
 					"    \"status\"\n",
-					"]).withColumn(\"ingest_date\", current_timestamp().cast(\"date\")) \\\n",
+					"]).withColumn(\"ingest_date\", current_date()) \\\n",
 					"  .withColumn(\"updated_at\", current_timestamp())\n",
 					"\n",
 					"wm_df.createOrReplaceTempView(\"wm_upd\")\n",
 					"\n",
 					"# -------------------------------------------------------\n",
-					"# 4. MERGE (Upsert) ✅\n",
+					"# 5. MERGE (UPSERT)\n",
 					"# -------------------------------------------------------\n",
 					"spark.sql(\"\"\"\n",
-					"MERGE INTO pln_service_bus_watermarks AS tgt\n",
+					"MERGE INTO odw_meta_db.pln_service_bus_watermarks AS tgt\n",
 					"USING wm_upd AS src\n",
 					"ON tgt.entity_name = src.entity_name\n",
 					"\n",
@@ -257,7 +271,7 @@
 					"\n",
 					"print(f\"✅ watermark upserted for {entity_name}\")"
 				],
-				"execution_count": null
+				"execution_count": 25
 			}
 		]
 	}
