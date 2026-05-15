@@ -1,14 +1,42 @@
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from pyspark.sql import DataFrame
 
 
 class AppealS78HarmonisationProcess(HarmonisationProcess):
+    SERVICE_BUS_TABLE = "sb_appeal_s78"
+    HORIZON_TABLE = "horizon_appeal_s78"
     OUTPUT_TABLE = "appeal_s78"
 
     def get_name(self) -> str:
         return "Appeal S78 Harmonisation Process"
+    
+    def _load_service_bus_data(self) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._load_service_bus_data() has not been implemented yet.")
+
+    def _load_horizon_data(self) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._load_horizon_data() has not been implemented yet.")
 
     def load_data(self, **kwargs):
         raise NotImplementedError("AppealS78HarmonisationProcess.load_data() has not been implemented yet.")
 
+    def _clean_service_bus_data(self, raw_service_bus_data: DataFrame):
+        raise NotImplementedError("AppealS78HarmonisationProcess._clean_service_bus_data() has not been implemented yet.")
+    
+    def _clean_horizon_data(self, raw_horizon_data: DataFrame) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._clean_horizon_data() has not been implemented yet.")
+
+    def _aggregate_data(self, clean_service_bus_data: DataFrame, clean_horizon_data: DataFrame) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._aggregate_data() has not been implemented yet.")
+    
+    def _clean_aggregate_data(self, aggregate_data: DataFrame) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._clean_aggregate_data() has not been implemented yet.")
+    
+    def _apply_slowly_changing_dimensions(self, clean_aggregate_data: DataFrame) -> DataFrame:
+        raise NotImplementedError("AppealS78HarmonisationProcess._apply_slowly_changing_dimensions() has not been implemented yet.")
+
+    def _harmonise(self, raw_service_bus_data: DataFrame, staging_data: DataFrame):
+        raise NotImplementedError("AppealS78HarmonisationProcess._harmonise() has not been implemented yet.")
+
     def process(self, **kwargs):
+        # Shouldn't need to do the column deduplication logic in the original notebook since it doesn't actually seem to work
         raise NotImplementedError("AppealS78HarmonisationProcess.process() has not been implemented yet.")
