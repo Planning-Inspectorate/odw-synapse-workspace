@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bdc8cab9-4475-461c-93de-b057e59c635f"
+				"spark.autotune.trackingId": "3e182a34-e49a-487f-9270-e24033ea1be8"
 			}
 		},
 		"metadata": {
@@ -51,8 +51,18 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"spark.sql(\"DROP TABLE IF EXISTS pln_service_bus_watermarks\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
 					"from pyspark.sql import SparkSession\n",
-					"from pyspark.sql.functions import current_timestamp, lit, to_date\n",
+					"from pyspark.sql.functions import current_timestamp, current_date, lit\n",
 					"\n",
 					"# -------------------------------------------------------\n",
 					"# 1. Spark Session\n",
@@ -65,12 +75,12 @@
 					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
 					"\n",
 					"container = \"odw-meta-db\"\n",
-					"table_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/delta/pln_service_bus_watermarks\"\n",
+					"table_path = f\"abfss://{container}@{storage_account}/pln_service_bus_watermarks\"\n",
 					"\n",
 					"print(f\"Path: {table_path}\")\n",
 					"\n",
 					"# -------------------------------------------------------\n",
-					"# 3. Entity List (your input)\n",
+					"# 3. Entity List\n",
 					"# -------------------------------------------------------\n",
 					"entities = [\n",
 					"    \"nsip-document\",\n",
@@ -91,23 +101,23 @@
 					"]\n",
 					"\n",
 					"# -------------------------------------------------------\n",
-					"# 4. Create DataFrame with default values\n",
+					"# 4. Create DataFrame (UPDATED HERE ✅)\n",
 					"# -------------------------------------------------------\n",
 					"df = spark.createDataFrame([(e,) for e in entities], [\"entity_name\"]) \\\n",
-					"    .withColumn(\"last_ingest_time\", lit(None).cast(\"timestamp\")) \\\n",
-					"    .withColumn(\"ingest_date\", lit(None).cast(\"date\")) \\\n",
+					"    .withColumn(\"last_ingest_time\", current_timestamp()) \\\n",
+					"    .withColumn(\"ingest_date\", current_date()) \\\n",
 					"    .withColumn(\"number_files\", lit(0)) \\\n",
 					"    .withColumn(\"status\", lit(\"NOT_STARTED\")) \\\n",
 					"    .withColumn(\"updated_at\", current_timestamp())\n",
 					"\n",
 					"# -------------------------------------------------------\n",
-					"# 5. Write to Delta Table (Initial Load)\n",
+					"# 5. Write to Delta Table\n",
 					"# -------------------------------------------------------\n",
 					"df.write.format(\"delta\") \\\n",
 					"    .mode(\"overwrite\") \\\n",
 					"    .save(table_path)\n",
 					"\n",
-					"# Register table (optional)\n",
+					"# Register table\n",
 					"spark.sql(f\"\"\"\n",
 					"CREATE TABLE IF NOT EXISTS pln_service_bus_watermarks\n",
 					"USING DELTA\n",
@@ -119,8 +129,7 @@
 					"# -------------------------------------------------------\n",
 					"# 6. Verify\n",
 					"# -------------------------------------------------------\n",
-					"display(spark.read.format(\"delta\").load(table_path))\n",
-					""
+					"display(spark.read.format(\"delta\").load(table_path))"
 				],
 				"execution_count": 1
 			}
