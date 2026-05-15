@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5179e629-7aa9-490c-b58a-abd9b66fe8bc"
+				"spark.autotune.trackingId": "a041af0a-d610-4287-9086-f2c805f61102"
 			}
 		},
 		"metadata": {
@@ -61,32 +61,6 @@
 					}
 				},
 				"source": [
-					"# Write Service Bus manifest + watermark\n",
-					"\n",
-					"This notebook is called by Synapse pipelines after a Service Bus ingest step\n",
-					"\n",
-					"It:\n",
-					"1) Builds and writes a `manifest.json` under the entity run folder (`.../runs/ingest_date=.../run_id=...`)\n",
-					"2) Upserts a watermark row into `odw_meta_db.watermarks`\n",
-					"3) Returns `{ manifestPath, records, filesWritten, status }` via `mssparkutils.notebook.exit()`\n",
-					"\n",
-					"## Parameters (injected by pipeline)\n",
-					"- `entity_name` (required)\n",
-					"- `runContextJson` (JSON string/dict used for runId/environment/rawBasePath/ingestDate)\n",
-					"- `recordsIngested` (int)\n",
-					"- `status` (string, default `Succeeded`)"
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"#### Parameters\n",
 					" Parameters injected by pipeline (with safe defaults for interactive runs)"
 				]
@@ -98,17 +72,6 @@
 					"    entity_name\n",
 					"except NameError:\n",
 					"    entity_name = \"\"\n",
-					"\n",
-					"try:\n",
-					"    runContextJson\n",
-					"except NameError:\n",
-					"    runContextJson = \"{}\"\n",
-					"\n",
-					"try:\n",
-					"    recordsIngested\n",
-					"except NameError:\n",
-					"    recordsIngested = 0\n",
-					"\n",
 					"try:\n",
 					"    status\n",
 					"except NameError:\n",
@@ -159,23 +122,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def _to_dict(x):\n",
-					"    \"\"\"\n",
-					"    Parse runContextJson tolerating:\n",
-					"    - dict\n",
-					"    - JSON string\n",
-					"    - double escaped JSON string\n",
-					"    \"\"\"\n",
-					"    if isinstance(x, dict):\n",
-					"        return x\n",
-					"    if not x:\n",
-					"        return {}\n",
-					"    try:\n",
-					"        return json.loads(x)\n",
-					"    except Exception:\n",
-					"        return json.loads(bytes(x, \"utf-8\").decode(\"unicode_escape\"))\n",
-					"\n",
-					"\n",
 					"def _utc_now_iso():\n",
 					"    return datetime.datetime.utcnow().strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n",
 					"\n",
@@ -201,23 +147,32 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"target_table: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"ctx = _to_dict(runContextJson)\n",
 					"\n",
 					"run_id = ctx.get(\"runId\", str(uuid.uuid4()))\n",
 					"env_name = ctx.get(\"environment\", \"\")\n",
 					"\n",
 					"# Derive RAW base if not provided\n",
-					"raw_base_root = (ctx.get(\"rawBasePath\") or \"\").rstrip(\"/\")\n",
+					"Path = (ctx.get(\"rawBasePath\") or \"\").rstrip(\"/\")\n",
 					"\n",
-					"if not raw_base_root:\n",
+					"if not Path:\n",
 					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or \"\"\n",
-					"    storage_account = storage_account.strip().replace(\"https://\", \"\").replace(\"http://\", \"\").strip(\"/\")\n",
-					"    raw_base_root = f\"abfss://odw-raw@{storage_account}/ServiceBus\"\n",
+					"    Path = f\"abfss://odw-raw@{storage_account}/ServiceBus\"\n",
 					"\n",
 					"source = \"service-bus\"\n",
 					"ingest_date = ctx.get(\"ingestDate\") or datetime.datetime.utcnow().strftime(\"%Y-%m-%d\")\n",
 					"\n",
-					"entity_root = f\"{raw_base_root}/{entity_name}\"\n",
+					"entity_root = f\"{Path}/{entity_name}\"\n",
 					"run_dir = f\"{entity_root}/runs/ingest_date={ingest_date}/run_id={run_id}\"\n",
 					"manifest_path = f\"{run_dir}/manifest.json\""
 				],
