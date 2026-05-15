@@ -1,0 +1,129 @@
+{
+	"name": "Createpln_service_bus_watermarkstable",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bdc8cab9-4475-461c-93de-b057e59c635f"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import current_timestamp, lit, to_date\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 1. Spark Session\n",
+					"# -------------------------------------------------------\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 2. Storage Account\n",
+					"# -------------------------------------------------------\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"container = \"odw-meta-db\"\n",
+					"table_path = f\"abfss://{container}@{storage_account}.dfs.core.windows.net/delta/pln_service_bus_watermarks\"\n",
+					"\n",
+					"print(f\"Path: {table_path}\")\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 3. Entity List (your input)\n",
+					"# -------------------------------------------------------\n",
+					"entities = [\n",
+					"    \"nsip-document\",\n",
+					"    \"appeal-event\",\n",
+					"    \"nsip-project\",\n",
+					"    \"folder\",\n",
+					"    \"service-user\",\n",
+					"    \"appeal-has\",\n",
+					"    \"appeal-s78\",\n",
+					"    \"s51-advice\",\n",
+					"    \"nsip-subscription\",\n",
+					"    \"nsip-representation\",\n",
+					"    \"appeal-document\",\n",
+					"    \"appeal-representation\",\n",
+					"    \"appeal-event-estimate\",\n",
+					"    \"nsip-exam-timetable\",\n",
+					"    \"nsip-project-update\"\n",
+					"]\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 4. Create DataFrame with default values\n",
+					"# -------------------------------------------------------\n",
+					"df = spark.createDataFrame([(e,) for e in entities], [\"entity_name\"]) \\\n",
+					"    .withColumn(\"last_ingest_time\", lit(None).cast(\"timestamp\")) \\\n",
+					"    .withColumn(\"ingest_date\", lit(None).cast(\"date\")) \\\n",
+					"    .withColumn(\"number_files\", lit(0)) \\\n",
+					"    .withColumn(\"status\", lit(\"NOT_STARTED\")) \\\n",
+					"    .withColumn(\"updated_at\", current_timestamp())\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 5. Write to Delta Table (Initial Load)\n",
+					"# -------------------------------------------------------\n",
+					"df.write.format(\"delta\") \\\n",
+					"    .mode(\"overwrite\") \\\n",
+					"    .save(table_path)\n",
+					"\n",
+					"# Register table (optional)\n",
+					"spark.sql(f\"\"\"\n",
+					"CREATE TABLE IF NOT EXISTS pln_service_bus_watermarks\n",
+					"USING DELTA\n",
+					"LOCATION '{table_path}'\n",
+					"\"\"\")\n",
+					"\n",
+					"print(\"✅ Initial entity records inserted\")\n",
+					"\n",
+					"# -------------------------------------------------------\n",
+					"# 6. Verify\n",
+					"# -------------------------------------------------------\n",
+					"display(spark.read.format(\"delta\").load(table_path))\n",
+					""
+				],
+				"execution_count": 1
+			}
+		]
+	}
+}
