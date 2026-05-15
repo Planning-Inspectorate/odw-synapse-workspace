@@ -3,6 +3,7 @@ from typing import Any
 
 
 class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
+    STANDARDISED_TABLE = "appeal_attribute_matrix"
     OUTPUT_TABLE = "ref_appeal_attribute_matrix"
 
     def __init__(self, spark):

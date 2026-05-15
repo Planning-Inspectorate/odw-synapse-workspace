@@ -3,6 +3,8 @@ from typing import Any
 
 
 class AppealAttributeMatrixCuratedProcess(CurationProcess):
+    STANDARDISED_TABLE = "appeal_attribute_matrix"
+    HARMONISED_TABLE = "ref_appeal_attribute_matrix"
     OUTPUT_TABLE = "ref_appeal_attribute_matrix"
 
     def __init__(self, spark):
