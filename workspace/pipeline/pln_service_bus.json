@@ -5,8 +5,6 @@
 			{
 				"name": "Set entity_name",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
@@ -24,8 +22,6 @@
 			{
 				"name": "Set pipeline name",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Set entity_name",
@@ -50,8 +46,6 @@
 			{
 				"name": "Create standardised table",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Record starting service bus stage",
@@ -147,8 +141,6 @@
 			{
 				"name": "Create harmonised table",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Record starting service bus stage",
@@ -244,8 +236,6 @@
 			{
 				"name": "Create curated table",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Record starting service bus stage",
@@ -341,8 +331,6 @@
 			{
 				"name": "Record starting service bus stage",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Set pipeline name",
@@ -410,8 +398,6 @@
 			{
 				"name": "Lookup_orchestration_file",
 				"type": "Lookup",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "If New Messages",
@@ -445,7 +431,7 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"folder": "orchestration",
-							"file_name": "orchestration_cleaned.json"
+							"file_name": "orchestration_ServiceBus.json"
 						}
 					},
 					"firstRowOnly": false
@@ -454,8 +440,6 @@
 			{
 				"name": "Filter_Config",
 				"type": "Filter",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Lookup_orchestration_file",
@@ -479,8 +463,6 @@
 			{
 				"name": "harmonised_notebook_name_variable",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Filter_Config",
@@ -505,8 +487,6 @@
 			{
 				"name": "Switch",
 				"type": "Switch",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "harmonised_notebook_name_variable",
@@ -869,11 +849,9 @@
 			{
 				"name": "Record service bus completion",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "Switch",
+						"activity": "update_sb_watermark",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -934,13 +912,11 @@
 			{
 				"name": "Record convert hrm failed",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "Switch",
+						"activity": "update_sb_watermark",
 						"dependencyConditions": [
-							"Failed"
+							"Succeeded"
 						]
 					}
 				],
@@ -1016,8 +992,6 @@
 			{
 				"name": "Set number of messages received - service user",
 				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "py_sb_get_last_load_date",
@@ -1042,8 +1016,6 @@
 			{
 				"name": "py_sb_get_last_load_date",
 				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Create standardised table",
@@ -1098,8 +1070,6 @@
 			{
 				"name": "If New Messages",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Set number of messages received - service user",
@@ -1928,39 +1898,11 @@
 				}
 			},
 			{
-				"name": "Lookup watermark table",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": {
-							"value": "SELECT MAX(last_ingest_time) AS last_ingest_time\nFROM odw_meta_db.dbo.pln_service_bus_watermarks\nWHERE entity_name = '@{variables('entity_name')}'",
-							"type": "Expression"
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "ds_meta_db_watermark",
-						"type": "DatasetReference"
-					}
-				}
-			},
-			{
-				"name": "Get Metadata1",
-				"type": "GetMetadata",
+				"name": "update_sb_watermark",
+				"type": "SynapseNotebook",
 				"dependsOn": [
 					{
-						"activity": "Lookup watermark table",
+						"activity": "Switch",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1975,24 +1917,31 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"dataset": {
-						"referenceName": "Get_Entity_Folders",
-						"type": "DatasetReference",
-						"parameters": {
-							"folderPath": {
-								"value": "@{concat('ServiceBus/', variables('entity_name'))}",
+					"notebook": {
+						"referenceName": "nb_sb_watermark",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"entity_name": {
+							"value": {
+								"value": "@variables('entity_name')",
 								"type": "Expression"
-							}
+							},
+							"type": "string"
+						},
+						"recordsIngested": {
+							"value": {
+								"value": "@variables('Number_of_messages')",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"status": {
+							"value": "",
+							"type": "string"
 						}
 					},
-					"fieldList": [],
-					"storeSettings": {
-						"type": "AzureBlobFSReadSettings",
-						"enablePartitionDiscovery": false
-					},
-					"formatSettings": {
-						"type": "BinaryReadSettings"
-					}
+					"snapshot": true
 				}
 			}
 		],
@@ -2017,7 +1966,7 @@
 		"variables": {
 			"entity_name": {
 				"type": "String",
-				"defaultValue": "test"
+				"defaultValue": "appeal-document"
 			},
 			"Number_of_messages": {
 				"type": "Integer",
