@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1fb5a619-b3aa-454d-8459-d9decdb6e282"
+				"spark.autotune.trackingId": "10a93709-872d-48da-992c-45d9dc889634"
 			}
 		},
 		"metadata": {
@@ -53,31 +53,6 @@
 		"cells": [
 			{
 				"cell_type": "code",
-				"source": [
-					"%run utils/py_applicationinsights"
-				],
-				"execution_count": 1
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"%run utils/py_logging_decorator"
-				],
-				"execution_count": 2
-			},
-			{
-				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -93,7 +68,7 @@
 					]
 				},
 				"source": [
-					"entity_name='appeal-has'"
+					"EntityName='appeal-has'"
 				],
 				"execution_count": 3
 			},
@@ -111,16 +86,6 @@
 					"import re"
 				],
 				"execution_count": 4
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"insert_count = 0\r\n",
-					"update_count = 0\r\n",
-					"delete_count = 0\r\n",
-					"error_message= None"
-				],
-				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -147,66 +112,14 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
 				"source": [
+					"max_ingested_datetime = (\r\n",
+					"    spark.table(\"odw_meta_db.dbo.pln_service_bus_watermarks\")\r\n",
+					"    .filter(f\"entity_name = '{entity_name}'\")\r\n",
+					"    .agg({\"last_ingest_time\": \"max\"})\r\n",
+					"    .collect()[0][0]\r\n",
+					")\r\n",
 					"\r\n",
-					"def get_max_file_date(df: DataFrame) -> str | None:\r\n",
-					"\r\n",
-					"    date_pattern = r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}_\\d{2}_\\d{2}\\.\\d{6}\\+\\d{4})'\r\n",
-					"\r\n",
-					"    df_with_date = df.withColumn(\r\n",
-					"        \"file_date\",\r\n",
-					"        F.regexp_extract(F.col(\"input_file\"), date_pattern, 1)\r\n",
-					"    ).withColumn(\r\n",
-					"        \"file_date\",\r\n",
-					"        F.to_timestamp(\"file_date\", \"yyyy-MM-dd'T'HH_mm_ss.SSSSSS+0000\")\r\n",
-					"    )\r\n",
-					"\r\n",
-					"    result = df_with_date.agg(F.max(\"file_date\")).collect()\r\n",
-					"\r\n",
-					"    if not result or result[0][0] is None:\r\n",
-					"        print(\"Warning: No valid dates found in input_file column.\")\r\n",
-					"        return None\r\n",
-					"\r\n",
-					"\r\n",
-					"    return result[0][0].strftime(\"%Y-%m-%dT%H:%M:%S.%f\") + \"+0000\"\r\n",
-					""
-				],
-				"execution_count": 7
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "python"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%pyspark\r\n",
-					"# df = spark.sql(\"SELECT max(ingested_datetime) FROM `odw_standardised_db`.`sb_appeal_has`\")\r\n",
-					"df = spark.sql(\"SELECT * FROM `odw_standardised_db`.`sb_appeal_has` where ingested_datetime in (SELECT max(ingested_datetime) FROM `odw_standardised_db`.`sb_appeal_has`)\")\r\n",
-					"# df.show(10)\r\n",
-					"display(df)\r\n",
-					""
-				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"table_df = spark.table(target_table)\r\n",
-					"max_ingested_datetime=get_max_file_date(table_df)\r\n",
 					"print(max_ingested_datetime)"
 				],
 				"execution_count": 9
