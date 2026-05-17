@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bafd7206-31c2-4ca7-9ea2-53699f423f00"
+				"spark.autotune.trackingId": "8afd55b7-2e3b-4149-8523-083132653f8b"
 			}
 		},
 		"metadata": {
@@ -57,7 +57,7 @@
 					"# spark.sql(\"DROP TABLE IF EXISTS odw_meta_db.pln_service_bus_watermarks\")\n",
 					"# print(\"✅ Table dropped\")"
 				],
-				"execution_count": 1
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -90,7 +90,7 @@
 					"if not entity_name:\n",
 					"    raise ValueError(\"Missing required param: entity_name\")"
 				],
-				"execution_count": 1
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -116,7 +116,7 @@
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import current_timestamp, current_date"
 				],
-				"execution_count": 2
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -140,7 +140,7 @@
 					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\n",
 					"service_bus_watermarks_table_path = f\"abfss://odw-meta-db@{storage_account}/pln_service_bus_watermarks\""
 				],
-				"execution_count": 6
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -176,8 +176,8 @@
 					"\"\"\")\n",
 					"\n",
 					"max_time_df = spark.sql(f\"\"\"\n",
-					"    SELECT MAX(message_enqueued_time_utc) AS max_time\n",
-					"    FROM {target_table}\n",
+					"SELECT MAX(message_enqueued_time_utc) AS max_time\n",
+					"FROM {target_table}\n",
 					"\"\"\")\n",
 					"\n",
 					"max_time = max_time_df.collect()[0][\"max_time\"]\n",
@@ -197,17 +197,15 @@
 					"\n",
 					"wm_df.createOrReplaceTempView(\"wm_upd\")\n",
 					"\n",
-					"spark.sql(\"\"\"\n",
+					"merge_result_df = spark.sql(\"\"\"\n",
 					"MERGE INTO odw_meta_db.pln_service_bus_watermarks AS tgt\n",
 					"USING wm_upd AS src\n",
 					"ON tgt.entity_name = src.entity_name\n",
-					"\n",
 					"WHEN MATCHED THEN UPDATE SET\n",
 					"  tgt.last_ingest_time = src.last_ingest_time,\n",
 					"  tgt.ingest_date      = src.ingest_date,\n",
 					"  tgt.number_files     = src.number_files,\n",
 					"  tgt.updated_at       = src.updated_at\n",
-					"\n",
 					"WHEN NOT MATCHED THEN INSERT (\n",
 					"  entity_name,\n",
 					"  last_ingest_time,\n",
@@ -224,7 +222,7 @@
 					")\n",
 					"\"\"\")"
 				],
-				"execution_count": 7
+				"execution_count": 15
 			}
 		]
 	}
