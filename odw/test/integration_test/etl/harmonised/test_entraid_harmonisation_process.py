@@ -8,7 +8,7 @@ from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
-import odw.test.util.mock.import_mock_notebook_utils
+import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 
 
 def _std_raw_schema():

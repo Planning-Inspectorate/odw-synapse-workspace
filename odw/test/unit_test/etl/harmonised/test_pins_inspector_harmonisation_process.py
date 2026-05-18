@@ -1,6 +1,5 @@
 from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
 from odw.test.util.test_case import SparkTestCase
-from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
 from pyspark.sql import Row
