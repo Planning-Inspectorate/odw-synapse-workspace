@@ -128,20 +128,17 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         )
 
         scd2 = (
-            changes.withColumn("ValidFrom", F.col("IngestionDate"))
-            .withColumn("next_IngestionDate", F.lead("IngestionDate").over(w_change))
-            .withColumn(
-                "ValidTo",
-                F.when(F.col("next_IngestionDate").isNull(), F.lit(None).cast("timestamp"))
-                .when(
-                    F.col("next_IngestionDate") == F.col("IngestionDate"),
-                    F.col("next_IngestionDate") + F.expr("INTERVAL 1 MICROSECOND"),
-                )
-                .otherwise(F.col("next_IngestionDate")),
-            )
-            .withColumn(
-                "IsActive",
-                F.when(F.col("next_IngestionDate").isNull(), F.lit("Y")).otherwise(F.lit("N")),
+            changes.withColumns({"ValidFrom": F.col("IngestionDate"), "next_IngestionDate": F.lead("IngestionDate").over(w_change)})
+            .withColumns(
+                {
+                    "ValidTo": F.when(F.col("next_IngestionDate").isNull(), F.lit(None).cast("timestamp"))
+                    .when(
+                        F.col("next_IngestionDate") == F.col("IngestionDate"),
+                        F.col("next_IngestionDate") + F.expr("INTERVAL 1 MICROSECOND"),
+                    )
+                    .otherwise(F.col("next_IngestionDate")),
+                    "IsActive": F.when(F.col("next_IngestionDate").isNull(), F.lit("Y")).otherwise(F.lit("N")),
+                }
             )
             .drop("prev_hash", "chg", "next_IngestionDate", "ValidFrom")
         )
