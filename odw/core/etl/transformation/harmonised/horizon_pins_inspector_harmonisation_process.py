@@ -60,15 +60,16 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             ing_col = F.col("expected_from") if "expected_from" in hzn_src.columns else F.current_timestamp()
             hzn_src = hzn_src.withColumn("IngestionDate", ing_col)
 
-        return (
-            hzn_src.withColumn("Migrated", F.lit("0"))
-            .withColumn("ODTSourceSystem", F.lit("HORIZON"))
-            .withColumn("ValidTo", F.lit(None).cast("string"))
-            .withColumn("RowID", F.lit(""))
-            .withColumn("IsActive", F.lit("N"))
-            .withColumn("SourceSystemID", F.lit("Inspectors"))
-            .filter(F.col("horizonId").isNotNull())
-        )
+        return hzn_src.withColumns(
+            {
+                "Migrated": F.lit("0"),
+                "ODTSourceSystem": F.lit("HORIZON"),
+                "ValidTo": F.lit(None).cast("string"),
+                "RowID": F.lit(""),
+                "IsActive": F.lit("N"),
+                "SourceSystemID": F.lit("Inspectors"),
+            }
+        ).filter(F.col("horizonId").isNotNull())
 
     def _build_scd2(self, stg: DataFrame) -> DataFrame:
         stg = stg.withColumn("IngestionDate", F.col("IngestionDate").cast("timestamp"))
