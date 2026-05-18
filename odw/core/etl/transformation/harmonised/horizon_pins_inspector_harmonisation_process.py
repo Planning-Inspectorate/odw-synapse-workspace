@@ -88,12 +88,13 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             F.col("fallback_hash").asc(),
         )
 
-        ordered = (
-            stg.withColumn("state_hash", state_hash)
-            .withColumn("normRowID", norm_row_id)
-            .withColumn("fallback_hash", state_hash)
-            .withColumn("tie", F.row_number().over(w_tie))
-        )
+        ordered = stg.withColumns(
+            {
+                "state_hash": state_hash,
+                "normRowID": norm_row_id,
+                "fallback_hash": state_hash,
+            }
+        ).withColumn("tie", F.row_number().over(w_tie))
 
         # Collapse exact duplicates within (horizonId, IngestionDate, ODTSourceSystem, state_hash)
         w_dup = W.partitionBy("horizonId", "IngestionDate", "ODTSourceSystem", "state_hash").orderBy(
