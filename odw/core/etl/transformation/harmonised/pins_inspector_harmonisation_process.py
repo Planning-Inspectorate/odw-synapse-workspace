@@ -73,19 +73,14 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         """Pad SAP IDs shorter than 8 chars with '00' prefix; keep only active records."""
         return entraid.filter(F.col("isActive") == "Y").select(
             F.col("id"),
-            F.when(F.length(F.col("employeeId")) < 8, F.concat(F.lit("00"), F.col("employeeId")))
-            .otherwise(F.col("employeeId"))
-            .alias("employeeId"),
+            F.when(F.length(F.col("employeeId")) < 8, F.concat(F.lit("00"), F.col("employeeId"))).otherwise(F.col("employeeId")).alias("employeeId"),
         )
 
     def _dedup_address(self, address: DataFrame) -> DataFrame:
         """One address row per inspector, keeping the most recent by IngestionDate."""
         w = W.partitionBy("StaffNumber").orderBy(F.col("IngestionDate").desc())
         return (
-            address.withColumn("rn", F.row_number().over(w))
-            .filter(F.col("rn") == 1)
-            .drop("rn")
-            .withColumnRenamed("2ndAddressLine", "addressLine2")
+            address.withColumn("rn", F.row_number().over(w)).filter(F.col("rn") == 1).drop("rn").withColumnRenamed("2ndAddressLine", "addressLine2")
         )
 
     def _latest_hr(self, hist_hr: DataFrame) -> DataFrame:

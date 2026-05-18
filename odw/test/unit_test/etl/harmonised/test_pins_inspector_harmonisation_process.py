@@ -232,7 +232,16 @@ class TestLatestHr(SparkTestCase):
 
         result = _inst(spark)._latest_hr(df)
 
-        assert set(result.columns) == {"PersNo", "Position1", "FTE", "PersonnelArea", "PersonnelSubArea", "OrganizationalUnit", "NameofManagerOM", "SourceSystemID"}
+        assert set(result.columns) == {
+            "PersNo",
+            "Position1",
+            "FTE",
+            "PersonnelArea",
+            "PersonnelSubArea",
+            "OrganizationalUnit",
+            "NameofManagerOM",
+            "SourceSystemID",
+        }
         assert "ingestionDate" not in result.columns
 
 
@@ -244,14 +253,24 @@ class TestJoinInspectors(SparkTestCase):
         )
         spec_dedup = spark.createDataFrame(
             [Row(sapId="00010001", specialisms=[Row(name="Planning", proficiency="Expert", validFrom="2020-01-01")])],
-            schema=T.StructType([
-                T.StructField("sapId", T.StringType(), True),
-                T.StructField("specialisms", T.ArrayType(T.StructType([
-                    T.StructField("name", T.StringType(), True),
-                    T.StructField("proficiency", T.StringType(), True),
-                    T.StructField("validFrom", T.StringType(), True),
-                ])), True),
-            ]),
+            schema=T.StructType(
+                [
+                    T.StructField("sapId", T.StringType(), True),
+                    T.StructField(
+                        "specialisms",
+                        T.ArrayType(
+                            T.StructType(
+                                [
+                                    T.StructField("name", T.StringType(), True),
+                                    T.StructField("proficiency", T.StringType(), True),
+                                    T.StructField("validFrom", T.StringType(), True),
+                                ]
+                            )
+                        ),
+                        True,
+                    ),
+                ]
+            ),
         )
         entraid = spark.createDataFrame(
             [("entra-001", "00010001", "Y")],
@@ -263,16 +282,18 @@ class TestJoinInspectors(SparkTestCase):
         ).withColumnRenamed("2ndAddressLine", "addressLine2")
         hr = spark.createDataFrame(
             [("00010001", "Inspector", "1.0", "NE", "Planning", "Group A", "Manager X", "SAP")],
-            schema=T.StructType([
-                T.StructField("PersNo", T.StringType(), True),
-                T.StructField("Position1", T.StringType(), True),
-                T.StructField("FTE", T.StringType(), True),
-                T.StructField("PersonnelArea", T.StringType(), True),
-                T.StructField("PersonnelSubArea", T.StringType(), True),
-                T.StructField("OrganizationalUnit", T.StringType(), True),
-                T.StructField("NameofManagerOM", T.StringType(), True),
-                T.StructField("SourceSystemID", T.StringType(), True),
-            ]),
+            schema=T.StructType(
+                [
+                    T.StructField("PersNo", T.StringType(), True),
+                    T.StructField("Position1", T.StringType(), True),
+                    T.StructField("FTE", T.StringType(), True),
+                    T.StructField("PersonnelArea", T.StringType(), True),
+                    T.StructField("PersonnelSubArea", T.StringType(), True),
+                    T.StructField("OrganizationalUnit", T.StringType(), True),
+                    T.StructField("NameofManagerOM", T.StringType(), True),
+                    T.StructField("SourceSystemID", T.StringType(), True),
+                ]
+            ),
         )
         return live_dim, spec_dedup, entraid, hr, address
 
@@ -285,26 +306,44 @@ class TestJoinInspectors(SparkTestCase):
             ],
             schema=_live_dim_schema(),
         )
-        empty_spec = spark.createDataFrame([], T.StructType([
-            T.StructField("sapId", T.StringType(), True),
-            T.StructField("specialisms", T.ArrayType(T.StructType([
-                T.StructField("name", T.StringType(), True),
-                T.StructField("proficiency", T.StringType(), True),
-                T.StructField("validFrom", T.StringType(), True),
-            ])), True),
-        ]))
+        empty_spec = spark.createDataFrame(
+            [],
+            T.StructType(
+                [
+                    T.StructField("sapId", T.StringType(), True),
+                    T.StructField(
+                        "specialisms",
+                        T.ArrayType(
+                            T.StructType(
+                                [
+                                    T.StructField("name", T.StringType(), True),
+                                    T.StructField("proficiency", T.StringType(), True),
+                                    T.StructField("validFrom", T.StringType(), True),
+                                ]
+                            )
+                        ),
+                        True,
+                    ),
+                ]
+            ),
+        )
         empty_eid = spark.createDataFrame([], _entraid_schema())
         empty_addr = spark.createDataFrame([], _address_schema()).withColumnRenamed("2ndAddressLine", "addressLine2")
-        empty_hr = spark.createDataFrame([], T.StructType([
-            T.StructField("PersNo", T.StringType(), True),
-            T.StructField("Position1", T.StringType(), True),
-            T.StructField("FTE", T.StringType(), True),
-            T.StructField("PersonnelArea", T.StringType(), True),
-            T.StructField("PersonnelSubArea", T.StringType(), True),
-            T.StructField("OrganizationalUnit", T.StringType(), True),
-            T.StructField("NameofManagerOM", T.StringType(), True),
-            T.StructField("SourceSystemID", T.StringType(), True),
-        ]))
+        empty_hr = spark.createDataFrame(
+            [],
+            T.StructType(
+                [
+                    T.StructField("PersNo", T.StringType(), True),
+                    T.StructField("Position1", T.StringType(), True),
+                    T.StructField("FTE", T.StringType(), True),
+                    T.StructField("PersonnelArea", T.StringType(), True),
+                    T.StructField("PersonnelSubArea", T.StringType(), True),
+                    T.StructField("OrganizationalUnit", T.StringType(), True),
+                    T.StructField("NameofManagerOM", T.StringType(), True),
+                    T.StructField("SourceSystemID", T.StringType(), True),
+                ]
+            ),
+        )
 
         result = _inst(spark)._join_inspectors(live_dim, empty_spec, empty_eid, empty_addr, empty_hr)
 
@@ -318,7 +357,25 @@ class TestJoinInspectors(SparkTestCase):
 
         result = _inst(spark)._join_inspectors(live_dim, spec_dedup, entraid_padded, addr, hr)
 
-        expected_cols = {"entraId", "sapId", "email", "firstName", "lastName", "validFrom", "grade", "isActive", "specialisms", "address", "fte", "unit", "service", "group", "inspectorManager", "title", "sourceSystem"}
+        expected_cols = {
+            "entraId",
+            "sapId",
+            "email",
+            "firstName",
+            "lastName",
+            "validFrom",
+            "grade",
+            "isActive",
+            "specialisms",
+            "address",
+            "fte",
+            "unit",
+            "service",
+            "group",
+            "inspectorManager",
+            "title",
+            "sourceSystem",
+        }
         assert set(result.columns) == expected_cols
 
     def test__join_inspectors__specialisms_joined_correctly(self):

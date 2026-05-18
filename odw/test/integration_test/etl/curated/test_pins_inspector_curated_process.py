@@ -151,7 +151,21 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
 
         # Compare scalar columns; nested types (address, specialisms) differ in nullability
         # after a Delta roundtrip and are covered by the harmonisation unit tests
-        scalar_cols = ["entraId", "sapId", "firstName", "lastName", "email", "grade", "fte", "unit", "service", "group", "inspectorManager", "title", "validFrom"]
+        scalar_cols = [
+            "entraId",
+            "sapId",
+            "firstName",
+            "lastName",
+            "email",
+            "grade",
+            "fte",
+            "unit",
+            "service",
+            "group",
+            "inspectorManager",
+            "title",
+            "validFrom",
+        ]
         assert_dataframes_equal(actual.select(scalar_cols), expected.select(scalar_cols))
 
     def test__run__empty_source_writes_empty_output(self):
