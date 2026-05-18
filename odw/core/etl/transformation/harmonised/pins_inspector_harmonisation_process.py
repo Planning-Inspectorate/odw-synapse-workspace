@@ -4,7 +4,7 @@ from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame, SparkSession, Window as W
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -47,6 +47,103 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
             "live_dim": self.spark.table(self.LIVE_DIM_TABLE),
             "hist_hr": self.spark.table(self.HIST_SAP_HR_TABLE),
         }
+
+    def _dedup_specialisms(self, specialisms: DataFrame) -> DataFrame:
+        """Latest specialism per (StaffNumber, QualificationName) among active records, collected into an array."""
+        w = W.partitionBy("StaffNumber", "QualificationName").orderBy(F.col("ValidFrom").desc())
+        return (
+            specialisms.filter(F.col("Current") == 1)
+            .withColumn("rn", F.row_number().over(w))
+            .filter(F.col("rn") == 1)
+            .drop("rn")
+            .groupBy("StaffNumber")
+            .agg(
+                F.collect_list(
+                    F.struct(
+                        F.col("QualificationName").alias("name"),
+                        F.col("Proficien").alias("proficiency"),
+                        F.col("ValidFrom").alias("validFrom"),
+                    )
+                ).alias("specialisms")
+            )
+            .withColumnRenamed("StaffNumber", "sapId")
+        )
+
+    def _pad_entraid(self, entraid: DataFrame) -> DataFrame:
+        """Pad SAP IDs shorter than 8 chars with '00' prefix; keep only active records."""
+        return entraid.filter(F.col("isActive") == "Y").select(
+            F.col("id"),
+            F.when(F.length(F.col("employeeId")) < 8, F.concat(F.lit("00"), F.col("employeeId")))
+            .otherwise(F.col("employeeId"))
+            .alias("employeeId"),
+        )
+
+    def _dedup_address(self, address: DataFrame) -> DataFrame:
+        """One address row per inspector, keeping the most recent by IngestionDate."""
+        w = W.partitionBy("StaffNumber").orderBy(F.col("IngestionDate").desc())
+        return (
+            address.withColumn("rn", F.row_number().over(w))
+            .filter(F.col("rn") == 1)
+            .drop("rn")
+            .withColumnRenamed("2ndAddressLine", "addressLine2")
+        )
+
+    def _latest_hr(self, hist_hr: DataFrame) -> DataFrame:
+        """Most recent HR record per person."""
+        w = W.partitionBy("PersNo").orderBy(F.col("ingestionDate").desc())
+        return (
+            hist_hr.withColumn("rn", F.row_number().over(w))
+            .filter(F.col("rn") == 1)
+            .drop("rn")
+            .select("PersNo", "Position1", "FTE", "PersonnelArea", "PersonnelSubArea", "OrganizationalUnit", "NameofManagerOM", "SourceSystemID")
+        )
+
+    def _join_inspectors(
+        self,
+        live_dim: DataFrame,
+        spec_dedup: DataFrame,
+        entraid_padded: DataFrame,
+        addr_dedup: DataFrame,
+        hr_latest: DataFrame,
+    ) -> DataFrame:
+        """Left-join all prepared sources onto the active live_dim rows."""
+        di = live_dim.filter(~F.col("active_status").isin("NON-ACTIVE")).alias("di")
+        ispec = spec_dedup.alias("ispec")
+        eid = entraid_padded.alias("eid")
+        addr = addr_dedup.alias("addr")
+        hr = hr_latest.alias("hr")
+
+        return (
+            di.join(ispec, F.col("di.pins_staff_number") == F.col("ispec.sapId"), "left")
+            .join(eid, F.col("eid.employeeId") == F.col("di.pins_staff_number"), "left")
+            .join(addr, F.col("addr.StaffNumber") == F.col("di.pins_staff_number"), "left")
+            .join(hr, F.col("hr.PersNo") == F.col("di.pins_staff_number"), "left")
+            .select(
+                F.col("eid.id").alias("entraId"),
+                F.col("di.pins_staff_number").alias("sapId"),
+                F.col("di.pins_email_address").alias("email"),
+                F.col("di.given_names").alias("firstName"),
+                F.col("di.family_name").alias("lastName"),
+                F.col("di.date_in").alias("validFrom"),
+                F.col("di.grade"),
+                F.col("di.isActive"),
+                F.coalesce(F.col("ispec.specialisms"), F.array()).alias("specialisms"),
+                F.struct(
+                    F.col("addr.StreetandHouseNumber").alias("addressLine1"),
+                    F.col("addr.addressLine2"),
+                    F.col("addr.City").alias("townCity"),
+                    F.col("addr.District").alias("county"),
+                    F.col("addr.PostalCode").alias("postcode"),
+                ).alias("address"),
+                F.col("hr.FTE").alias("fte"),
+                F.col("hr.PersonnelArea").alias("unit"),
+                F.col("hr.PersonnelSubArea").alias("service"),
+                F.col("hr.OrganizationalUnit").alias("group"),
+                F.col("hr.NameofManagerOM").alias("inspectorManager"),
+                F.col("hr.Position1").alias("title"),
+                F.col("hr.SourceSystemID").alias("sourceSystem"),
+            )
+        )
 
     def _apply_anonymisation(self, df: DataFrame) -> DataFrame:
         if not Util.is_non_production_environment():
@@ -104,117 +201,12 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         live_dim: DataFrame = self.load_parameter("live_dim", source_data)
         hist_hr: DataFrame = self.load_parameter("hist_hr", source_data)
 
-        # Register as uniquely prefixed temp views to avoid cross-test conflicts
-        entraid.createOrReplaceTempView("_pi_entraid")
-        specialisms.createOrReplaceTempView("_pi_specialisms")
-        address.createOrReplaceTempView("_pi_address")
-        live_dim.createOrReplaceTempView("_pi_live_dim")
-        hist_hr.createOrReplaceTempView("_pi_hist_hr")
+        spec_dedup = self._dedup_specialisms(specialisms)
+        entraid_padded = self._pad_entraid(entraid)
+        addr_dedup = self._dedup_address(address)
+        hr_latest = self._latest_hr(hist_hr)
 
-        final_df = self.spark.sql("""
-            WITH
-            -- Deduplicate specialisms: latest per (StaffNumber, QualificationName) among active records
-            insp_spec_dedup AS (
-                SELECT
-                    StaffNumber AS sapId,
-                    collect_list(
-                        named_struct(
-                            'name',        QualificationName,
-                            'proficiency', Proficien,
-                            'validFrom',   ValidFrom
-                        )
-                    ) AS specialisms
-                FROM (
-                    SELECT StaffNumber, QualificationName, Proficien, ValidFrom
-                    FROM (
-                        SELECT *,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY StaffNumber, QualificationName
-                                ORDER BY ValidFrom DESC
-                            ) AS rn
-                        FROM _pi_specialisms
-                        WHERE Current = 1
-                    ) ranked_spec
-                    WHERE rn = 1
-                )
-                GROUP BY StaffNumber
-            ),
-            -- Pad SAP IDs shorter than 8 chars with '00' prefix for consistent matching
-            entraid_padded AS (
-                SELECT
-                    id,
-                    CASE
-                        WHEN LEN(employeeId) < 8 THEN CONCAT('00', employeeId)
-                        ELSE employeeId
-                    END AS employeeId
-                FROM _pi_entraid
-                WHERE isActive = 'Y'
-            ),
-            -- Deduplicate address records: one row per inspector (latest ingestion)
-            addr_dedup AS (
-                SELECT *
-                FROM (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY StaffNumber
-                            ORDER BY IngestionDate DESC
-                        ) AS rn
-                    FROM _pi_address
-                ) ranked_addr
-                WHERE rn = 1
-            ),
-            -- Latest HR record per person
-            hr_latest AS (
-                SELECT
-                    PersNo,
-                    Position1,
-                    FTE,
-                    PersonnelArea,
-                    PersonnelSubArea,
-                    OrganizationalUnit,
-                    NameofManagerOM,
-                    SourceSystemID
-                FROM (
-                    SELECT *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY PersNo
-                            ORDER BY ingestionDate DESC
-                        ) AS rn
-                    FROM _pi_hist_hr
-                ) ranked
-                WHERE rn = 1
-            )
-            SELECT
-                eid.id                                        AS entraId,
-                di.pins_staff_number                          AS sapId,
-                di.pins_email_address                         AS email,
-                di.given_names                                AS firstName,
-                di.family_name                                AS lastName,
-                di.date_in                                    AS validFrom,
-                di.grade,
-                di.isActive,
-                COALESCE(ispec.specialisms, ARRAY())          AS specialisms,
-                named_struct(
-                    'addressLine1', addr.StreetandHouseNumber,
-                    'addressLine2', addr.`2ndAddressLine`,
-                    'townCity',     addr.City,
-                    'county',       addr.District,
-                    'postcode',     addr.PostalCode
-                )                                             AS address,
-                hr.FTE                                        AS fte,
-                hr.PersonnelArea                              AS unit,
-                hr.PersonnelSubArea                           AS service,
-                hr.OrganizationalUnit                         AS `group`,
-                hr.NameofManagerOM                            AS inspectorManager,
-                hr.Position1                                  AS title,
-                hr.SourceSystemID                             AS sourceSystem
-            FROM _pi_live_dim di
-            LEFT JOIN insp_spec_dedup ispec ON di.pins_staff_number = ispec.sapId
-            LEFT JOIN entraid_padded    eid  ON eid.employeeId       = di.pins_staff_number
-            LEFT JOIN addr_dedup        addr ON addr.StaffNumber     = di.pins_staff_number
-            LEFT JOIN hr_latest         hr   ON hr.PersNo            = di.pins_staff_number
-            WHERE di.active_status NOT IN ('NON-ACTIVE')
-        """)
+        final_df = self._join_inspectors(live_dim, spec_dedup, entraid_padded, addr_dedup, hr_latest)
 
         # Append ISO-8601 time suffix to date-only validFrom values
         final_df = final_df.withColumn(
