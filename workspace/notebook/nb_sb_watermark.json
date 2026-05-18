@@ -1,0 +1,229 @@
+{
+	"name": "nb_sb_watermark",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "e4ab9e6d-fdcc-4c7f-8c57-561e925c9471"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# spark.sql(\"DROP TABLE IF EXISTS odw_meta_db.pln_service_bus_watermarks\")\n",
+					"# print(\"✅ Table dropped\")"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parameters\n",
+					" Parameters injected by pipeline (with safe defaults for interactive runs)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    entity_name\n",
+					"except NameError:\n",
+					"    entity_name = \"appeal-document\"  \n",
+					"try:\n",
+					"    recordsIngested\n",
+					"except NameError:\n",
+					"    recordsIngested = 0\n",
+					"\n",
+					"entity_name = (entity_name or \"\").strip()\n",
+					"\n",
+					"if not entity_name:\n",
+					"    raise ValueError(\"Missing required param: entity_name\")"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import Row\n",
+					"import json\n",
+					"import datetime\n",
+					"import uuid\n",
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import current_timestamp, current_date"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Config / Context"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark: SparkSession = SparkSession.builder.getOrCreate()\n",
+					"storage_account: str = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"target_table: str = f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
+					"source_path: str = f\"abfss://odw-raw@{storage_account}ServiceBus/{entity_name}/\"\n",
+					"service_bus_watermarks_table_path = f\"abfss://odw-meta-db@{storage_account}/pln_service_bus_watermarks\""
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Core Logic (Watermark Upsert)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import current_date, current_timestamp\n",
+					"\n",
+					"spark.sql(\"CREATE DATABASE IF NOT EXISTS odw_meta_db\")\n",
+					"spark.sql(\"USE odw_meta_db\")\n",
+					"\n",
+					"spark.sql(f\"\"\"\n",
+					"CREATE TABLE IF NOT EXISTS odw_meta_db.pln_service_bus_watermarks (\n",
+					"  entity_name       STRING,\n",
+					"  last_ingest_time  TIMESTAMP,\n",
+					"  ingest_date       DATE,\n",
+					"  number_files      INT,\n",
+					"  updated_at        TIMESTAMP\n",
+					")\n",
+					"USING DELTA\n",
+					"LOCATION '{service_bus_watermarks_table_path}'\n",
+					"\"\"\")\n",
+					"\n",
+					"max_time_df = spark.sql(f\"\"\"\n",
+					"SELECT MAX(message_enqueued_time_utc) AS max_time\n",
+					"FROM {target_table}\n",
+					"\"\"\")\n",
+					"\n",
+					"max_time = max_time_df.collect()[0][\"max_time\"]\n",
+					"\n",
+					"wm_df = spark.createDataFrame([\n",
+					"    (\n",
+					"        entity_name,\n",
+					"        max_time,\n",
+					"        recordsIngested\n",
+					"    )\n",
+					"], [\n",
+					"    \"entity_name\",\n",
+					"    \"last_ingest_time\",\n",
+					"    \"number_files\"\n",
+					"]).withColumn(\"ingest_date\", current_date()) \\\n",
+					"  .withColumn(\"updated_at\", current_timestamp())\n",
+					"\n",
+					"wm_df.createOrReplaceTempView(\"wm_upd\")\n",
+					"\n",
+					"merge_result_df = spark.sql(\"\"\"\n",
+					"MERGE INTO odw_meta_db.pln_service_bus_watermarks AS tgt\n",
+					"USING wm_upd AS src\n",
+					"ON tgt.entity_name = src.entity_name\n",
+					"WHEN MATCHED THEN UPDATE SET\n",
+					"  tgt.last_ingest_time = src.last_ingest_time,\n",
+					"  tgt.ingest_date      = src.ingest_date,\n",
+					"  tgt.number_files     = src.number_files,\n",
+					"  tgt.updated_at       = src.updated_at\n",
+					"WHEN NOT MATCHED THEN INSERT (\n",
+					"  entity_name,\n",
+					"  last_ingest_time,\n",
+					"  ingest_date,\n",
+					"  number_files,\n",
+					"  updated_at\n",
+					")\n",
+					"VALUES (\n",
+					"  src.entity_name,\n",
+					"  src.last_ingest_time,\n",
+					"  src.ingest_date,\n",
+					"  src.number_files,\n",
+					"  src.updated_at\n",
+					")\n",
+					"\"\"\")"
+				],
+				"execution_count": 15
+			}
+		]
+	}
+}
