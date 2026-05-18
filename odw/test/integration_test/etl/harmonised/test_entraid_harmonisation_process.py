@@ -7,45 +7,49 @@ import pyspark.sql.types as T
 
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
+from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-# Raw standardised schema: matches the actual table columns, including expected_from used by load_data
-_STD_RAW_SCHEMA = T.StructType(
-    [
-        T.StructField("id", T.StringType(), True),
-        T.StructField("employeeId", T.StringType(), True),
-        T.StructField("givenName", T.StringType(), True),
-        T.StructField("surname", T.StringType(), True),
-        T.StructField("userPrincipalName", T.StringType(), True),
-        T.StructField("expected_from", T.StringType(), True),
-    ]
-)
 
-_HRM_SCHEMA = T.StructType(
-    [
-        T.StructField("EmployeeEntraId", T.LongType(), True),
-        T.StructField("id", T.StringType(), True),
-        T.StructField("employeeId", T.StringType(), True),
-        T.StructField("givenName", T.StringType(), True),
-        T.StructField("surname", T.StringType(), True),
-        T.StructField("userPrincipalName", T.StringType(), True),
-        T.StructField("Migrated", T.StringType(), True),
-        T.StructField("ODTSourceSystem", T.StringType(), True),
-        T.StructField("SourceSystemID", T.StringType(), True),
-        T.StructField("IngestionDate", T.TimestampType(), True),
-        T.StructField("ValidTo", T.StringType(), True),
-        T.StructField("RowID", T.StringType(), True),
-        T.StructField("IsActive", T.StringType(), True),
-    ]
-)
+def _std_schema():
+    return T.StructType(
+        [
+            T.StructField("id", T.StringType(), True),
+            T.StructField("employeeId", T.StringType(), True),
+            T.StructField("givenName", T.StringType(), True),
+            T.StructField("surname", T.StringType(), True),
+            T.StructField("userPrincipalName", T.StringType(), True),
+            T.StructField("IngestionDate", T.TimestampType(), True),
+        ]
+    )
 
-_SOURCE_SYSTEM_FULL_SCHEMA = T.StructType(
-    [
-        T.StructField("SourceSystemID", T.StringType(), True),
-        T.StructField("Description", T.StringType(), True),
-        T.StructField("IsActive", T.StringType(), True),
-    ]
-)
+
+def _hrm_schema():
+    return T.StructType(
+        [
+            T.StructField("EmployeeEntraId", T.LongType(), True),
+            T.StructField("employeeId", T.StringType(), True),
+            T.StructField("id", T.StringType(), True),
+            T.StructField("givenName", T.StringType(), True),
+            T.StructField("surname", T.StringType(), True),
+            T.StructField("userPrincipalName", T.StringType(), True),
+            T.StructField("Migrated", T.StringType(), True),
+            T.StructField("ODTSourceSystem", T.StringType(), True),
+            T.StructField("SourceSystemID", T.StringType(), True),
+            T.StructField("IngestionDate", T.TimestampType(), True),
+            T.StructField("ValidTo", T.StringType(), True),
+            T.StructField("RowID", T.StringType(), True),
+            T.StructField("IsActive", T.StringType(), True),
+        ]
+    )
+
+
+def _source_system_schema():
+    return T.StructType(
+        [
+            T.StructField("SourceSystemID", T.StringType(), True),
+        ]
+    )
 
 
 def _row_id(id, employee_id, given_name, surname, upn):
@@ -57,8 +61,8 @@ def _row_id(id, employee_id, given_name, surname, upn):
 def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employee_entra_id=1, valid_to=None):
     return (
         employee_entra_id,
-        id,
         employee_id,
+        id,
         given_name,
         surname,
         upn,
@@ -72,45 +76,32 @@ def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employ
     )
 
 
+def _source_data(spark, std_rows=None, hrm_rows=None, source_system_id="ss1"):
+    return {
+        "std_data": spark.createDataFrame(std_rows or [], _std_schema()),
+        "hrm_data": spark.createDataFrame(hrm_rows or [], _hrm_schema()),
+        "source_system": spark.createDataFrame(
+            [(source_system_id,)] if source_system_id else [],
+            _source_system_schema(),
+        ),
+    }
+
+
 class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
-    """
-    End-to-end integration tests that exercise the full load_data → process → write_data path.
-    spark.sql is run against temp views registered from test DataFrames so no real tables are needed.
-    write_data is mocked to capture output without touching ADLS.
-    """
-
-    def _run(self, std_raw_rows, hrm_rows, source_system_rows=None):
+    def test__run__new_record_written_as_active_with_correct_metadata(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
-        std_df = spark.createDataFrame(std_raw_rows or [], _STD_RAW_SCHEMA)
-        hrm_df = spark.createDataFrame(hrm_rows or [], _HRM_SCHEMA)
-        source_system_rows = source_system_rows or [("ss1", "SAP HR", "Y")]
-        source_df = spark.createDataFrame(source_system_rows, _SOURCE_SYSTEM_FULL_SCHEMA)
-
-        std_df.createOrReplaceTempView("test_entraid_std")
-        hrm_df.createOrReplaceTempView("test_entraid_hrm")
-        source_df.createOrReplaceTempView("test_entraid_source")
-
+        source_data = _source_data(
+            spark,
+            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+        )
+        inst = EntraIdHarmonisationProcess(spark)
         with (
-            mock.patch.object(EntraIdHarmonisationProcess, "STD_TABLE", "test_entraid_std"),
-            mock.patch.object(EntraIdHarmonisationProcess, "HRM_TABLE", "test_entraid_hrm"),
-            mock.patch.object(EntraIdHarmonisationProcess, "SOURCE_SYSTEM_TABLE", "test_entraid_source"),
-            mock.patch("odw.core.etl.transformation.harmonised.entraid_harmonisation_process.Util.get_storage_account", return_value="test_storage"),
-            mock.patch("odw.core.etl.transformation.harmonised.entraid_harmonisation_process.LoggingUtil"),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil"),
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
         ):
-            inst = EntraIdHarmonisationProcess(spark)
-            with mock.patch.object(inst, "write_data") as mock_write:
-                result = inst.run()
+            result = inst.run()
 
         data_to_write = mock_write.call_args[0][0]
-        return data_to_write, result
-
-    def test__run__new_record_written_as_active_with_correct_metadata(self):
-        data_to_write, result = self._run(
-            std_raw_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", "2024-01-15")],
-            hrm_rows=[],
-        )
         rows = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
 
         assert len(rows) == 1
@@ -126,27 +117,50 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         assert result.metadata.update_count == 0
 
     def test__run__changed_record_closes_old_row_with_ingestion_date_minus_one(self):
-        hrm_row = _hrm_row("user2", "emp2", "OldFirst", "Last2", "user2@test.com", is_active="Y", employee_entra_id=1)
-        data_to_write, result = self._run(
-            std_raw_rows=[("user2", "emp2", "NewFirst", "Last2", "user2@test.com", "2024-02-01")],
-            hrm_rows=[hrm_row],
+        spark = PytestSparkSessionUtil().get_spark_session()
+        source_data = _source_data(
+            spark,
+            std_rows=[("user2", "emp2", "NewFirst", "Last2", "user2@test.com", datetime(2024, 2, 1))],
+            hrm_rows=[_hrm_row("user2", "emp2", "OldFirst", "Last2", "user2@test.com", is_active="Y", employee_entra_id=1)],
         )
-        df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
-        by_active = {row["IsActive"]: row for row in df.collect()}
+        inst = EntraIdHarmonisationProcess(spark)
+        with (
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
+        ):
+            result = inst.run()
 
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
+
+        actual_df = df.select("id", "givenName", "IsActive", "ValidTo").orderBy("IsActive")
+        expected_df = spark.createDataFrame(
+            [
+                ("user2", "OldFirst", "N", "2024-01-31 00:00:00"),
+                ("user2", "NewFirst", "Y", None),
+            ],
+            actual_df.schema,
+        )
         assert df.count() == 2
-        assert by_active["Y"]["givenName"] == "NewFirst"
-        assert by_active["N"]["givenName"] == "OldFirst"
-        assert by_active["N"]["ValidTo"] == "2024-01-31 00:00:00"
+        assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
     def test__run__unchanged_record_preserved_as_active(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
         id_, emp, fn, sn, upn = "user3", "emp3", "First3", "Last3", "user3@test.com"
-        hrm_row = _hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)
-        data_to_write, result = self._run(
-            std_raw_rows=[(id_, emp, fn, sn, upn, "2024-01-15")],
-            hrm_rows=[hrm_row],
+        source_data = _source_data(
+            spark,
+            std_rows=[(id_, emp, fn, sn, upn, datetime(2024, 1, 15))],
+            hrm_rows=[_hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)],
         )
+        inst = EntraIdHarmonisationProcess(spark)
+        with (
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
+        ):
+            result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
 
         assert df.count() == 1
@@ -154,11 +168,19 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         assert result.metadata.insert_count == 1
 
     def test__run__historical_inactive_records_carried_forward(self):
-        hrm_row = _hrm_row("user4", "emp4", "Old4", "Last4", "user4@test.com", is_active="N", valid_to="2024-01-14")
-        data_to_write, result = self._run(
-            std_raw_rows=[],
-            hrm_rows=[hrm_row],
+        spark = PytestSparkSessionUtil().get_spark_session()
+        source_data = _source_data(
+            spark,
+            hrm_rows=[_hrm_row("user4", "emp4", "Old4", "Last4", "user4@test.com", is_active="N", valid_to="2024-01-14")],
         )
+        inst = EntraIdHarmonisationProcess(spark)
+        with (
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
+        ):
+            result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
         rows = df.collect()
 
@@ -167,3 +189,20 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         assert rows[0]["id"] == "user4"
         assert rows[0]["ValidTo"] == "2024-01-14"
         assert result.metadata.insert_count == 1
+
+    def test__run__output_columns_match_hrm_schema(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        source_data = _source_data(
+            spark,
+            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+        )
+        inst = EntraIdHarmonisationProcess(spark)
+        with (
+            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "write_data") as mock_write,
+        ):
+            inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
+        assert df.columns == [field.name for field in _hrm_schema()]
