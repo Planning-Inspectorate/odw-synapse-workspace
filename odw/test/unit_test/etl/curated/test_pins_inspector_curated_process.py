@@ -1,5 +1,4 @@
 import mock
-import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
 from odw.test.util.assertion import assert_dataframes_equal
@@ -94,14 +93,6 @@ def _process_under_test(spark):
 
 
 class TestPinsInspectorCuratedProcess(SparkTestCase):
-    @pytest.fixture(autouse=True)
-    def _patch_util(self):
-        with mock.patch(
-            "odw.core.etl.transformation.curated.pins_inspector_curated_process.Util.get_storage_account",
-            return_value="test_storage",
-        ):
-            yield
-
     # ------------------------------------------------------------------
     # process – new records (no existing curated data)
     # ------------------------------------------------------------------
