@@ -1,12 +1,24 @@
+import uuid
 from datetime import datetime
-import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-from odw.test.util.assertion import assert_dataframes_equal
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.horizon_pins_inspector_harmonisation_process import HorizonPinsInspectorHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+
+
+def _horizon_schema():
+    return T.StructType(
+        [
+            T.StructField("horizonId", T.StringType(), True),
+            T.StructField("firstName", T.StringType(), True),
+            T.StructField("lastName", T.StringType(), True),
+            T.StructField("RowID", T.StringType(), True),
+            T.StructField("IngestionDate", T.StringType(), True),
+        ]
+    )
 
 
 def _hrm_schema():
@@ -26,27 +38,25 @@ def _hrm_schema():
     )
 
 
-def _horizon_schema():
-    return T.StructType(
-        [
-            T.StructField("horizonId", T.StringType(), True),
-            T.StructField("firstName", T.StringType(), True),
-            T.StructField("lastName", T.StringType(), True),
-            T.StructField("RowID", T.StringType(), True),
-            T.StructField("IngestionDate", T.StringType(), True),
-        ]
-    )
-
-
-def _source_data(spark, rows=None):
-    return {"horizon_data": spark.createDataFrame(rows or [], _horizon_schema())}
-
-
 class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
-    def test__horizon_pins_inspector__run__builds_scd2_timeline_end_to_end(self):
+    def setup_method(self):
+        self.test_suffix = uuid.uuid4().hex
+
+    def _write_horizon(self, spark, rows=None):
+        self.write_existing_table(
+            spark,
+            spark.createDataFrame(rows or [], _horizon_schema()),
+            "horizon_pins_inspector",
+            "odw_standardised_db",
+            "odw-standardised",
+            f"horizon_pins_inspector/{self.test_suffix}",
+            "overwrite",
+        )
+
+    def test__run__builds_scd2_timeline_end_to_end(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = _source_data(
+        self._write_horizon(
             spark,
             [
                 ("HZN-001", "Alice", "Smith", "", "2024-01-01 10:00:00"),
@@ -55,33 +65,19 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        inst = HorizonPinsInspectorHarmonisationProcess(spark)
+        result = HorizonPinsInspectorHarmonisationProcess(spark).run()
 
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
+        assert_etl_result_successful(result)
+        assert result.metadata.insert_count == 3
+        assert result.metadata.update_count == 0
+        assert result.metadata.delete_count == 0
 
-        data_to_write = mock_write.call_args[0][0]
-        write_config = data_to_write[inst.OUTPUT_TABLE]
-        df = write_config["data"]
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
+        assert actual.columns == [field.name for field in _hrm_schema()]
 
-        assert {
-            "insert_count": result.metadata.insert_count,
-            "update_count": result.metadata.update_count,
-            "delete_count": result.metadata.delete_count,
-        } == {"insert_count": 3, "update_count": 0, "delete_count": 0}
-
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["partition_by"] == ["IsActive"]
-        assert write_config["file_format"] == "delta"
-        assert df.columns == [field.name for field in _hrm_schema()]
-
-        actual_df = df.select("horizonId", "lastName", "IngestionDate", "ValidTo", "IsActive", "ODTSourceSystem").orderBy(
+        actual_df = actual.select("horizonId", "lastName", "IngestionDate", "ValidTo", "IsActive", "ODTSourceSystem").orderBy(
             "horizonId", "IngestionDate"
         )
-
         expected_df = spark.createDataFrame(
             [
                 ("HZN-001", "Smith", datetime(2024, 1, 1, 10), datetime(2024, 6, 1, 10), "N", "HORIZON"),
@@ -90,33 +86,24 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
             actual_df.schema,
         )
-
         assert_dataframes_equal(actual_df, expected_df)
 
-    def test__horizon_pins_inspector__run__empty_source_writes_empty_output(self):
+    def test__run__empty_source_writes_empty_output(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = _source_data(spark)
+        self._write_horizon(spark)
 
-        inst = HorizonPinsInspectorHarmonisationProcess(spark)
+        result = HorizonPinsInspectorHarmonisationProcess(spark).run()
 
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert df.count() == 0
+        assert_etl_result_successful(result)
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
+        assert actual.count() == 0
         assert result.metadata.insert_count == 0
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
 
-    def test__horizon_pins_inspector__run__deduplication_null_filtering_and_scd2_end_to_end(self):
+    def test__run__deduplication_null_filtering_and_scd2_end_to_end(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_data = _source_data(
+        self._write_horizon(
             spark,
             [
                 ("HZN-001", "Alice", "Smith", "", "2024-01-01 10:00:00"),
@@ -126,18 +113,11 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        inst = HorizonPinsInspectorHarmonisationProcess(spark)
+        result = HorizonPinsInspectorHarmonisationProcess(spark).run()
 
-        with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
-            mock.patch.object(inst, "write_data") as mock_write,
-        ):
-            result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
+        assert_etl_result_successful(result)
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
         assert result.metadata.insert_count == 2
-        assert df.where(F.col("horizonId").isNull()).count() == 0
-        assert df.where(F.col("IsActive") == "Y").groupBy("horizonId").count().where("count > 1").count() == 0
-        assert df.columns == [field.name for field in _hrm_schema()]
+        assert actual.where(F.col("horizonId").isNull()).count() == 0
+        assert actual.where(F.col("IsActive") == "Y").groupBy("horizonId").count().where("count > 1").count() == 0
+        assert actual.columns == [field.name for field in _hrm_schema()]
