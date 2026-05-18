@@ -54,14 +54,14 @@ def _hrm_schema():
     )
 
 
-def _row(entra_id="entra-001", sap_id="00010001"):
+def _row(entra_id="entra-001", sap_id="00010001", first_name="Alice", grade="G7"):
     return (
         entra_id,
         sap_id,
-        "Alice",
+        first_name,
         "Smith",
         "alice@pins.gov.uk",
-        "G7",
+        grade,
         "1.0",
         "NE",
         "Planning",
@@ -74,21 +74,25 @@ def _row(entra_id="entra-001", sap_id="00010001"):
     )
 
 
-def _source_data(harmonised_data):
-    return {"harmonised_inspector": harmonised_data}
+def _source_data(harmonised_df, curated_df=None):
+    if curated_df is None:
+        curated_df = harmonised_df.sparkSession.createDataFrame([], harmonised_df.schema)
+    return {
+        "harmonised_inspector": harmonised_df,
+        "curated_inspector": curated_df,
+    }
 
 
 class TestPinsInspectorCuratedProcess(ETLTestCase):
-    def test__pins_inspector_curated_process__run__writes_active_inspectors_end_to_end(self):
+    def test__run__writes_active_inspectors_end_to_end(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame([_row("entra-001"), _row("entra-002")], _hrm_schema())
-        source_data = _source_data(harmonised_df)
 
         inst = PinsInspectorCuratedProcess(spark)
 
         with (
-            mock.patch.object(inst, "load_data", return_value=source_data),
+            mock.patch.object(inst, "load_data", return_value=_source_data(harmonised_df)),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
             result = inst.run()
@@ -103,9 +107,10 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
             "delete_count": result.metadata.delete_count,
         } == {"insert_count": 2, "update_count": 0, "delete_count": 0}
 
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "delta"
-        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS
+        assert write_config["storage_kind"] == "ADLSG2-Delta"
+        assert write_config["merge_keys"] == [PinsInspectorCuratedProcess._KEY_COL]
+        assert write_config["update_key_col"] == PinsInspectorCuratedProcess._UPDATE_KEY_COL
+        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS + [PinsInspectorCuratedProcess._UPDATE_KEY_COL]
 
         actual_df = df.select("entraId", "sapId", "firstName", "lastName", "email", "grade", "validFrom").orderBy("entraId")
 
@@ -119,7 +124,7 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
 
         assert_dataframes_equal(actual_df, expected_df)
 
-    def test__pins_inspector_curated_process__run__empty_harmonised_source_writes_empty_output(self):
+    def test__run__empty_harmonised_source_writes_empty_output(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(spark.createDataFrame([], _hrm_schema()))
@@ -137,11 +142,41 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         df = write_config["data"]
 
         assert df.count() == 0
-        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "delta"
+        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS + [PinsInspectorCuratedProcess._UPDATE_KEY_COL]
+        assert write_config["storage_kind"] == "ADLSG2-Delta"
         assert {
             "insert_count": result.metadata.insert_count,
             "update_count": result.metadata.update_count,
             "delete_count": result.metadata.delete_count,
         } == {"insert_count": 0, "update_count": 0, "delete_count": 0}
+
+    def test__run__changed_record_labelled_update_unchanged_excluded(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        curated_df = spark.createDataFrame(
+            [_row("entra-001", first_name="OldName"), _row("entra-002")],
+            _hrm_schema(),
+        )
+        harmonised_df = spark.createDataFrame(
+            [_row("entra-001", first_name="NewName"), _row("entra-002")],
+            _hrm_schema(),
+        )
+
+        inst = PinsInspectorCuratedProcess(spark)
+
+        with (
+            mock.patch.object(inst, "load_data", return_value=_source_data(harmonised_df, curated_df)),
+            mock.patch.object(inst, "write_data") as mock_write,
+        ):
+            result = inst.run()
+
+        data_to_write = mock_write.call_args[0][0]
+        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+
+        rows = df.orderBy("entraId").collect()
+        assert len(rows) == 1
+        assert rows[0]["entraId"] == "entra-001"
+        assert rows[0]["firstName"] == "NewName"
+        assert rows[0][PinsInspectorCuratedProcess._UPDATE_KEY_COL] == "update"
+        assert result.metadata.insert_count == 0
+        assert result.metadata.update_count == 1

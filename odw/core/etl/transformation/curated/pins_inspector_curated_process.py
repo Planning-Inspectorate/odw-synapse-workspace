@@ -4,6 +4,7 @@ from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
+from pyspark.errors.exceptions.captured import AnalysisException
 from typing import Any, Dict, Tuple
 from datetime import datetime
 
@@ -28,6 +29,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.pins_inspector"
     OUTPUT_TABLE = "odw_curated_db.pins_inspector"
     _KEY_COL = "entraId"
+    _UPDATE_KEY_COL = "row_state_metadata"
     _OUTPUT_COLUMNS = [
         "entraId",
         "sapId",
@@ -61,29 +63,59 @@ class PinsInspectorCuratedProcess(CurationProcess):
             FROM {self.HARMONISED_TABLE}
             WHERE IsActive = 'Y'
         """)
-        return {"harmonised_inspector": harmonised}
+
+        LoggingUtil().log_info(f"Loading existing curated data from {self.OUTPUT_TABLE}")
+        try:
+            curated = self.spark.sql(f"SELECT * FROM {self.OUTPUT_TABLE}")
+        except AnalysisException:
+            curated = self.spark.createDataFrame([], harmonised.schema)
+
+        return {
+            "harmonised_inspector": harmonised,
+            "curated_inspector": curated,
+        }
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        df: DataFrame = self.load_parameter("harmonised_inspector", source_data)
+        new_df: DataFrame = self.load_parameter("harmonised_inspector", source_data)
+        existing_df: DataFrame = self.load_parameter("curated_inspector", source_data)
 
-        insert_count = df.count()
-        LoggingUtil().log_info(f"Curated PINS Inspector source row count: {insert_count}")
+        key_col = self._KEY_COL
+        new_df = new_df.filter(F.col(key_col).isNotNull())
+
+        non_key_cols = [c for c in new_df.columns if c != key_col]
+        hash_expr = F.sha2(F.to_json(F.struct(*[F.col(c) for c in non_key_cols])), 256)
+
+        new_with_hash = new_df.withColumn("_new_hash", hash_expr)
+        existing_with_hash = existing_df.select(F.col(key_col), hash_expr.alias("_existing_hash"))
+
+        labelled = (
+            new_with_hash.join(existing_with_hash, key_col, "left")
+            .filter(F.col("_existing_hash").isNull() | (F.col("_new_hash") != F.col("_existing_hash")))
+            .withColumn(
+                self._UPDATE_KEY_COL,
+                F.when(F.col("_existing_hash").isNull(), F.lit("create")).otherwise(F.lit("update")),
+            )
+            .drop("_new_hash", "_existing_hash")
+        )
+
+        insert_count = labelled.filter(F.col(self._UPDATE_KEY_COL) == "create").count()
+        update_count = labelled.filter(F.col(self._UPDATE_KEY_COL) == "update").count()
+        LoggingUtil().log_info(f"Curated PINS Inspector: {insert_count} new, {update_count} changed")
 
         end_exec_time = datetime.now()
         data_to_write = {
             self.OUTPUT_TABLE: {
-                "data": df,
-                "storage_kind": "ADLSG2-Table",
+                "data": labelled,
+                "storage_kind": "ADLSG2-Delta",
                 "database_name": "odw_curated_db",
                 "table_name": "pins_inspector",
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
                 "blob_path": "pins_inspector",
-                "file_format": "delta",
-                "write_mode": "overwrite",
-                "write_options": {"overwriteSchema": "true"},
+                "merge_keys": [key_col],
+                "update_key_col": self._UPDATE_KEY_COL,
             }
         }
         return data_to_write, ETLSuccessResult(
@@ -92,7 +124,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
                 end_execution_time=end_exec_time,
                 table_name=self.OUTPUT_TABLE,
                 insert_count=insert_count,
-                update_count=0,
+                update_count=update_count,
                 delete_count=0,
                 activity_type=self.__class__.__name__,
                 duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
@@ -100,40 +132,10 @@ class PinsInspectorCuratedProcess(CurationProcess):
         )
 
     def write_data(self, data_to_write: Dict[str, Any]):
-        """Delta MERGE upsert — updates changed inspectors, inserts new ones."""
-        from delta.tables import DeltaTable
-
-        table_metadata = data_to_write[self.OUTPUT_TABLE]
-        df: DataFrame = table_metadata["data"]
-        key_col = self._KEY_COL
-
-        df = df.filter(F.col(key_col).isNotNull()).cache()
-
+        """On first run create the table directly; subsequent runs delegate to SynapseDeltaIO merge."""
         if not self.spark.catalog.tableExists(self.OUTPUT_TABLE):
-            df.write.format("delta").mode("errorifexists").saveAsTable(self.OUTPUT_TABLE)
+            df = data_to_write[self.OUTPUT_TABLE]["data"].drop(self._UPDATE_KEY_COL)
+            df.write.format("delta").saveAsTable(self.OUTPUT_TABLE)
             LoggingUtil().log_info(f"Created curated table {self.OUTPUT_TABLE}")
-            df.unpersist()
             return
-
-        delta_table = DeltaTable.forName(self.spark, self.OUTPUT_TABLE)
-        target_df = delta_table.toDF()
-
-        # Align to the intersection of source and target schemas
-        common_cols = [c for c in df.columns if c in target_df.columns]
-        df = df.select(common_cols)
-        non_key_cols = [c for c in common_cols if c != key_col]
-
-        t_struct = ",".join([f"'`{c}`', t.`{c}`" for c in non_key_cols])
-        s_struct = ",".join([f"'`{c}`', s.`{c}`" for c in non_key_cols])
-        hash_diff_cond = f"sha2(to_json(named_struct({t_struct})), 256) <> sha2(to_json(named_struct({s_struct})), 256)"
-
-        (
-            delta_table.alias("t")
-            .merge(df.alias("s"), f"t.`{key_col}` = s.`{key_col}`")
-            .whenMatchedUpdate(condition=hash_diff_cond, set={c: F.col(f"s.`{c}`") for c in non_key_cols})
-            .whenNotMatchedInsert(values={c: F.col(f"s.`{c}`") for c in common_cols})
-            .execute()
-        )
-
-        LoggingUtil().log_info(f"Merge complete into {self.OUTPUT_TABLE}")
-        df.unpersist()
+        super().write_data(data_to_write)

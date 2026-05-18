@@ -54,14 +54,14 @@ def _hrm_schema():
     )
 
 
-def _row(entra_id="entra-001"):
+def _row(entra_id="entra-001", first_name="Alice", grade="G7"):
     return (
         entra_id,
         "00010001",
-        "Alice",
+        first_name,
         "Smith",
         "alice@pins.gov.uk",
-        "G7",
+        grade,
         "1.0",
         "NE",
         "Planning",
@@ -74,8 +74,13 @@ def _row(entra_id="entra-001"):
     )
 
 
-def _source_data(harmonised_data):
-    return {"harmonised_inspector": harmonised_data}
+def _source_data(harmonised_df, curated_df=None):
+    if curated_df is None:
+        curated_df = harmonised_df.sparkSession.createDataFrame([], harmonised_df.schema)
+    return {
+        "harmonised_inspector": harmonised_df,
+        "curated_inspector": curated_df,
+    }
 
 
 def _process_under_test(spark):
@@ -97,9 +102,25 @@ class TestPinsInspectorCuratedProcess(SparkTestCase):
         ):
             yield
 
-    def test__pins_inspector_curated_process__process__passes_inspectors_through_to_output(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
+    # ------------------------------------------------------------------
+    # process – new records (no existing curated data)
+    # ------------------------------------------------------------------
 
+    def test__process__new_records_are_labelled_create(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        harmonised_df = spark.createDataFrame([_row("entra-001"), _row("entra-002")], _hrm_schema())
+
+        inst = _process_under_test(spark)
+        data_to_write, result = inst.process(source_data=_source_data(harmonised_df))
+
+        df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
+        labels = {row[PinsInspectorCuratedProcess._UPDATE_KEY_COL] for row in df.collect()}
+        assert labels == {"create"}
+        assert result.metadata.insert_count == 2
+        assert result.metadata.update_count == 0
+
+    def test__process__passes_inspectors_through_to_output(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
         harmonised_df = spark.createDataFrame([_row("entra-001"), _row("entra-002")], _hrm_schema())
 
         inst = _process_under_test(spark)
@@ -119,55 +140,107 @@ class TestPinsInspectorCuratedProcess(SparkTestCase):
         assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
-    def test__pins_inspector_curated_process__process__output_has_exactly_the_expected_columns(self):
+    def test__process__output_has_exactly_the_expected_columns(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
         harmonised_df = spark.createDataFrame([_row()], _hrm_schema())
 
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=_source_data(harmonised_df))
 
         df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
+        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS + [PinsInspectorCuratedProcess._UPDATE_KEY_COL]
 
-        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS
-
-    def test__pins_inspector_curated_process__process__count_matches_insert_count(self):
+    def test__process__count_matches_insert_count(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
         harmonised_df = spark.createDataFrame([_row("entra-001"), _row("entra-002"), _row("entra-003")], _hrm_schema())
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(harmonised_df))
 
         df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
-
         assert df.count() == 3
         assert result.metadata.insert_count == 3
 
-    def test__pins_inspector_curated_process__process__write_config_is_overwrite_delta(self):
+    def test__process__write_config_uses_delta_merge(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
         harmonised_df = spark.createDataFrame([_row()], _hrm_schema())
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(harmonised_df))
 
         write_config = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]
-
-        assert write_config["write_mode"] == "overwrite"
-        assert write_config["file_format"] == "delta"
+        assert write_config["storage_kind"] == "ADLSG2-Delta"
+        assert write_config["merge_keys"] == [PinsInspectorCuratedProcess._KEY_COL]
+        assert write_config["update_key_col"] == PinsInspectorCuratedProcess._UPDATE_KEY_COL
         assert result.metadata.insert_count == 1
 
-    def test__pins_inspector_curated_process__process__empty_input_writes_empty_output(self):
+    def test__process__empty_input_writes_empty_output(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
         harmonised_df = spark.createDataFrame([], _hrm_schema())
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(harmonised_df))
 
         df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
-
         assert df.count() == 0
-        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS
+        assert df.columns == PinsInspectorCuratedProcess._OUTPUT_COLUMNS + [PinsInspectorCuratedProcess._UPDATE_KEY_COL]
         assert result.metadata.insert_count == 0
+
+    # ------------------------------------------------------------------
+    # process – changed records (update)
+    # ------------------------------------------------------------------
+
+    def test__process__changed_record_is_labelled_update(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        curated_df = spark.createDataFrame([_row("entra-001", first_name="OldName")], _hrm_schema())
+        harmonised_df = spark.createDataFrame([_row("entra-001", first_name="NewName")], _hrm_schema())
+
+        inst = _process_under_test(spark)
+        data_to_write, result = inst.process(source_data=_source_data(harmonised_df, curated_df))
+
+        df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
+        rows = df.collect()
+        assert len(rows) == 1
+        assert rows[0][PinsInspectorCuratedProcess._UPDATE_KEY_COL] == "update"
+        assert rows[0]["firstName"] == "NewName"
+        assert result.metadata.insert_count == 0
+        assert result.metadata.update_count == 1
+
+    # ------------------------------------------------------------------
+    # process – unchanged records
+    # ------------------------------------------------------------------
+
+    def test__process__unchanged_record_is_excluded_from_output(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        existing_row = _row("entra-001")
+        curated_df = spark.createDataFrame([existing_row], _hrm_schema())
+        harmonised_df = spark.createDataFrame([existing_row], _hrm_schema())
+
+        inst = _process_under_test(spark)
+        data_to_write, result = inst.process(source_data=_source_data(harmonised_df, curated_df))
+
+        df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
+        assert df.count() == 0
+        assert result.metadata.insert_count == 0
+        assert result.metadata.update_count == 0
+
+    # ------------------------------------------------------------------
+    # process – null key filtering
+    # ------------------------------------------------------------------
+
+    def test__process__null_entra_id_is_excluded(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        def _null_key_row():
+            r = list(_row())
+            r[0] = None
+            return tuple(r)
+
+        harmonised_df = spark.createDataFrame([_row("entra-001"), _null_key_row()], _hrm_schema())
+
+        inst = _process_under_test(spark)
+        data_to_write, result = inst.process(source_data=_source_data(harmonised_df))
+
+        df = data_to_write[PinsInspectorCuratedProcess.OUTPUT_TABLE]["data"]
+        assert df.count() == 1
+        assert result.metadata.insert_count == 1
