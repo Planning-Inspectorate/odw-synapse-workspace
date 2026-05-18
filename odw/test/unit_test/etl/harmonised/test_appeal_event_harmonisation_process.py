@@ -221,9 +221,7 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(
-            _source_data(_service_bus_df(spark), _horizon_df(spark))
-        )
+        data_to_write, result = inst.process(_source_data(_service_bus_df(spark), _horizon_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -326,9 +324,7 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(
-            _source_data(_empty_service_bus_df(spark), _horizon_df(spark))
-        )
+        data_to_write, result = inst.process(_source_data(_empty_service_bus_df(spark), _horizon_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -341,9 +337,7 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(
-            _source_data(_duplicate_service_bus_df(spark), _empty_horizon_df(spark))
-        )
+        data_to_write, result = inst.process(_source_data(_duplicate_service_bus_df(spark), _empty_horizon_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -355,9 +349,7 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(
-            _source_data(_empty_service_bus_df(spark), _empty_horizon_df(spark))
-        )
+        data_to_write, result = inst.process(_source_data(_empty_service_bus_df(spark), _empty_horizon_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -370,9 +362,7 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(
-            _source_data(_service_bus_df(spark), _empty_horizon_df(spark))
-        )
+        data_to_write, result = inst.process(_source_data(_service_bus_df(spark), _empty_horizon_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
