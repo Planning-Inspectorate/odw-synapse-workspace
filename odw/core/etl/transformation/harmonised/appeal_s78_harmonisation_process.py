@@ -48,7 +48,7 @@ class AppealS78HarmonisationProcess(HarmonisationProcess):
     def _generate_new_group_resolver_data(self, scd_data: DataFrame):
         raise NotImplementedError("AppealS78HarmonisationProcess._generate_new_group_resolver_data() has not been implemented yet.")
 
-    def _generate_new_has_data(self, scd_data: DataFrame, new_group_resolver_data: DataFrame):
+    def _generate_new_has_data(self, scd_data: DataFrame, appeal_has_data: DataFrame):
         raise NotImplementedError("AppealS78HarmonisationProcess._generate_new_has_data() has not been implemented yet.")
 
     def process(self, **kwargs):

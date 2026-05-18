@@ -3024,3 +3024,31 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             inst = AppealS78HarmonisationProcess()
             actual_has_rows_to_update = inst._generate_new_has_data(scd_data, has_data)
             assert_dataframes_equal(expected_has_rows_to_update, actual_has_rows_to_update)
+    
+    def test__appeal_s78_harmonisation_process__process(self):
+        source_data = {
+            "service_bus_data": "sb",
+            "horizon_data": "hzn",
+            "harmonised_appeal_has": "has"
+        }
+        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+            inst = AppealS78HarmonisationProcess()
+            with (
+                mock.patch.object(AppealS78HarmonisationProcess, "_clean_service_bus_data", return_value="clean_sb"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_clean_horizon_data", return_value="clean_hzn"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_clean_appeal_has_data", return_value="clean_has"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_aggregate_data", return_value="agg"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_clean_aggregate_data", return_value="clean_agg"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_apply_slowly_changing_dimensions", return_value="scd"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_generate_new_group_resolver_data", return_value="gr_upd"),
+                mock.patch.object(AppealS78HarmonisationProcess, "_generate_new_has_data", return_value="has_upd")
+            ):
+                inst.process(source_datasource_data=source_data)
+                AppealS78HarmonisationProcess._clean_service_bus_data.assert_called_once_with("sb")
+                AppealS78HarmonisationProcess._clean_horizon_data.assert_called_once_with("hzn")
+                AppealS78HarmonisationProcess._clean_appeal_has_data.assert_called_once_with("has")
+                AppealS78HarmonisationProcess._aggregate_data.assert_called_once_with("clean_sb", "clean_hzn")
+                AppealS78HarmonisationProcess._clean_aggregate_data.assert_called_once_with("agg")
+                AppealS78HarmonisationProcess._apply_slowly_changing_dimensions.assert_called_once_with("clean_agg")
+                AppealS78HarmonisationProcess._generate_new_group_resolver_data.assert_called_once_with("scd")
+                AppealS78HarmonisationProcess._clean_service_bus_data.assert_called_once_with("scd", "harmonised_appeal_has")
