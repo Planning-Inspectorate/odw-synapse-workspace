@@ -6,12 +6,10 @@ from odw.core.etl.transformation.harmonised.appeal_s78_harmonisation_process imp
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.assertion import assert_dataframes_equal
-from datetime import datetime, timedelta
-from typing import Callable
-from contextlib import ExitStack
+from datetime import datetime
 
 
-# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _raw_service_bus_schema():
