@@ -11,7 +11,7 @@ from typing import Callable
 from contextlib import ExitStack
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _raw_service_bus_schema():
@@ -1725,9 +1725,9 @@ def _cleaned_aggregate_data_row(**overrides):
 def _aggregate_scd_schema():
     return StructType(
         [
+            StructField("caseReference", StringType(), True),
             StructField("AppealS78ID", LongType(), False),
             StructField("caseId", LongType(), True),
-            StructField("caseReference", StringType(), True),
             StructField("submissionId", StringType(), True),
             StructField("caseStatus", StringType(), True),
             StructField("caseType", StringType(), True),
@@ -1988,7 +1988,7 @@ def _aggregate_scd_schema():
             StructField("migrated", StringType(), True),
             StructField("ODTSourceSystem", StringType(), False),
             StructField("SourceSystemID", StringType(), True),
-            StructField("IngestionDate", StringType(), False),
+            StructField("IngestionDate", TimestampType(), True),
             StructField("ValidTo", StringType(), True),
             StructField("RowID", StringType(), False),
             StructField("IsActive", StringType(), False),
@@ -2000,9 +2000,9 @@ def _aggregate_scd_schema():
 
 def _aggregate_scd_row(**overrides):
     base = {
+        "caseReference": "12345",
         "AppealS78ID": 1,
         "caseId": 2468,
-        "caseReference": "12345",
         "submissionId": None,
         "caseStatus": "Notice withdrawn",
         "caseType": "C",
@@ -2202,7 +2202,7 @@ def _aggregate_scd_row(**overrides):
         "migrated": None,
         "ODTSourceSystem": "HORIZON",
         "SourceSystemID": None,
-        "IngestionDate": "2026-05-15 11:02:02.63335",
+        "IngestionDate": datetime(2026, 5, 15, 11, 2, 2, 633350),
         "ValidTo": None,
         "RowID": "1",
         "IsActive": "Y",
@@ -2210,6 +2210,314 @@ def _aggregate_scd_row(**overrides):
         "listOfDocumentsBeforeDecision": None,
     }
     return base | overrides
+
+
+def _raw_has_row(**overrides):
+    base = {
+        "caseReference": "12345",
+        "caseId": 12345,
+        "submissionId": "e4d42124-364c-4bda-af1f-3c40e4b09ff3",
+        "caseStatus": "validation",
+        "caseType": "D",
+        "caseProcedure": "written",
+        "lpaCode": "Q9999",
+        "caseOfficerId": "13de469c-8de6-4908-97cd-330ea73df618",
+        "inspectorId": None,
+        "allocationLevel": None,
+        "allocationBand": None,
+        "caseSpecialisms": None,
+        "caseSubmittedDate": "2024-03-25T23:59:59.999Z",
+        "caseCreatedDate": "2026-05-14T03:10:42.803Z",
+        "caseUpdatedDate": "2026-05-14T03:10:43.664Z",
+        "caseValidDate": None,
+        "caseValidationDate": None,
+        "caseValidationOutcome": None,
+        "caseValidationInvalidDetails": None,
+        "caseValidationIncompleteDetails": None,
+        "caseExtensionDate": None,
+        "caseStartedDate": None,
+        "casePublishedDate": None,
+        "linkedCaseStatus": None,
+        "leadCaseReference": None,
+        "lpaQuestionnaireDueDate": None,
+        "lpaQuestionnaireSubmittedDate": None,
+        "lpaQuestionnaireCreatedDate": None,
+        "lpaQuestionnairePublishedDate": None,
+        "lpaQuestionnaireValidationOutcome": None,
+        "lpaQuestionnaireValidationOutcomeDate": None,
+        "lpaQuestionnaireValidationDetails": None,
+        "lpaStatement": None,
+        "caseWithdrawnDate": None,
+        "caseTransferredDate": None,
+        "transferredCaseClosedDate": None,
+        "caseDecisionOutcomeDate": None,
+        "caseDecisionPublishedDate": None,
+        "caseDecisionOutcome": None,
+        "caseCompletedDate": None,
+        "enforcementNotice": None,
+        "applicationReference": "123",
+        "applicationDate": "2024-01-01T00:00:00.000Z",
+        "applicationDecision": "refused",
+        "applicationDecisionDate": "2024-01-01T00:00:00.000Z",
+        "caseSubmissionDueDate": "2024-03-25T23:59:59.999Z",
+        "siteAddressLine1": "e2e Test Address",
+        "siteAddressLine2": "Somewhere St",
+        "siteAddressTown": "Somewhereville",
+        "siteAddressCounty": "Somewhere",
+        "siteAddressPostcode": "BS21 6LE",
+        "siteAccessDetails": ["Come and see", ""],
+        "siteSafetyDetails": ["It's dangerous", ""],
+        "siteAreaSquareMetres": 22.0,
+        "floorSpaceSquareMetres": 22.0,
+        "isCorrectAppealType": None,
+        "isGreenBelt": False,
+        "inConservationArea": None,
+        "affectsScheduledMonument": None,
+        "hasProtectedSpecies": None,
+        "isAonbNationalLandscape": None,
+        "isSiteOnHighwayLand": None,
+        "designatedSitesNames": None,
+        "hasInfrastructureLevy": None,
+        "isInfrastructureLevyFormallyAdopted": None,
+        "infrastructureLevyAdoptedDate": None,
+        "infrastructureLevyExpectedDate": None,
+        "lpaProcedurePreference": None,
+        "lpaProcedurePreferenceDetails": None,
+        "lpaProcedurePreferenceDuration": None,
+        "caseworkReason": None,
+        "importantInformation": None,
+        "jurisdiction": None,
+        "redeterminedIndicator": None,
+        "dateCostsReportDespatched": None,
+        "dateNotRecoveredOrDerecovered": None,
+        "dateRecovered": None,
+        "originalCaseDecisionDate": None,
+        "targetDate": None,
+        "ownsAllLand": True,
+        "ownsSomeLand": True,
+        "knowsOtherOwners": "Some",
+        "knowsAllOwners": "Some",
+        "advertisedAppeal": True,
+        "notificationMethod": None,
+        "ownersInformed": True,
+        "originalDevelopmentDescription": "A test description",
+        "changedDevelopmentDescription": False,
+        "newConditionDetails": None,
+        "nearbyCaseReferences": [],
+        "neighbouringSiteAddresses": None,
+        "reasonForNeighbourVisits": None,
+        "affectedListedBuildingNumbers": None,
+        "appellantCostsAppliedFor": False,
+        "lpaCostsAppliedFor": None,
+        "typeOfPlanningApplication": "full-appeal",
+        "siteGridReferenceEasting": None,
+        "siteGridReferenceNorthing": None,
+        "hasLandownersPermission": None,
+        "wasApplicationRefusedDueToHighwayOrTraffic": None,
+        "didAppellantSubmitCompletePhotosAndPlans": None,
+        "isSiteInAreaOfSpecialControlAdverts": None,
+        "advertDetails": None,
+        "padsSapId": None,
+        "message_id": "bcd6ee6658e249eb8915df2983f61f2a",
+        "applicationDecisionDueDate": None,
+        "SourceSystemID": "5",
+        "RowID": "",
+        "migrated": "1",
+        "ODTSourceSystem": "ODT",
+        "ValidTo": None,
+        "IsActive": "Y",
+        "AppealsHasID": 2,
+        "IngestionDate": datetime(2026, 5, 14, 3, 10, 44, 986000),
+        "appellantProcedurePreference": None,
+        "appellantProcedurePreferenceDetails": None,
+        "appellantProcedurePreferenceDuration": None,
+        "appellantProcedurePreferenceWitnessCount": None,
+        "consultedBodiesDetails": None,
+        "designAccessStatementProvided": None,
+        "developmentType": None,
+        "hasEmergingPlan": None,
+        "hasStatutoryConsultees": None,
+        "numberOfResidencesNetChange": None,
+        "planningObligation": None,
+        "siteViewableFromRoad": None,
+        "siteWithinSSSI": None,
+        "statusPlanningObligation": None,
+    }
+    return base | overrides
+
+
+def _raw_has_schema():
+    return StructType(
+        [
+            StructField("caseReference", StringType(), True),
+            StructField("caseId", LongType(), True),
+            StructField("submissionId", StringType(), True),
+            StructField("caseStatus", StringType(), True),
+            StructField("caseType", StringType(), True),
+            StructField("caseProcedure", StringType(), True),
+            StructField("lpaCode", StringType(), True),
+            StructField("caseOfficerId", StringType(), True),
+            StructField("inspectorId", StringType(), True),
+            StructField("allocationLevel", StringType(), True),
+            StructField("allocationBand", DoubleType(), True),
+            StructField("caseSpecialisms", ArrayType(StringType(), True), True),
+            StructField("caseSubmittedDate", StringType(), True),
+            StructField("caseCreatedDate", StringType(), True),
+            StructField("caseUpdatedDate", StringType(), True),
+            StructField("caseValidDate", StringType(), True),
+            StructField("caseValidationDate", StringType(), True),
+            StructField("caseValidationOutcome", StringType(), True),
+            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
+            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField("caseExtensionDate", StringType(), True),
+            StructField("caseStartedDate", StringType(), True),
+            StructField("casePublishedDate", StringType(), True),
+            StructField("linkedCaseStatus", StringType(), True),
+            StructField("leadCaseReference", StringType(), True),
+            StructField("lpaQuestionnaireDueDate", StringType(), True),
+            StructField("lpaQuestionnaireSubmittedDate", StringType(), True),
+            StructField("lpaQuestionnaireCreatedDate", StringType(), True),
+            StructField("lpaQuestionnairePublishedDate", StringType(), True),
+            StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
+            StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
+            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField("lpaStatement", StringType(), True),
+            StructField("caseWithdrawnDate", StringType(), True),
+            StructField("caseTransferredDate", StringType(), True),
+            StructField("transferredCaseClosedDate", StringType(), True),
+            StructField("caseDecisionOutcomeDate", StringType(), True),
+            StructField("caseDecisionPublishedDate", StringType(), True),
+            StructField("caseDecisionOutcome", StringType(), True),
+            StructField("caseCompletedDate", StringType(), True),
+            StructField("enforcementNotice", BooleanType(), True),
+            StructField("applicationReference", StringType(), True),
+            StructField("applicationDate", StringType(), True),
+            StructField("applicationDecision", StringType(), True),
+            StructField("applicationDecisionDate", StringType(), True),
+            StructField("caseSubmissionDueDate", StringType(), True),
+            StructField("siteAddressLine1", StringType(), True),
+            StructField("siteAddressLine2", StringType(), True),
+            StructField("siteAddressTown", StringType(), True),
+            StructField("siteAddressCounty", StringType(), True),
+            StructField("siteAddressPostcode", StringType(), True),
+            StructField("siteAccessDetails", ArrayType(StringType(), True), True),
+            StructField("siteSafetyDetails", ArrayType(StringType(), True), True),
+            StructField("siteAreaSquareMetres", DoubleType(), True),
+            StructField("floorSpaceSquareMetres", DoubleType(), True),
+            StructField("isCorrectAppealType", BooleanType(), True),
+            StructField("isGreenBelt", BooleanType(), True),
+            StructField("inConservationArea", BooleanType(), True),
+            StructField("affectsScheduledMonument", BooleanType(), True),
+            StructField("hasProtectedSpecies", BooleanType(), True),
+            StructField("isAonbNationalLandscape", BooleanType(), True),
+            StructField("isSiteOnHighwayLand", BooleanType(), True),
+            StructField("designatedSitesNames", ArrayType(StringType(), True), True),
+            StructField("hasInfrastructureLevy", BooleanType(), True),
+            StructField("isInfrastructureLevyFormallyAdopted", BooleanType(), True),
+            StructField("infrastructureLevyAdoptedDate", StringType(), True),
+            StructField("infrastructureLevyExpectedDate", StringType(), True),
+            StructField("lpaProcedurePreference", StringType(), True),
+            StructField("lpaProcedurePreferenceDetails", StringType(), True),
+            StructField("lpaProcedurePreferenceDuration", DoubleType(), True),
+            StructField("caseworkReason", StringType(), True),
+            StructField("importantInformation", StringType(), True),
+            StructField("jurisdiction", StringType(), True),
+            StructField("redeterminedIndicator", BooleanType(), True),
+            StructField("dateCostsReportDespatched", StringType(), True),
+            StructField("dateNotRecoveredOrDerecovered", StringType(), True),
+            StructField("dateRecovered", StringType(), True),
+            StructField("originalCaseDecisionDate", StringType(), True),
+            StructField("targetDate", StringType(), True),
+            StructField("ownsAllLand", BooleanType(), True),
+            StructField("ownsSomeLand", BooleanType(), True),
+            StructField("knowsOtherOwners", StringType(), True),
+            StructField("knowsAllOwners", StringType(), True),
+            StructField("advertisedAppeal", BooleanType(), True),
+            StructField("notificationMethod", ArrayType(StringType(), True), True),
+            StructField("ownersInformed", BooleanType(), True),
+            StructField("originalDevelopmentDescription", StringType(), True),
+            StructField("changedDevelopmentDescription", BooleanType(), True),
+            StructField("newConditionDetails", StringType(), True),
+            StructField("nearbyCaseReferences", ArrayType(StringType(), True), True),
+            StructField(
+                "neighbouringSiteAddresses",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("neighbouringSiteAddressLine1", StringType(), True),
+                            StructField("neighbouringSiteAddressLine2", StringType(), True),
+                            StructField("neighbouringSiteAddressTown", StringType(), True),
+                            StructField("neighbouringSiteAddressCounty", StringType(), True),
+                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
+                            StructField("neighbouringSiteAccessDetails", StringType(), True),
+                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("reasonForNeighbourVisits", StringType(), True),
+            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField("appellantCostsAppliedFor", BooleanType(), True),
+            StructField("lpaCostsAppliedFor", BooleanType(), True),
+            StructField("typeOfPlanningApplication", StringType(), True),
+            StructField("siteGridReferenceEasting", StringType(), True),
+            StructField("siteGridReferenceNorthing", StringType(), True),
+            StructField("hasLandownersPermission", BooleanType(), True),
+            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
+            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
+            StructField(
+                "advertDetails",
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("advertType", StringType(), True),
+                            StructField("isAdvertInPosition", BooleanType(), True),
+                            StructField("isSiteOnHighwayLand", BooleanType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                True,
+            ),
+            StructField("padsSapId", StringType(), True),
+            StructField("message_id", StringType(), True),
+            StructField("applicationDecisionDueDate", StringType(), True),
+            StructField("SourceSystemID", StringType(), True),
+            StructField("RowID", StringType(), True),
+            StructField("migrated", StringType(), True),
+            StructField("ODTSourceSystem", StringType(), True),
+            StructField("ValidTo", StringType(), True),
+            StructField("IsActive", StringType(), True),
+            StructField("AppealsHasID", LongType(), True),
+            StructField("IngestionDate", TimestampType(), True),
+            StructField("appellantProcedurePreference", StringType(), True),
+            StructField("appellantProcedurePreferenceDetails", StringType(), True),
+            StructField("appellantProcedurePreferenceDuration", StringType(), True),
+            StructField("appellantProcedurePreferenceWitnessCount", StringType(), True),
+            StructField("consultedBodiesDetails", StringType(), True),
+            StructField("designAccessStatementProvided", StringType(), True),
+            StructField("developmentType", StringType(), True),
+            StructField("hasEmergingPlan", BooleanType(), True),
+            StructField("hasStatutoryConsultees", BooleanType(), True),
+            StructField("numberOfResidencesNetChange", StringType(), True),
+            StructField("planningObligation", StringType(), True),
+            StructField("siteViewableFromRoad", StringType(), True),
+            StructField("siteWithinSSSI", StringType(), True),
+            StructField("statusPlanningObligation", StringType(), True),
+        ]
+    )
+
+
+def _cleaned_has_row(**overrides):
+    base = {"caseReference": "12345", "hasTsArr": [datetime(2026, 5, 14, 3, 10, 44, 986000), datetime(2027, 1, 1)]}
+    return base | overrides
+
+
+def _cleaned_has_schema():
+    return StructType([StructField("caseReference", StringType(), True), StructField("hasTsArr", ArrayType(TimestampType(), False), False)])
 
 
 class TestAppealS78HarmonisationProcess(SparkTestCase):
@@ -2244,6 +2552,20 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._load_horizon_data()
             assert_dataframes_equal(horizon_data, actual_data)
+
+    def test__appeal_s78_harmonisation_process__load_appeal_has_data(self):
+        test_case = "t_as78hp_lahd"
+        spark = PytestSparkSessionUtil().get_spark_session()
+        has_data = spark.createDataFrame(
+            (_raw_has_row(),),
+            schema=_raw_has_schema(),
+        )
+        has_table = f"{test_case}_appeal_has"
+        self.write_existing_table(spark, has_data, has_table, "odw_standardised_db", "odw-standardised", has_table, "overwrite")
+        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+            inst = AppealS78HarmonisationProcess()
+            actual_data = inst._load_appeal_has_data()
+            assert_dataframes_equal(has_data, actual_data)
 
     def test__appeal_s78_harmonisation_process__clean_service_bus_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -2304,7 +2626,7 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
         test_run_time = datetime.now()
         # Most of the logic in the notebook is redundant WRT cleaning the caseReference column
         row = _raw_horizon_row()
-        row.pop("IngestionDate")
+        row.pop("IngestionDate", None)
         schema = StructType([field for field in _raw_horizon_schema().fields if field.name != "IngestionDate"])
         horizon_data = spark.createDataFrame((row,), schema=schema)
         with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
@@ -2323,6 +2645,24 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             with pytest.raises(ValueError):
                 inst = AppealS78HarmonisationProcess()
                 inst._clean_horizon_data(horizon_data)
+
+    def test__appeal_s78_harmonisation_process__clean_appeal_has_data(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        appeal_has = spark.createDataFrame(
+            (
+                _raw_has_row(),
+                _raw_has_row(),  # Dropped by distinct
+                _raw_has_row(caseReference=None),  # Dropped by F.col("caseReference").isNotNull()
+                _raw_has_row(IngestionDate=None),  # Dropped by F.col("hasTs").isNotNull()
+                _raw_has_row(IngestionDate=datetime(2027, 1, 1)),
+            ),
+            schema=_raw_has_schema(),
+        )
+        expected_data = spark.createDataFrame((_cleaned_has_row(),), schema=_cleaned_has_schema())
+        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+            inst = AppealS78HarmonisationProcess()
+            actual_data = inst._clean_appeal_has_data(appeal_has)
+            assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_harmonisation_process__aggregate_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -2494,6 +2834,17 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
 
     def test__appeal_s78_harmonisation_process__apply_slowly_changing_dimensions(self):
         spark = PytestSparkSessionUtil().get_spark_session()
+        appeal_has_data = spark.createDataFrame(
+            (
+                _cleaned_has_row(caseReference="23456"),
+                _cleaned_has_row(caseReference="99999"),  # Extra, should be dropped by left join
+                _cleaned_has_row(
+                    caseReference="34567", hasTsArr=[datetime(2024, 1, 1), datetime(2026, 1, 1)]
+                ),  # Older than aggregate row's IngestionDate
+                _cleaned_has_row(caseReference="56789", hasTsArr=[datetime(2027, 1, 1)]),
+            ),
+            schema=_cleaned_has_schema(),
+        )
         cleaned_aggregate_data = spark.createDataFrame(
             (
                 _cleaned_aggregate_data_row(),
@@ -2508,6 +2859,8 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                     caseReference="34567",
                     state_hash="68ff61c56669c9674a4b8623d40b84fee91e35870bb91b1914e1c4c6e85b0df5",
                     fallback_hash="68ff61c56669c9674a4b8623d40b84fee91e35870bb91b1914e1c4c6e85b0df5",
+                    IngestionDate=datetime(2025, 1, 1),
+                    ValidTo=None,  # F.col("ValidTo").isNull() logic checl
                 ),
                 _cleaned_aggregate_data_row(
                     caseReference="56789",
@@ -2515,21 +2868,24 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                     state_hash="2cc34a6159b6e64b8954a366bc1dd7a4ab45377089e4752f6076e22fb337759f",
                     normRowID="~",
                     fallback_hash="2cc34a6159b6e64b8954a366bc1dd7a4ab45377089e4752f6076e22fb337759f",
+                    IngestionDate=datetime(2025, 1, 1),
+                    ValidTo=datetime(2028, 1, 1),  # (F.col("nextHasTs") < F.col("ValidTo") logic check
                 ),
                 _cleaned_aggregate_data_row(
                     caseReference="678910",
-                    IngestionDate=datetime.datetime(2030, 1, 1, 0, 0),
+                    IngestionDate=datetime(2030, 1, 1, 0, 0),
                     ODTSourceSystem="ODT",
                     RowID="",
                     state_hash="25615be061dd6df0cb135e58856e8f21f9db93fd2b21065ed7f53b4f1003b827",
                     src_priority=2,
                     normRowID="~",
                     fallback_hash="25615be061dd6df0cb135e58856e8f21f9db93fd2b21065ed7f53b4f1003b827",
+                    ValidTo=datetime(2025, 1, 1),
                 ),
                 _cleaned_aggregate_data_row(
                     caseReference="678910",
                     originalDevelopmentDescription="some other description",
-                    IngestionDate=datetime.datetime(2030, 1, 1, 0, 0),
+                    IngestionDate=datetime(2030, 1, 1, 0, 0),
                     ODTSourceSystem="ODT",
                     RowID="",
                     state_hash="5599aa32ebc0f1825ccda0e18d98950c805382991051826e9eb829c9790ba9fc",
@@ -2541,7 +2897,7 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                 ),
                 _cleaned_aggregate_data_row(
                     caseReference="678910",
-                    IngestionDate=datetime.datetime(2031, 1, 1, 0, 0),
+                    IngestionDate=datetime(2031, 1, 1, 0, 0),
                     RowID="",
                     state_hash="25615be061dd6df0cb135e58856e8f21f9db93fd2b21065ed7f53b4f1003b827",
                     normRowID="~",
@@ -2551,7 +2907,7 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                 _cleaned_aggregate_data_row(
                     caseReference="678910",
                     originalDevelopmentDescription="some other description",
-                    IngestionDate=datetime.datetime(2031, 1, 1, 0, 0),
+                    IngestionDate=datetime(2031, 1, 1, 0, 0),
                     RowID="",
                     state_hash="5599aa32ebc0f1825ccda0e18d98950c805382991051826e9eb829c9790ba9fc",
                     normRowID="~",
@@ -2567,48 +2923,104 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             (
                 _aggregate_scd_row(),
                 _aggregate_scd_row(caseReference="23456", ODTSourceSystem="ODT"),
-                _aggregate_scd_row(caseReference="34567"),
-                _aggregate_scd_row(caseReference="56789", RowID=""),
+                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2025, 1, 1, 0, 0), ValidTo="2026-01-01 00:00:00", IsActive="N"),
+                _aggregate_scd_row(
+                    caseReference="56789", IngestionDate=datetime(2025, 1, 1, 0, 0), ValidTo="2027-01-01 00:00:00", RowID="", IsActive="N"
+                ),
                 _aggregate_scd_row(
                     caseReference="678910",
                     ODTSourceSystem="ODT",
-                    IngestionDate="2030-01-01 00:00:00",
+                    IngestionDate=datetime(2030, 1, 1, 0, 0),
                     ValidTo="2030-01-01 00:00:00.000001",
                     RowID="",
                     IsActive="N",
                 ),
                 _aggregate_scd_row(
-                    AppealS78ID=2,
                     caseReference="678910",
+                    AppealS78ID=2,
                     originalDevelopmentDescription="some other description",
                     ODTSourceSystem="ODT",
-                    IngestionDate="2030-01-01 00:00:00",
+                    IngestionDate=datetime(2030, 1, 1, 0, 0),
                     ValidTo="2031-01-01 00:00:00",
                     RowID="",
                     IsActive="N",
                 ),
                 _aggregate_scd_row(
-                    AppealS78ID=3,
                     caseReference="678910",
-                    IngestionDate="2031-01-01 00:00:00",
+                    AppealS78ID=3,
+                    IngestionDate=datetime(2031, 1, 1, 0, 0),
                     ValidTo="2031-01-01 00:00:00.000001",
                     RowID="",
                     IsActive="N",
                 ),
                 _aggregate_scd_row(
-                    AppealS78ID=4,
                     caseReference="678910",
+                    AppealS78ID=4,
                     originalDevelopmentDescription="some other description",
-                    IngestionDate="2031-01-01 00:00:00",
+                    IngestionDate=datetime(2031, 1, 1, 0, 0),
                     RowID="",
                 ),
             ),
             schema=_aggregate_scd_schema(),
         )
+        service_bus_data = spark.createDataFrame([], _raw_service_bus_schema())
         with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
             inst = AppealS78HarmonisationProcess()
-            actual_scd = inst._apply_slowly_changing_dimensions(cleaned_aggregate_data)
+            actual_scd = inst._apply_slowly_changing_dimensions(cleaned_aggregate_data, appeal_has_data, service_bus_data)
             assert_dataframes_equal(expected_scd, actual_scd)
 
-    def test__appeal_s78_harmonisation_process__harmonise(selfs):
-        pass
+    def test__appeal_s78_harmonisation_process__generate_new_group_resolver_data(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        scd_data = spark.createDataFrame(
+            (
+                _aggregate_scd_row(),
+                _aggregate_scd_row(IsActive="N"),
+            ),
+            schema=_aggregate_scd_schema(),
+        )
+        expected_group_resolver_rows_to_update = spark.createDataFrame(
+            ({"caseReference": "12345", "currentGroup": "B", "asOfTimestamp": "2026-05-15 11:02:02.63335"},),
+            schema=StructType(
+                [
+                    StructField("caseReference", StringType(), True),
+                    StructField("currentGroup", StringType(), False),
+                    StructField("asOfTimestamp", StringType(), False),
+                ]
+            ),
+        )
+        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+            inst = AppealS78HarmonisationProcess()
+            actual_group_resolver = inst._generate_new_group_resolver_data(scd_data)
+            assert_dataframes_equal(expected_group_resolver_rows_to_update, actual_group_resolver)
+
+    def test__appeal_s78_harmonisation_process__generate_new_has_data(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        scd_data = spark.createDataFrame(
+            (
+                _aggregate_scd_row(caseReference="12345", IngestionDate=datetime(2026, 1, 1)),
+                _aggregate_scd_row(caseReference="99999", IsActive="N"),  # Should be dropped
+                _aggregate_scd_row(
+                    caseReference="23456", IngestionDate=datetime(2024, 1, 1)
+                ),  # F.col("s78HrmActiveTs") >= F.col("hasCurrentActiveTs") logic
+                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2026, 1, 1)),
+                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2026, 1, 1)),  # Duplicate should be dropped
+            ),
+            schema=_aggregate_scd_schema(),
+        )
+        has_data = spark.createDataFrame(
+            (
+                _raw_has_row(caseReference="12345", IngestionDate=datetime(2025, 1, 1)),
+                _raw_has_row(caseReference="23456", IngestionDate=datetime(2025, 1, 1)),
+                _raw_has_row(caseReference="34567", IngestionDate=None),  # F.col("hasCurrentActiveTs").isNull() logic
+                _raw_has_row(caseReference="00000", IsActive="N"),
+            ),
+            schema=_raw_has_schema(),
+        )
+        expected_has_rows_to_update = spark.createDataFrame(
+            ({"caseReference": "34567", "s78HrmActiveTs": "2026-01-01 00:00:00.00000"},),
+            schema=StructType([StructField("caseReference", StringType(), True), StructField("s78HrmActiveTs", StringType(), False)]),
+        )
+        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+            inst = AppealS78HarmonisationProcess()
+            actual_has_rows_to_update = inst._generate_new_has_data(scd_data, has_data)
+            assert_dataframes_equal(expected_has_rows_to_update, actual_has_rows_to_update)
