@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2ea9f428-27b9-43fb-a8cf-ea407fd01ba4"
+				"spark.autotune.trackingId": "2842117c-6f16-47a9-b621-0f44fd0d9608"
 			}
 		},
 		"metadata": {
@@ -83,7 +83,7 @@
 					"from datetime import datetime\r\n",
 					"from pyspark.sql import DataFrame"
 				],
-				"execution_count": 49
+				"execution_count": 127
 			},
 			{
 				"cell_type": "markdown",
@@ -103,14 +103,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 50
+				"execution_count": 128
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 51
+				"execution_count": 129
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 					"error_message='None'\r\n",
 					""
 				],
-				"execution_count": 52
+				"execution_count": 130
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"\r\n",
 					"    return df_filtered, load_error_message, load_end_exec_time"
 				],
-				"execution_count": 53
+				"execution_count": 131
 			},
 			{
 				"cell_type": "markdown",
@@ -204,7 +204,8 @@
 					"    (\"Horizon_vw_BIS_AppealsAdditionalData_df\", \"odw_standardised_db.horizon_appeals_additional_data\"),\r\n",
 					"    (\"horizon_appeal_grounds_df\",\"odw_standardised_db.horizon_appeal_grounds\"),\r\n",
 					"    (\"horizon_notice_dates_df\",\"odw_standardised_db.horizon_notice_dates\"),\r\n",
-					"    (\"horizon_application_made_under_section_df\",\"odw_standardised_db.horizon_application_made_under_section\")\r\n",
+					"    (\"horizon_application_made_under_section_df\",\"odw_standardised_db.horizon_application_made_under_section\"),\r\n",
+					"    (\"Horizon_vw_BIS_CaseSiteCategoryAdditionalStr_df\",\"odw_standardised_db.BIS_CaseSiteCategoryAdditionalStr\")\r\n",
 					"]\r\n",
 					"\r\n",
 					"# ---------------------------------------------------------\r\n",
@@ -229,7 +230,7 @@
 					"        print(f\"Failed loading '{Source_table_name}': {error_message}\")\r\n",
 					"        break"
 				],
-				"execution_count": 54
+				"execution_count": 132
 			},
 			{
 				"cell_type": "markdown",
@@ -270,7 +271,8 @@
 					"    (\"horizon_appeal_grounds_df\",\"hag\"),\r\n",
 					"    (\"horizon_notice_dates_df\",\"hnd\"),\r\n",
 					"    (\"horizon_application_made_under_section_df\",\"hmu\"),\r\n",
-					"    (\"Horizon_TypeOfReasonForCase_df\",\"rfc\")\r\n",
+					"    (\"Horizon_TypeOfReasonForCase_df\",\"rfc\"),\r\n",
+					"    (\"Horizon_vw_BIS_CaseSiteCategoryAdditionalStr_df\",\"sce\")\r\n",
 					"]\r\n",
 					"\r\n",
 					"# --- Registration block ---\r\n",
@@ -298,7 +300,7 @@
 					"        error_message = f\"Error registering temp views: {str(e)}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 55
+				"execution_count": 133
 			},
 			{
 				"cell_type": "code",
@@ -414,7 +416,7 @@
 					"      )\r\n",
 					"    ) AS enforcementAppealGroundsDetails\r\n",
 					"  FROM hag g\r\n",
-					"  GROUP BY g.casenodeid\r\n",
+					"  GROUP BY g.casenodeid \r\n",
 					"),\r\n",
 					"base AS (\r\n",
 					"  SELECT\r\n",
@@ -547,7 +549,16 @@
 					"    FROM aad x\r\n",
 					"  ) t WHERE rn = 1\r\n",
 					"),\r\n",
-					" \r\n",
+					"sce_1row AS (\r\n",
+					"  SELECT * FROM (\r\n",
+					"    SELECT x.*,\r\n",
+					"      ROW_NUMBER() OVER (\r\n",
+					"        PARTITION BY x.AppealRefNumber\r\n",
+					"        ORDER BY x.expected_from DESC, x.modified_datetime DESC, x.ingested_datetime DESC, x.file_id DESC\r\n",
+					"      ) rn\r\n",
+					"    FROM sce x\r\n",
+					"  ) t WHERE rn = 1\r\n",
+					"),\r\n",
 					" \r\n",
 					"hmu_1row AS (\r\n",
 					"  SELECT * FROM (\r\n",
@@ -625,7 +636,6 @@
 					"  LEFT JOIN cs2_1row cs2 ON p.casenodeid   = cs2.casenodeid\r\n",
 					"  LEFT JOIN ci_1row  ci  ON p.caseuniqueid = ci.appealrefnumber\r\n",
 					"),\r\n",
-					" \r\n",
 					"add_dates AS (\r\n",
 					"  SELECT\r\n",
 					"    c.*,\r\n",
@@ -636,8 +646,6 @@
 					"  LEFT JOIN cdh_1row cdh ON c.caseuniqueid = cdh.appealrefnumber\r\n",
 					"  -- LEFT JOIN scd_1row scd ON c.caseuniqueid = scd.appealrefnumber\r\n",
 					"),\r\n",
-					"\r\n",
-					" \r\n",
 					"add_aad AS (\r\n",
 					"  SELECT\r\n",
 					"    d.*,\r\n",
@@ -649,15 +657,17 @@
 					"    aad.lpastatementsubmitted       AS lpaStatementSubmittedDate,\r\n",
 					"    aad.sitenoticesent              AS siteNoticesSentDate,\r\n",
 					"    aad.statementsdue               AS statementDueDate,\r\n",
-					"    aad.numberofresidences          AS numberOfResidencesNetChange\r\n",
+					"    aad.numberofresidences          AS numberOfResidencesNetChange,\r\n",
+					"    aad.StatementOfCommonGroundDue  AS statementOfCommonGroundDueDate,\r\n",
+					"    aad.AreaOfSiteInHectares*10000.0 AS siteAreaSquareMetres    \r\n",
 					"  FROM add_dates d\r\n",
 					"  LEFT JOIN aad_1row aad ON d.caseuniqueid = aad.appealrefnumber\r\n",
 					"),\r\n",
 					" \r\n",
 					"add_procedure AS (\r\n",
 					"  SELECT a.*, tp.proccode AS caseProcedure,\r\n",
-					"  -- ic_1row.inspectorid       AS inspectorId,\r\n",
-					"  -- sce_1row.greenbelt        AS isGreenBelt,\r\n",
+					"  -- ic_1row.inspectorid    AS inspectorId,\r\n",
+					"  sce_1row.SiteWithinAGreenBelt AS isGreenBelt,\r\n",
 					"  -- sce_1row.incarelatestoca  AS inConservationArea,\r\n",
 					"  css_1row.addressline1,\r\n",
 					"  css_1row.addressline2,\r\n",
@@ -669,7 +679,7 @@
 					"  FROM add_aad a\r\n",
 					"  LEFT JOIN tp ON a.procedureType = tp.name\r\n",
 					"  LEFT JOIN css_1row ON a.casenodeid   = css_1row.casenodeid\r\n",
-					"\r\n",
+					"  LEFT JOIN sce_1row ON a.caseuniqueid = sce_1row.appealrefnumber\r\n",
 					")\r\n",
 					"\r\n",
 					"--shape final columns (keep aliases)+ carry hidden tie-breakers\r\n",
@@ -731,6 +741,7 @@
 					",a.applicationMadeUnderActSection\r\n",
 					",a.advertAttributeKey\r\n",
 					",a.advertType\r\n",
+					",a.siteAreaSquareMetres\r\n",
 					",a.setRowNumber as advertSetRowNumber\r\n",
 					",a.publicSafetyLpaIndicator\r\n",
 					",a.amenityLPAIndicator\r\n",
@@ -746,6 +757,7 @@
 					",a.developmentType\r\n",
 					",a.procedureType\r\n",
 					",a.InCARelatesToCA                               as inConservationArea\r\n",
+					",a.isGreenBelt\r\n",
 					",a.caseValidationOutcome\r\n",
 					",a.caseValidationDate\r\n",
 					",a.dateCostsReportDespatched\r\n",
@@ -756,6 +768,7 @@
 					",a.lpaProofsSubmittedDate\r\n",
 					",a.lpaStatementSubmittedDate\r\n",
 					",a.siteNoticesSentDate\r\n",
+					",a.statementOfCommonGroundDueDate\r\n",
 					",a.statementDueDate\r\n",
 					",a.finalcommentsdue as finalCommentsDueDate\r\n",
 					",a.targetdate                                        as targetDate\r\n",
@@ -794,7 +807,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": 56
+				"execution_count": 134
 			},
 			{
 				"cell_type": "code",
@@ -810,7 +823,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        print(error_message)"
 				],
-				"execution_count": 57
+				"execution_count": 135
 			},
 			{
 				"cell_type": "code",
@@ -834,7 +847,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": 58
+				"execution_count": 136
 			},
 			{
 				"cell_type": "markdown",
@@ -895,7 +908,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": 59
+				"execution_count": 137
 			}
 		]
 	}
