@@ -173,7 +173,9 @@ class NsipProjectCuratedProcess(CurationProcess):
             {
                 "caseId": F.col("caseId").cast(IntegerType()),
                 "publishStatus": F.lower(F.col("publishStatus")),
-                "projectType": F.initcap(F.col("ProjectType")),
+                "projectType": F.when(
+                    F.col("ProjectType") == "WW01 - Waste Water treatment Plants", F.lit("WW01 - Waste Water Treatment Plants")
+                ).otherwise(F.col("ProjectType")),
                 "stage": F.lower(F.regexp_replace(F.col("Stage"), r"[- ]", "_")),
                 "sourceSystem": F.lower(
                     F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))
