@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f0cdebd1-bb9b-4ad0-bc26-0d1037fa2b48"
+				"spark.autotune.trackingId": "09e11f2e-8c5c-43b4-8919-bd89b9ddb0fb"
 			}
 		},
 		"metadata": {
@@ -76,7 +76,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 81
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -94,14 +94,14 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 82
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run service-bus/py_spark_df_ingestion_functions"
 				],
-				"execution_count": 83
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -123,7 +123,7 @@
 					"entity_name='appeal-has'\r\n",
 					"date_folder=''"
 				],
-				"execution_count": 84
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -138,7 +138,7 @@
 					"import pyspark.sql.functions as F\r\n",
 					"import re"
 				],
-				"execution_count": 85
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +190,7 @@
 					"    except Exception as te:\r\n",
 					"        print(f\"Telemetry logging failed: {te}\")"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -223,7 +223,7 @@
 					"\r\n",
 					"    raise e"
 				],
-				"execution_count": 86
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -235,7 +235,7 @@
 					"    except Exception as e:\r\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 87
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -245,7 +245,7 @@
 					"delete_count = 0\r\n",
 					"error_message= None"
 				],
-				"execution_count": 88
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -270,7 +270,7 @@
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 89
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -285,7 +285,7 @@
 					"    \r\n",
 					"    row = df.first()\r\n",
 					"    return row[\"last_ingest_time\"] if row else None\r\n",
-					"print(last_ingest_time)\r\n",
+					"\r\n",
 					"\r\n",
 					"def step_get_last_ingest_time():\r\n",
 					"    return get_last_ingest_time(entity_name)\r\n",
@@ -294,24 +294,22 @@
 					"last_ingest_time = run_step(\r\n",
 					"    \"Get last ingest time from watermark table\",\r\n",
 					"    step_get_last_ingest_time\r\n",
-					")"
+					")\r\n",
+					"\r\n",
+					"print(last_ingest_time)"
 				],
-				"execution_count": 90
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"def check_no_servicebus_data():\r\n",
-					"    # Read raw Service Bus data\r\n",
-					"    df = spark.read.json(filtered_paths)\r\n",
-					"\r\n",
-					"    # Apply watermark filter\r\n",
+					"def check_no_servicebus_data():   \r\n",
+					"    df = spark.read.option(\"recursiveFileLookup\", \"true\").json(source_path)\r\n",
 					"    if last_ingest_time:\r\n",
 					"        df = df.filter(\r\n",
 					"            F.to_timestamp(\"message_enqueued_time_utc\") > last_ingest_time\r\n",
 					"        )\r\n",
 					"\r\n",
-					"    # Get row count after filtering\r\n",
 					"    row_count = df.count()\r\n",
 					"\r\n",
 					"    print(f\"Row count after watermark filter: {row_count}\")\r\n",
@@ -329,13 +327,12 @@
 					"    return check_no_servicebus_data()\r\n",
 					"\r\n",
 					"\r\n",
-					"# Execute step\r\n",
 					"run_step(\r\n",
 					"    \"Check Service Bus data availability\",\r\n",
 					"    step_check_no_servicebus_data\r\n",
 					")"
 				],
-				"execution_count": 91
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -382,7 +379,7 @@
 					"    step_get_max_value_from_column\r\n",
 					")"
 				],
-				"execution_count": 92
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -433,7 +430,7 @@
 					"    step_get_max_file_date\r\n",
 					")"
 				],
-				"execution_count": 93
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -489,7 +486,7 @@
 					"\r\n",
 					"all_files = run_step(\"List all files recursively from source path\", step_list_all_files)"
 				],
-				"execution_count": 94
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -531,7 +528,7 @@
 					"    return get_missing_files(target_table=target_table,source_path=source_path)\r\n",
 					"missing_files=run_step(\"Get list of missing files(source_table\",step_get_missing_files)"
 				],
-				"execution_count": 95
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -584,7 +581,7 @@
 					"filtered_paths=run_step(\"Extract + filter file paths by timestamp\",\r\n",
 					"                        lambda:extract_and_filter_paths(all_files,filter_date_str))"
 				],
-				"execution_count": 96
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -629,7 +626,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 97
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -669,7 +666,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
 					"raw_df = run_step(\"Dedupe dataframe\", lambda: dedupe_dataframe(raw_df))   "
 				],
-				"execution_count": 98
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -711,7 +708,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 99
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -745,7 +742,7 @@
 					"    return result\r\n",
 					""
 				],
-				"execution_count": 100
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -819,7 +816,7 @@
 					"    )\r\n",
 					""
 				],
-				"execution_count": 101
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -865,7 +862,7 @@
 					")\r\n",
 					""
 				],
-				"execution_count": 102
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -892,7 +889,7 @@
 					"    return spark.table(target_table).count()\r\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
-				"execution_count": 103
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -931,7 +928,7 @@
 					"\r\n",
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)"
 				],
-				"execution_count": 104
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
