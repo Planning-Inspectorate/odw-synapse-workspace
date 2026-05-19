@@ -1,5 +1,15 @@
 from datetime import datetime
 from typing import Dict, Tuple
+<<<<<<< Updated upstream
+=======
+
+from pyspark.sql import DataFrame, SparkSession
+
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
+from odw.core.etl.transformation.curated.curation_process import CurationProcess
+from odw.core.util.util import Util
+from odw.test.util.session_util import PytestSparkSessionUtil
+>>>>>>> Stashed changes
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -11,8 +21,13 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 class AppealRepresentationCurationProcess(CurationProcess):
     """Curates active harmonised appeal representation data into the curated layer."""
 
+<<<<<<< Updated upstream
     HARMONISED_TABLE = "odw_harmonised_db.tu_ar_ld__harmonised"
     CURATED_TABLE = "odw_curated_db.tu_ar_ld__curated"
+=======
+    HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
+    CURATED_TABLE = "odw_curated_db.appeal_representation"
+>>>>>>> Stashed changes
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
 
     def __init__(self, spark: SparkSession = None, debug: bool = False):
