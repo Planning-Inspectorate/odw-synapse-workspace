@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b047ce15-72aa-4f82-b370-0a36685a5d47"
+				"spark.autotune.trackingId": "b06019d3-5bbf-4cb9-a729-5f1ad8b84a5b"
 			}
 		},
 		"metadata": {
@@ -83,7 +83,7 @@
 					"from datetime import datetime\r\n",
 					"from pyspark.sql import DataFrame"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -103,14 +103,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 					"error_message='None'\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -161,7 +161,7 @@
 					"\r\n",
 					"    return df_filtered, load_error_message, load_end_exec_time"
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -184,6 +184,7 @@
 					"# ---------------------------------------------------------\r\n",
 					"tables_to_load = [\r\n",
 					"    (\"hzn_cases_s78_df\", \"odw_standardised_db.horizoncases_s78\"),\r\n",
+					"    (\"hzn_cases_has_df\", \"odw_standardised_db.horizoncases_has\"),\r\n",
 					"    (\"cases_specialism_df\", \"odw_standardised_db.cases_specialisms\"),\r\n",
 					"    (\"vw_case_dates_df\", \"odw_standardised_db.vw_case_dates\"),\r\n",
 					"    (\"CaseDocumentDatesDates_df\", \"odw_standardised_db.casedocumentdatesdates\"),\r\n",
@@ -230,7 +231,7 @@
 					"        print(f\"Failed loading '{Source_table_name}': {error_message}\")\r\n",
 					"        break"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -251,6 +252,7 @@
 					"# List of (dict_key_in_loaded_dfs, temp_view_name)\r\n",
 					"views_to_register = [\r\n",
 					"    (\"hzn_cases_s78_df\", \"h\"),\r\n",
+					"    (\"hzn_cases_has_df\",\"has\"),\r\n",
 					"    (\"cases_specialism_df\", \"cs\"),\r\n",
 					"    (\"vw_case_dates_df\", \"cd\"),\r\n",
 					"    (\"CaseDocumentDatesDates_df\", \"cdd\"),\r\n",
@@ -300,7 +302,7 @@
 					"        error_message = f\"Error registering temp views: {str(e)}\"\r\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -329,6 +331,19 @@
 					"                      h.file_id DESC\r\n",
 					"           ) rn\r\n",
 					"    FROM h h\r\n",
+					"  ) t WHERE rn = 1\r\n",
+					"),\r\n",
+					"has_1row AS (\r\n",
+					"  SELECT * FROM (\r\n",
+					"    SELECT x.*,\r\n",
+					"           ROW_NUMBER() OVER (\r\n",
+					"             PARTITION BY x.caseuniqueid\r\n",
+					"             ORDER BY x.expected_from DESC,\r\n",
+					"                      x.modified_datetime DESC,\r\n",
+					"                      x.ingested_datetime DESC,\r\n",
+					"                      x.file_id DESC\r\n",
+					"           ) rn\r\n",
+					"    FROM has x\r\n",
 					"  ) t WHERE rn = 1\r\n",
 					"),\r\n",
 					"cd_1row AS (\r\n",
@@ -621,7 +636,8 @@
 					"add_case_refs AS (\r\n",
 					"  SELECT\r\n",
 					"    p.*,\r\n",
-					"    lc.leadcasenodeid      AS leadCaseReference,\r\n",
+					"    --lc.leadcasenodeid      AS leadCaseReference,\r\n",
+					"    COALESCE(h.caseuniqueid, has.caseuniqueid) AS leadCaseReference,\r\n",
 					"    cs2.processingstate    AS caseStatus,\r\n",
 					"    cs2.lpacode            AS lpaCode,\r\n",
 					"    cs2.linkedstatus       AS linkedCaseStatus,\r\n",
@@ -633,7 +649,9 @@
 					"    cs2.caseworkReason     AS caseworkReason,\r\n",
 					"    ci.validity            AS caseValidationOutcome\r\n",
 					"  FROM add_adverts p\r\n",
-					"  LEFT JOIN lc_1row  lc  ON p.casenodeid   = lc.casenodeid\r\n",
+					"  LEFT JOIN lc_1row lc   ON p.casenodeid  = lc.casenodeid\r\n",
+					"  LEFT JOIN h_1row h     ON lc.leadcasenodeid = h.casenodeid\r\n",
+					"  LEFT JOIN has_1row has ON lc.leadcasenodeid = has.casenodeid\r\n",
 					"  LEFT JOIN cs2_1row cs2 ON p.casenodeid   = cs2.casenodeid\r\n",
 					"  LEFT JOIN ci_1row  ci  ON p.caseuniqueid = ci.appealrefnumber\r\n",
 					"),\r\n",
@@ -809,7 +827,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -825,7 +843,7 @@
 					"        end_exec_time = datetime.now()\r\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -849,7 +867,7 @@
 					"        print(error_message)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -910,7 +928,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 34
 			}
 		]
 	}
