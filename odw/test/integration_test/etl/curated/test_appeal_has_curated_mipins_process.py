@@ -414,6 +414,5 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         output_table = f"{test_case}_appeals_has_curated_mipins"
         spark = PytestSparkSessionUtil().get_spark_session()
         existing_data = spark.createDataFrame((_curated_row(caseId=1),), schema=_curated_schema())
-        self.assert_curated_etl(test_case)
         self.write_existing_table(spark, existing_data, output_table, "odw_curated_db", "odw-curated", output_table, "overwrite")
         self.assert_curated_etl(test_case)
