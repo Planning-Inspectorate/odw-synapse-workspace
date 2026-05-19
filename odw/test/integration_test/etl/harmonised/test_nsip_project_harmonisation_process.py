@@ -180,6 +180,7 @@ def _service_bus_schema():
             StructField("IngestionDate", TimestampType(), True),
             StructField("ValidTo", StringType(), True),
             StructField("isMaterialChange", BooleanType(), True),
+            StructField("estimatedPrelimMeetingDate", StringType(), True),
         ]
     )
 
@@ -266,6 +267,7 @@ def _horizon_schema():
             StructField("entity_name", StringType(), True),
             StructField("file_id", StringType(), True),
             StructField("salutation", StringType(), True),
+            StructField("estimatedPrelimMeetingDate", StringType(), True),
         ]
     )
 
@@ -457,6 +459,7 @@ def _final_table_schema():
             StructField("RowID", StringType(), True),
             StructField("isMaterialChange", BooleanType(), True),
             StructField("IsActive", StringType(), True),
+            StructField("estimatedPrelimMeetingDate", StringType(), True),
         ]
     )
 
@@ -581,6 +584,7 @@ def _service_bus_row(**overrides):
         "IngestionDate": datetime(2025, 1, 10, 9, 0, 0),
         "ValidTo": None,
         "isMaterialChange": False,
+        "estimatedPrelimMeetingDate": None,
     }
     row.update(overrides)
     return row
@@ -667,6 +671,7 @@ def _horizon_row(**overrides):
         "entity_name": None,
         "file_id": None,
         "salutation": None,
+        "estimatedPrelimMeetingDate": None,
     }
     row.update(overrides)
     return row
@@ -710,6 +715,7 @@ def _final_table_row(**overrides):
         "RowID": "",  # "a4380923dd651c195b1631af7c829187",
         "isMaterialChange": False,
         "IsActive": "Y",
+        "estimatedPrelimMeetingDate": None,
     }
     row.update(overrides)
     return row

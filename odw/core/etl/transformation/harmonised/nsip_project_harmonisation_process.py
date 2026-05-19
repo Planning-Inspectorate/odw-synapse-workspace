@@ -188,6 +188,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 leadInspectorIds,
                 environmentalServicesOfficerIds,
                 legalOfficerIds,
+                estimatedPrelimMeetingDate,
 
                 -- Metadata
                 TRUE AS migrated,
@@ -363,6 +364,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 ,CAST(NULL AS String) AS leadInspectorIds
                 ,CAST(NULL AS String) AS environmentalServicesOfficerIds
                 ,CAST(NULL AS String) AS legalOfficerIds
+                ,CAST(NULL AS String) AS estimatedPrelimMeetingDate
                 ,FALSE AS migrated
                 ,'Horizon' AS ODTSourceSystem
                 ,CAST(NULL AS String) AS SourceSystemID
@@ -485,7 +487,6 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                     T.StructField("planningInspectorateRole", T.StringType(), True),
                     T.StructField("meetingDate", T.StringType(), True),
                     T.StructField("meetingType", T.StringType(), True),
-                    T.StructField("estimatedPrelimMeetingDate", T.StringType(), True),
                 ]
             )
         )
@@ -674,6 +675,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 F.col("leadInspectorIds"),
                 F.col("environmentalServicesOfficerIds"),
                 F.col("legalOfficerIds"),
+                F.col("estimatedPrelimMeetingDate"),
                 # End Horizon only fields
                 F.col("migrated"),
                 F.col("ODTSourceSystem"),
@@ -830,6 +832,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                         F.ifnull(F.col("leadInspectorIds").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("environmentalServicesOfficerIds").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("legalOfficerIds").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(F.col("estimatedPrelimMeetingDate").cast(T.StringType()), F.lit(".")),
                     )
                 ).alias("RowID"),
                 F.col("isMaterialChange"),

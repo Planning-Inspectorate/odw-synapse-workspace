@@ -196,6 +196,7 @@ def _service_bus_schema():
             StructField("ValidTo", StringType(), True),
             StructField("RowID", StringType(), False),
             StructField("isMaterialChange", BooleanType(), True),
+            StructField("estimatedPrelimMeetingDate", StringType(), True),
         ]
     )
 
@@ -352,6 +353,7 @@ def _horizon_schema():
             StructField("RowID", StringType(), False),
             StructField("isMaterialChange", BooleanType(), True),
             StructField("IsActive", StringType(), False),
+            StructField("estimatedPrelimMeetingDate", StringType(), True),
         ]
     )
 
@@ -507,6 +509,7 @@ def _service_bus_row(**overrides):
         "ValidTo": None,
         "RowID": "",
         "isMaterialChange": False,
+        "estimatedPrelimMeetingDate": None,
     }
     row.update(overrides)
     return row
@@ -664,6 +667,7 @@ def _horizon_row(**overrides):
         "RowID": None,
         "isMaterialChange": False,
         "IsActive": "Y",
+        "estimatedPrelimMeetingDate": None,
     }
     row.update(overrides)
     return row
@@ -1245,7 +1249,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.select("projectName", "RowID").orderBy("projectName").collect()
+        rows = df.select("caseId", "projectName", "RowID").orderBy("caseId").collect()
 
         assert rows[0]["RowID"]
         assert rows[1]["RowID"]
@@ -1367,7 +1371,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
 
         service_bus_rows = [
             _service_bus_row(caseId=1001, projectName="Old", IngestionDate=datetime(2025, 1, 10, 9, 0, 0), IsActive="N"),
-            _service_bus_row(caseId=1001, projectName="New", IngestionDate=datetime(2025, 1, 10, 9, 0, 0), IsActive="Y"),
+            _service_bus_row(caseId=1001, projectName="New", IngestionDate=datetime(2025, 1, 10, 10, 0, 0), IsActive="Y"),
         ]
         horizon_rows = []
 
@@ -1393,6 +1397,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         rows = df.where(F.col("caseId") == 1001).select("projectName", "IsActive").orderBy("projectName").collect()
 
         is_active_by_name = {row["projectName"]: row["IsActive"] for row in rows}
+        print(is_active_by_name)
 
         assert is_active_by_name["Old"] == "N"
         assert is_active_by_name["New"] == "Y"
