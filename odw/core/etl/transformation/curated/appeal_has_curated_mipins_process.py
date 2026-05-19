@@ -3,7 +3,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 
 
 class AppealHasCuratedMipinsProcess(CurationProcess):
-    HARMONISED_TABLE = "appeals_has"
+    HARMONISED_TABLE = "appeal_has"
     OUTPUT_TABLE = "appeals_has_curated_mipins"
 
     def __init__(self, spark):
