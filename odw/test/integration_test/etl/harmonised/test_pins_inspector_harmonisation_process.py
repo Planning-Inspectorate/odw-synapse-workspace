@@ -3,8 +3,10 @@ import pyspark.sql.types as T
 from odw.test.util.assertion import assert_etl_result_successful
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.util import format_to_adls_path
 
 
 def _entraid_schema():
@@ -151,6 +153,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
             mock.patch.object(PinsInspectorHarmonisationProcess, "LIVE_DIM_TABLE", f"odw_harmonised_db.{tc}_live_dim_inspector"),
             mock.patch.object(PinsInspectorHarmonisationProcess, "HIST_SAP_HR_TABLE", f"odw_harmonised_db.{tc}_hist_sap_hr"),
             mock.patch.object(PinsInspectorHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False
             ),

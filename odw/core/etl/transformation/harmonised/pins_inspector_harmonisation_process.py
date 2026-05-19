@@ -218,16 +218,17 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info(f"Harmonised PINS Inspector row count: {insert_count}")
 
         end_exec_time = datetime.now()
+        output_db, output_table_name = self.OUTPUT_TABLE.split(".", 1)
         data_to_write = {
             self.OUTPUT_TABLE: {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
-                "database_name": "odw_harmonised_db",
-                "table_name": "pins_inspector",
+                "database_name": output_db,
+                "table_name": output_table_name,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "pins_inspector",
-                "file_format": "parquet",
+                "blob_path": output_table_name,
+                "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
             }

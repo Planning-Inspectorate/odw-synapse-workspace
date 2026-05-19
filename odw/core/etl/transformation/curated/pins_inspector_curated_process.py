@@ -105,15 +105,16 @@ class PinsInspectorCuratedProcess(CurationProcess):
         LoggingUtil().log_info(f"Curated PINS Inspector: {insert_count} new, {update_count} changed")
 
         end_exec_time = datetime.now()
+        output_db, output_table_name = self.OUTPUT_TABLE.split(".", 1)
         data_to_write = {
             self.OUTPUT_TABLE: {
                 "data": labelled,
                 "storage_kind": "ADLSG2-Delta",
-                "database_name": "odw_curated_db",
-                "table_name": "pins_inspector",
+                "database_name": output_db,
+                "table_name": output_table_name,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "pins_inspector",
+                "blob_path": output_table_name,
                 "merge_keys": [key_col],
                 "update_key_col": self._UPDATE_KEY_COL,
             }

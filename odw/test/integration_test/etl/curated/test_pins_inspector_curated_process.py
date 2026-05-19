@@ -7,6 +7,7 @@ from odw.core.etl.transformation.curated.pins_inspector_curated_process import P
 from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.util import format_adls_path_to_local_path
 
 
 def _entraid_schema():
@@ -119,7 +120,10 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
 
     def _write_curated(self, spark, df):
         table_name = f"{self.test_case}_pins_inspector"
-        self.write_existing_table(spark, df, table_name, "odw_curated_db", "odw-curated", table_name, "overwrite")
+        data_path = format_adls_path_to_local_path(None, "odw-curated", table_name)
+        spark.sql(f"DROP TABLE IF EXISTS odw_curated_db.{table_name}")
+        df.write.format("delta").mode("overwrite").save(data_path)
+        spark.sql(f"CREATE TABLE IF NOT EXISTS odw_curated_db.{table_name} USING DELTA LOCATION '{data_path}'")
 
     def _empty_curated(self, spark, harmonised_df):
         empty = harmonised_df.filter(F.lit(False)).select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS)
