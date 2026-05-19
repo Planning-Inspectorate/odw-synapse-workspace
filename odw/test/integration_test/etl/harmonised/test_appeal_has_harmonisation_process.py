@@ -687,9 +687,9 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             assert_etl_result_successful(result)
             actual_has_data = spark.table(appeal_has_table)
             assert_dataframes_equal(expected_appeal_has_data, actual_has_data)
-            actual_group_resolver_data = spark.table()
+            actual_group_resolver_data = spark.table(f"odw_harmonised_db.{group_resolver_table}")
             assert_dataframes_equal(expected_group_resolver_data, actual_group_resolver_data)
-            actual_s78_data = spark.table()
+            actual_s78_data = spark.table(f"odw_harmonised_db.{appeal_s78_table}")
             assert_dataframes_equal(expected_s78_data_after, actual_s78_data)
 
     def test__appeal_has_harmonisation_process__run__with_no_existing_data(self):
