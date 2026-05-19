@@ -1295,7 +1295,7 @@ def _cleaned_horizon_schema():
             StructField("caseofficername", StringType(), True),
             StructField("coemailaddress", StringType(), True),
             StructField("casefullReferenceNumber", StringType(), True),
-            StructField("caseSpecialisms", StringType(), True),
+            StructField("caseSpecialisms", ArrayType(StringType(), True), True),
             StructField("caseCreatedDate", StringType(), True),
             StructField("appealdocscomplete", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
