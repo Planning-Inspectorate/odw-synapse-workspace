@@ -219,6 +219,9 @@ def _harmonised_row(**overrides):
         "IsActive": "Y",
         "message_id": "crvykejvkjgh3ekghjgkg34",
         "listOfDocumentsBeforeDecision": None,
+        "discontinuanceNoticeServedReason": None,
+        "discontinuanceNoticeServedOtherReason": None,
+        "wasRetrospectivePlanningApplicationMade": None,
     }
     return base | overrides
 
@@ -691,6 +694,7 @@ def _curated_row(**overrides):
         "screeningOpinionIndicatesEiaRequired": None,
         "significantChangesAffectingApplicationLpa": None,
         "listOfDocumentsBeforeDecision": None,
+        "extraConditionsDetails": None,
     }
     return base | overrides
 
