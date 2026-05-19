@@ -138,8 +138,10 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         self._empty_curated(spark, harmonised_df)
 
         table_name = f"{self.test_case}_pins_inspector"
-        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
-             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+        with (
+            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
+            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+        ):
             result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)
@@ -177,8 +179,10 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         self._empty_curated(spark, harmonised_df)
 
         table_name = f"{self.test_case}_pins_inspector"
-        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
-             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+        with (
+            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
+            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+        ):
             result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)
@@ -207,8 +211,10 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         self._write_harmonised(spark, updated_harmonised)
 
         table_name = f"{self.test_case}_pins_inspector"
-        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
-             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+        with (
+            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
+            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+        ):
             result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)

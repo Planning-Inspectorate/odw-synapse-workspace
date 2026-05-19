@@ -53,9 +53,11 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
 
     def _run(self, spark):
         table_name = self.test_case
-        with mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{table_name}_horizon_pins_inspector"), \
-             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{table_name}_pins_inspector_stg"), \
-             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{table_name}_horizon_pins_inspector"):
+        with (
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{table_name}_horizon_pins_inspector"),
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{table_name}_pins_inspector_stg"),
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{table_name}_horizon_pins_inspector"),
+        ):
             return HorizonPinsInspectorHarmonisationProcess(spark).run(), f"odw_harmonised_db.{table_name}_horizon_pins_inspector"
 
     def test__run__builds_scd2_timeline_end_to_end(self):

@@ -142,13 +142,19 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
     def _run(self, spark):
         tc = self.test_case
         output_table = f"odw_harmonised_db.{tc}_pins_inspector"
-        with mock.patch.object(PinsInspectorHarmonisationProcess, "ENTRAID_TABLE", f"odw_harmonised_db.{tc}_entraid"), \
-             mock.patch.object(PinsInspectorHarmonisationProcess, "INSPECTOR_SPECIALISMS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_specialisms"), \
-             mock.patch.object(PinsInspectorHarmonisationProcess, "INSPECTOR_ADDRESS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_address"), \
-             mock.patch.object(PinsInspectorHarmonisationProcess, "LIVE_DIM_TABLE", f"odw_harmonised_db.{tc}_live_dim_inspector"), \
-             mock.patch.object(PinsInspectorHarmonisationProcess, "HIST_SAP_HR_TABLE", f"odw_harmonised_db.{tc}_hist_sap_hr"), \
-             mock.patch.object(PinsInspectorHarmonisationProcess, "OUTPUT_TABLE", output_table), \
-             mock.patch("odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False):
+        with (
+            mock.patch.object(PinsInspectorHarmonisationProcess, "ENTRAID_TABLE", f"odw_harmonised_db.{tc}_entraid"),
+            mock.patch.object(
+                PinsInspectorHarmonisationProcess, "INSPECTOR_SPECIALISMS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_specialisms"
+            ),
+            mock.patch.object(PinsInspectorHarmonisationProcess, "INSPECTOR_ADDRESS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_address"),
+            mock.patch.object(PinsInspectorHarmonisationProcess, "LIVE_DIM_TABLE", f"odw_harmonised_db.{tc}_live_dim_inspector"),
+            mock.patch.object(PinsInspectorHarmonisationProcess, "HIST_SAP_HR_TABLE", f"odw_harmonised_db.{tc}_hist_sap_hr"),
+            mock.patch.object(PinsInspectorHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False
+            ),
+        ):
             result = PinsInspectorHarmonisationProcess(spark).run()
         return result, output_table
 
