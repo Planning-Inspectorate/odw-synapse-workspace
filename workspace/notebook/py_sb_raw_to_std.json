@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dc23f557-f434-4106-b136-a4c2ed4f2f18"
+				"spark.autotune.trackingId": "a2e2cac5-b046-40ba-a454-9e774bcecea3"
 			}
 		},
 		"metadata": {
@@ -217,6 +217,32 @@
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\r\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\r\n",
 					"start_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\r\n",
+					"def get_last_ingest_time(entity_name: str):\r\n",
+					"    df = spark.sql(f\"\"\"\r\n",
+					"        SELECT last_ingest_time\r\n",
+					"        FROM odw_meta_db.pln_service_bus_watermarks\r\n",
+					"        WHERE entity_name = '{entity_name}'\r\n",
+					"    \"\"\")\r\n",
+					"    \r\n",
+					"    row = df.first()\r\n",
+					"    return row[\"last_ingest_time\"] if row else None\r\n",
+					"\r\n",
+					"\r\n",
+					"def step_get_last_ingest_time():\r\n",
+					"    return get_last_ingest_time(entity_name)\r\n",
+					"\r\n",
+					"\r\n",
+					"last_ingest_time = run_step(\r\n",
+					"    \"Get last ingest time from watermark table\",\r\n",
+					"    step_get_last_ingest_time\r\n",
+					")"
 				],
 				"execution_count": null
 			},
@@ -473,10 +499,7 @@
 				"cell_type": "code",
 				"source": [
 					"def read_raw_messages(filtered_paths: list[str]) -> DataFrame:\r\n",
-					"    \"\"\"\r\n",
-					"    Ingests data from service bus messages stored as JSON files in the raw layer.\r\n",
-					"    Returns an empty DataFrame (with schema if provided) when no files are supplied.\r\n",
-					"    \"\"\"\r\n",
+					"\r\n",
 					"    if not filtered_paths:\r\n",
 					"        logInfo(\"No files to ingest.\")\r\n",
 					"        return (\r\n",
@@ -486,11 +509,10 @@
 					"        )\r\n",
 					"\r\n",
 					"    reader = spark.read.option(\"multiline\", \"true\")\r\n",
-					"    if spark_schema: \r\n",
+					"    if spark_schema:\r\n",
 					"        reader = reader.schema(spark_schema)\r\n",
-					"    df = reader.json(filtered_paths)\r\n",
 					"\r\n",
-					"    logInfo(f\"Found {df.count()} new rows.\")\r\n",
+					"    df = reader.json(filtered_paths)\r\n",
 					"\r\n",
 					"    df = (\r\n",
 					"        df.withColumn(\"expected_from\", F.current_timestamp())\r\n",
@@ -499,18 +521,20 @@
 					"          .withColumn(\"input_file\", F.input_file_name())\r\n",
 					"    )\r\n",
 					"\r\n",
-					"    return df\r\n",
+					"    # ✅ ADD THIS BLOCK (watermark filter)\r\n",
+					"    if last_ingest_time is not None:\r\n",
+					"        logInfo(f\"Filtering records > {last_ingest_time}\")\r\n",
+					"        df = df.filter(F.col(\"ingested_datetime\") > F.lit(last_ingest_time))\r\n",
 					"\r\n",
+					"    row_count = df.count()\r\n",
+					"    logInfo(f\"Rows after watermark filter: {row_count}\")\r\n",
 					"\r\n",
-					"def step_read_raw_messages():\r\n",
-					"    return read_raw_messages(filtered_paths)\r\n",
+					"    # ✅ ADD THIS BLOCK (early exit)\r\n",
+					"    if row_count == 0:\r\n",
+					"        logInfo(\"No new records after watermark filtering. Exiting notebook.\")\r\n",
+					"        mssparkutils.notebook.exit(\"NO_NEW_DATA\")\r\n",
 					"\r\n",
-					"\r\n",
-					"raw_df = run_step(\r\n",
-					"    \"Read raw service bus messages\",\r\n",
-					"    step_read_raw_messages\r\n",
-					")\r\n",
-					""
+					"    return df"
 				],
 				"execution_count": null
 			},
