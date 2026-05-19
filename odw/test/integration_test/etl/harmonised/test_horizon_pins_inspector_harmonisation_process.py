@@ -52,13 +52,12 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
         )
 
     def _run(self, spark):
-        table_name = self.test_case
-        with (
-            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{table_name}_horizon_pins_inspector"),
-            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{table_name}_pins_inspector_stg"),
-            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{table_name}_horizon_pins_inspector"),
+        with mock.patch.object(
+            HorizonPinsInspectorHarmonisationProcess,
+            "HORIZON_TABLE",
+            f"odw_standardised_db.{self.test_case}_horizon_pins_inspector",
         ):
-            return HorizonPinsInspectorHarmonisationProcess(spark).run(), f"odw_harmonised_db.{table_name}_horizon_pins_inspector"
+            return HorizonPinsInspectorHarmonisationProcess(spark).run()
 
     def test__run__builds_scd2_timeline_end_to_end(self):
         self.test_case = "t_hpihp_r_bste"
@@ -73,14 +72,14 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        result, output_table = self._run(spark)
+        result = self._run(spark)
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 3
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-        actual = spark.table(output_table)
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
         assert actual.columns == [field.name for field in _hrm_schema()]
 
         actual_df = actual.select("horizonId", "lastName", "IngestionDate", "ValidTo", "IsActive", "ODTSourceSystem").orderBy(
@@ -102,10 +101,10 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
 
         self._write_horizon(spark)
 
-        result, output_table = self._run(spark)
+        result = self._run(spark)
 
         assert_etl_result_successful(result)
-        actual = spark.table(output_table)
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
         assert actual.count() == 0
         assert result.metadata.insert_count == 0
 
@@ -123,10 +122,10 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        result, output_table = self._run(spark)
+        result = self._run(spark)
 
         assert_etl_result_successful(result)
-        actual = spark.table(output_table)
+        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
         assert result.metadata.insert_count == 2
         assert actual.where(F.col("horizonId").isNull()).count() == 0
         assert actual.where(F.col("IsActive") == "Y").groupBy("horizonId").count().where("count > 1").count() == 0
