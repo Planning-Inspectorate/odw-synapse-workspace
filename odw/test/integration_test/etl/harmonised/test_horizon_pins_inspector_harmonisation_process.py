@@ -41,6 +41,9 @@ def _hrm_schema():
 class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
     def setup_method(self):
         self.test_suffix = uuid.uuid4().hex
+        spark = PytestSparkSessionUtil().get_spark_session()
+        spark.sql(f"DROP TABLE IF EXISTS {HorizonPinsInspectorHarmonisationProcess.STAGE_TABLE}")
+        spark.sql(f"DROP TABLE IF EXISTS {HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE}")
 
     def _write_horizon(self, spark, rows=None):
         self.write_existing_table(
