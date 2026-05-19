@@ -9,8 +9,10 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonised logic not implemented yet")
-
+pytestmark = pytest.mark.xfail(
+    raises=NotImplementedError,
+    reason="Harmonised logic not implemented yet",
+)
 
 HARMONISED_COLUMNS = [
     "AppealsEventId",
@@ -216,7 +218,7 @@ def _existing_harmonised_df(spark):
         ],
         T.StructType(
             [
-                T.StructField("AppealsEventId", T.IntegerType(), True),
+                T.StructField("AppealsEventId", T.LongType(), True),
                 T.StructField("eventId", T.StringType(), True),
                 T.StructField("caseReference", T.StringType(), True),
                 T.StructField("eventType", T.StringType(), True),
@@ -245,14 +247,14 @@ def _existing_harmonised_df(spark):
 
 
 class TestAppealEventHarmonisationProcess(ETLTestCase):
-    def _run_process(self, spark, test_case: str):
+    def _run_process(self, spark, test_case: str, service_bus_df, horizon_df):
         service_bus_table = f"{test_case}_sb_appeal_event"
         horizon_table = f"{test_case}_horizon_appeals_event"
         output_table = f"{test_case}_appeal_event"
 
         self.write_existing_table(
             spark,
-            _service_bus_df(spark),
+            service_bus_df,
             service_bus_table,
             "odw_harmonised_db",
             "odw-harmonised",
@@ -262,7 +264,7 @@ class TestAppealEventHarmonisationProcess(ETLTestCase):
 
         self.write_existing_table(
             spark,
-            _horizon_df(spark),
+            horizon_df,
             horizon_table,
             "odw_standardised_db",
             "odw-standardised",
@@ -396,7 +398,12 @@ class TestAppealEventHarmonisationProcess(ETLTestCase):
         test_case = "t_aehp_r_cotwm"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        actual_df, result = self._run_process(spark, test_case)
+        actual_df, result = self._run_process(
+            spark,
+            test_case,
+            _service_bus_df(spark),
+            _horizon_df(spark),
+        )
 
         self._assert_harmonisation(spark, actual_df, result)
 
@@ -416,7 +423,12 @@ class TestAppealEventHarmonisationProcess(ETLTestCase):
             "overwrite",
         )
 
-        actual_df, result = self._run_process(spark, test_case)
+        actual_df, result = self._run_process(
+            spark,
+            test_case,
+            _service_bus_df(spark),
+            _horizon_df(spark),
+        )
 
         assert actual_df.where("eventId = 'OLD-EVENT'").count() == 0
 

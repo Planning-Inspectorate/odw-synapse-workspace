@@ -8,8 +8,10 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonised logic not implemented yet")
-
+pytestmark = pytest.mark.xfail(
+    raises=NotImplementedError,
+    reason="Harmonised logic not implemented yet",
+)
 
 HARMONISED_COLUMNS = [
     "AppealsEventId",

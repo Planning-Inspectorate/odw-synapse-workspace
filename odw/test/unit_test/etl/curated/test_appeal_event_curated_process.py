@@ -8,8 +8,10 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
+pytestmark = pytest.mark.xfail(
+    raises=NotImplementedError,
+    reason="Curated logic not implemented yet",
+)
 
 CURATED_COLUMNS = [
     "eventId",
@@ -38,7 +40,7 @@ def _harmonised_schema():
             T.StructField("eventType", T.StringType(), True),
             T.StructField("eventName", T.StringType(), True),
             T.StructField("eventStatus", T.StringType(), True),
-            T.StructField("IsUrgent", T.BooleanType(), True),
+            T.StructField("isUrgent", T.BooleanType(), True),
             T.StructField("eventPublished", T.BooleanType(), True),
             T.StructField("eventStartDateTime", T.StringType(), True),
             T.StructField("eventEndDateTime", T.StringType(), True),

@@ -9,8 +9,10 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
+pytestmark = pytest.mark.xfail(
+    raises=NotImplementedError,
+    reason="Curated logic not implemented yet",
+)
 
 CURATED_COLUMNS = [
     "eventId",
@@ -204,22 +206,27 @@ class TestAppealEventCuratedProcess(ETLTestCase):
 
         return actual_df, result
 
-    def _assert_curation(self, spark, actual_df, result):
+    def _assert_output_shape(self, actual_df):
         assert actual_df.columns == CURATED_COLUMNS
         assert "IsActive" not in actual_df.columns
         assert "extraColumn" not in actual_df.columns
         assert "notificationOfSitevisit" not in actual_df.columns
         assert "notificationOfSiteVisit" in actual_df.columns
 
+    def _assert_metadata(self, result, expected_insert_count: int):
         assert {
             "insert_count": result.metadata.insert_count,
             "update_count": result.metadata.update_count,
             "delete_count": result.metadata.delete_count,
         } == {
-            "insert_count": 1,
+            "insert_count": expected_insert_count,
             "update_count": 0,
             "delete_count": 0,
         }
+
+    def _assert_curation(self, spark, actual_df, result):
+        self._assert_output_shape(actual_df)
+        self._assert_metadata(result, 1)
 
         actual_selected_df = actual_df.select(
             "eventId",
@@ -300,14 +307,5 @@ class TestAppealEventCuratedProcess(ETLTestCase):
         actual_df, result = self._run_process(spark, test_case, _empty_harmonised_df(spark))
 
         assert actual_df.count() == 0
-        assert actual_df.columns == CURATED_COLUMNS
-
-        assert {
-            "insert_count": result.metadata.insert_count,
-            "update_count": result.metadata.update_count,
-            "delete_count": result.metadata.delete_count,
-        } == {
-            "insert_count": 0,
-            "update_count": 0,
-            "delete_count": 0,
-        }
+        self._assert_output_shape(actual_df)
+        self._assert_metadata(result, 0)
