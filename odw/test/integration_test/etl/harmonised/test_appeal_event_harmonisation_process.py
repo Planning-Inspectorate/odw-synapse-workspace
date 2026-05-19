@@ -291,7 +291,7 @@ class TestAppealEventHarmonisationProcess(ETLTestCase):
         ):
             inst = AppealEventHarmonisationProcess(spark)
             result = inst.run()
-            assert_etl_result_successful(result)
+            self._assert_etl_successful_or_raise_not_implemented(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
 
@@ -393,6 +393,14 @@ class TestAppealEventHarmonisationProcess(ETLTestCase):
         assert all(len(row_id) == 32 for row_id in row_ids)
         assert "old-row-id" not in row_ids
         assert "new-row-id" not in row_ids
+
+    def _assert_etl_successful_or_raise_not_implemented(self, result):
+        exception_trace = result.metadata.exception_trace or ""
+
+        if "NotImplementedError" in exception_trace:
+            raise NotImplementedError(exception_trace)
+
+        assert_etl_result_successful(result)
 
     def test__appeal_event_harmonisation_process__run__creates_output_table_when_missing_like_legacy(self):
         test_case = "t_aehp_r_cotwm"

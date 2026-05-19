@@ -41,7 +41,7 @@ def _harmonised_schema():
             T.StructField("eventType", T.StringType(), True),
             T.StructField("eventName", T.StringType(), True),
             T.StructField("eventStatus", T.StringType(), True),
-            T.StructField("IsUrgent", T.BooleanType(), True),
+            T.StructField("isUrgent", T.BooleanType(), True),
             T.StructField("eventPublished", T.BooleanType(), True),
             T.StructField("eventStartDateTime", T.StringType(), True),
             T.StructField("eventEndDateTime", T.StringType(), True),
@@ -200,7 +200,7 @@ class TestAppealEventCuratedProcess(ETLTestCase):
         ):
             inst = AppealEventCuratedProcess(spark)
             result = inst.run()
-            assert_etl_result_successful(result)
+            self._assert_etl_successful_or_raise_not_implemented(result)
 
         actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
@@ -223,6 +223,14 @@ class TestAppealEventCuratedProcess(ETLTestCase):
             "update_count": 0,
             "delete_count": 0,
         }
+
+    def _assert_etl_successful_or_raise_not_implemented(self, result):
+        exception_trace = result.metadata.exception_trace or ""
+
+        if "NotImplementedError" in exception_trace:
+            raise NotImplementedError(exception_trace)
+
+        assert_etl_result_successful(result)
 
     def _assert_curation(self, spark, actual_df, result):
         self._assert_output_shape(actual_df)
