@@ -1,4 +1,3 @@
-import uuid
 import mock
 import pyspark.sql.types as T
 from odw.test.util.assertion import assert_etl_result_successful
@@ -80,80 +79,81 @@ def _live_dim_row(sap_id, first_name="Alice", last_name="Smith", email=None, gra
 
 
 class TestPinsInspectorHarmonisationProcess(ETLTestCase):
-    def setup_method(self):
-        self.test_suffix = uuid.uuid4().hex
-
     def _write_entraid(self, spark, rows=None):
+        table_name = f"{self.test_case}_entraid"
         self.write_existing_table(
             spark,
             spark.createDataFrame(rows or [], _entraid_schema()),
-            "entraid",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"entraid/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _write_live_dim(self, spark, rows=None):
+        table_name = f"{self.test_case}_live_dim_inspector"
         self.write_existing_table(
             spark,
             spark.createDataFrame(rows or [], _live_dim_schema()),
-            "live_dim_inspector",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"live_dim_inspector/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _write_specialisms(self, spark, rows=None):
+        table_name = f"{self.test_case}_sap_hr_inspector_specialisms"
         self.write_existing_table(
             spark,
             spark.createDataFrame(rows or [], _specialisms_schema()),
-            "sap_hr_inspector_specialisms",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"sap_hr_inspector_specialisms/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _write_address(self, spark, rows=None):
+        table_name = f"{self.test_case}_sap_hr_inspector_address"
         self.write_existing_table(
             spark,
             spark.createDataFrame(rows or [], _address_schema()),
-            "sap_hr_inspector_address",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"sap_hr_inspector_address/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _write_hist_hr(self, spark, rows=None):
+        table_name = f"{self.test_case}_hist_sap_hr"
         self.write_existing_table(
             spark,
             spark.createDataFrame(rows or [], _hist_hr_schema()),
-            "hist_sap_hr",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"hist_sap_hr/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _run(self, spark):
-        source_data = {
-            "entraid": spark.table(PinsInspectorHarmonisationProcess.ENTRAID_TABLE),
-            "specialisms": spark.table(PinsInspectorHarmonisationProcess.INSPECTOR_SPECIALISMS_TABLE),
-            "address": spark.table(PinsInspectorHarmonisationProcess.INSPECTOR_ADDRESS_TABLE),
-            "live_dim": spark.table(PinsInspectorHarmonisationProcess.LIVE_DIM_TABLE),
-            "hist_hr": spark.table(PinsInspectorHarmonisationProcess.HIST_SAP_HR_TABLE),
-        }
-        with mock.patch(
-            "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment",
-            return_value=False,
-        ):
-            data_to_write, result = PinsInspectorHarmonisationProcess(spark).process(source_data=source_data)
-        return data_to_write[PinsInspectorHarmonisationProcess.OUTPUT_TABLE]["data"], result
+        tc = self.test_case
+        output_table = f"odw_harmonised_db.{tc}_pins_inspector"
+        with mock.patch.object(PinsInspectorHarmonisationProcess, "ENTRAID_TABLE", f"odw_harmonised_db.{tc}_entraid"), \
+             mock.patch.object(PinsInspectorHarmonisationProcess, "INSPECTOR_SPECIALISMS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_specialisms"), \
+             mock.patch.object(PinsInspectorHarmonisationProcess, "INSPECTOR_ADDRESS_TABLE", f"odw_harmonised_db.{tc}_sap_hr_inspector_address"), \
+             mock.patch.object(PinsInspectorHarmonisationProcess, "LIVE_DIM_TABLE", f"odw_harmonised_db.{tc}_live_dim_inspector"), \
+             mock.patch.object(PinsInspectorHarmonisationProcess, "HIST_SAP_HR_TABLE", f"odw_harmonised_db.{tc}_hist_sap_hr"), \
+             mock.patch.object(PinsInspectorHarmonisationProcess, "OUTPUT_TABLE", output_table), \
+             mock.patch("odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False):
+            result = PinsInspectorHarmonisationProcess(spark).run()
+        return result, output_table
 
     def test__run__active_inspectors_written_end_to_end(self):
+        self.test_case = "t_pihp_r_aiwete"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self._write_live_dim(spark, [_live_dim_row("00010001", first_name="Alice"), _live_dim_row("00010002", first_name="Bob")])
@@ -162,11 +162,11 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        actual, result = self._run(spark)
+        result, output_table = self._run(spark)
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 2, f"Expected 2 rows from process, got {result.metadata.insert_count}"
-        rows = actual.orderBy("sapId").collect()
+        rows = spark.table(output_table).orderBy("sapId").collect()
 
         assert len(rows) == 2
         assert rows[0]["sapId"] == "00010001"
@@ -177,6 +177,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         assert rows[1]["firstName"] == "Bob"
 
     def test__run__non_active_inspectors_excluded(self):
+        self.test_case = "t_pihp_r_naie"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self._write_live_dim(
@@ -191,15 +192,16 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        actual, result = self._run(spark)
+        result, output_table = self._run(spark)
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 1
-        rows = actual.collect()
+        rows = spark.table(output_table).collect()
         assert len(rows) == 1
         assert rows[0]["firstName"] == "Active"
 
     def test__run__empty_source_writes_empty_output(self):
+        self.test_case = "t_pihp_r_eseo"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self._write_live_dim(spark)
@@ -208,13 +210,14 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        actual, result = self._run(spark)
+        result, output_table = self._run(spark)
 
         assert_etl_result_successful(result)
-        assert actual.count() == 0
+        assert spark.table(output_table).count() == 0
         assert result.metadata.insert_count == 0
 
     def test__run__valid_from_has_iso8601_suffix(self):
+        self.test_case = "t_pihp_r_vfhis"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self._write_live_dim(spark, [_live_dim_row("00010001")])
@@ -223,6 +226,6 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        actual, _ = self._run(spark)
+        result, output_table = self._run(spark)
 
-        assert actual.collect()[0]["validFrom"] == "2020-01-01T00:00:00.000Z"
+        assert spark.table(output_table).collect()[0]["validFrom"] == "2020-01-01T00:00:00.000Z"

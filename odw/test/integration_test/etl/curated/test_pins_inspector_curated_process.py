@@ -1,4 +1,3 @@
-import uuid
 import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
@@ -96,11 +95,7 @@ def _source_data(spark, live_dim_rows=None, entraid_rows=None, specialisms_rows=
 
 
 class TestPinsInspectorCuratedProcess(ETLTestCase):
-    def setup_method(self):
-        self.test_suffix = uuid.uuid4().hex
-
     def _harmonise(self, spark, live_dim_rows=None, entraid_rows=None, specialisms_rows=None, address_rows=None, hist_hr_rows=None):
-        """Run the harmonisation process in-memory and return its output DataFrame."""
         source = _source_data(spark, live_dim_rows, entraid_rows, specialisms_rows, address_rows, hist_hr_rows)
         with mock.patch(
             "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment",
@@ -111,25 +106,27 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         return data_to_write[PinsInspectorHarmonisationProcess.OUTPUT_TABLE]["data"]
 
     def _write_harmonised(self, spark, harmonised_df):
+        table_name = f"{self.test_case}_pins_inspector"
         self.write_existing_table(
             spark,
             harmonised_df,
-            "pins_inspector",
+            table_name,
             "odw_harmonised_db",
             "odw-harmonised",
-            f"pins_inspector/{self.test_suffix}",
+            table_name,
             "overwrite",
         )
 
     def _write_curated(self, spark, df):
-        # blob_path matches the process config so SynapseDeltaIO can locate the delta table by path
-        self.write_existing_table(spark, df, "pins_inspector", "odw_curated_db", "odw-curated", "pins_inspector", "overwrite")
+        table_name = f"{self.test_case}_pins_inspector"
+        self.write_existing_table(spark, df, table_name, "odw_curated_db", "odw-curated", table_name, "overwrite")
 
     def _empty_curated(self, spark, harmonised_df):
         empty = harmonised_df.filter(F.lit(False)).select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS)
         self._write_curated(spark, empty)
 
     def test__run__writes_active_inspectors_end_to_end(self):
+        self.test_case = "t_picp_r_waiet"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = self._harmonise(
@@ -140,10 +137,13 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         self._write_harmonised(spark, harmonised_df)
         self._empty_curated(spark, harmonised_df)
 
-        result = PinsInspectorCuratedProcess(spark).run()
+        table_name = f"{self.test_case}_pins_inspector"
+        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
+             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+            result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)
-        actual = spark.table(PinsInspectorCuratedProcess.OUTPUT_TABLE).orderBy("entraId")
+        actual = spark.table(f"odw_curated_db.{table_name}").orderBy("entraId")
 
         expected = harmonised_df.filter(F.col("isActive") == "Y").select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS).orderBy("entraId")
 
@@ -169,19 +169,24 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         assert_dataframes_equal(actual.select(scalar_cols), expected.select(scalar_cols))
 
     def test__run__empty_source_writes_empty_output(self):
+        self.test_case = "t_picp_r_eseo"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = self._harmonise(spark)
         self._write_harmonised(spark, harmonised_df)
         self._empty_curated(spark, harmonised_df)
 
-        result = PinsInspectorCuratedProcess(spark).run()
+        table_name = f"{self.test_case}_pins_inspector"
+        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
+             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+            result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)
-        actual = spark.table(PinsInspectorCuratedProcess.OUTPUT_TABLE)
+        actual = spark.table(f"odw_curated_db.{table_name}")
         assert actual.count() == 0
 
     def test__run__changed_record_updated_unchanged_record_preserved(self):
+        self.test_case = "t_picp_r_cruup"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         # Harmonise the initial state and seed the curated table from it
@@ -201,10 +206,13 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         )
         self._write_harmonised(spark, updated_harmonised)
 
-        result = PinsInspectorCuratedProcess(spark).run()
+        table_name = f"{self.test_case}_pins_inspector"
+        with mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"), \
+             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"):
+            result = PinsInspectorCuratedProcess(spark).run()
 
         assert_etl_result_successful(result)
-        actual = spark.table(PinsInspectorCuratedProcess.OUTPUT_TABLE).orderBy("entraId")
+        actual = spark.table(f"odw_curated_db.{table_name}").orderBy("entraId")
         rows = actual.collect()
 
         assert len(rows) == 2
