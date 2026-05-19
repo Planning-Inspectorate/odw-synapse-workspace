@@ -12,6 +12,7 @@ from pyspark.sql.types import (
     StringType,
     StructField,
     StructType,
+    TimestampType,
 )
 
 
@@ -84,7 +85,7 @@ def _harmonised_schema():
             StructField("leadInspectorId", StringType(), True),
             StructField("inspectorIds", ArrayType(StringType()), True),
             StructField("environmentalServicesOfficerId", StringType(), True),
-            StructField("legalOfficerId", StringType(), True),
+            StructField("legalOfficerIds", StringType(), True),
             StructField("applicantId", StringType(), True),
             StructField("migrationStatus", BooleanType(), True),
             StructField("dateOfReOpenRelevantRepresentationStart", StringType(), True),
@@ -92,6 +93,7 @@ def _harmonised_schema():
             StructField("ValidTo", StringType(), True),
             StructField("SourceSystemID", StringType(), True),
             StructField("IngestionDate", StringType(), True),
+            StructField("estimatedPrelimMeetingDate", TimestampType(), True),
         ]
     )
 

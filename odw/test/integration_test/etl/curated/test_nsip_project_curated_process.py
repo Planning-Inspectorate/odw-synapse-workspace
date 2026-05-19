@@ -200,6 +200,7 @@ def _harmonised_schema():
             StructField("RowID", StringType(), True),
             StructField("isMaterialChange", BooleanType(), True),
             StructField("IsActive", StringType(), True),
+            StructField("estimatedPrelimMeetingDate", TimestampType(), True),
         ]
     )
 
@@ -355,6 +356,7 @@ def _harmonised_row(**overrides):
         "RowID": "",
         "isMaterialChange": True,
         "IsActive": "Y",
+        "estimatedPrelimMeetingDate": datetime(2025, 1, 1),
     }
     row.update(overrides)
     return row
@@ -520,6 +522,7 @@ def _curated_schema():
             StructField("leadInspectorIds", ArrayType(StringType(), True), True),
             StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
             StructField("legalOfficerIds", ArrayType(StringType(), True), True),
+            StructField("estimatedPrelimMeetingDate", TimestampType(), True),
         ]
     )
 
@@ -648,6 +651,7 @@ def _curated_row(**overrides):
         "leadInspectorIds": [],
         "environmentalServicesOfficerIds": [],
         "legalOfficerIds": [],
+        "estimatedPrelimMeetingDate": datetime(2025, 1, 1),
     }
     row.update(overrides)
     return row

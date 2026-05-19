@@ -155,6 +155,7 @@ class NsipProjectCuratedProcess(CurationProcess):
                 ,Project.leadInspectorIds
                 ,Project.environmentalServicesOfficerIds
                 ,Project.legalOfficerIds
+                ,Project.estimatedPrelimMeetingDate
             FROM 
                 odw_harmonised_db.{self.HARMONISED_TABLE} AS Project
             WHERE 
