@@ -23,7 +23,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-01",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-10",
                         )
                     ],
                     "1",
@@ -42,7 +41,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-02",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-11",
                         )
                     ],
                     "1",

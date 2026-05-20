@@ -26,7 +26,6 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-01",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-10",
                         )
                     ],
                     "1",
@@ -45,7 +44,6 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-02",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-11",
                         )
                     ],
                     "1",
@@ -109,7 +107,6 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-03",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-12",
                         )
                     ],
                     "1",
