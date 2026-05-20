@@ -1,56 +1,35 @@
 from datetime import datetime
 from typing import Dict, Tuple
-<<<<<<< Updated upstream
-=======
 
 from pyspark.sql import DataFrame, SparkSession
 
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.util import Util
-from odw.test.util.session_util import PytestSparkSessionUtil
->>>>>>> Stashed changes
 
-from pyspark.sql import DataFrame, SparkSession
-
-from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from odw.core.etl.transformation.curated.curation_process import CurationProcess
-from odw.core.util.util import Util
-from odw.test.util.session_util import PytestSparkSessionUtil
 
 class AppealRepresentationCurationProcess(CurationProcess):
-    """Curates active harmonised appeal representation data into the curated layer."""
+    """Curates active harmonised appeal representation data into the curated layer.
 
-<<<<<<< Updated upstream
-    HARMONISED_TABLE = "odw_harmonised_db.tu_ar_ld__harmonised"
-    CURATED_TABLE = "odw_curated_db.tu_ar_ld__curated"
-=======
+    Mirrors the legacy notebook `appeal_representation` (curated): select the
+    business columns from the harmonised table where IsActive = 'Y' and overwrite
+    the curated parquet table. No DESCRIBE DETAIL is performed (the legacy
+    notebook does not, and it cannot work on first load when the curated table
+    does not yet exist).
+    """
+
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
-    CURATED_TABLE = "odw_curated_db.appeal_representation"
->>>>>>> Stashed changes
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
 
-    def __init__(self, spark: SparkSession = None, debug: bool = False):
-        if spark is not None:
-            super().__init__(spark, debug)
-        else:
-            self.spark = None
-            self.debug = debug
+    def __init__(self, spark: SparkSession, debug: bool = False):
+        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:
         return "appeal-representation-curated"
 
-    def _get_spark(self) -> SparkSession:
-        spark = getattr(self, "spark", None)
-        if spark is None:
-            spark = PytestSparkSessionUtil().get_spark_session()
-        return spark
-
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        spark = self._get_spark()
-
-        harmonised_data = spark.sql(
+        harmonised_data = self.spark.sql(
             f"""
             SELECT
                 representationId,
@@ -73,13 +52,8 @@ class AppealRepresentationCurationProcess(CurationProcess):
             """
         )
 
-        curated_data_description = spark.sql(
-            f"DESCRIBE DETAIL {self.CURATED_TABLE}"
-        )
-
         return {
             "harmonised_data": harmonised_data,
-            "curated_data_description": curated_data_description,
         }
 
     def process(self, source_data=None, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
