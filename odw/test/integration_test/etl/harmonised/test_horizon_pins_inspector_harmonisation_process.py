@@ -53,7 +53,9 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
 
     def _run(self, spark):
         with (
-            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{self.test_case}_horizon_pins_inspector"),
+            mock.patch.object(
+                HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{self.test_case}_horizon_pins_inspector"
+            ),
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{self.test_case}_pins_inspector_stg"),
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector"),
         ):
