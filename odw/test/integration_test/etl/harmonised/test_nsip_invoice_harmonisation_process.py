@@ -12,12 +12,16 @@ from pyspark.sql.types import (
     StructType,
     DoubleType,
 )
-
+import pyspark.sql.functions as F
 from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from datetime import datetime
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+
+MOCK_TIMESTAMP = datetime(2025, 1, 1)
+
+#pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 def _invoice_struct():
@@ -217,22 +221,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -254,22 +243,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
 
         expected_table_data = spark.createDataFrame([], _harmonised_schema())
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -325,22 +299,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -403,22 +362,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -483,22 +427,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T11:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -556,22 +485,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T11:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -631,22 +545,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T11:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -703,22 +602,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -796,22 +680,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             _harmonised_schema(),
         )
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T11:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()
@@ -830,22 +699,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
 
         expected_table_data = spark.createDataFrame([], _harmonised_schema())
 
-        with (
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil") as mock_process_logging,
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_ingestion_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-            mock.patch.object(
-                NsipInvoiceHarmonisationProcess,
-                "_current_valid_to_timestamp",
-                return_value="2025-02-01T10:00:00.000000+0000",
-            ),
-        ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
 
             inst = NsipInvoiceHarmonisationProcess(spark)
             result = inst.run()

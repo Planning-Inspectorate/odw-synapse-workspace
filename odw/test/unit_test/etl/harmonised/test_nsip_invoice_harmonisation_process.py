@@ -14,8 +14,11 @@ from pyspark.sql.types import (
 from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
+from datetime import datetime
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+#pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+
+MOCK_TIMESTAMP = datetime(2025, 1, 1)
 
 
 def _invoice_struct():
@@ -184,14 +187,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -215,14 +214,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -244,14 +239,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -269,14 +260,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -318,14 +305,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         ids = [row["NSIPInvoiceID"] for row in df.select("NSIPInvoiceID").orderBy("NSIPInvoiceID").collect()]
@@ -364,14 +347,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -414,14 +393,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -444,14 +419,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -492,14 +463,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -545,14 +512,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -595,14 +558,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -631,14 +590,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -685,14 +640,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": True,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -716,14 +667,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value=fixed_ingestion),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -782,14 +729,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value=fixed_ingestion),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -837,14 +780,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value=fixed_ingestion),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         rows = df.select("caseId", "RowID").orderBy("caseId").collect()
@@ -876,14 +815,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T11:00:00.000000+0000"),
-            ):
-                data_to_write, _ = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -901,14 +836,10 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process.LoggingUtil"):
-            inst = NsipInvoiceHarmonisationProcess(spark)
+        inst = NsipInvoiceHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "_current_ingestion_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-                mock.patch.object(inst, "_current_valid_to_timestamp", return_value="2025-02-01T10:00:00.000000+0000"),
-            ):
-                data_to_write, result = inst.process(source_data=source_data)
+        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+            data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
