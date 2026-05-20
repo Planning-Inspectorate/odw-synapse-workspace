@@ -52,10 +52,10 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
         )
 
     def _run(self, spark):
-        with mock.patch.object(
-            HorizonPinsInspectorHarmonisationProcess,
-            "HORIZON_TABLE",
-            f"odw_standardised_db.{self.test_case}_horizon_pins_inspector",
+        with (
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{self.test_case}_horizon_pins_inspector"),
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{self.test_case}_pins_inspector_stg"),
+            mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector"),
         ):
             return HorizonPinsInspectorHarmonisationProcess(spark).run()
 
@@ -79,7 +79,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
+        actual = spark.table(f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector")
         assert actual.columns == [field.name for field in _hrm_schema()]
 
         actual_df = actual.select("horizonId", "lastName", "IngestionDate", "ValidTo", "IsActive", "ODTSourceSystem").orderBy(
@@ -104,7 +104,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
         result = self._run(spark)
 
         assert_etl_result_successful(result)
-        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
+        actual = spark.table(f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector")
         assert actual.count() == 0
         assert result.metadata.insert_count == 0
 
@@ -125,7 +125,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
         result = self._run(spark)
 
         assert_etl_result_successful(result)
-        actual = spark.table(HorizonPinsInspectorHarmonisationProcess.OUTPUT_TABLE)
+        actual = spark.table(f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector")
         assert result.metadata.insert_count == 2
         assert actual.where(F.col("horizonId").isNull()).count() == 0
         assert actual.where(F.col("IsActive") == "Y").groupBy("horizonId").count().where("count > 1").count() == 0

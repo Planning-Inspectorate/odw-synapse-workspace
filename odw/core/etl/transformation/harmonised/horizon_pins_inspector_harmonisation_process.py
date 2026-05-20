@@ -157,15 +157,17 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info(f"Horizon PINS Inspector SCD-2 row count: {insert_count}")
 
         end_exec_time = datetime.now()
+        output_db, output_table_name = self.OUTPUT_TABLE.split(".", 1)
+        stage_db, stage_table_name = self.STAGE_TABLE.split(".", 1)
         data_to_write = {
             self.STAGE_TABLE: {
                 "data": stg_df,
                 "storage_kind": "ADLSG2-Table",
-                "database_name": "odw_harmonised_db",
-                "table_name": "pins_inspector_stg",
+                "database_name": stage_db,
+                "table_name": stage_table_name,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "pins_inspector_stg",
+                "blob_path": stage_table_name,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -173,11 +175,11 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
             self.OUTPUT_TABLE: {
                 "data": scd2,
                 "storage_kind": "ADLSG2-Table",
-                "database_name": "odw_harmonised_db",
-                "table_name": "horizon_pins_inspector",
+                "database_name": output_db,
+                "table_name": output_table_name,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "horizon_pins_inspector",
+                "blob_path": output_table_name,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
