@@ -6,6 +6,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import DataFrame
 from pyspark.sql.window import Window
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType
 import pyspark.sql.functions as F
 from typing import Dict, Any
 from datetime import datetime, date
@@ -93,7 +94,10 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
     def _get_max_id_from_existing_table(self, existing_data: DataFrame):
         if not existing_data:
             return 0
-        return existing_data.agg(F.max(F.col(self._INCREMENTAL_KEY))).collect()[0][0]
+        max_id = existing_data.agg(F.max(F.col(self._INCREMENTAL_KEY))).collect()[0][0]
+        if not max_id:
+            return 0
+        return max_id
 
     def _harmonise(self, existing_data: DataFrame, service_bus_data: DataFrame):
         # Explode invoices array and Extract invoice fields
@@ -111,6 +115,7 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
         )
         # Add extra columns and Add surrogate key starting from max_id_row + 1
         window_spec = Window.orderBy(F.monotonically_increasing_id())
+        new_data = new_data.sort("caseReference")  # todo remove
         new_data = new_data.withColumns(
             {
                 "ValidTo": F.lit(None).cast("string"),
@@ -128,15 +133,48 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         service_bus_data: DataFrame = self.load_parameter("source_data", source_data)
-        existing_data: DataFrame = self.load_parameter("target_data", source_data)
+        existing_data: DataFrame = source_data.get("target_data", None)
+        if not existing_data:
+            existing_data = self.spark.createDataFrame(
+                [],
+                schema=StructType(
+                    [
+                        StructField("NSIPInvoiceID", LongType(), True),
+                        StructField("caseId", LongType(), True),
+                        StructField("caseReference", StringType(), True),
+                        StructField("invoiceStage", StringType(), True),
+                        StructField("invoiceNumber", StringType(), True),
+                        StructField("amountDue", DoubleType(), True),
+                        StructField("paymentDueDate", StringType(), True),
+                        StructField("invoicedDate", StringType(), True),
+                        StructField("paymentDate", StringType(), True),
+                        StructField("refundCreditNoteNumber", StringType(), True),
+                        StructField("refundAmount", DoubleType(), True),
+                        StructField("refundIssueDate", StringType(), True),
+                        StructField("Migrated", IntegerType(), True),
+                        StructField("ODTSourceSystem", StringType(), True),
+                        StructField("SourceSystemID", StringType(), True),
+                        StructField("IngestionDate", StringType(), True),
+                        StructField("ValidTo", StringType(), True),
+                        StructField("RowID", StringType(), True),
+                        StructField("IsActive", StringType(), True),
+                        StructField("NSIPProjectInfoInternalID", LongType(), True),
+                    ]
+                ),
+            )
         new_data = self._harmonise(existing_data, service_bus_data)
         # Delta update logic
         delta_update_col = "temp_harmonisation_update_col"
         # Mark old rows to be updated
         existing_data = existing_data.withColumn(delta_update_col, F.lit("update"))
         # Mark new rows to be inserted
-        new_data = new_data.withColumn(delta_update_col, F.lit("create"))
-        combined_data = existing_data.union(new_data)
+        new_data = new_data.withColumns(
+            {
+                delta_update_col: F.lit("create"),
+                "Migrated": F.lit(None),  # Default value just to align the dataframes, will be updated afterwards
+            }
+        )
+        combined_data = existing_data.select(new_data.columns).union(new_data)
         window_spec = Window.partitionBy("caseId", "invoiceNumber").orderBy(F.col("NSIPProjectInfoInternalID").desc())
         combined_data = (
             combined_data.withColumn("row_num", F.row_number().over(window_spec))
@@ -165,7 +203,7 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                             F.coalesce(F.col("SourceSystemID").cast("string"), F.lit(".")),
                             F.coalesce(F.col("IngestionDate").cast("string"), F.lit(".")),
                             F.coalesce(F.col("ValidTo").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("NewIsActive").cast("string"), F.lit(".")),
+                            F.coalesce(F.col("IsActive").cast("string"), F.lit(".")),
                         )
                     ),
                 }
