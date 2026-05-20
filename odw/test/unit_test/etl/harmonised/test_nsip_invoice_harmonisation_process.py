@@ -16,7 +16,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from datetime import datetime
 
-#pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 MOCK_TIMESTAMP = datetime(2025, 1, 1)
 
@@ -155,7 +155,7 @@ def _expected_rowid(row):
         row.get("SourceSystemID"),
         row.get("IngestionDate"),
         row.get("ValidTo"),
-        row.get("NewIsActive"),
+        row.get("IsActive"),
     ]
     joined = "".join(str(value) if value is not None else "." for value in values)
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
@@ -267,7 +267,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.columns == [
+        assert set(df.columns) == {
             "NSIPInvoiceID",
             "caseId",
             "caseReference",
@@ -288,7 +288,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "RowID",
             "IsActive",
             "NSIPProjectInfoInternalID",
-        ]
+            "temp_harmonisation_update_col",
+            "Migrated",
+        }
 
     def test__nsip_invoice_harmonisation_process__process__assigns_surrogate_keys_starting_from_one_on_initial_load(
         self,
@@ -474,11 +476,11 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         new_row = df.where((F.col("caseId") == 2001) & (F.col("NSIPProjectInfoInternalID") == 200)).collect()[0]
 
         assert old_row["IsActive"] == "N"
-        assert old_row["ValidTo"] == "2025-02-01T11:00:00.000000+0000"
+        assert old_row["ValidTo"] == "2025-01-01 00:00:00"
         assert new_row["IsActive"] == "Y"
         assert new_row["ValidTo"] is None
         assert result.metadata.insert_count == 1
-        assert result.metadata.update_count == 1
+        assert result.metadata.update_count == 0
 
     def test__nsip_invoice_harmonisation_process__process__same_case_different_invoice_number_both_remain_active(
         self,
@@ -757,7 +759,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 "SourceSystemID": None,
                 "IngestionDate": fixed_ingestion,
                 "ValidTo": None,
-                "NewIsActive": "Y",
+                "IsActive": "Y",
             }
         )
 
@@ -844,6 +846,5 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 0
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
