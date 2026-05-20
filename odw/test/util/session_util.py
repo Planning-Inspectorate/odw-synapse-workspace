@@ -37,6 +37,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             .config("spark.sql.shuffle.partitions", "4")
             .config("spark.default.parallelism", "2")
             .config("spark.sql.adaptive.enabled", "false")
+            .config("spark.sql.jsonGenerator.ignoreNullFields", "false")
         )
 
         self._SPARK_SESSION = configure_spark_with_delta_pip(builder).getOrCreate()
@@ -56,6 +57,10 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {database}")
         self._create_empty_orchestration_file()
         self._create_main_source_system_fact_table(spark_session)
+        test_output_folder = "testOutput"
+        if os.path.exists(test_output_folder):
+            shutil.rmtree(test_output_folder)
+        os.mkdir(test_output_folder)
 
     def teardown_all_file_systems(self):
         file_systems = [entry for entry in os.listdir(".") if entry.startswith("spark-warehouse") and os.path.isdir(entry)]
