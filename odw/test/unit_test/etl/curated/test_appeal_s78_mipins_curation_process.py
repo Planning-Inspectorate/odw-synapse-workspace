@@ -978,8 +978,8 @@ class TestAppealS78MIPinsCurationProcess(SparkTestCase):
         test_case = "t_as78mcp_ld"
         appeal_s78 = spark.createDataFrame(
             (
-                generate_appeal_s78_schema(),
-                generate_appeal_s78_schema(),  # Duplicate row should not be dropped
+                generate_appeal_s78_row(),
+                generate_appeal_s78_row(),  # Duplicate row should not be dropped
             ),
             schema=generate_appeal_s78_schema(),
         )
@@ -988,7 +988,8 @@ class TestAppealS78MIPinsCurationProcess(SparkTestCase):
         with mock.patch.object(AppealS78MIPINSCurationProcess, "__init__", return_value=None):
             with mock.patch.object(AppealS78MIPINSCurationProcess, "APPEALS_S78_TABLE", test_case):
                 actual_data = AppealS78MIPINSCurationProcess().load_data()
-                assert isinstance(actual_data, dict) and assert_dataframes_equal(expected_data, actual_data.get("appeal_s78", None))
+                assert isinstance(actual_data, dict)
+                assert_dataframes_equal(expected_data, actual_data.get("appeal_s78", None))
 
     def test__appeal_s78_mipins_curation_process__filter_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -1081,8 +1082,8 @@ class TestAppealS78MIPinsCurationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         appeal_s78 = spark.createDataFrame(
             (
-                generate_appeal_s78_schema(),
-                generate_appeal_s78_schema(),  # Duplicate row should be dropped
+                generate_appeal_s78_row(),
+                generate_appeal_s78_row(),  # Duplicate row should be dropped
             ),
             schema=generate_appeal_s78_schema(),
         )
