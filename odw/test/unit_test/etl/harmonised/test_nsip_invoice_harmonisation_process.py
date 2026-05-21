@@ -667,7 +667,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
+        fixed_ingestion = "2025-01-01T00:00:00.000000+0000"
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
@@ -697,7 +697,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
                 "SourceSystemID": "SRC-1",
                 "IngestionDate": fixed_ingestion,
                 "ValidTo": None,
-                "NewIsActive": "Y",
+                "IsActive": "Y",
             }
         )
 
@@ -729,7 +729,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
+        fixed_ingestion = "2025-01-01T00:00:00.000000+0000"
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
