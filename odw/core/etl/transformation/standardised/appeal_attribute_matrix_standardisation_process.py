@@ -3,6 +3,7 @@ from typing import Any
 
 
 class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
+    CSV_FOLDER = "AppealAttributeMatrix"
     OUTPUT_TABLE = "appeal_attribute_matrix"
 
     def __init__(self, spark):
