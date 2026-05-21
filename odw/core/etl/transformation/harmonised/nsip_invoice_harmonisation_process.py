@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Dict, Any
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
@@ -8,7 +8,6 @@ from pyspark.sql import DataFrame
 from pyspark.sql.window import Window
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType
 import pyspark.sql.functions as F
-from typing import Dict, Any
 from datetime import datetime, date
 
 

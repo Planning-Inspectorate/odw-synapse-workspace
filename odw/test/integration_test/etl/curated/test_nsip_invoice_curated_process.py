@@ -1,5 +1,4 @@
 import mock
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import DataFrame
