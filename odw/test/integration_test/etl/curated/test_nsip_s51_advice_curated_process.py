@@ -86,7 +86,7 @@ class TestNSIPS51AdviceCurated(ETLTestCase):
         )
         harmonised_s51_advice_table = f"{test_case}_nsip_s51_advice"
         self.write_existing_table(
-            spark, harmonised_s51_advice, harmonised_s51_advice_table, "odw_harmonised_db", "odw-harmomised", harmonised_s51_advice_table, "overwrite"
+            spark, harmonised_s51_advice, harmonised_s51_advice_table, "odw_harmonised_db", "odw-harmonised", harmonised_s51_advice_table, "overwrite"
         )
 
         s51_advice_table = f"{test_case}_s51_advice"
