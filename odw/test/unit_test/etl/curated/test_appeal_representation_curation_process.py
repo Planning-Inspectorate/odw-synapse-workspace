@@ -173,8 +173,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
             actual_output = inst.load_data()
             actual_keys = set(actual_output.keys())
             assert expected_output_keys == actual_keys, (
-                f"Expected a dictionary with keys {expected_output_keys} to be returned by load_data(), "
-                f"but received the keys {actual_keys} instead"
+                f"Expected a dictionary with keys {expected_output_keys} to be returned by load_data(), but received the keys {actual_keys} instead"
             )
             assert_dataframes_equal(expected_fetched_harmonised_data, actual_output["harmonised_data"])
 
@@ -257,12 +256,8 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
             with mock.patch.object(AppealRepresentationCurationProcess, "__init__", return_value=None):
                 inst = AppealRepresentationCurationProcess()
                 actual_data_to_write, _ = inst.process(mock_data)
-                expected_data_to_write_without_data = {
-                    k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()
-                }
-                actual_data_to_write_without_data = {
-                    k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()
-                }
+                expected_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()}
+                actual_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()}
                 assert expected_data_to_write_without_data == actual_data_to_write_without_data
                 assert_dataframes_equal(
                     expected_data_to_write["odw_curated_db.appeal_representation"]["data"],
