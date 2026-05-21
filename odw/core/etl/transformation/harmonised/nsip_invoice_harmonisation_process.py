@@ -182,31 +182,35 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                 {
                     "Migrated": F.when(F.col("caseId").isNotNull() & F.col("invoiceNumber").isNotNull(), F.lit(1)).otherwise(F.lit(0)),
                     "IsActive": F.when(F.col("row_num") == 1, F.lit("Y")).otherwise(F.lit("N")),
-                    "RowID": F.md5(
-                        F.concat_ws(
-                            "",
-                            F.coalesce(F.col("NSIPInvoiceID").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("NSIPProjectInfoInternalID").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("caseId").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("caseReference").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("invoiceStage").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("invoiceNumber").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("amountDue").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("paymentDueDate").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("invoicedDate").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("paymentDate").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("refundCreditNoteNumber").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("refundAmount").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("refundIssueDate").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("Migrated").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("ODTSourceSystem").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("SourceSystemID").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("IngestionDate").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("ValidTo").cast("string"), F.lit(".")),
-                            F.coalesce(F.col("IsActive").cast("string"), F.lit(".")),
-                        )
-                    ),
                 }
+            )
+            # Must be done in a separate withColumn due to dependency on other columns
+            .withColumn(
+                "RowID",
+                F.md5(
+                    F.concat_ws(
+                        "",
+                        F.coalesce(F.col("NSIPInvoiceID").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("NSIPProjectInfoInternalID").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("caseId").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("caseReference").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("invoiceStage").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("invoiceNumber").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("amountDue").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("paymentDueDate").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("invoicedDate").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("paymentDate").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("refundCreditNoteNumber").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("refundAmount").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("refundIssueDate").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("Migrated").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("ODTSourceSystem").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("SourceSystemID").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("IngestionDate").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("ValidTo").cast("string"), F.lit(".")),
+                        F.coalesce(F.col("IsActive").cast("string"), F.lit(".")),
+                    )
+                ),
             )
             .withColumn("ValidTo", F.when(F.col("IsActive") == "N", F.current_timestamp()).otherwise(F.col("ValidTo")))
             .drop("row_num")
