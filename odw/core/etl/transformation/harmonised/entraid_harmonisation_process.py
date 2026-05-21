@@ -38,7 +38,7 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "EntraID Harmonisation"
+        return "EntraID Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here, no joins or transformations

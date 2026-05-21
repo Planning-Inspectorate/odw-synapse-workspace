@@ -37,7 +37,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls):
-        return "Horizon Standardisation"
+        return "Horizon Standardisation Process"
 
     def get_last_modified_folder(self, path: str):
         # List all items in the directory

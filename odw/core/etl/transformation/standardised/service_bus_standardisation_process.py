@@ -22,7 +22,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls):
-        return "Service Bus Standardisation"
+        return "Service Bus Standardisation Process"
 
     @LoggingUtil.logging_to_appins
     def get_max_file_date(self, df: DataFrame) -> datetime:

@@ -37,7 +37,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "pins-inspector-harmonised"
+        return "PINS Inspector Harmonisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         return {

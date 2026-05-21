@@ -33,7 +33,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls):
-        return "Service Bus Harmonisation"
+        return "Service Bus Harmonisation Process"
 
     def load_data(self, **kwargs):
         entity_name = self.load_parameter("entity_name", kwargs)

@@ -59,7 +59,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-harmonised"
+        return "NSIP Exam Timetable Curation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

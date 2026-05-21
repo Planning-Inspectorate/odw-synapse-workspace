@@ -38,7 +38,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "horizon-pins-inspector-harmonised"
+        return "Horizon PINS Inspector Harmonisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         return {"horizon_data": self.spark.table(self.HORIZON_TABLE)}

@@ -60,7 +60,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-meeting-harmonised"
+        return "NSIP Meeting Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

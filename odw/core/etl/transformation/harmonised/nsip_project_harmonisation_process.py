@@ -36,7 +36,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls):
-        return "NSIP Project Harmonisation"
+        return "NSIP Project Harmonisation Process"
 
     def _load_service_bus_data(self):
         LoggingUtil().log_info("Extracting service bus NSIP project data from the harmonised layer")

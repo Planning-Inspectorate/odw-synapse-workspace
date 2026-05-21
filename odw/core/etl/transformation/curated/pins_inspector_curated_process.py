@@ -53,7 +53,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "pins-inspector-curated"
+        return "PINS Inspector Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         LoggingUtil().log_info(f"Loading active inspectors from {self.HARMONISED_TABLE}")

@@ -30,7 +30,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_curated_process"
+        return "Appeal Document Curation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

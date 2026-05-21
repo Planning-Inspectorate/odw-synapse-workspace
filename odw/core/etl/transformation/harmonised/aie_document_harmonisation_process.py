@@ -78,7 +78,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "AIE Harmonisation"
+        return "AIE Document Harmonisation"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here, no joins or transformations

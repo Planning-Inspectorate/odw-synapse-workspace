@@ -31,7 +31,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-curated"
+        return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

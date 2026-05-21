@@ -30,7 +30,7 @@ class NsipRepresentationCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-curated"
+        return "NSIP Representation Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

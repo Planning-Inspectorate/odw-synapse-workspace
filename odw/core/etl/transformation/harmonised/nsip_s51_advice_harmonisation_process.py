@@ -72,7 +72,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-s51-advice-harmonised"
+        return "NSIP S51 Advice Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
