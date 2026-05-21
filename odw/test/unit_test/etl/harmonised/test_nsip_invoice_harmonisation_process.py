@@ -1,6 +1,5 @@
 import hashlib
 import mock
-import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
@@ -780,7 +779,6 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        fixed_ingestion = "2025-02-01T10:00:00.000000+0000"
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
