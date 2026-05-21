@@ -1,4 +1,3 @@
-# import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_representation_curation_process import AppealRepresentationCurationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -7,9 +6,6 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from datetime import datetime
 import pyspark.sql.types as T
 import mock
-
-
-# pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(ETLTestCase):
