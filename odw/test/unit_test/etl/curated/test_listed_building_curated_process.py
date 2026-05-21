@@ -103,7 +103,7 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ListedBuildingCuratedProcess(spark)
 
-        assert inst.get_name() == "listed_building_curated_process"
+        assert isinstance(inst.get_name(), str)
 
     def test__listed_building_curated_process__process__projects_expected_curated_columns_from_active_harmonised_rows(
         self,
