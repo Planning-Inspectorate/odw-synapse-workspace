@@ -75,7 +75,7 @@ class ETLProcessFactory:
         invalid_types = {k: v for k, v in name_map.items() if len(v) > 1}
         if invalid_types:
             raise DuplicateETLProcessNameException(
-                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4)}"
+                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4, default=str)}"
             )
         return {k: v[0] for k, v in name_map.items()}
 
