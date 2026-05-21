@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b1d2cb62-f268-435d-962a-80e2dbfa8830"
+				"spark.autotune.trackingId": "3803a51d-20b4-4435-83da-c0f24558050e"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -90,14 +90,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -135,7 +135,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -169,7 +169,7 @@
 					"from pyspark.sql.types import StringType, DateType, TimestampType, IntegerType, FloatType, StructType, StructField\n",
 					"from delta import DeltaTable"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -212,7 +212,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -236,7 +236,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -269,7 +269,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -293,7 +293,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -357,7 +357,7 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -375,6 +375,223 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\n",
+					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
+					"    ingestion_failure: bool = False\n",
+					"    \n",
+					"    standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
+					"    standardised_path = f\"{definition['Standardised_Path']}\" + \"/\" #need remove text\n",
+					"    standardised_table_name = f\"{definition['Standardised_Table_Name']}\" #need remove text \n",
+					"    source_filename_start = definition['Source_Filename_Start'] \n",
+					"    process_name = mssparkutils.runtime.context['currentNotebookName']\n",
+					"    \n",
+					"    logging_container = f\"abfss://logging@{storage_account}\"\n",
+					"    logging_table_name = 'tables_logs'\n",
+					"    ingestion_log_table_location = logging_container + logging_table_name\n",
+					"    \n",
+					"    if 'Standardised_Table_Definition' in definition:\n",
+					"        standardised_table_loc = f\"abfss://odw-config@{storage_account}\" + definition['Standardised_Table_Definition']\n",
+					"        standardised_table_def_json = spark.read.text(standardised_table_loc, wholetext=True).first().value\n",
+					"    else:\n",
+					"        standardised_table_def_json = mssparkutils.notebook.run('/py_get_schema_from_url', 30, {'db_name': 'odw_standardised_db', 'entity_name': definition['Source_Frequency_Folder']})\n",
+					"    \n",
+					"    if not any([table.name.lower() == standardised_table_name.lower() for table in spark.catalog.listTables('odw_standardised_db')]):\n",
+					"        create_table_from_schema(standardised_table_def_json, \"odw_standardised_db\", standardised_table_name, standardised_container, standardised_path + standardised_table_name)\n",
+					"    \n",
+					"    table_metadata = spark.sql(f\"DESCRIBE EXTENDED odw_standardised_db.{standardised_table_name}\")\n",
+					"    data_format = table_metadata.filter(table_metadata.col_name == \"Provider\").collect()[0].data_type\n",
+					"    if data_format == \"parquet\":\n",
+					"        replace = spark.sql(f\"SELECT * FROM odw_standardised_db.{standardised_table_name}\")\n",
+					"        replace.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"overwrite\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}_new\")\n",
+					"        spark.sql(f\"DROP TABLE IF EXISTS odw_standardised_db.{standardised_table_name}\")\n",
+					"        spark.sql(f\"ALTER TABLE odw_standardised_db.{standardised_table_name}_new RENAME TO odw_standardised_db.{standardised_table_name}\")\n",
+					"    \n",
+					"    try:\n",
+					"        standardised_table_location = spark.sql(f\"DESCRIBE FORMATTED odw_standardised_db.{standardised_table_name}\") \\\n",
+					"            .filter(\"col_name = 'Location'\") \\\n",
+					"            .select(\"data_type\") \\\n",
+					"            .collect()[0][0]\n",
+					"    except:\n",
+					"        standardised_table_location = standardised_container + standardised_path + standardised_table_name\n",
+					"    \n",
+					"    standardised_table_df = spark.read.format(\"delta\").load(standardised_table_location)\n",
+					"    rows = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()\n",
+					"    \n",
+					"    last_load_date = standardised_table_df.agg(spark_max(\"ingested_datetime\")).collect()[0][0]\n",
+					"\n",
+					"    jobId = mssparkutils.env.getJobId()\n",
+					"    \n",
+					"    if '.csv' in filename.lower():\n",
+					"        df = spark.read.options(quote='\"', escape='\\\\', encoding='utf8', header=True, multiLine=True, columnNameOfCorruptRecord='corrupted_records', mode=\"PERMISSIVE\").csv(f\"{folder_path}/{filename}\")\n",
+					"        if \"corrupted_records\" in df.columns:\n",
+					"            print(f\"Corrupted Records detected from CSV ingestion in {filename}\")\n",
+					"            ingestion_failure = True\n",
+					"    else:\n",
+					"        raise RuntimeError(f\"This file type for {filename} is unsupported\")\n",
+					"    \n",
+					"    sparkDF = df.select([col for col in df.columns if not col.startswith('Unnamed')])\n",
+					"    rows_raw = sparkDF.count()\n",
+					"    \n",
+					"    sparkDF = sparkDF.withColumn(\"ingested_datetime\", current_timestamp())\n",
+					"    sparkDF = sparkDF.withColumn(\"ingested_by_process_name\", lit(process_name))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_from\", lit(expected_from))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_to\", lit(expected_to))\n",
+					"    sparkDF = sparkDF.withColumn(\"input_file\", input_file_name())\n",
+					"    sparkDF = sparkDF.withColumn(\"modified_datetime\", current_timestamp())\n",
+					"    sparkDF = sparkDF.withColumn(\"modified_by_process_name\", lit(process_name))\n",
+					"    sparkDF = sparkDF.withColumn(\"entity_name\", lit(source_filename_start))\n",
+					"    sparkDF = sparkDF.withColumn(\"file_ID\", sha2(concat(lit(input_file_name()), current_timestamp().cast(\"string\")), 256))\n",
+					"    \n",
+					"    schema = json.loads(standardised_table_def_json)\n",
+					"    for field in schema['fields']:\n",
+					"        if field['type'] == 'array':\n",
+					"            field['type'] = 'string'\n",
+					"    schema = StructType.fromJson(schema)\n",
+					"    \n",
+					"    cols_orig = sparkDF.schema.names\n",
+					"    cols = [re.sub('[^0-9a-zA-Z]+', '_', i).lower() for i in cols_orig]\n",
+					"    cols = [colm.rstrip('_') for colm in cols]\n",
+					"    newlist = []\n",
+					"    for i, v in enumerate(cols):\n",
+					"        totalcount = cols.count(v)\n",
+					"        count = cols[:i].count(v)\n",
+					"        newlist.append(v + str(count + 1) if totalcount > 1 else v)\n",
+					"    for colix in range(len(cols_orig)):\n",
+					"        sparkDF = sparkDF.toDF(*newlist)\n",
+					"    \n",
+					"    for field in sparkDF.schema:\n",
+					"        table_field = next((f for f in schema if f.name.lower() == field.name.lower()), None)\n",
+					"        if table_field is not None and field.dataType != table_field.dataType:\n",
+					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(table_field.dataType))\n",
+					"    \n",
+					"    env_name = Util.get_environment()\n",
+					"\n",
+					"    if Util.is_non_production_environment():\n",
+					"        try: \n",
+					"            anon_config = AnonymisationConfig()\n",
+					"            try:\n",
+					"                policy_path = Util.get_path_to_file(\"odw-config/anonymisation/policy.yaml\")\n",
+					"                policy_text = spark.read.text(policy_path, wholetext=True).first().value\n",
+					"                anon_config = load_config(text=policy_text)\n",
+					"            except Exception as config_err:\n",
+					"                logInfo(f\"Using default anonymisation config: {config_err}\")\n",
+					"\n",
+					"            engine = AnonymisationEngine(\n",
+					"                config=AnonymisationConfig(\n",
+					"                    classification_allowlist=anon_config.classification_allowlist,\n",
+					"                    seed_column=\"file_ID\"\n",
+					"                )\n",
+					"            )\n",
+					"\n",
+					"            db_name = \"odw_standardised_db\"\n",
+					"            tbl_name = standardised_table_name\n",
+					"\n",
+					"            qualified_name = (\n",
+					"                f\"mssql://pins-synw-odw-{env_name.lower()}-uks-ondemand.sql.azuresynapse.net/\"\n",
+					"                f\"{db_name}/dbo/{tbl_name}\"\n",
+					"            )\n",
+					"\n",
+					"            try:\n",
+					"                client_id = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"synapse-graph-client-id\")\n",
+					"                client_secret = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"synapse-graph-client-secret\")\n",
+					"            except Exception:\n",
+					"                client_id = os.getenv(\"ODW_CLIENT_ID\")\n",
+					"                client_secret = os.getenv(\"ODW_CLIENT_SECRET\")\n",
+					"\n",
+					"            cols = fetch_purview_classifications_by_qualified_name(\n",
+					"                purview_name=\"pins-pview\",\n",
+					"                tenant_id=\"5878df98-6f88-48ab-9322-998ce557088d\",\n",
+					"                client_id=client_id,\n",
+					"                client_secret=client_secret,\n",
+					"                asset_type_name=\"azure_synapse_serverless_sql_table\",\n",
+					"                asset_qualified_name=qualified_name,\n",
+					"            )\n",
+					"\n",
+					"            logInfo(f\"Found {len(cols)} classified columns for {standardised_table_name}\")\n",
+					"\n",
+					"            if cols:\n",
+					"                sparkDF = engine.apply(sparkDF, cols)\n",
+					"                logInfo(\"Anonymisation applied successfully\")\n",
+					"            else:\n",
+					"                logInfo(\"No classifications found, skipping anonymisation\")\n",
+					"\n",
+					"        except Exception as anon_err:\n",
+					"            logError(f\"Anonymisation failed: {anon_err}\")\n",
+					"            ingestion_failure = True\n",
+					"    else:\n",
+					"        logInfo(f\"Environment: {env_name} - Skipping anonymisation\")\n",
+					"    \n",
+					"    \n",
+					"    logInfo(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
+					"    sparkDF.write.option(\"mergeSchema\", \"true\").format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
+					"    logInfo(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
+					"    end_exec_time = datetime.now()\n",
+					"    \n",
+					"    standardised_table_df_new = spark.read.format(\"delta\").load(standardised_table_location)\n",
+					"    rows_new = standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()\n",
+					"    \n",
+					"    #logging and Tracking\n",
+					"    table_name = f\"odw_standardised_db.{definition['Standardised_Table_Name']}\"\n",
+					"    insert_count = rows_new\n",
+					"\n",
+					"    try:\n",
+					"        ingestion_log_schema_loc = f\"abfss://odw-config@{storage_account}tables_logs.json\"\n",
+					"        ingestion_log_schema = spark.read.text(ingestion_log_schema_loc, wholetext=True).first().value\n",
+					"        \n",
+					"        try:\n",
+					"            ingestion_log_df = spark.read.format(\"delta\").load(ingestion_log_table_location)\n",
+					"            table_exists = True\n",
+					"        except Exception as e:\n",
+					"            logInfo(f\"Ingestion log table not found at {ingestion_log_table_location}. Creating a new one.\")\n",
+					"            table_exists = False\n",
+					"        \n",
+					"        new_log_entry = sparkDF.select(\n",
+					"            \"file_ID\",\n",
+					"            \"ingested_datetime\",\n",
+					"            \"ingested_by_process_name\",\n",
+					"            \"input_file\",\n",
+					"            \"modified_datetime\",\n",
+					"            \"modified_by_process_name\",\n",
+					"            \"entity_name\"\n",
+					"        ).limit(1)\n",
+					"        # new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(sparkDF.count()))\n",
+					"        # new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(standardised_table_df.filter((standardised_table_df.expected_from == expected_from) & (standardised_table_df.expected_to == expected_to)).count()))\n",
+					"        rows_raw_count = sparkDF.count()\n",
+					"        rows_new_count = standardised_table_df.filter((col(\"expected_from\") == expected_from) &(col(\"expected_to\") == expected_to) & (col(\"ingested_datetime\") > last_load_date)).count()\n",
+					"        new_log_entry = new_log_entry.withColumn(\"rows_raw\", lit(rows_raw_count))\n",
+					"        new_log_entry = new_log_entry.withColumn(\"rows_new\", lit(rows_new_count))\n",
+					"\n",
+					"        if not table_exists:\n",
+					"            new_log_entry.write.format(\"delta\").option(\"path\", ingestion_log_table_location).saveAsTable(f\"logging.{logging_table_name}\")\n",
+					"            logInfo(f\"Updating ingestion logging table {logging_table_name} with first entry.\")\n",
+					"        else:\n",
+					"            new_log_entry.write.format(\"delta\").mode(\"append\").saveAsTable(f\"logging.{logging_table_name}\")\n",
+					"            logInfo(\"Appended to existing ingestion logging table with new entry\")\n",
+					"    \n",
+					"    except Exception as e:\n",
+					"        logInfo('Logging to tables_logs failed')\n",
+					"    \n",
+					"    if rows_raw <= rows_new:\n",
+					"        logInfo('All rows have successfully been written')\n",
+					"    else:\n",
+					"        logError(f\"All rows have NOT been successfully written. Expected {rows_raw} but {rows_new} written\")\n",
+					"        ingestion_failure = True\n",
+					"    \n",
+					"    return ingestion_failure, rows_raw,standardised_table_name,end_exec_time"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"@logging_to_appins\n",
 					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
@@ -582,7 +799,7 @@
 					"\n",
 					"    return row_count, error_message,standardised_table_name,start_exec_time,end_exec_time"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -655,7 +872,7 @@
 					"    import sys\n",
 					"    sys.exit(1)  # Quits the notebook with error code 1"
 				],
-				"execution_count": null
+				"execution_count": 13
 			}
 		]
 	}
