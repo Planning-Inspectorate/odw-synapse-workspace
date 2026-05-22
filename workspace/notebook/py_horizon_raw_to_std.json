@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f4a734e3-5565-43d5-8a73-3c7262f41979"
+				"spark.autotune.trackingId": "2efa47af-8954-4ae9-bf9d-891b17a242e9"
 			}
 		},
 		"metadata": {
@@ -170,7 +170,8 @@
 					"from delta import DeltaTable\n",
 					"from odw.core.util.util import Util\n",
 					"from odw.core.anonymisation.config import load_config, AnonymisationConfig\n",
-					"from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name"
+					"from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name\n",
+					"from pyspark.sql.functions import sha2, concat_ws"
 				],
 				"execution_count": null
 			},
@@ -448,6 +449,11 @@
 					"    sparkDF = sparkDF.withColumn(\"entity_name\", lit(source_filename_start))\n",
 					"    sparkDF = sparkDF.withColumn(\"file_ID\", sha2(concat(lit(input_file_name()), current_timestamp().cast(\"string\")), 256))\n",
 					"    \n",
+					"    sparkDF = sparkDF.withColumn(\n",
+					"    \"hash_id\",\n",
+					"    sha2(concat_ws(\"||\", *[c for c in sparkDF.columns if c != \"file_ID\"]), 256))\n",
+					"\n",
+					"    \n",
 					"    schema = json.loads(standardised_table_def_json)\n",
 					"    for field in schema['fields']:\n",
 					"        if field['type'] == 'array':\n",
@@ -485,7 +491,7 @@
 					"            engine = AnonymisationEngine(\n",
 					"                config=AnonymisationConfig(\n",
 					"                    classification_allowlist=anon_config.classification_allowlist,\n",
-					"                    seed_column=\"file_ID\"\n",
+					"                    seed_column=\"hash_id\"\n",
 					"                )\n",
 					"            )\n",
 					"\n",
