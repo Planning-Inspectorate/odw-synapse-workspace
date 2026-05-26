@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "201c517a-27a6-448f-bf46-8936f9afc5cb"
+				"spark.autotune.trackingId": "e4c5f97d-cb22-4139-b6a7-4295fa5bb3df"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,11 @@
 						"transient": {
 							"deleting": false
 						}
-					}
+					},
+					"run_control": {
+						"frozen": false
+					},
+					"editable": false
 				},
 				"source": [
 					"## Prerequisites\n",
@@ -90,14 +94,14 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": null
+				"execution_count": 137
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_mount_storage"
 				],
-				"execution_count": null
+				"execution_count": 138
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +119,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 139
 			},
 			{
 				"cell_type": "markdown",
@@ -135,7 +139,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 140
 			},
 			{
 				"cell_type": "markdown",
@@ -173,7 +177,7 @@
 					"from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name\n",
 					"from pyspark.sql.functions import sha2, concat_ws"
 				],
-				"execution_count": null
+				"execution_count": 141
 			},
 			{
 				"cell_type": "markdown",
@@ -216,7 +220,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 142
 			},
 			{
 				"cell_type": "markdown",
@@ -240,7 +244,7 @@
 					"standardised_container = f\"abfss://odw-standardised@{storage_account}\"\n",
 					"print(standardised_container)"
 				],
-				"execution_count": null
+				"execution_count": 143
 			},
 			{
 				"cell_type": "markdown",
@@ -273,7 +277,7 @@
 					"else:\n",
 					"    print(\"No folders found in the specified directory.\")"
 				],
-				"execution_count": null
+				"execution_count": 144
 			},
 			{
 				"cell_type": "markdown",
@@ -297,7 +301,7 @@
 					"horizon_files\n",
 					" # comment this during the full execution"
 				],
-				"execution_count": null
+				"execution_count": 145
 			},
 			{
 				"cell_type": "markdown",
@@ -361,7 +365,7 @@
 					"    \n",
 					"    logInfo(f\"Table '{db_name}.{table_name}' created successfully!\")"
 				],
-				"execution_count": null
+				"execution_count": 146
 			},
 			{
 				"cell_type": "markdown",
@@ -379,6 +383,181 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"@logging_to_appins\n",
+					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
+					"\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"    spark.conf.set(\"spark.databricks.delta.schema.autoMerge.enabled\", \"true\")\n",
+					"\n",
+					"    ingestion_failure = False\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # BASIC INFO\n",
+					"    # -------------------------------\n",
+					"    standardised_table_name = definition['Standardised_Table_Name']\n",
+					"    source_filename_start = definition['Source_Filename_Start']\n",
+					"    process_name = mssparkutils.runtime.context['currentNotebookName']\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # ✅ SCHEMA LOAD\n",
+					"    # -------------------------------\n",
+					"    if 'Standardised_Table_Definition' in definition:\n",
+					"        standardised_table_loc = f\"abfss://odw-config@{storage_account}\" + definition['Standardised_Table_Definition']\n",
+					"        standardised_table_def_json = spark.read.text(\n",
+					"            standardised_table_loc, wholetext=True\n",
+					"        ).first().value\n",
+					"    else:\n",
+					"        standardised_table_def_json = mssparkutils.notebook.run(\n",
+					"            '/py_get_schema_from_url',\n",
+					"            30,\n",
+					"            {'db_name': 'odw_standardised_db',\n",
+					"             'entity_name': definition['Source_Frequency_Folder']}\n",
+					"        )\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # READ SOURCE FILE\n",
+					"    # -------------------------------\n",
+					"    df = spark.read.options(\n",
+					"        quote='\"',\n",
+					"        escape='\\\\',\n",
+					"        encoding='utf8',\n",
+					"        header=True,\n",
+					"        multiLine=True,\n",
+					"        columnNameOfCorruptRecord='corrupted_records',\n",
+					"        mode=\"PERMISSIVE\"\n",
+					"    ).csv(f\"{folder_path}/{filename}\")\n",
+					"\n",
+					"    sparkDF = df.select([c for c in df.columns if not c.startswith('Unnamed')])\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # ADD METADATA\n",
+					"    # -------------------------------\n",
+					"    sparkDF = sparkDF.withColumn(\"ingested_datetime\", current_timestamp())\n",
+					"    sparkDF = sparkDF.withColumn(\"ingested_by_process_name\", lit(process_name))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_from\", lit(expected_from))\n",
+					"    sparkDF = sparkDF.withColumn(\"expected_to\", lit(expected_to))\n",
+					"    sparkDF = sparkDF.withColumn(\"input_file\", input_file_name())\n",
+					"    sparkDF = sparkDF.withColumn(\"modified_datetime\", current_timestamp())\n",
+					"    sparkDF = sparkDF.withColumn(\"modified_by_process_name\", lit(process_name))\n",
+					"    sparkDF = sparkDF.withColumn(\"entity_name\", lit(source_filename_start))\n",
+					"\n",
+					"    sparkDF = sparkDF.withColumn(\n",
+					"        \"file_ID\",\n",
+					"        sha2(concat(lit(input_file_name()), current_timestamp().cast(\"string\")), 256)\n",
+					"    )\n",
+					"\n",
+					"    sparkDF = sparkDF.withColumn(\n",
+					"        \"hash_id\",\n",
+					"        sha2(concat_ws(\"||\", *[c for c in sparkDF.columns if c != \"file_ID\"]), 256)\n",
+					"    )\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # CLEAN COLUMN NAMES\n",
+					"    # -------------------------------\n",
+					"    cols_orig = sparkDF.columns\n",
+					"    cols_clean = [re.sub('[^0-9a-zA-Z]+', '_', c).lower().rstrip('_') for c in cols_orig]\n",
+					"\n",
+					"    sparkDF = sparkDF.toDF(*cols_clean)\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # SCHEMA CASTING\n",
+					"    # -------------------------------\n",
+					"    schema_dict = json.loads(standardised_table_def_json)\n",
+					"\n",
+					"    for field in schema_dict['fields']:\n",
+					"        if field['type'] == 'array':\n",
+					"            field['type'] = 'string'\n",
+					"\n",
+					"    schema = StructType.fromJson(schema_dict)\n",
+					"\n",
+					"    for field in schema:\n",
+					"        if field.name in sparkDF.columns:\n",
+					"            sparkDF = sparkDF.withColumn(\n",
+					"                field.name,\n",
+					"                col(field.name).cast(field.dataType)\n",
+					"            )\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # ✅ ✅ FINAL ANONYMISATION\n",
+					"    # -------------------------------\n",
+					"    env_name = Util.get_environment()\n",
+					"\n",
+					"    if Util.is_non_production_environment():\n",
+					"        try:\n",
+					"            logInfo(\"Entering anonymisation block\")\n",
+					"\n",
+					"            policy_path = Util.get_path_to_file(\"odw-config/anonymisation/policy.yaml\")\n",
+					"            policy_text = spark.read.text(policy_path, wholetext=True).first().value\n",
+					"            anon_config = load_config(text=policy_text)\n",
+					"\n",
+					"            engine = AnonymisationEngine(\n",
+					"                config=AnonymisationConfig(\n",
+					"                    classification_allowlist=anon_config.classification_allowlist,\n",
+					"                    seed_column=\"hash_id\"\n",
+					"                )\n",
+					"            )\n",
+					"\n",
+					"            qualified_name = (\n",
+					"                f\"mssql://pins-synw-odw-{env_name.lower()}-uks-ondemand.sql.azuresynapse.net/\"\n",
+					"                f\"odw_standardised_db/dbo/{standardised_table_name}\"\n",
+					"            )\n",
+					"\n",
+					"            client_id = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"synapse-graph-client-id\")\n",
+					"            client_secret = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"synapse-graph-client-secret\")\n",
+					"\n",
+					"            purview_cols = fetch_purview_classifications_by_qualified_name(\n",
+					"                purview_name=\"pins-pview\",\n",
+					"                tenant_id=\"5878df98-6f88-48ab-9322-998ce557088d\",\n",
+					"                client_id=client_id,\n",
+					"                client_secret=client_secret,\n",
+					"                asset_type_name=\"azure_synapse_serverless_sql_table\",\n",
+					"                asset_qualified_name=qualified_name,\n",
+					"            )\n",
+					"\n",
+					"            # ✅ IMPORTANT: pass FULL objects\n",
+					"            matching_cols = [\n",
+					"                c for c in purview_cols\n",
+					"                if isinstance(c, dict)\n",
+					"                and c.get(\"column_name\")\n",
+					"                and c.get(\"column_name\").lower() in sparkDF.columns\n",
+					"            ]\n",
+					"\n",
+					"            logInfo(f\"Matching classified columns: {matching_cols}\")\n",
+					"\n",
+					"            if matching_cols:\n",
+					"                sparkDF = engine.apply(sparkDF, matching_cols)\n",
+					"                logInfo(\"✅ Anonymisation applied\")\n",
+					"            else:\n",
+					"                logInfo(\"No matching columns found\")\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            logError(f\"Anonymisation failed: {e}\")\n",
+					"            ingestion_failure = True\n",
+					"\n",
+					"    # -------------------------------\n",
+					"    # WRITE DATA\n",
+					"    # -------------------------------\n",
+					"    sparkDF.write \\\n",
+					"        .option(\"mergeSchema\", \"true\") \\\n",
+					"        .format(\"delta\") \\\n",
+					"        .mode(\"append\") \\\n",
+					"        .saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
+					"\n",
+					"    logInfo(\"Data written successfully\")\n",
+					"\n",
+					"    return ingestion_failure, sparkDF.count(), standardised_table_name, datetime.now()"
+				],
+				"execution_count": 151
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"editable": false,
+					"run_control": {
+						"frozen": true
+					}
+				},
 				"source": [
 					"@logging_to_appins\n",
 					"def ingest_adhoc(storage_account, definition, folder_path, filename, expected_from, expected_to):\n",
@@ -591,7 +770,7 @@
 					"    \n",
 					"    return ingestion_failure, rows_raw,standardised_table_name,end_exec_time"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "code",
@@ -808,7 +987,7 @@
 					"\n",
 					"    return row_count, error_message,standardised_table_name,start_exec_time,end_exec_time"
 				],
-				"execution_count": null
+				"execution_count": 152
 			},
 			{
 				"cell_type": "code",
@@ -881,7 +1060,37 @@
 					"    import sys\n",
 					"    sys.exit(1)  # Quits the notebook with error code 1"
 				],
-				"execution_count": null
+				"execution_count": 153
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df = spark.read.table(\"odw_standardised_db.horizon_appeals_additional_data\")\n",
+					"\n",
+					"display(df.select(\"appellant\").distinct().limit(20))"
+				],
+				"execution_count": 154
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.functions import col, to_date, current_date, date_sub\n",
+					"\n",
+					"df = spark.read.table(\"odw_standardised_db.horizon_appeals_additional_data\")\n",
+					"\n",
+					"yesterday_df = df.filter(\n",
+					"    to_date(col(\"ingested_datetime\")) == date_sub(current_date(), 1)\n",
+					")\n",
+					"\n",
+					"display(yesterday_df.select(\"appellant\"))"
+				],
+				"execution_count": 155
 			}
 		]
 	}
