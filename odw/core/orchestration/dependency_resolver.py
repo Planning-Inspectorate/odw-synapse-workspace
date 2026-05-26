@@ -1,22 +1,16 @@
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
 from graphlib import TopologicalSorter
 from typing import List, Dict, Any, Union
-import yaml
 
 
 class DependencyResolver:
-    def __init__(self, config_path: str = None, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any]):
         """
-        :param config_path str: The path to some yaml file config to load
-        :param config Dict: The config
+        :param config Dict: The orchestration config
         """
-        if not bool(config_path) != bool(config):
-            raise ValueError("Expected exactly one of config_path or config parameter to be provided")
-        if config_path:
-            with open(config_path, "r") as f:
-                self.config = yaml.safe_load(f)
-        else:
-            self.config = config
+        if not isinstance(config, dict):
+            raise ValueError(f"Expected the given config to be a dictionary, but was of type {type(config)}")
+        self.config = config
         # Validate the config to ensure it does not have any missing or unexpected properties
         OrchestrationConfig.model_validate(self.config)
 
@@ -44,10 +38,3 @@ class DependencyResolver:
             for node in ready_nodes:
                 sorter.done(node)
         return [[entity_stages[entity_stage_name] for entity_stage_name in group] for group in ordered_groups]
-
-
-resolver = DependencyResolver(config_path="odw/core/orchestration/config.yaml")
-order = resolver.topological_sort()
-for group in order:
-    print(group)
-    print()
