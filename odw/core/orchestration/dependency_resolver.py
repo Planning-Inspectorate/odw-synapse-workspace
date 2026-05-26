@@ -11,9 +11,20 @@ class DependencyResolver:
         """
         if not isinstance(config, dict):
             raise ValueError(f"Expected the given config to be a dictionary, but was of type {type(config)}")
-        self.config = config
         # Validate the config to ensure it does not have any missing or unexpected properties
-        OrchestrationConfig.model_validate(self.config)
+        OrchestrationConfig.model_validate(config)
+        self.config = self._preprocess_config(config)
+
+    def _preprocess_config(self, config: Dict[str, Any]):
+        """
+        Add a `entity_stage_name` key to each entity stage in the config
+        """
+        config_copy = deepcopy(config)
+        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = config_copy.get("entities", dict())
+        for entity_name, entity in entities:
+            for stage_name, stage in entity:
+                stage["entity_stage_name"] = f"{entity_name}.{stage_name}"
+        return config_copy
 
     def topological_sort(self):
         """
@@ -40,10 +51,12 @@ class DependencyResolver:
                 sorter.done(node)
         return [[entity_stages[entity_stage_name] for entity_stage_name in group] for group in ordered_groups]
 
-    def filter_config(self, entity_stages_to_keep: List[str]):
+    def filter_irrelevant_dependencies_from_config(self, entity_stages_to_keep: List[str] = []):
         """
         Immutably filter down the config so that it only includes the direct and indirect dependends of the given stages
         """
+        if not entity_stages_to_keep:
+            return deepcopy(self.config)
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
         visited = set()
@@ -65,3 +78,25 @@ class DependencyResolver:
         config_copy = deepcopy(self.config)
         config_copy["entities"] = cleaned_entities
         return config_copy
+
+    def filter_already_executed_entity_stages(self, topological_order_groups: List[List[Dict[str, Any]]], execution_details: List[Dict[str, Any]]):
+        """
+        Filter out entity stages from the topological order than have already veen marked as completed by the pipeline
+        """
+        # Might need to change this depending on how the data is structured
+        entity_stage_execution_details = {
+            f"{entity_name}.{stage_name}" for entity_name, stage_name, execution_status in execution_details if execution_status != "Success"
+        }
+        cleaned_groups = [
+            [entity for entity in group if entity["entity_stage_name"] in entity_stage_execution_details] for group in topological_order_groups
+        ]
+        return [x for x in cleaned_groups if x]
+
+    def generate_stages_to_run(self, entity_stages: List[str], execution_details: Dict[str, Any]):
+        """
+        Filter down the config so that only relevent entities are executed and group them into batches that can run concurrently
+        """
+        filtered_config = self.filter_irrelevant_dependencies_from_config()
+        groups = self.topological_sort(filtered_config)
+        filtered_groups = self.filter_already_executed_entity_stages(groups, entity_stages)
+        return self.filter_already_executed_entity_stages(filtered_groups, execution_details)
