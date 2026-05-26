@@ -65,7 +65,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
 
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_s51_advice"
     HORIZON_TABLE = "odw_standardised_db.horizon_nsip_advice"
-    OUTPUT_TABLE = "odw_harmonised_db.nsip_s51_advice"
+    OUTPUT_TABLE = "nsip_s51_advice"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
@@ -236,7 +236,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         horizon_data = horizon_data.join(horizon_agg, on="adviceId", how="inner")
 
         # Step 2: Align Horizon columns to SB columns and union
-        LoggingUtil().log_info(f"Combining data for {self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
         horizon_data = horizon_data.select(service_bus_data.columns)
         combined = service_bus_data.union(horizon_data)
 
@@ -336,14 +336,14 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         insert_count = hrm_final.count()
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": hrm_final,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "nsip_s51_advice",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "nsip_s51_advice",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -356,7 +356,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
