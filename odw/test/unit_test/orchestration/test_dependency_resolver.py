@@ -76,3 +76,35 @@ def test__dependency_resolver__topological_sort__with_cycle():
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
         with pytest.raises(CycleError):
             DependencyResolver(example_config).topological_sort()
+
+
+def test__dependency_resolver__filter_config():
+    example_config = {
+        "entities": {
+            "entity-a": {
+                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
+                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+            },
+            "entity-b": {
+                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []}, # Should be filtered out
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+            },
+            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+        }
+    }
+    required_entity_stages = ["entity-c.curated"]
+    expected_output = {
+        "entities": {
+            "entity-a": {
+                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
+                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+            },
+            "entity-b": {
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+            },
+            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+        }
+    }
+    with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
+        actual_output = DependencyResolver(example_config).filter_config(required_entity_stages)
+        assert actual_output == expected_output

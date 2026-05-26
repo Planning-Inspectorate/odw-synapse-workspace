@@ -1,6 +1,7 @@
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
 from graphlib import TopologicalSorter
 from typing import List, Dict, Any, Union
+from copy import deepcopy
 
 
 class DependencyResolver:
@@ -38,3 +39,29 @@ class DependencyResolver:
             for node in ready_nodes:
                 sorter.done(node)
         return [[entity_stages[entity_stage_name] for entity_stage_name in group] for group in ordered_groups]
+
+    def filter_config(self, entity_stages_to_keep: List[str]):
+        """
+        Immutably filter down the config so that it only includes the direct and indirect dependends of the given stages
+        """
+        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
+        entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
+        visited = set()
+        unvisited = [x for x in entity_stages_to_keep]
+        while unvisited:
+            current = unvisited.pop()
+            unvisited.extend(entity_stages[current].get("depends_on", []))
+            visited.add(current)
+        cleaned_entities = dict()
+        for entity_stage_name in visited:
+            entity_stage_name_split = entity_stage_name.split(".")
+            entity_name = entity_stage_name_split[0]
+            stage_name = entity_stage_name_split[1]
+            entity_stage = entity_stages[entity_stage_name]
+            if entity_name not in cleaned_entities:
+                cleaned_entities[entity_name] = {stage_name: entity_stage}
+            else:
+                cleaned_entities[entity_name][stage_name] = entity_stage
+        config_copy = deepcopy(self.config)
+        config_copy["entities"] = cleaned_entities
+        return config_copy
