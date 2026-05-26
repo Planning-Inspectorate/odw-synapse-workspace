@@ -1,5 +1,4 @@
 import mock
-import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
@@ -7,10 +6,6 @@ from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process i
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
-
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
 
 CURATED_COLUMNS = [
     "id",
@@ -67,7 +62,6 @@ def _minimal_harmonised_df(spark):
 class TestAppealEventEstimateCuratedProcess(ETLTestCase):
     def _run_process(self, spark, test_case: str, source_df):
         harmonised_table = f"{test_case}_sb_appeal_event_estimate"
-        curated_table = f"{test_case}_appeal_event_estimate"
 
         self.write_existing_table(
             spark,
@@ -79,23 +73,16 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
             "overwrite",
         )
 
-        with (
-            mock.patch.object(
-                AppealEventEstimateCuratedProcess,
-                "SOURCE_TABLE",
-                f"odw_harmonised_db.{harmonised_table}",
-            ),
-            mock.patch.object(
-                AppealEventEstimateCuratedProcess,
-                "OUTPUT_TABLE",
-                curated_table,
-            ),
+        with mock.patch.object(
+            AppealEventEstimateCuratedProcess,
+            "HARMONISED_TABLE",
+            f"odw_harmonised_db.{harmonised_table}",
         ):
             inst = AppealEventEstimateCuratedProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
 
-        actual_df = spark.table(f"odw_curated_db.{curated_table}")
+        actual_df = spark.table("odw_curated_db.appeal_event_estimate")
 
         return actual_df, result
 

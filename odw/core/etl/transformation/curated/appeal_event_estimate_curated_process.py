@@ -3,6 +3,8 @@ from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import StringType
 from datetime import datetime
 from typing import Dict, Tuple
 
@@ -24,6 +26,14 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_event_estimate"
     OUTPUT_TABLE = "odw_curated_db.appeal_event_estimate"
 
+    CURATED_COLUMNS = [
+        "id",
+        "caseReference",
+        "preparationTime",
+        "sittingTime",
+        "reportingTime",
+    ]
+
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
 
@@ -33,51 +43,39 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
-        Load source data, selecting only the columns needed from harmonised.
+        Load harmonised Appeal Event Estimate data. All business rules are applied in `process`.
         """
         LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")
-        harmonised_appeal_event_estimate = self.spark.sql(f"""
-            SELECT
-                id,
-                caseReference,
-                preparationTime,
-                sittingTime,
-                reportingTime
-            FROM {self.HARMONISED_TABLE}
-            WHERE IsActive = 'Y'
-        """)
-
-        # Resolve the output table path so process() stays pure transformation.
-        table_path = self._resolve_table_path()
-
+        harmonised_appeal_event_estimate = self.spark.sql(f"SELECT * FROM {self.HARMONISED_TABLE}")
         return {
             "harmonised_appeal_event_estimate": harmonised_appeal_event_estimate,
-            "table_path": table_path,
         }
-
-    def _resolve_table_path(self):
-        """Resolve the Delta table location via DESCRIBE EXTENDED."""
-        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
-        rows = df.filter(df.col_name == "Location").select("data_type").collect()
-        return rows[0]["data_type"] if rows else None
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
         Apply curated transformations to the loaded source data.
-        Reads from harmonised Appeal Event Estimate and writes to curated.
+
+        Business logic (matches legacy notebook):
+        - Filter rows where IsActive = 'Y'
+        - Project the curated column set (any column missing on the source is emitted as null)
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        dataFrame: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
-        table_path = self.load_parameter("table_path", source_data)
+        harmonised: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
 
-        insert_count = dataFrame.count()
+        df = harmonised.where(F.col("IsActive") == F.lit("Y"))
+        for col_name in self.CURATED_COLUMNS:
+            if col_name not in df.columns:
+                df = df.withColumn(col_name, F.lit(None).cast(StringType()))
+        df = df.select(*[F.col(col_name) for col_name in self.CURATED_COLUMNS])
+
+        insert_count = df.count()
         LoggingUtil().log_info(f"Curated Appeal Event Estimate row count: {insert_count}")
 
         end_exec_time = datetime.now()
         data_to_write = {
             self.OUTPUT_TABLE: {
-                "data": dataFrame,
+                "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
                 "table_name": "appeal_event_estimate",
@@ -87,7 +85,6 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
-                "path": table_path,
             }
         }
 
