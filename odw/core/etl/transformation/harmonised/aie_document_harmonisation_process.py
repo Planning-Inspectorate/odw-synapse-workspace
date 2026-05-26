@@ -70,7 +70,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
     """
 
     HORIZON_TABLE = "odw_standardised_db.aie_document_data"
-    OUTPUT_TABLE = "odw_harmonised_db.aie_document_data"
+    OUTPUT_TABLE = "aie_document_data"
     PRIMARY_KEY = "TEMP_PK"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
@@ -243,14 +243,14 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         insert_count = final_df.count()
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "aie_document_data",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "aie_document_data",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -263,7 +263,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
