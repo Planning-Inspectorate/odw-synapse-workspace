@@ -1,5 +1,6 @@
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.util.util import Util
 import gc
 from pyspark.sql import SparkSession, DataFrame
 from odw.test.util.util import format_to_adls_path
@@ -62,6 +63,7 @@ class SparkTestCase(TestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
         ):
             yield
 
