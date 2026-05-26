@@ -24,6 +24,21 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
 
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_event_estimate"
     OUTPUT_TABLE = "odw_curated_db.appeal_event_estimate_curated_mipins"
+    CURATED_COLUMNS = [
+        "AppealsEstimateEventID",
+        "ID",
+        "caseReference",
+        "preparationTime",
+        "sittingTime",
+        "reportingTime",
+        "migrated",
+        "ODTSourceSystem",
+        "SourceSystemID",
+        "IngestionDate",
+        "ValidTo",
+        "ROWID",
+        "ISActive",
+    ]
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
@@ -33,45 +48,12 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
         return "appeal_event_estimate_curated_mipins_process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        """
-        Load source data, selecting only the columns needed from service bus.
-        """
         LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")
-        harmonised_appeal_event_estimate = self.spark.sql(f"""
-            SELECT DISTINCT
-                AppealsEstimateEventID,
-                ID,
-                caseReference,
-                preparationTime,
-                sittingTime,
-                reportingTime,
-                migrated,
-                ODTSourceSystem,
-                SourceSystemID,
-                IngestionDate,
-                ValidTo,
-                ROWID,
-                ISActive
-            FROM {self.HARMONISED_TABLE}
-            WHERE
-                ODTSourceSystem = 'ODT'
-                AND (IngestionDate IS NULL OR IngestionDate >= TIMESTAMP('1900-01-01'))
-                AND (ValidTo IS NULL OR ValidTo >= TIMESTAMP('1900-01-01'))
-        """)
-
-        # Resolve the output table path so process() stays pure transformation.
-        table_path = self._resolve_table_path()
+        harmonised_appeal_event_estimate = self.spark.sql(f"SELECT * FROM {self.HARMONISED_TABLE}")
 
         return {
             "harmonised_appeal_event_estimate": harmonised_appeal_event_estimate,
-            "table_path": table_path,
         }
-
-    def _resolve_table_path(self):
-        """Resolve the Delta table location via DESCRIBE EXTENDED."""
-        df = self.spark.sql(f"DESCRIBE EXTENDED {self.OUTPUT_TABLE}")
-        rows = df.filter(df.col_name == "Location").select("data_type").collect()
-        return rows[0]["data_type"] if rows else None
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
         """
@@ -81,11 +63,19 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         dataFrame: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
-        table_path = self.load_parameter("table_path", source_data)
 
-        # Convert UTC timestamps to Europe/London timezone
-        timestamp_columns = ["IngestionDate", "ValidTO"]
-        for column_name in timestamp_columns:
+        cutoff = F.lit("1900-01-01").cast("timestamp")
+        dataFrame = (
+            dataFrame.where(
+                (F.col("ODTSourceSystem") == F.lit("ODT"))
+                & (F.col("IngestionDate").isNull() | (F.col("IngestionDate") >= cutoff))
+                & (F.col("ValidTo").isNull() | (F.col("ValidTo") >= cutoff))
+            )
+            .select(*[F.col(c) for c in self.CURATED_COLUMNS])
+            .distinct()
+        )
+
+        for column_name in ["IngestionDate", "ValidTo"]:
             dataFrame = dataFrame.withColumn(
                 column_name,
                 F.to_timestamp(
@@ -110,7 +100,6 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
-                "path": table_path,
             }
         }
 

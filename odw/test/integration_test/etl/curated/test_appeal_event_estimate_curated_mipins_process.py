@@ -9,10 +9,6 @@ from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS logic not implemented yet")
-
-
 CURATED_COLUMNS = [
     "AppealsEstimateEventID",
     "ID",
@@ -97,7 +93,7 @@ def _harmonised_df(spark):
                 "N",
                 "ODT",
                 "SRC-003",
-                datetime(1899, 12, 31, 23, 59, 59),
+                None,
                 datetime(2025, 7, 2, 10, 0, 0),
                 "ROW-003",
                 "Y",
@@ -113,7 +109,7 @@ def _harmonised_df(spark):
                 "ODT",
                 "SRC-004",
                 datetime(2025, 7, 1, 10, 0, 0),
-                datetime(1899, 12, 31, 23, 59, 59),
+                None,
                 "ROW-004",
                 "Y",
             ),
@@ -134,6 +130,15 @@ def _harmonised_df(spark):
             ),
         ],
         _harmonised_schema(),
+    )
+
+    pre1900 = F.lit("1899-12-31 23:59:59").cast(T.TimestampType())
+    df = df.withColumn(
+        "IngestionDate",
+        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-003", pre1900).otherwise(F.col("IngestionDate")),
+    ).withColumn(
+        "ValidTo",
+        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-004", pre1900).otherwise(F.col("ValidTo")),
     )
 
     return df.withColumn("extraColumn", F.lit("ignore me"))
@@ -183,9 +188,17 @@ def _existing_curated_df(spark):
 
 
 class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
+    @pytest.fixture(autouse=True)
+    def _allow_ancient_datetimes(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        spark.conf.set("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED")
+        spark.conf.set("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
+        spark.conf.set("spark.sql.parquet.int96RebaseModeInWrite", "CORRECTED")
+        spark.conf.set("spark.sql.parquet.int96RebaseModeInRead", "CORRECTED")
+        yield
+
     def _run_process(self, spark, test_case: str):
         harmonised_table = f"{test_case}_sb_appeal_event_estimate"
-        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
 
         self.write_existing_table(
             spark,
@@ -197,23 +210,16 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
             "overwrite",
         )
 
-        with (
-            mock.patch.object(
-                AppealEventEstimateCuratedMipinsProcess,
-                "SOURCE_TABLE",
-                f"odw_harmonised_db.{harmonised_table}",
-            ),
-            mock.patch.object(
-                AppealEventEstimateCuratedMipinsProcess,
-                "OUTPUT_TABLE",
-                curated_table,
-            ),
+        with mock.patch.object(
+            AppealEventEstimateCuratedMipinsProcess,
+            "HARMONISED_TABLE",
+            f"odw_harmonised_db.{harmonised_table}",
         ):
             inst = AppealEventEstimateCuratedMipinsProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
 
-        actual_df = spark.table(f"odw_curated_db.{curated_table}")
+        actual_df = spark.table("odw_curated_db.appeal_event_estimate_curated_mipins")
 
         return actual_df, result
 
@@ -297,15 +303,13 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
         test_case = "t_aeecm_r_oeot"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
-
         self.write_existing_table(
             spark,
             _existing_curated_df(spark),
-            curated_table,
+            "appeal_event_estimate_curated_mipins",
             "odw_curated_db",
             "odw-curated",
-            curated_table,
+            "appeal_event_estimate_curated_mipins",
             "overwrite",
         )
 
@@ -319,7 +323,6 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_table = f"{test_case}_sb_appeal_event_estimate"
-        curated_table = f"{test_case}_appeal_event_estimate_curated_mipins"
 
         self.write_existing_table(
             spark,
@@ -331,23 +334,16 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
             "overwrite",
         )
 
-        with (
-            mock.patch.object(
-                AppealEventEstimateCuratedMipinsProcess,
-                "SOURCE_TABLE",
-                f"odw_harmonised_db.{harmonised_table}",
-            ),
-            mock.patch.object(
-                AppealEventEstimateCuratedMipinsProcess,
-                "OUTPUT_TABLE",
-                curated_table,
-            ),
+        with mock.patch.object(
+            AppealEventEstimateCuratedMipinsProcess,
+            "HARMONISED_TABLE",
+            f"odw_harmonised_db.{harmonised_table}",
         ):
             inst = AppealEventEstimateCuratedMipinsProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
 
-        actual_df = spark.table(f"odw_curated_db.{curated_table}")
+        actual_df = spark.table("odw_curated_db.appeal_event_estimate_curated_mipins")
 
         assert actual_df.count() == 0
         assert actual_df.columns == CURATED_COLUMNS
