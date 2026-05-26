@@ -1,0 +1,259 @@
+{
+	"name": "nb_test_seed_raw_service_bus",
+	"properties": {
+		"folder": {
+			"name": "utils/test"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 32,
+				"automaticScaleJobs": true
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# nb_test_seed_raw_service_bus\n",
+					"\n",
+					"Writes synthetic Service Bus messages directly to the RAW layer for **any entity**\n",
+					"defined in `orchestration_service_bus.json`, simulating what the Wake & Drain\n",
+					"Azure Function would normally write.\n",
+					"\n",
+					"Use this to test `pln_service_bus` end-to-end without needing a live Service Bus message.\n",
+					"\n",
+					"**Before running:** `message_enqueued_time_utc` defaults to `utcnow()` so messages are\n",
+					"always newer than any stored watermark. To force a clean first-run, reset the watermark:\n",
+					"```sql\n",
+					"DELETE FROM odw_meta_db.service_bus_watermarks\n",
+					"WHERE entity = '<entity_name>' AND source = 'service-bus';\n",
+					"```"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Entity name as it appears in orchestration_service_bus.json\n",
+					"entity_name = 'nsip-project'\n",
+					"\n",
+					"# Number of test messages to write\n",
+					"num_messages = 3\n",
+					"\n",
+					"# Override the enqueued timestamp. Leave as None to use utcnow().\n",
+					"override_enqueued_time = None\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"import uuid\n",
+					"from datetime import datetime, timezone\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.types import (\n",
+					"    StructType, StructField,\n",
+					"    LongType, IntegerType, ShortType, ByteType,\n",
+					"    DoubleType, FloatType, DecimalType,\n",
+					"    BooleanType, ArrayType, MapType\n",
+					")\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Load entity config from orchestration file"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"config_path = f'abfss://odw-config@{storage_account}/orchestration/orchestration_service_bus.json'\n",
+					"config = json.loads(mssparkutils.fs.head(config_path, 1_000_000))\n",
+					"\n",
+					"entity_config = next(\n",
+					"    (e for e in config['entities'] if e['entity_name'] == entity_name),\n",
+					"    None\n",
+					")\n",
+					"assert entity_config, f'Entity \"{entity_name}\" not found in orchestration_service_bus.json'\n",
+					"\n",
+					"raw_entity_path  = entity_config['raw_entity_path']   # e.g. 'ServiceBus/nsip-project/'\n",
+					"primary_key      = entity_config['primary_key']        # e.g. 'caseId'\n",
+					"watermark_column = entity_config['watermark_column']   # e.g. 'message_enqueued_time_utc'\n",
+					"\n",
+					"today     = datetime.now(timezone.utc).strftime('%Y-%m-%d')\n",
+					"base_path = f'abfss://odw-raw@{storage_account}{raw_entity_path}{today}'\n",
+					"\n",
+					"print(f'entity        : {entity_name}')\n",
+					"print(f'primary_key   : {primary_key}')\n",
+					"print(f'raw path      : {base_path}')\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Check current watermark"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    wm = spark.sql(\n",
+					"        f\"SELECT last_ingest_time, updated_at \"\n",
+					"        f\"FROM odw_meta_db.service_bus_watermarks \"\n",
+					"        f\"WHERE entity = '{entity_name}' AND source = 'service-bus'\"\n",
+					"    ).collect()\n",
+					"    if wm:\n",
+					"        print(f'Current watermark : {wm[0][\"last_ingest_time\"]}')\n",
+					"        print('Test messages will use utcnow() — they will be newer than this watermark.')\n",
+					"    else:\n",
+					"        print('No watermark found — all records will be processed (first run).')\n",
+					"except Exception as e:\n",
+					"    print(f'Could not read watermark table (may not exist yet): {e}')\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Derive field types from entity schema\n",
+					"\n",
+					"Uses `py_create_spark_schema` to fetch the full entity schema so test values\n",
+					"are generated with the correct type for each field."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# These columns are added by read_raw_messages — not present in raw JSON files\n",
+					"_COMPUTED_COLUMNS = {'ingested_datetime', 'expected_from', 'expected_to', 'input_file'}\n",
+					"\n",
+					"schema_json = mssparkutils.notebook.run(\n",
+					"    '/py_create_spark_schema',\n",
+					"    60,\n",
+					"    {'db_name': 'odw_standardised_db', 'entity_name': entity_name}\n",
+					")\n",
+					"spark_schema: StructType = StructType.fromJson(json.loads(schema_json))\n",
+					"raw_fields = [f for f in spark_schema.fields if f.name not in _COMPUTED_COLUMNS]\n",
+					"print(f'Schema loaded: {len(raw_fields)} fields (excluding computed columns)')\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Write test messages to RAW"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"enqueued_time = override_enqueued_time or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')\n",
+					"\n",
+					"\n",
+					"def _default_value(field: StructField, index: int) -> object:\n",
+					"    name = field.name\n",
+					"    if name == primary_key:\n",
+					"        return 99000 + index if isinstance(field.dataType, (LongType, IntegerType, ShortType, ByteType)) else f'TEST-{entity_name}-{index:04d}'\n",
+					"    if name == watermark_column:\n",
+					"        return enqueued_time\n",
+					"    if name == 'message_id':\n",
+					"        return str(uuid.uuid4())\n",
+					"    if name == 'message_type':\n",
+					"        return 'Create'\n",
+					"    if isinstance(field.dataType, BooleanType):\n",
+					"        return False\n",
+					"    if isinstance(field.dataType, ArrayType):\n",
+					"        return []\n",
+					"    return None\n",
+					"\n",
+					"\n",
+					"mssparkutils.fs.mkdirs(base_path)\n",
+					"\n",
+					"for i in range(1, num_messages + 1):\n",
+					"    msg = {f.name: _default_value(f, i) for f in raw_fields}\n",
+					"    file_path = f\"{base_path}/{msg['message_id']}.json\"\n",
+					"    mssparkutils.fs.put(file_path, json.dumps(msg), True)\n",
+					"    print(f'  [{i}/{num_messages}] {file_path}')\n",
+					"\n",
+					"print(f'\\nDone. {num_messages} message(s) seeded for \"{entity_name}\"')\n",
+					"print(f'{watermark_column} = {enqueued_time}')\n",
+					"print(f'\\nRun pln_service_bus with entity_name_array=[\"{entity_name}\"] to process.')\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Verify files written"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"files = mssparkutils.fs.ls(base_path)\n",
+					"print(f'Files in {base_path}:')\n",
+					"for f in files:\n",
+					"    print(f'  {f.name}  ({f.size} bytes)')\n"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
