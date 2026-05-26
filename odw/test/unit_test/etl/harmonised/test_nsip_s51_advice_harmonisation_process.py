@@ -244,8 +244,9 @@ class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
                     "sb_advice_ids": sb_advice_ids,
                 }
             )
+        write_entry_key = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[write_entry_key]["data"]
         rows = [row.asDict(recursive=True) for row in actual_df.collect()]
 
         assert "SourceSystemID" not in actual_df.columns
@@ -267,6 +268,6 @@ class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
             assert row["ValidTo"] is not None
             assert row["attachmentIds"] == ["HA1", "HA2"]
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
+        assert data_to_write[write_entry_key]["write_mode"] == "overwrite"
+        assert data_to_write[write_entry_key]["partition_by"] == ["IsActive"]
         assert result.metadata.insert_count == 3

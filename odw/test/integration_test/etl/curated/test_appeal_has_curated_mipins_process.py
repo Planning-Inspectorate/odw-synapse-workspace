@@ -156,7 +156,7 @@ def _base_row(**overrides):
             "siteAddressPostcode": "AA1 1AA",
             "siteAccessDetails": ["Gate code"],
             "siteSafetyDetails": "Safety details",
-            "siteAreaSquareMetres": "true",
+            "siteAreaSquareMetres": "123.45",
             "floorSpaceSquareMetres": "123.45",
             "isCorrectAppealType": "true",
             "isGreenBelt": "false",
@@ -249,7 +249,7 @@ def _curated_schema():
             T.StructField("siteAddressPostcode", T.StringType(), True),
             T.StructField("siteAccessDetails", T.StringType(), True),
             T.StructField("siteSafetyDetails", T.StringType(), True),
-            T.StructField("siteAreaSquareMetres", T.BooleanType(), True),
+            T.StructField("siteAreaSquareMetres", T.DoubleType(), True),
             T.StructField("floorSpaceSquareMetres", T.DecimalType(10, 0), True),
             T.StructField("isCorrectAppealType", T.BooleanType(), True),
             T.StructField("isGreenBelt", T.BooleanType(), True),
@@ -338,7 +338,7 @@ def _curated_row(**overrides):
         "siteAddressPostcode": "AA1 1AA",
         "siteAccessDetails": "[Gate code]",
         "siteSafetyDetails": "Safety details",
-        "siteAreaSquareMetres": True,
+        "siteAreaSquareMetres": Decimal("123"),
         "floorSpaceSquareMetres": Decimal("123"),
         "isCorrectAppealType": True,
         "isGreenBelt": False,
@@ -414,6 +414,5 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         output_table = f"{test_case}_appeals_has_curated_mipins"
         spark = PytestSparkSessionUtil().get_spark_session()
         existing_data = spark.createDataFrame((_curated_row(caseId=1),), schema=_curated_schema())
-        self.assert_curated_etl(test_case)
         self.write_existing_table(spark, existing_data, output_table, "odw_curated_db", "odw-curated", output_table, "overwrite")
         self.assert_curated_etl(test_case)

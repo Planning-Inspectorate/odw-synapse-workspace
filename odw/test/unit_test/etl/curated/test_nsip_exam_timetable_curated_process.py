@@ -58,8 +58,9 @@ class TestNSIPExamTimetableCurationProcess(SparkTestCase):
                     "curated_projects": curated_projects,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = actual_df.collect()
 
         assert actual_df.count() == 1
@@ -68,6 +69,6 @@ class TestNSIPExamTimetableCurationProcess(SparkTestCase):
         assert len(rows[0]["events"]) == 1
         assert rows[0]["events"][0]["eventId"] == 2
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_exam_timetable"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "nsip_exam_timetable"
         assert result.metadata.insert_count == 1

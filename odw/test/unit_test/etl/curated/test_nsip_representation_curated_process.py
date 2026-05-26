@@ -89,8 +89,9 @@ class TestNSIPRepresentationCurationProcess(SparkTestCase):
                     "harmonised_representations": harmonised_representations,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["representationId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -107,6 +108,6 @@ class TestNSIPRepresentationCurationProcess(SparkTestCase):
         assert rows[2]["registerFor"] == "PERSON"
         assert rows[2]["representationType"] == "Local Authority"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_representation"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "nsip_representation"
         assert result.metadata.insert_count == 2

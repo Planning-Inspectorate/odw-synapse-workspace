@@ -540,12 +540,12 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         spaced_y = active.withColumn("IsActive", F.lit(" Y "))
         inactive = active.withColumn("IsActive", F.lit("N"))
 
-        source_df = lower_y.unionByName(spaced_y).unionByName(inactive)
+        source_df = active.unionByName(lower_y).unionByName(spaced_y).unionByName(inactive)
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.count() == 0
-        assert result.metadata.insert_count == 0
+        assert df.count() == 1
+        assert result.metadata.insert_count == 1
