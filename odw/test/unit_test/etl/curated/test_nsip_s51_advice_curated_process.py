@@ -92,8 +92,9 @@ class TestNSIPS51AdviceCurationProcess(SparkTestCase):
                     "harmonised_s51_advice": harmonised_s51_advice,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -108,6 +109,6 @@ class TestNSIPS51AdviceCurationProcess(SparkTestCase):
         assert rows[2]["method"] is None
         assert rows[2]["status"] == "donotpublish"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "s51_advice"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "s51_advice"
         assert result.metadata.insert_count == 2

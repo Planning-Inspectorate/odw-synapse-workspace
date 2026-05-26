@@ -308,7 +308,7 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         appeal_has = _harmonised_df(spark)
         appeal_has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, appeal_has, appeal_has_table, "odw_harmonised_db", "odw-harmonsed", appeal_has_table, "overwrite")
+        self.write_existing_table(spark, appeal_has, appeal_has_table, "odw_harmonised_db", "odw-harmonised", appeal_has_table, "overwrite")
         expected_curated_data_after_writing = spark.createDataFrame((_curated_row(),), schema=_curated_schema())
         with mock.patch.object(AppealHasCuratedProcess, "OUTPUT_TABLE", appeal_has_table):
             inst = AppealHasCuratedProcess(spark)
