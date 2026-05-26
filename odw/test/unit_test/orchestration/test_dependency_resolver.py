@@ -106,5 +106,5 @@ def test__dependency_resolver__filter_config():
         }
     }
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config).filter_config(required_entity_stages)
+        actual_output = DependencyResolver(example_config).filter_irrelevant_dependencies_from_config(required_entity_stages)
         assert actual_output == expected_output
