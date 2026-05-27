@@ -5,6 +5,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 from datetime import datetime
 from typing import Dict, Tuple
 
@@ -51,7 +52,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_nsip_exam_timetable"
     HORIZON_TABLE = "odw_standardised_db.horizon_examination_timetable"
     HORIZON_NSIP_DATA_TABLE = "odw_standardised_db.horizon_nsip_data"
-    OUTPUT_TABLE = "odw_harmonised_db.nsip_exam_timetable"
+    OUTPUT_TABLE = "nsip_exam_timetable"
 
     def __init__(self, spark: SparkSession, debug: bool = False):
         super().__init__(spark, debug)
@@ -201,14 +202,25 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         # Add empty eventLineItems array to each event
         horizon_joined = horizon_joined.withColumn(
             "events",
-            F.transform(F.col("events"), lambda event: event.withField("eventLineItems", F.expr("array()"))),
+            F.transform(
+                F.col("events"),
+                lambda event: event.withField(
+                    "eventLineItems",
+                    F.expr("array()").cast(
+                        ArrayType(
+                            StructType([StructField("description", StringType(), True), StructField("descriptionWelsh", StringType(), True)]),
+                            True,
+                        )
+                    ),
+                ),
+            ),
         )
 
         # Align columns and deduplicate
         horizon_joined = horizon_joined.select(service_bus_data.columns).dropDuplicates()
 
         # Step 2: Union SB + Horizon
-        LoggingUtil().log_info(f"Combining data for {self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
         combined = service_bus_data.unionByName(horizon_joined, allowMissingColumns=True)
 
         # Step 3: Window-function calculations
@@ -293,14 +305,14 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         insert_count = final_df.count()
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "nsip_exam_timetable",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "nsip_exam_timetable",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -313,7 +325,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,
