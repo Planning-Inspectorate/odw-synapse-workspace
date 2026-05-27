@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ec04500a-3e6f-4907-8383-06e045287cf2"
+				"spark.autotune.trackingId": "5ef41e8b-6b37-4413-a9e3-3978f6068672"
 			}
 		},
 		"metadata": {
@@ -72,21 +72,23 @@
 					"table_name=''\n",
 					"primary_key=''"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Pipeline parameters for logging\n",
-					"PipelineName=''\n",
-					"PipelineRunID=''\n",
-					"PipelineTriggerID=''\n",
-					"PipelineTriggerName=''\n",
-					"PipelineTriggerType=''\n",
-					"PipelineTriggeredbyPipelineName=''\n",
-					"PipelineTriggeredbyPipelineRunID=''"
+					"db_name = \"odw_curated_db\"\n",
+					"table_name = \"pins_inspector\"\n",
+					"primary_key = \"sapId\"\n",
+					"PipelineName = \"pln_curated\"\n",
+					"PipelineRunID = \"da0003b8-b33a-4753-a6f7-148f27ae117a\"\n",
+					"PipelineTriggerID = \"1bd01222-b084-4114-8886-94f6c7911041\"\n",
+					"PipelineTriggerName = \"1bd01222-b084-4114-8886-94f6c7911041\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"79060945-f597-4371-85f4-616f95842784\""
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -104,7 +106,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +138,7 @@
 					"error_message = ''\n",
 					"changes_count = 0"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +181,7 @@
 					"    version = history_df.select(\"version\").orderBy(\"version\", ascending=False).first()[\"version\"]\n",
 					"    return version"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -198,7 +200,7 @@
 					"table_path: str = get_delta_table_path(table_name_full)\n",
 					"latest_version: int = get_delta_table_lastest_version(table_path)"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -232,7 +234,7 @@
 					"    except Exception as e:\n",
 					"        print(f\"Failed to log info: {e}\")"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -265,7 +267,7 @@
 					"    \n",
 					"    return changes_df"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -312,7 +314,7 @@
 					"    \n",
 					"    return changes_df"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -395,7 +397,7 @@
 					"    \n",
 					"    return changes_df"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -412,35 +414,66 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
+				"source": [
+					"def get_earliest_available_version(table_path: str) -> int:\n",
+					"    \"\"\"\n",
+					"    Get the earliest version actually available for time travel.\n",
+					"    \"\"\"\n",
+					"    delta_table = DeltaTable.forPath(spark, table_path)\n",
+					"    history_df = delta_table.history()\n",
+					"    min_version = history_df.select(\"version\").orderBy(\"version\", ascending=True).first()[\"version\"]\n",
+					"    return min_version\n",
+					" \n",
+					" \n",
+					"def can_time_travel_to_version(table_path: str, version: int) -> bool:\n",
+					"    \"\"\"Test if we can actually read a specific version (files may have been vacuumed).\"\"\"\n",
+					"    try:\n",
+					"        spark.read.format(\"delta\").option(\"versionAsOf\", version).load(table_path).limit(1).collect()\n",
+					"        return True\n",
+					"    except Exception as e:\n",
+					"        safe_print(f\"Cannot time travel to version {version}: {str(e)[:200]}\")\n",
+					"        return False"
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"try:\n",
 					"    previous_version = latest_version - 1\n",
-					"\n",
+					" \n",
 					"    # Route to appropriate processing method\n",
 					"    if previous_version < 1:\n",
 					"        changes_df = process_initial_version(table_path, latest_version, table_name_full)\n",
 					"    else:\n",
 					"        safe_print(f\"Checking for CDF (Change Data Feed) capability on delta table: {table_name_full}\")\n",
-					"        \n",
+					"       \n",
 					"        # Check if Change Data Feed is enabled\n",
 					"        delta_table = DeltaTable.forPath(spark, table_path)\n",
 					"        table_properties = spark.sql(f\"SHOW TBLPROPERTIES {table_name_full}\").collect()\n",
 					"        cdf_enabled = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties)\n",
-					"        \n",
+					"       \n",
 					"        if cdf_enabled:\n",
 					"            changes_df = process_with_cdf(table_path, previous_version, latest_version, table_name_full)\n",
 					"        else:\n",
-					"            changes_df = process_with_hash_comparison(table_path, previous_version, latest_version, primary_key, table_name_full)\n",
-					"\n",
+					"            # Check if previous version is actually accessible (not vacuumed)\n",
+					"            if can_time_travel_to_version(table_path, previous_version):\n",
+					"                changes_df = process_with_hash_comparison(\n",
+					"                    table_path, previous_version, latest_version, primary_key, table_name_full\n",
+					"                )\n",
+					"            else:\n",
+					"                safe_print(\n",
+					"                    f\"Previous version {previous_version} not available for time travel \"\n",
+					"                    f\"(likely vacuumed). Falling back to treating all current records as Create events.\"\n",
+					"                )\n",
+					"                changes_df = process_initial_version(table_path, latest_version, table_name_full)\n",
+					" \n",
 					"except Exception as e:\n",
 					"    error_message = f\"Failed to read changes in delta table: {table_name_full}. Exception: {str(e)[:800]}\"\n",
 					"    end_exec_time = datetime.now()\n",
 					"    raise"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -455,7 +488,7 @@
 					"        return [convert_datetime_to_str(item) for item in obj]\n",
 					"    return obj"
 				],
-				"execution_count": null
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
@@ -601,7 +634,7 @@
 					"    print(f\"Rejected items moved to {quarantine_folder}\")\n",
 					"    print(f\"Oversized primary keys: {oversized_keys[:20]}\")"
 				],
-				"execution_count": null
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -637,7 +670,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 29
 			}
 		]
 	}
