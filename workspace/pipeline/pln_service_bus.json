@@ -714,11 +714,11 @@
 										"type": "Expression"
 									},
 									"Inserts": {
-										"value": "@int(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].insert_count)",
+										"value": "@int(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0))",
 										"type": "Expression"
 									},
 									"ErrorMessage": {
-										"value": "@json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].error_message",
+										"value": "@string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['error_message'], activity('Raw to Std').Error.message, 'Raw to Std failed'))",
 										"type": "Expression"
 									},
 									"StatusMessage": {
@@ -746,12 +746,12 @@
 										"type": "Expression"
 									},
 									"PipelineExecutionTimeInSec": {
-										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"value": "@string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))",
 										"type": "Expression"
 									},
 									"ActivityType": "Notebook",
 									"DurationSeconds": {
-										"value": "@string(json(activity('Raw to Std').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+										"value": "@string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))",
 										"type": "Expression"
 									},
 									"StatusCode": "400",
@@ -1229,17 +1229,15 @@
 											},
 											"waitOnCompletion": true,
 											"parameters": {
-												"entity_name": "{\"value\":\"@item().entity_name\"}",
-												"custom_harmonised_notebooks": {
-													"value": "@item().custom_harmonised_notebooks"
-												},
-												"PipelineName": "{\"value\":\"@pipeline().Pipeline\"}",
-												"PipelineRunID": "{\"value\":\"@pipeline().RunId\"}",
-												"PipelineTriggerID": "{\"value\":\"@pipeline().TriggerId\"}",
-												"PipelineTriggerName": "{\"value\":\"@pipeline().TriggerName\"}",
-												"PipelineTriggerType": "{\"value\":\"@pipeline().TriggerType\"}",
-												"PipelineTriggeredbyPipelineName": "{\"value\":\"@pipeline()?.TriggeredByPipelineName\"}",
-												"PipelineTriggeredbyPipelineRunID": "{\"value\":\"@pipeline()?.TriggeredByPipelineRunId\"}"
+												"entity_name": "@item().entity_name",
+												"custom_harmonised_notebooks": "@item().custom_harmonised_notebooks",
+												"PipelineName": "@pipeline().Pipeline",
+												"PipelineRunID": "@pipeline().RunId",
+												"PipelineTriggerID": "@pipeline().TriggerId",
+												"PipelineTriggerName": "@pipeline().TriggerName",
+												"PipelineTriggerType": "@pipeline().TriggerType",
+												"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+												"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId"
 											}
 										}
 									},
@@ -1251,7 +1249,7 @@
 											{
 												"activity": "Run Entity Custom Harmonised",
 												"dependencyConditions": [
-													"Completed"
+													"Succeeded"
 												]
 											}
 										],
