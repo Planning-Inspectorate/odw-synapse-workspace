@@ -24,6 +24,7 @@ CURATED_COLUMNS = [
     "ISActive",
 ]
 
+
 def _harmonised_schema():
     return T.StructType(
         [
