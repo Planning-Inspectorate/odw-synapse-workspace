@@ -140,15 +140,15 @@ class SynapseDeltaIO(SynapseDataIO):
         invalid_update_key_rows = data.filter(~F.col(update_key_col).isin(*all_search_strings))
         if invalid_update_key_rows.count() > 0:
             raise ValueError(f"Some of the rows in the data's '{update_key_col}' column do not match one of '{all_search_strings}'")
-        print("target schema")
-        print(target_delta_table.toDF().schema)
-        print("actual schema")
-        print(data.schema)
         target_delta_table.alias("t").merge(
             data.alias("s"), " AND ".join(f"t.{key} = s.{key}" for key in merge_keys)
         ).whenMatchedUpdate(  # Update existing records
             condition=f"s.{update_key_col} IN {update_strings}",
-            set={col_name: F.expr(f"s.{col_name}") for col_name in data.schema.names if col_name != update_key_col and col_name in columns_to_update},
+            set={
+                col_name: F.expr(f"s.{col_name}")
+                for col_name in data.schema.names
+                if col_name != update_key_col and (not columns_to_update or col_name in columns_to_update)
+            },
         ).whenMatchedDelete(  # Delete records
             condition=f"s.{update_key_col} IN {delete_strings}"
         ).whenNotMatchedInsert(  # Insert new records
