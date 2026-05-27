@@ -63,7 +63,7 @@ class SparkTestCase(TestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
-            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net")
+            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
         ):
             yield
 
