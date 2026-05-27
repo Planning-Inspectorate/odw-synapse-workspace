@@ -779,7 +779,6 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
             "target_exists": False,
         }
 
-
         inst = NsipInvoiceHarmonisationProcess(spark)
 
         with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
