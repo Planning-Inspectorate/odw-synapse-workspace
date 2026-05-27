@@ -746,34 +746,9 @@
 					"isSequential": false,
 					"activities": [
 						{
-							"name": "Set entity_name",
-							"description": "Sets entity_name variable from the current ForEach item so downstream activities use the correct entity per iteration.",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "entity_name",
-								"value": {
-									"value": "@item().entity_name",
-									"type": "Expression"
-								}
-							}
-						},
-						{
 							"name": "Record starting service bus stage",
 							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Set pipeline name",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
+							"dependsOn": [],
 							"policy": {
 								"secureInput": false
 							},
@@ -787,7 +762,7 @@
 								"parameters": {
 									"Stage": "OnProgress",
 									"PipelineName": {
-										"value": "@variables('pipeline name')",
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
 										"type": "Expression"
 									},
 									"PipelineRunID": {
@@ -799,7 +774,7 @@
 										"type": "Expression"
 									},
 									"StatusMessage": {
-										"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
+										"value": "@concat('Progressing to load service bus: ', item().entity_name)",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -861,7 +836,7 @@
 									},
 									"entity_name": {
 										"value": {
-											"value": "@variables('entity_name')",
+											"value": "@item().entity_name",
 											"type": "Expression"
 										},
 										"type": "string"
@@ -956,7 +931,7 @@
 									},
 									"entity_name": {
 										"value": {
-											"value": "@variables('entity_name')",
+											"value": "@item().entity_name",
 											"type": "Expression"
 										},
 										"type": "string"
@@ -1051,7 +1026,7 @@
 									},
 									"entity_name": {
 										"value": {
-											"value": "@variables('entity_name')",
+											"value": "@item().entity_name",
 											"type": "Expression"
 										},
 										"type": "string"
@@ -1139,7 +1114,7 @@
 								"parameters": {
 									"Stage": "OnProgress",
 									"PipelineName": {
-										"value": "@variables('pipeline name')",
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
 										"type": "Expression"
 									},
 									"PipelineRunID": {
@@ -1151,7 +1126,7 @@
 										"type": "Expression"
 									},
 									"StatusMessage": {
-										"value": "@concat(variables('entity_name'), ': Checking service bus subscription for messages')",
+										"value": "@concat(item().entity_name, ': Checking service bus subscription for messages')",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -1222,7 +1197,7 @@
 								"parameters": {
 									"entity_name": {
 										"value": {
-											"value": "@variables('entity_name')",
+											"value": "@item().entity_name",
 											"type": "Expression"
 										},
 										"type": "string"
@@ -1331,7 +1306,7 @@
 								"parameters": {
 									"Stage": "Fail",
 									"PipelineName": {
-										"value": "@variables('pipeline name')",
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
 										"type": "Expression"
 									},
 									"PipelineRunID": {
@@ -1355,7 +1330,7 @@
 										"type": "Expression"
 									},
 									"StatusMessage": {
-										"value": "@concat(variables('entity_name'), ': Raw to Std failed')",
+										"value": "@concat(item().entity_name, ': Raw to Std failed')",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -1419,7 +1394,7 @@
 								"parameters": {
 									"Stage": "Completion",
 									"PipelineName": {
-										"value": "@variables('pipeline name')",
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
 										"type": "Expression"
 									},
 									"PipelineRunID": {
@@ -1439,7 +1414,7 @@
 										"type": "Expression"
 									},
 									"StatusMessage": {
-										"value": "@concat(variables('entity_name'), ': Processing source to standardised completed')",
+										"value": "@concat(item().entity_name, ': Processing source to standardised completed')",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -1480,36 +1455,12 @@
 							}
 						},
 						{
-							"name": "Set has_new_data json",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Raw to Std",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "has_new_data",
-								"value": {
-									"value": "@if(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false), 'true', 'false')",
-									"type": "Expression"
-								}
-							}
-						},
-						{
 							"name": "Append to watermark json",
 							"description": "Appends an entry to the run-time watermark_json array with has_new_data and message_enqueued_time_utc for this entity.",
 							"type": "AppendVariable",
 							"dependsOn": [
 								{
-									"activity": "Set has_new_data json",
+									"activity": "Raw to Std",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -1519,31 +1470,7 @@
 							"typeProperties": {
 								"variableName": "watermark_json",
 								"value": {
-									"value": "@json(concat('{\"entity_name\":\"', item().entity_name, '\",\"has_new_data\":', variables('has_new_data'), ',\"message_enqueued_time_utc\":\"', coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['max_message_enqueued_time_utc'], ''), '\",\"records_ingested\":', string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0)), ',\"custom_harmonised_notebooks\":', if(empty(item().custom_harmonised_notebooks), '[]', string(item().custom_harmonised_notebooks)), '}'))",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Set pipeline name",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Set entity_name",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "pipeline name",
-								"value": {
-									"value": "@concat(concat(pipeline().Pipeline, ' - '), variables('entity_name'))",
+									"value": "@json(concat('{\"entity_name\":\"', item().entity_name, '\",\"has_new_data\":', if(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false), 'true', 'false'), ',\"message_enqueued_time_utc\":\"', coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['max_message_enqueued_time_utc'], ''), '\",\"records_ingested\":', string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0)), ',\"custom_harmonised_notebooks\":', if(empty(item().custom_harmonised_notebooks), '[]', string(item().custom_harmonised_notebooks)), '}'))",
 									"type": "Expression"
 								}
 							}
