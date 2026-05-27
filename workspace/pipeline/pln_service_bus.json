@@ -3,253 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Record service bus completion - No custom",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "ForEach Custom Harmonised",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"PipelineName": {
-							"value": "@variables('pipeline name')",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@concat('Completion to load service bus - no custom harmonised layer run: ', variables('entity_name'))",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "ForEach Update Watermarks",
-				"description": "Upserts the max message_enqueued_time_utc into odw_meta_db.pln_service_bus_watermarks for each entity that had new data.",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "ForEach Custom Harmonised",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@activity('Filter watermark has new data').output.value",
-						"type": "Expression"
-					},
-					"isSequential": true,
-					"activities": [
-						{
-							"name": "Update watermark",
-							"description": "Upserts the max message_enqueued_time_utc processed into odw_meta_db.pln_service_bus_watermarks for this entity.",
-							"type": "SynapseNotebook",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.0:10:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "nb_sb_write_manifest_and_watermark",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"entity_name": {
-										"value": {
-											"value": "@item().entity_name",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"lastIngestTime": {
-										"value": {
-											"value": "@item().message_enqueued_time_utc",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"status": {
-										"value": "Succeeded",
-										"type": "string"
-									},
-									"recordsIngested": {
-										"value": {
-											"value": "@string(item().records_ingested)",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "ForEach Custom Harmonised",
-				"description": "Runs the custom harmonised notebook for each entity in watermark_json that has new data and a custom harmonised notebook configured.",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Filter Custom Harmonised",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@activity('Filter Custom Harmonised').output.value",
-						"type": "Expression"
-					},
-					"isSequential": false,
-					"activities": [
-						{
-							"name": "Run Entity Custom Harmonised",
-							"description": "Calls the child pipeline to run each custom harmonised notebook for this entity sequentially.",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_sb_run_entity_custom_harmonised",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"entity_name": {
-										"value": "@item().entity_name",
-										"type": "Expression"
-									},
-									"custom_harmonised_notebooks": {
-										"value": "@item().custom_harmonised_notebooks",
-										"type": "Expression"
-									},
-									"PipelineName": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									}
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Filter Custom Harmonised",
-				"description": "Filters watermark_json for entities that have new data and a custom harmonised notebook to run.",
-				"type": "Filter",
-				"dependsOn": [
-					{
-						"activity": "For Each Std to Hm if has new data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('watermark_json')",
-						"type": "Expression"
-					},
-					"condition": {
-						"value": "@and(equals(item().has_new_data, true), greater(length(item().custom_harmonised_notebooks), 0))",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Record service bus completion",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "ForEach Update Watermarks",
+						"activity": "ForEach - Raw to Std",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -268,17 +26,14 @@
 					"parameters": {
 						"Stage": "Completion",
 						"PipelineName": {
-							"value": "@variables('pipeline name')",
+							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
 						"PipelineRunID": {
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"StatusMessage": {
-							"value": "@concat('Progressing to load service bus: ', variables('entity_name'))",
-							"type": "Expression"
-						},
+						"StatusMessage": "Service bus pipeline completed",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -305,370 +60,6 @@
 							"type": "Expression"
 						}
 					}
-				}
-			},
-			{
-				"name": "For Each Std to Hm if has new data",
-				"description": "Run std>hmz for entities that received new data",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Filter watermark has new data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@activity('Filter watermark has new data').output.value",
-						"type": "Expression"
-					},
-					"isSequential": false,
-					"activities": [
-						{
-							"name": "Record std to hrm",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@variables('pipeline name')",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item().entity_name, ': Processing standardised to harmonised')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"StatusCode": "200",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Std to Hrm",
-							"description": "Ingests standardised data into the harmonised table",
-							"type": "SynapseNotebook",
-							"dependsOn": [
-								{
-									"activity": "Record std to hrm",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"notebook": {
-									"referenceName": "py_sb_std_to_hrm",
-									"type": "NotebookReference"
-								},
-								"parameters": {
-									"entity_name": {
-										"value": {
-											"value": "@item().entity_name",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineName": {
-										"value": {
-											"value": "@pipeline().Pipeline",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerID": {
-										"value": {
-											"value": "@pipeline().TriggerId",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerName": {
-										"value": {
-											"value": "@pipeline().TriggerName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggerType": {
-										"value": {
-											"value": "@pipeline().TriggerType",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineName",
-											"type": "Expression"
-										},
-										"type": "string"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": {
-											"value": "@pipeline()?.TriggeredByPipelineRunId",
-											"type": "Expression"
-										},
-										"type": "string"
-									}
-								},
-								"snapshot": true,
-								"conf": {
-									"spark.dynamicAllocation.enabled": null,
-									"spark.dynamicAllocation.minExecutors": null,
-									"spark.dynamicAllocation.maxExecutors": null
-								},
-								"numExecutors": null
-							}
-						},
-						{
-							"name": "Record convert std to hrm failed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Std to Hrm",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Fail",
-									"PipelineName": {
-										"value": "@variables('pipeline name')",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"Inserts": {
-										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count)",
-										"type": "Expression"
-									},
-									"Updates": {
-										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].update_count)",
-										"type": "Expression"
-									},
-									"Deletes": {
-										"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].delete_count)",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].error_message",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item().entity_name, ': Std to Hrm failed')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"PipelineExecutionTimeInSec": {
-										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
-										"type": "Expression"
-									},
-									"ActivityType": "Notebook",
-									"DurationSeconds": {
-										"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
-										"type": "Expression"
-									},
-									"StatusCode": "400",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record std to hrm completed",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Std to Hrm",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Completion",
-									"PipelineName": {
-										"value": "@variables('pipeline name')",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['start_exec_time'], ''))\n",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['end_exec_time'], ''))\n\n",
-										"type": "Expression"
-									},
-									"Inserts": {
-										"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0))",
-										"type": "Expression"
-									},
-									"Updates": {
-										"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['update_count'], 0))\n",
-										"type": "Expression"
-									},
-									"Deletes": {
-										"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['delete_count'], 0))\n",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item().entity_name, ': Processing standardised to harmonised completed')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"PipelineExecutionTimeInSec": {
-										"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))",
-										"type": "Expression"
-									},
-									"ActivityType": "Notebook",
-									"DurationSeconds": {
-										"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))\n",
-										"type": "Expression"
-									},
-									"StatusCode": "200",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						}
-					]
 				}
 			},
 			{
@@ -775,6 +166,73 @@
 									},
 									"StatusMessage": {
 										"value": "@concat('Progressing to load service bus: ', item().entity_name)",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Record checking data on service bus",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Record starting service bus stage",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "OnProgress",
+									"PipelineName": {
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(item().entity_name, ': Checking service bus subscription for messages')",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -1091,73 +549,6 @@
 							}
 						},
 						{
-							"name": "Record checking data on service bus",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Record starting service bus stage",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item().entity_name, ': Checking service bus subscription for messages')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
 							"name": "Raw to Std",
 							"description": "Ingests raw data into the standardised table",
 							"type": "SynapseNotebook",
@@ -1455,9 +846,9 @@
 							}
 						},
 						{
-							"name": "Append to watermark json",
-							"description": "Appends an entry to the run-time watermark_json array with has_new_data and message_enqueued_time_utc for this entity.",
-							"type": "AppendVariable",
+							"name": "If has new data",
+							"description": "Runs Std to Hrm, custom harmonised notebooks, and writes the watermark only when Raw to Std found new messages.",
+							"type": "IfCondition",
 							"dependsOn": [
 								{
 									"activity": "Raw to Std",
@@ -1468,38 +859,470 @@
 							],
 							"userProperties": [],
 							"typeProperties": {
-								"variableName": "watermark_json",
-								"value": {
-									"value": "@json(concat('{\"entity_name\":\"', item().entity_name, '\",\"has_new_data\":', if(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false), 'true', 'false'), ',\"message_enqueued_time_utc\":\"', coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['max_message_enqueued_time_utc'], ''), '\",\"records_ingested\":', string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0)), ',\"custom_harmonised_notebooks\":', if(empty(item().custom_harmonised_notebooks), '[]', string(item().custom_harmonised_notebooks)), '}'))",
+								"expression": {
+									"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false)",
 									"type": "Expression"
-								}
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Record std to hrm",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "OnProgress",
+												"PipelineName": {
+													"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item().entity_name, ': Processing standardised to harmonised')",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												},
+												"ActivityType": "Pipeline",
+												"StatusCode": "200",
+												"AppInsIKey": {
+													"value": "@pipeline().parameters.apps_insights_ikey",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Std to Hrm",
+										"description": "Ingests standardised data into the harmonised table",
+										"type": "SynapseNotebook",
+										"dependsOn": [
+											{
+												"activity": "Record std to hrm",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_sb_std_to_hrm",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": {
+														"value": "@item().entity_name",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineName": {
+													"value": {
+														"value": "@pipeline().Pipeline",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineRunID": {
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerID": {
+													"value": {
+														"value": "@pipeline().TriggerId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerName": {
+													"value": {
+														"value": "@pipeline().TriggerName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerType": {
+													"value": {
+														"value": "@pipeline().TriggerType",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineRunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									},
+									{
+										"name": "Record convert std to hrm failed",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Std to Hrm",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Fail",
+												"PipelineName": {
+													"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+													"type": "Expression"
+												},
+												"Inserts": {
+													"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].insert_count)",
+													"type": "Expression"
+												},
+												"Updates": {
+													"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].update_count)",
+													"type": "Expression"
+												},
+												"Deletes": {
+													"value": "@int(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].delete_count)",
+													"type": "Expression"
+												},
+												"ErrorMessage": {
+													"value": "@json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].error_message",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item().entity_name, ': Std to Hrm failed')",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+													"type": "Expression"
+												},
+												"ActivityType": "Notebook",
+												"DurationSeconds": {
+													"value": "@string(json(activity('Std to Hrm').output.status.output.result.exitValue).table_details[0].total_exec_time)",
+													"type": "Expression"
+												},
+												"StatusCode": "400",
+												"AppInsIKey": {
+													"value": "@pipeline().parameters.apps_insights_ikey",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Record std to hrm completed",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Std to Hrm",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_log_to_appins",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"Stage": "Completion",
+												"PipelineName": {
+													"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['start_exec_time'], ''))\n",
+													"type": "Expression"
+												},
+												"EndTime": {
+													"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['end_exec_time'], ''))\n\n",
+													"type": "Expression"
+												},
+												"Inserts": {
+													"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0))",
+													"type": "Expression"
+												},
+												"Updates": {
+													"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['update_count'], 0))\n",
+													"type": "Expression"
+												},
+												"Deletes": {
+													"value": "@int(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['delete_count'], 0))\n",
+													"type": "Expression"
+												},
+												"StatusMessage": {
+													"value": "@concat(item().entity_name, ': Processing standardised to harmonised completed')",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))",
+													"type": "Expression"
+												},
+												"ActivityType": "Notebook",
+												"DurationSeconds": {
+													"value": "@string(coalesce(json(coalesce(activity('Std to Hrm').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['total_exec_time'], 0))\n",
+													"type": "Expression"
+												},
+												"StatusCode": "200",
+												"AppInsIKey": {
+													"value": "@pipeline().parameters.apps_insights_ikey",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Run Entity Custom Harmonised",
+										"description": "Calls the child pipeline to run each custom harmonised notebook for this entity. Passes an empty array if no custom notebooks are configured — the child ForEach no-ops in that case.",
+										"type": "ExecutePipeline",
+										"dependsOn": [
+											{
+												"activity": "Std to Hrm",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_sb_run_entity_custom_harmonised",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"entity_name": {
+													"value": "@item().entity_name"
+												},
+												"custom_harmonised_notebooks": {
+													"value": "@item().custom_harmonised_notebooks"
+												},
+												"PipelineName": {
+													"value": "@pipeline().Pipeline"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId"
+												}
+											}
+										}
+									},
+									{
+										"name": "Update watermark",
+										"description": "Upserts the max message_enqueued_time_utc into odw_meta_db.service_bus_watermarks for this entity. Runs after custom harmonised completes (or is skipped for entities with no custom notebooks).",
+										"type": "SynapseNotebook",
+										"dependsOn": [
+											{
+												"activity": "Run Entity Custom Harmonised",
+												"dependencyConditions": [
+													"Completed"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.0:10:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "nb_sb_write_manifest_and_watermark",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": {
+														"value": "@item().entity_name",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"lastIngestTime": {
+													"value": {
+														"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['max_message_enqueued_time_utc'], '')",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"status": {
+													"value": "Succeeded",
+													"type": "string"
+												},
+												"recordsIngested": {
+													"value": {
+														"value": "@string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0))",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									}
+								]
 							}
 						}
 					]
-				}
-			},
-			{
-				"name": "Filter watermark has new data",
-				"description": "Filters the run-time watermark_json to entities that received new data, so only those proceed to Std to Hrm and custom harmonised.",
-				"type": "Filter",
-				"dependsOn": [
-					{
-						"activity": "ForEach - Raw to Std",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('watermark_json')",
-						"type": "Expression"
-					},
-					"condition": {
-						"value": "@equals(item().has_new_data, true)",
-						"type": "Expression"
-					}
 				}
 			}
 		],
@@ -1520,23 +1343,7 @@
 				]
 			}
 		},
-		"variables": {
-			"entity_name": {
-				"type": "String",
-				"defaultValue": "test"
-			},
-			"pipeline name": {
-				"type": "String",
-				"defaultValue": "test"
-			},
-			"has_new_data": {
-				"type": "String",
-				"defaultValue": "false"
-			},
-			"watermark_json": {
-				"type": "Array"
-			}
-		},
+		"variables": {},
 		"folder": {
 			"name": "utils/Master"
 		},
