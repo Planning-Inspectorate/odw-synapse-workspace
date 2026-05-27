@@ -21,8 +21,8 @@ class DependencyResolver:
         """
         config_copy = deepcopy(config)
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = config_copy.get("entities", dict())
-        for entity_name, entity in entities:
-            for stage_name, stage in entity:
+        for entity_name, entity in entities.items():
+            for stage_name, stage in entity.items():
                 stage["entity_stage_name"] = f"{entity_name}.{stage_name}"
         return config_copy
 
@@ -85,7 +85,7 @@ class DependencyResolver:
         """
         # Might need to change this depending on how the data is structured
         entity_stage_execution_details = {
-            f"{entity_name}.{stage_name}" for entity_name, stage_name, execution_status in execution_details if execution_status != "Success"
+            f"{entity_name}.{stage_name}" for entity_name, stage_name, execution_status in execution_details if execution_status != "Succeeded"
         }
         cleaned_groups = [
             [entity for entity in group if entity["entity_stage_name"] in entity_stage_execution_details] for group in topological_order_groups
@@ -96,7 +96,6 @@ class DependencyResolver:
         """
         Filter down the config so that only relevent entities are executed and group them into batches that can run concurrently
         """
-        filtered_config = self.filter_irrelevant_dependencies_from_config()
+        filtered_config = self.filter_irrelevant_dependencies_from_config(entity_stages)
         groups = self.topological_sort(filtered_config)
-        filtered_groups = self.filter_already_executed_entity_stages(groups, entity_stages)
-        return self.filter_already_executed_entity_stages(filtered_groups, execution_details)
+        return self.filter_already_executed_entity_stages(groups, execution_details)
