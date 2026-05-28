@@ -43,7 +43,68 @@
 								"sparkPool": {
 									"referenceName": "pinssynspodw35",
 									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Append failure message",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute ETL",
+									"dependencyConditions": [
+										"Failed"
+									]
 								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "failures",
+								"value": {
+									"value": "@string(item())",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If failure detected",
+				"description": "Collect failed ETLProcesses and force the pipeline to fail if any were detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Inner loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(\n    empty(\n        variables('failures')\n    )\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Inner loop failed",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following parameters: ',\n    string(variables('failures'))\n)",
+									"type": "Expression"
+								},
+								"errorCode": "500"
 							}
 						}
 					]
@@ -53,6 +114,11 @@
 		"parameters": {
 			"entity_stages": {
 				"type": "array"
+			}
+		},
+		"variables": {
+			"failures": {
+				"type": "Array"
 			}
 		},
 		"folder": {
