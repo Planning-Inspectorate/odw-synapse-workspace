@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "91cea692-3b1d-4b1c-92cb-1eedc4f8586f"
+				"spark.autotune.trackingId": "836d817d-2fa2-4220-9658-f6ea01059f5c"
 			}
 		},
 		"metadata": {
@@ -108,7 +108,7 @@
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message = None"
+					"error_message=''"
 				],
 				"execution_count": null
 			},
@@ -364,6 +364,7 @@
 					"            \n",
 					"            initial_load.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\",True).saveAsTable(spark_table_final)\n",
 					"            print(f\"Initial load completed. Created {initial_load.count()} records.\")\n",
+					"            end_exec_time = datetime.now()\n",
 					"        else:\n",
 					"            # Get max NSIPMeetingId from target table\n",
 					"            max_id_result = spark.read.format(\"delta\").table(spark_table_final) \\\n",
@@ -467,7 +468,10 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"if end_exec_time is None:\n",
+					"    end_exec_time = datetime.now()\n",
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"print(duration_seconds)\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
@@ -476,10 +480,6 @@
 					"    else f\"Failed to load data into {spark_table_final} table\"\n",
 					")\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
-					"print(duration_seconds)\n",
-					"if end_exec_time is None:\n",
-					"    end_exec_time = datetime.now()\n",
-					"\n",
 					"\n",
 					"log_telemetry_and_exit(\n",
 					"    stage,\n",
