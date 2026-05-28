@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ec04500a-3e6f-4907-8383-06e045287cf2"
+				"spark.autotune.trackingId": "eae481c0-27be-422c-8338-6e1942bd1f0f"
 			}
 		},
 		"metadata": {
@@ -76,15 +76,21 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"editable": true,
+					"run_control": {
+						"frozen": false
+					}
+				},
 				"source": [
 					"# Pipeline parameters for logging\n",
-					"PipelineName=''\n",
-					"PipelineRunID=''\n",
-					"PipelineTriggerID=''\n",
-					"PipelineTriggerName=''\n",
-					"PipelineTriggerType=''\n",
-					"PipelineTriggeredbyPipelineName=''\n",
-					"PipelineTriggeredbyPipelineRunID=''"
+					"PipelineName = ''\n",
+					"PipelineRunID = ''\n",
+					"PipelineTriggerID = ''\n",
+					"PipelineTriggerName = ''\n",
+					"PipelineTriggerType = ''\n",
+					"PipelineTriggeredbyPipelineName = ''\n",
+					"PipelineTriggeredbyPipelineRunID = ''"
 				],
 				"execution_count": null
 			},
@@ -413,28 +419,55 @@
 			{
 				"cell_type": "code",
 				"metadata": {
-					"collapsed": false
+					"editable": true,
+					"run_control": {
+						"frozen": false
+					}
 				},
+				"source": [
+					"def can_time_travel_to_version(table_path: str, version: int) -> bool:\n",
+					"    \"\"\"Test if we can actually read a specific version (files may have been vacuumed).\"\"\"\n",
+					"    try:\n",
+					"        spark.read.format(\"delta\").option(\"versionAsOf\", version).load(table_path).limit(1).collect()\n",
+					"        return True\n",
+					"    except Exception as e:\n",
+					"        safe_print(f\"Cannot time travel to version {version}: {str(e)[:200]}\")\n",
+					"        return False"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"source": [
 					"try:\n",
 					"    previous_version = latest_version - 1\n",
-					"\n",
+					" \n",
 					"    # Route to appropriate processing method\n",
 					"    if previous_version < 1:\n",
 					"        changes_df = process_initial_version(table_path, latest_version, table_name_full)\n",
 					"    else:\n",
 					"        safe_print(f\"Checking for CDF (Change Data Feed) capability on delta table: {table_name_full}\")\n",
-					"        \n",
+					"       \n",
 					"        # Check if Change Data Feed is enabled\n",
 					"        delta_table = DeltaTable.forPath(spark, table_path)\n",
 					"        table_properties = spark.sql(f\"SHOW TBLPROPERTIES {table_name_full}\").collect()\n",
 					"        cdf_enabled = any(prop.key == 'delta.enableChangeDataFeed' and prop.value == 'true' for prop in table_properties)\n",
-					"        \n",
+					"       \n",
 					"        if cdf_enabled:\n",
 					"            changes_df = process_with_cdf(table_path, previous_version, latest_version, table_name_full)\n",
 					"        else:\n",
-					"            changes_df = process_with_hash_comparison(table_path, previous_version, latest_version, primary_key, table_name_full)\n",
-					"\n",
+					"            # Check if previous version is actually accessible (not vacuumed)\n",
+					"            if can_time_travel_to_version(table_path, previous_version):\n",
+					"                changes_df = process_with_hash_comparison(\n",
+					"                    table_path, previous_version, latest_version, primary_key, table_name_full\n",
+					"                )\n",
+					"            else:\n",
+					"                safe_print(\n",
+					"                    f\"Previous version {previous_version} not available for time travel \"\n",
+					"                    f\"(likely vacuumed). Falling back to treating all current records as Create events.\"\n",
+					"                )\n",
+					"                changes_df = process_initial_version(table_path, latest_version, table_name_full)\n",
+					" \n",
 					"except Exception as e:\n",
 					"    error_message = f\"Failed to read changes in delta table: {table_name_full}. Exception: {str(e)[:800]}\"\n",
 					"    end_exec_time = datetime.now()\n",
