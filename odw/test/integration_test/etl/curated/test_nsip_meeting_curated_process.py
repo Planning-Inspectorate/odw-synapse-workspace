@@ -14,9 +14,9 @@ class TestNSIPMeetingCurated(ETLTestCase):
 
         harmonised_meeting = spark.createDataFrame(
             [
-                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a", "2025-01-10", "Y"),
-                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a", "2025-01-12", "Y"),
-                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b", "2025-02-11", "Y"),
+                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a", "Y"),
+                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a", "Y"),
+                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b", "Y"),
             ],
             T.StructType(
                 [
@@ -27,7 +27,6 @@ class TestNSIPMeetingCurated(ETLTestCase):
                     T.StructField("meetingId", T.StringType(), True),
                     T.StructField("meetingDate", T.StringType(), True),
                     T.StructField("meetingType", T.StringType(), True),
-                    T.StructField("estimatedPrelimMeetingDate", T.StringType(), True),
                     T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
