@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f112924f-e7a0-43aa-84ee-16330be65ae2"
+				"spark.autotune.trackingId": "aad51aa1-5c4c-44eb-aca7-0979851d9943"
 			}
 		},
 		"metadata": {
@@ -84,6 +84,19 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Load the config file which contains the execution order for each entity/stage"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"config_data = SynapseFileDataIO().read(\n",
@@ -92,23 +105,24 @@
 					"    container_name=\"odw-config\",\n",
 					"    blob_path=\"orchestration/orchestration_transform_dependencies.yaml\",\n",
 					"    file_format=\"text\"\n",
-					")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"config_text = \"\\n\".join([x.value for x in config_data.collect()])"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
+					")\n",
+					"config_text = \"\\n\".join([x.value for x in config_data.collect()])\n",
 					"config = yaml.safe_load(config_text)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Load the execution history for the given run_id"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -121,12 +135,38 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Generate an execution order, which contains a list of entity-stages that can be executed in parallel, with redundant/irrelevant stages being skipped"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"dependency_resolver = DependencyResolver(config)\n",
 					"stages_to_execute = dependency_resolver.generate_stages_to_run(entity_stages_to_run, execution_history)"
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Return the execution order back to the pipeline"
+				]
 			},
 			{
 				"cell_type": "code",
