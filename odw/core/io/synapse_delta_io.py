@@ -82,6 +82,7 @@ class SynapseDeltaIO(SynapseDataIO):
         :param str blob_path: The path to the blob (in the container) to write
         :param str merge_keys: A list of primary keys in the data
         :param str update_key_col: The column used to determine if a row is updated, created or deleted
+        :param list[str] columns_to_update: A subset of columns to update. If set to None, then update all columns. Default None
         """
         spark: SparkSession = kwargs.get("spark", None)
         spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", "true")
@@ -93,6 +94,7 @@ class SynapseDeltaIO(SynapseDataIO):
         table_name = kwargs.get("table_name", None)
         merge_keys = kwargs.get("merge_keys", None)
         update_key_col = kwargs.get("update_key_col", None)
+        columns_to_update = kwargs.get("columns_to_update", [])
         if not spark:
             raise ValueError("SynapseDeltaIO.read requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -142,7 +144,11 @@ class SynapseDeltaIO(SynapseDataIO):
             data.alias("s"), " AND ".join(f"t.{key} = s.{key}" for key in merge_keys)
         ).whenMatchedUpdate(  # Update existing records
             condition=f"s.{update_key_col} IN {update_strings}",
-            set={col_name: F.expr(f"s.{col_name}") for col_name in data.schema.names if col_name != update_key_col},
+            set={
+                col_name: F.expr(f"s.{col_name}")
+                for col_name in data.schema.names
+                if col_name != update_key_col and (not columns_to_update or col_name in columns_to_update)
+            },
         ).whenMatchedDelete(  # Delete records
             condition=f"s.{update_key_col} IN {delete_strings}"
         ).whenNotMatchedInsert(  # Insert new records
