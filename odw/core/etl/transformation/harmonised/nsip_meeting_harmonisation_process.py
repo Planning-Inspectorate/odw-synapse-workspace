@@ -18,7 +18,6 @@ _CHANGE_TRACKING_COLS = [
     "planningInspectorateRole",
     "meetingType",
     "meetingDate",
-    "estimatedPrelimMeetingDate",
 ]
 
 
@@ -132,7 +131,6 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             F.col("meeting.planningInspectorateRole").alias("planningInspectorateRole"),
             F.col("meeting.meetingDate").alias("meetingDate"),
             F.col("meeting.meetingType").alias("meetingType"),
-            F.col("meeting.estimatedPrelimMeetingDate").alias("estimatedPrelimMeetingDate"),
             "Migrated",
             "ODTSourceSystem",
             "SourceSystemID",

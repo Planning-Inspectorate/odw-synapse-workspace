@@ -23,7 +23,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-01",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-10",
                         )
                     ],
                     "1",
@@ -42,7 +41,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                             planningInspectorateRole="role",
                             meetingDate="2025-01-02",
                             meetingType="type-a",
-                            estimatedPrelimMeetingDate="2025-01-11",
                         )
                     ],
                     "1",
@@ -141,7 +139,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                     "role",
                     "2025-01-01",
                     "type-a",
-                    "2025-01-10",
                     "1",
                     "ODT",
                     "SRC1",
@@ -162,7 +159,6 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                     T.StructField("planningInspectorateRole", T.StringType(), True),
                     T.StructField("meetingDate", T.StringType(), True),
                     T.StructField("meetingType", T.StringType(), True),
-                    T.StructField("estimatedPrelimMeetingDate", T.StringType(), True),
                     T.StructField("Migrated", T.StringType(), True),
                     T.StructField("ODTSourceSystem", T.StringType(), True),
                     T.StructField("SourceSystemID", T.StringType(), True),
