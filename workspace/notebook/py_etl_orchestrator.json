@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5f42ec06-ed7a-42a1-97cf-637bfeb8fd38"
+				"spark.autotune.trackingId": "f112924f-e7a0-43aa-84ee-16330be65ae2"
 			}
 		},
 		"metadata": {
@@ -55,7 +55,83 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"%run refactor/temp_import"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.io.synapse_file_data_io import SynapseFileDataIO\n",
+					"from odw.core.util.util import Util\n",
+					"from typing import List\n",
+					"import yaml\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_stages_to_run: List[str] = []\n",
+					"run_id: str = None"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"config_data = SynapseFileDataIO().read(\n",
+					"    spark=spark,\n",
+					"    storage_endpoint=Util.get_storage_account(),\n",
+					"    container_name=\"odw-config\",\n",
+					"    blob_path=\"orchestration/orchestration_transform_dependencies.yaml\",\n",
+					"    file_format=\"text\"\n",
+					")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"config_text = \"\\n\".join([x.value for x in config_data.collect()])"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"config = yaml.safe_load(config_text)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"execution_history = []\n",
+					"if run_id:\n",
+					"    # Todo need to query the execution history DB\n",
+					"    execution_history = None"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"dependency_resolver = DependencyResolver(config)\n",
+					"stages_to_execute = dependency_resolver.generate_stages_to_run(entity_stages_to_run, execution_history)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.notebook.exit(json.dumps(stages_to_execute, indent=4))"
 				],
 				"execution_count": null
 			}
