@@ -1,6 +1,5 @@
 import mock
 import pyspark.sql.types as T
-import pytest
 from pyspark.sql import functions as F
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
 from odw.test.util.assertion import assert_dataframes_equal
@@ -104,14 +103,6 @@ def _source_data(harmonised_data):
 
 
 class TestAppealEventEstimateCuratedProcess(SparkTestCase):
-    @pytest.fixture(autouse=True)
-    def _patch_storage_account(self):
-        with mock.patch(
-            "odw.core.util.util.Util.get_storage_account",
-            return_value="test-storage.dfs.core.windows.net",
-        ):
-            yield
-
     def test__appeal_event_estimate_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 

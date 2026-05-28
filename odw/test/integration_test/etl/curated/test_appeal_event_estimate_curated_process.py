@@ -62,6 +62,7 @@ def _minimal_harmonised_df(spark):
 class TestAppealEventEstimateCuratedProcess(ETLTestCase):
     def _run_process(self, spark, test_case: str, source_df):
         harmonised_table = f"{test_case}_sb_appeal_event_estimate"
+        curated_table = f"{test_case}_appeal_event_estimate"
 
         self.write_existing_table(
             spark,
@@ -73,16 +74,23 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
             "overwrite",
         )
 
-        with mock.patch.object(
-            AppealEventEstimateCuratedProcess,
-            "HARMONISED_TABLE",
-            f"odw_harmonised_db.{harmonised_table}",
+        with (
+            mock.patch.object(
+                AppealEventEstimateCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(
+                AppealEventEstimateCuratedProcess,
+                "OUTPUT_TABLE",
+                curated_table,
+            ),
         ):
             inst = AppealEventEstimateCuratedProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
 
-        actual_df = spark.table("odw_curated_db.appeal_event_estimate")
+        actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
         return actual_df, result
 

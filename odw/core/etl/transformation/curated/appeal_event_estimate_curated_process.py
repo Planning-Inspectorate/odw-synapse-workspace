@@ -24,7 +24,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
     """
 
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_event_estimate"
-    OUTPUT_TABLE = "odw_curated_db.appeal_event_estimate"
+    OUTPUT_TABLE = "appeal_event_estimate"
 
     CURATED_COLUMNS = [
         "id",
@@ -64,9 +64,9 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
         harmonised: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
 
         df = harmonised.where(F.col("IsActive") == F.lit("Y"))
-        for col_name in self.CURATED_COLUMNS:
-            if col_name not in df.columns:
-                df = df.withColumn(col_name, F.lit(None).cast(StringType()))
+        missing_columns = {col_name: F.lit(None).cast(StringType()) for col_name in self.CURATED_COLUMNS if col_name not in df.columns}
+        if missing_columns:
+            df = df.withColumns(missing_columns)
         df = df.select(*[F.col(col_name) for col_name in self.CURATED_COLUMNS])
 
         insert_count = df.count()
@@ -78,10 +78,10 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "appeal_event_estimate",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "appeal_event_estimate",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
