@@ -88,7 +88,7 @@ def test__dependency_resolver__topological_sort():
         [{"entity_stage_name": "entity-c.curated", "etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config).topological_sort()
+        actual_output = DependencyResolver(example_config)._topological_sort()
         assert actual_output == expected_output
 
 
@@ -113,7 +113,7 @@ def test__dependency_resolver__topological_sort__complex_example():
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config).topological_sort()
+        actual_output = DependencyResolver(example_config)._topological_sort()
         assert actual_output == expected_output
 
 
@@ -137,7 +137,7 @@ def test__dependency_resolver__topological_sort__with_cycle():
     }
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
         with pytest.raises(CycleError):
-            DependencyResolver(example_config).topological_sort()
+            DependencyResolver(example_config)._topological_sort()
 
 
 def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
@@ -190,8 +190,9 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
         }
     }
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config).filter_irrelevant_dependencies_from_config(required_entity_stages)
-        assert actual_output == expected_output
+        dr = DependencyResolver(example_config)
+        dr._filter_irrelevant_dependencies_from_config(required_entity_stages)
+        assert dr.config == expected_output
 
 
 def test__dependency_resolver__filter_already_executed_entity_stages():
@@ -225,8 +226,8 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
 def test__dependency_resolver__generate_stages_to_run():
     with (
         mock.patch.object(DependencyResolver, "__init__", return_value=None),
-        mock.patch.object(DependencyResolver, "filter_irrelevant_dependencies_from_config", return_value="A"),
-        mock.patch.object(DependencyResolver, "topological_sort", return_value="B"),
+        mock.patch.object(DependencyResolver, "_filter_irrelevant_dependencies_from_config", return_value="A"),
+        mock.patch.object(DependencyResolver, "_topological_sort", return_value="B"),
         mock.patch.object(DependencyResolver, "filter_already_executed_entity_stages", return_value="C"),
     ):
         dr = DependencyResolver(None)
@@ -235,7 +236,7 @@ def test__dependency_resolver__generate_stages_to_run():
         entity_stages = "Y"
         execution_details = "Z"
         result = dr.generate_stages_to_run(entity_stages, execution_details)
-        DependencyResolver.filter_irrelevant_dependencies_from_config.assert_called_once_with(entity_stages)
-        DependencyResolver.topological_sort.assert_called_once_with("A")
+        DependencyResolver._filter_irrelevant_dependencies_from_config.assert_called_once_with(entity_stages)
+        DependencyResolver._topological_sort.assert_called_once_with()
         DependencyResolver.filter_already_executed_entity_stages.assert_called_once_with("B", execution_details)
         assert result == DependencyResolver.filter_already_executed_entity_stages.return_value
