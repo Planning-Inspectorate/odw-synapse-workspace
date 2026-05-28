@@ -223,6 +223,22 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
         assert actual_output == expected_output
 
 
+def test__dependency_resolver__filter_already_executed_entity_stages__with_empty_execution_details():
+    topological_order = [
+        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
+        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
+        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
+        [
+            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
+            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+        ],
+    ]
+    execution_details = []
+    with mock.patch.object(DependencyResolver, "__init__", return_value=None):
+        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
+        assert actual_output == topological_order
+
+
 def test__dependency_resolver__generate_stages_to_run():
     with (
         mock.patch.object(DependencyResolver, "__init__", return_value=None),
