@@ -59,7 +59,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
     Implements the Load → Transform → Write pattern, replacing the ad-hoc cell logic
     previously contained in py_horizon_harmonised_aie_document.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {

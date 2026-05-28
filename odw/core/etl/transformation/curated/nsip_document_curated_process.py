@@ -12,7 +12,7 @@ class NsipDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Document data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {

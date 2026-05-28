@@ -18,7 +18,7 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
     Implements the Load → Transform → Write pattern, replacing the ad-hoc cell logic
     previously contained in the entraid notebook.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
