@@ -1,0 +1,96 @@
+{
+	"name": "pln_etl_orchestrator",
+	"properties": {
+		"activities": [
+			{
+				"name": "Gather stages to execute",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_orchestrator",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"entity_stages_to_run": {
+							"value": {
+								"value": "@string(pipeline().parameters.stages_to_execute)",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw35",
+						"type": "BigDataPoolReference"
+					}
+				}
+			},
+			{
+				"name": "Outer loop",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Gather stages to execute",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Gather stages to execute').output",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Execute inner loop",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_etl_executor",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"entity_stages": {
+										"value": "@item()",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"stages_to_execute": {
+				"type": "array"
+			},
+			"run_id": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}
