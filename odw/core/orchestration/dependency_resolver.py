@@ -1,7 +1,6 @@
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
 from graphlib import TopologicalSorter
 from typing import List, Dict, Any, Union
-from copy import deepcopy
 
 
 class DependencyResolver:
@@ -12,21 +11,20 @@ class DependencyResolver:
         if not isinstance(config, dict):
             raise ValueError(f"Expected the given config to be a dictionary, but was of type {type(config)}")
         # Validate the config to ensure it does not have any missing or unexpected properties
-        OrchestrationConfig.model_validate(config)
-        self.config = self._preprocess_config(config)
+        self.config = config
+        OrchestrationConfig.model_validate(self.config)
+        self._preprocess_config()
 
-    def _preprocess_config(self, config: Dict[str, Any]):
+    def _preprocess_config(self):
         """
-        Add a `entity_stage_name` key to each entity stage in the config
+        Mutably add a `entity_stage_name` key to each entity stage in the config
         """
-        config_copy = deepcopy(config)
-        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = config_copy.get("entities", dict())
+        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         for entity_name, entity in entities.items():
             for stage_name, stage in entity.items():
                 stage["entity_stage_name"] = f"{entity_name}.{stage_name}"
-        return config_copy
 
-    def topological_sort(self):
+    def _topological_sort(self):
         """
         Calculate a group topological order based on the loaded config. Stages in the config that could be run in parallel are grouped together
 
@@ -34,7 +32,7 @@ class DependencyResolver:
         sorter = DependencyResolver(
             {A: [B, C], B: [C], C: [D], D: [], E: [D], F: [B, D]}
         )
-        ordered_groups = sorter.topological_sort()
+        ordered_groups = sorter._topological_sort()
         >> [[D], [C, E], [B], [A, F]]
         ```
         """
@@ -51,12 +49,13 @@ class DependencyResolver:
                 sorter.done(node)
         return [[entity_stages[entity_stage_name] for entity_stage_name in group] for group in ordered_groups]
 
-    def filter_irrelevant_dependencies_from_config(self, entity_stages_to_keep: List[str] = []):
+    def _filter_irrelevant_dependencies_from_config(self, entity_stages_to_keep: List[str] = []):
         """
-        Immutably filter down the config so that it only includes the direct and indirect dependends of the given stages
+        Mutably filter down the config so that it only includes the direct and indirect dependends of the given stages
         """
         if not entity_stages_to_keep:
-            return deepcopy(self.config)
+            # If no stages specified, keep all of them and skip filtering
+            return
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
         visited = set()
@@ -75,9 +74,7 @@ class DependencyResolver:
                 cleaned_entities[entity_name] = {stage_name: entity_stage}
             else:
                 cleaned_entities[entity_name][stage_name] = entity_stage
-        config_copy = deepcopy(self.config)
-        config_copy["entities"] = cleaned_entities
-        return config_copy
+        self.config["entities"] = cleaned_entities
 
     def filter_already_executed_entity_stages(self, topological_order_groups: List[List[Dict[str, Any]]], execution_details: List[Dict[str, Any]]):
         """
@@ -96,6 +93,6 @@ class DependencyResolver:
         """
         Filter down the config so that only relevent entities are executed and group them into batches that can run concurrently
         """
-        filtered_config = self.filter_irrelevant_dependencies_from_config(entity_stages)
-        groups = self.topological_sort(filtered_config)
+        self._filter_irrelevant_dependencies_from_config(entity_stages)
+        groups = self._topological_sort()
         return self.filter_already_executed_entity_stages(groups, execution_details)
