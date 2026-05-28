@@ -1,7 +1,6 @@
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
 from graphlib import TopologicalSorter
 from typing import List, Dict, Any, Union
-from copy import deepcopy
 
 
 class DependencyResolver:
