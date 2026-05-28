@@ -32,7 +32,13 @@
 					"sparkPool": {
 						"referenceName": "pinssynspodw35",
 						"type": "BigDataPoolReference"
-					}
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
 				}
 			},
 			{
@@ -55,25 +61,61 @@
 					"isSequential": true,
 					"activities": [
 						{
-							"name": "Execute inner loop",
-							"type": "ExecutePipeline",
+							"name": "Execute on previous batch success",
+							"description": "Only run the batch if the previous batch was successful, or if this is the first batch",
+							"type": "IfCondition",
 							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_etl_executor",
-									"type": "PipelineReference"
+								"expression": {
+									"value": "@not(\n    variables('failureDetected')\n)",
+									"type": "Expression"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"entity_stages": {
-										"value": "@item()",
-										"type": "Expression"
+								"ifTrueActivities": [
+									{
+										"name": "Execute inner loop",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_etl_executor",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"entity_stages": {
+													"value": "@item()",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Set batch failed",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Execute inner loop",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "failureDetected",
+											"value": true
+										}
 									}
-								}
+								]
 							}
 						}
 					]
@@ -87,6 +129,12 @@
 			},
 			"run_id": {
 				"type": "string"
+			}
+		},
+		"variables": {
+			"failureDetected": {
+				"type": "Boolean",
+				"defaultValue": false
 			}
 		},
 		"folder": {
