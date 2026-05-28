@@ -80,6 +80,9 @@ class DependencyResolver:
         """
         Filter out entity stages from the topological order than have already veen marked as completed by the pipeline
         """
+        if not execution_details:
+            # Return all entity stages if no execution details could be found
+            return topological_order_groups
         # Might need to change this depending on how the data is structured
         entity_stage_execution_details = {
             f"{entity_name}.{stage_name}" for entity_name, stage_name, execution_status in execution_details if execution_status != "Succeeded"
