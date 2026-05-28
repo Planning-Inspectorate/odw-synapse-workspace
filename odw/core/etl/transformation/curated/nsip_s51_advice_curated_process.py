@@ -12,7 +12,7 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP S51 Advice data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {

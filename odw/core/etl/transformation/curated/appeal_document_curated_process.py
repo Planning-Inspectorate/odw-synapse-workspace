@@ -12,7 +12,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating Appeal Document data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {

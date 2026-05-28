@@ -16,7 +16,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
     Reads active inspectors from the harmonised layer and upserts them into
     the curated Delta table using hash-based change detection.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {

@@ -42,7 +42,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Meeting data using SCD Type 2 logic.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
