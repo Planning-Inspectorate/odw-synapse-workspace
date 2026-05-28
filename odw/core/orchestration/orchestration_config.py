@@ -1,11 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Dict, Any
 
 
 class OrchestrationConfig(BaseModel):
     class EntityStage(BaseModel):
-        etl_process: str
         kwargs: Dict[str, Any]
         depends_on: List[str]
+
+        @validator("kwargs")
+        def validate_kwargs(cls, v):
+            if "entity_stage_name" not in v:
+                raise ValueError(f"kwargs must contain a 'entity_stage_name' entry")
+            return v
 
     entities: Dict[str, Dict[str, EntityStage]]
