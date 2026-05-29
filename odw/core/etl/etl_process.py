@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult, ETLFailResult
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
+from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
+from pyspark.sql.types import StructType, StructField, StringType, TimestampType, BooleanType
 from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
 import traceback
@@ -13,8 +15,28 @@ import json
 
 
 class ETLProcess(ABC):
-    def __init__(self, spark: SparkSession, debug: bool = False):
+    METADATA_DB = "odw_meta_db"
+    METADATA_CONTAINER = "odw-meta-db"
+    METADATA_TABLE = "odw_execution_history"
+    METADATA_SCHEMA = StructType(
+        [
+            StructField("run_id", StringType(), False, metadata={"comment": "The id of the master pipeline that triggered the ETL process"}),
+            StructField("entity_name", StringType(), False, metadata={"comment": "The name of the entity, which aligns with orchestration_transform_dependencies.yaml"}),
+            StructField("stage_name", StringType(), False, metadata={"comment": "The stage name of the entity that is being executed, which aligns with orchestration_transform_dependencies.yaml"}),
+            StructField("execution_parameters", StringType(), True, metadata={"comment": "The parameters passed to the ETL Process"}),
+            StructField("execution_start_time", TimestampType(), False, metadata={"comment": "When the entry was added to the metadata table"}),
+            StructField("execution_finish_time", TimestampType(), True, metadata={"comment": "When the entry was updated with either success or failure details"}),
+            StructField("successful", BooleanType(), True, metadata={"comment": "If the complete pipeline was finished or not. If null, then the process has not finished"}),
+            StructField("result_text", StringType(), True, metadata={"comment": "String form of the result. This will either be an ETLResult (in json format), or the error message depending on the value of the 'successful' column"}),
+            StructField("_update_key_col", StringType(), False) # Not included in the table, used for handling the delta merge logic
+        ]
+    )
+
+    def __init__(self, spark: SparkSession, run_id: str, entity_name: str, stage_name: str, debug: bool = False):
         self.spark: SparkSession = spark
+        self.run_id = run_id
+        self.entity_name = entity_name
+        self.stage_name = stage_name
         self.debug = debug
 
     @classmethod
@@ -124,6 +146,60 @@ class ETLProcess(ABC):
                     LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")
             else:
                 LoggingUtil().log_info("There is no data to write")
+    
+    def create_metadata_entry(self):
+        new_entry = self.spark.createDataFrame(
+            {
+                "run_id": self.run_id,
+                "entity_name": self.entity_name,
+                "stage_name": self.stage_name,
+                "execution_start_time": datetime.now(),
+                "execution_finish_time": None,
+                "successful": None,
+                "result_text": None,
+                "_update_key_col": "create"
+            },
+            schema=self.METADATA_SCHEMA
+        )
+        SynapseDeltaIO().write(
+            self.spark,
+            new_entry,
+            storage_endpoint=Util.get_storage_account(),
+            database_name=self.METADATA_DB,
+            table_name=self.METADATA_TABLE,
+            container_name=self.METADATA_CONTAINER,
+            blob_path=self.METADATA_TABLE,
+            merge_keys=["run_id", "entity_name", "stage_name"],
+            update_key_col="_update_key_col",
+        )
+    
+    def update_metadata_entry(self, etl_result: ETLResult):
+        result_metadata: ETLResult.ETLResultMetadata = etl_result.metadata
+        end_execution_time = result_metadata.end_execution_time
+        successful = etl_result.outcome == "Succeeded"
+        data_to_update = self.spark.createDataFrame(
+            {
+                "run_id": self.run_id,
+                "entity_name": self.entity_name,
+                "stage_name": self.stage_name,
+                "execution_finish_time": end_execution_time,
+                "successful": successful,
+                "result_text": etl_result.model_dump_json(indent=4),
+                "_update_key_col": "update"
+            },
+            schema=self.METADATA_SCHEMA
+        )
+        SynapseDeltaIO().write(
+            self.spark,
+            data_to_update,
+            storage_endpoint=Util.get_storage_account(),
+            database_name=self.METADATA_DB,
+            table_name=self.METADATA_TABLE,
+            container_name=self.METADATA_CONTAINER,
+            blob_path=self.METADATA_TABLE,
+            merge_keys=["run_id", "entity_name", "stage_name"],
+            update_key_col="_update_key_col",
+        )
 
     def run(self, **kwargs) -> ETLResult:
         """
