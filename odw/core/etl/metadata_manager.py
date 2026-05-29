@@ -69,6 +69,8 @@ class MetadataManager:
         :param stage_name str: The stage name of the execution history entry to manage. MUST be supplied to write metadata
         :param execution_parameters dict: The kwargs supplied to the calling ETLProcess. MUST be supplied to write metadata
         """
+        if not run_id:
+            raise RuntimeError("Requires a run_id to be provided")
         self._created_entry = False
         self._updated_entry = False
         self._spark = spark
@@ -149,8 +151,6 @@ class MetadataManager:
         Return all entries for the run_id
         """
         run_id = self._entry.get("run_id", None)
-        if not run_id:
-            raise RuntimeError("Requires run_id to be provided")
         return self._spark.sql(f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}'")
 
     def get_for_entity(self):
@@ -170,7 +170,7 @@ class MetadataManager:
         run_id = self._entry.get("run_id", None)
         entity_name = self._entry.get("entity_name", None)
         stage_name = self._entry.get("stage_name", None)
-        if not (run_id and entity_name):
+        if not (run_id and entity_name and stage_name):
             raise RuntimeError("Requires run_id, entity_name and stage_name to be provided")
         return self._spark.sql(
             f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}' and entity_name = '{entity_name}' and stage_name = '{stage_name}'"

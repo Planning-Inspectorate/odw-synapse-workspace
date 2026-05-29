@@ -211,19 +211,266 @@ class TestMetadataManager(SparkTestCase):
             )
 
     def test__metadata_manager__get_for_run_id(self):
-        pass
-
-    def test__metadata_manager__get_for_run_id__fails_with_missing_parameters(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_gfri"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": f"{run_id}_some_other_id",
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        expected_result = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id)
+        result = inst.get_for_run_id()
+        assert_dataframes_equal(expected_result, result)
 
     def test__metadata_manager__get_for_entity(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_gfe"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "some other entity",
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        expected_result = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id, entity_name)
+        result = inst.get_for_entity()
+        assert_dataframes_equal(expected_result, result)
 
     def test__metadata_manager__get_for_entity__fails_with_missing_parameters(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_gfe_wmp"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "some other entity",
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id)
+        with pytest.raises(RuntimeError):
+            inst.get_for_entity()
 
     def test__metadata_manager__get_for_entity_stage(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_gfes"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": "some_other_stage",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": f"{run_id}_some_other_id",
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "some other entity",
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        expected_result = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id, entity_name, stage_name)
+        result = inst.get_for_entity_stage()
+        assert_dataframes_equal(expected_result, result)
 
     def test__metadata_manager__get_for_entity_stage__fails_with_missing_parameters(self):
-        pass
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_gfes_wmp"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": "some_other_stage",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": f"{run_id}_some_other_id",
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "some other entity",
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id, entity_name)
+        with pytest.raises(RuntimeError):
+            inst.get_for_entity_stage()
