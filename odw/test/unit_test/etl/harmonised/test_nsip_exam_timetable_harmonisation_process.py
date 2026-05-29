@@ -99,8 +99,9 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                     "sb_case_references": sb_case_references,
                 }
             )
+        write_entry_key = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[write_entry_key]["data"]
         rows = {row["caseReference"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -112,6 +113,6 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
         assert rows["EN010002"]["published"] is True
         assert len(rows["EN010002"]["events"]) == 2
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
+        assert data_to_write[write_entry_key]["write_mode"] == "overwrite"
+        assert data_to_write[write_entry_key]["partition_by"] == ["IsActive"]
         assert result.metadata.insert_count == 2
