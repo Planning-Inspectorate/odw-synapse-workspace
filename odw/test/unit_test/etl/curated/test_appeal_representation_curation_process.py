@@ -7,6 +7,7 @@ import pyspark.sql.types as T
 from datetime import datetime
 import mock
 
+
 class TestAppealRepresentationCurationProcess(SparkTestCase):
     def test__appeal_representation__load_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
