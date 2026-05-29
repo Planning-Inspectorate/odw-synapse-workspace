@@ -1,16 +1,11 @@
 from datetime import datetime
 import mock
-import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import AppealEventEstimateCuratedMipinsProcess
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
-
-
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS logic not implemented yet")
-
 
 CURATED_COLUMNS = [
     "AppealsEstimateEventID",
@@ -101,14 +96,14 @@ def _mixed_filter_harmonised_df(spark):
         valid.withColumn("AppealsEstimateEventID", F.lit("AEE-EVENT-003"))
         .withColumn("ID", F.lit("AEE-003"))
         .withColumn("caseReference", F.lit("APP-003"))
-        .withColumn("IngestionDate", F.lit(datetime(1899, 12, 31, 23, 59, 59)).cast(T.TimestampType()))
+        .withColumn("IngestionDate", F.lit("1899-12-31 23:59:59").cast(T.TimestampType()))
     )
 
     old_valid_to = (
         valid.withColumn("AppealsEstimateEventID", F.lit("AEE-EVENT-004"))
         .withColumn("ID", F.lit("AEE-004"))
         .withColumn("caseReference", F.lit("APP-004"))
-        .withColumn("ValidTo", F.lit(datetime(1899, 12, 31, 23, 59, 59)).cast(T.TimestampType()))
+        .withColumn("ValidTo", F.lit("1899-12-31 23:59:59").cast(T.TimestampType()))
     )
 
     inactive_but_valid = (
@@ -141,7 +136,7 @@ def _duplicate_valid_odt_harmonised_df(spark):
 
 
 def _source_data(harmonised_data):
-    return {"harmonised_data": harmonised_data}
+    return {"harmonised_appeal_event_estimate": harmonised_data}
 
 
 class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
@@ -149,7 +144,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_mixed_filter_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_mixed_filter_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -179,7 +174,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         inactive_df = _valid_odt_harmonised_df(spark).withColumn("ISActive", F.lit("N"))
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(inactive_df))
+        data_to_write, result = inst.process(source_data=_source_data(inactive_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -192,7 +187,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_duplicate_valid_odt_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_duplicate_valid_odt_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -203,7 +198,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_empty_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_empty_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -219,7 +214,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         source_df = _valid_odt_harmonised_df(spark).withColumn("extraColumn", F.lit("ignore me"))
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -233,7 +228,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         source_df = _valid_odt_harmonised_df(spark)
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -246,7 +241,7 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_valid_odt_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_valid_odt_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
 
