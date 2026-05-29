@@ -298,86 +298,7 @@
 							}
 						},
 						{
-							"name": "Record Green Specialist Case",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "pln_checkmarkdata_cur_mipins_copy1",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Fail",
-									"PipelineName": {
-										"value": "@activity('pln_green_specialist_case_main').output.pipelineName",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@activity('pln_green_specialist_case_main').output.pipelineRunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@activity('pln_green_specialist_case_main').ExecutionStartTime",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@activity('pln_green_specialist_case_main').ExecutionEndTime",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@activity('pln_green_specialist_case_main').Error.message",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@activity('pln_green_specialist_case_main').Status",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@activity('pln_green_specialist_case_main').PipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@activity('pln_green_specialist_case_main').PipelineRunId",
-										"type": "Expression"
-									},
-									"PipelineExecutionTimeInSec": {
-										"value": "@activity('pln_green_specialist_case_main').Duration",
-										"type": "Expression"
-									},
-									"ActivityType": {
-										"value": "@activity('pln_green_specialist_case_main').ActivityType",
-										"type": "Expression"
-									},
-									"DurationSeconds": {
-										"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000)",
-										"type": "Expression"
-									},
-									"AppInsCustomEventName": "ODW_Green_Specialist_Case_Master_Pipeline_Logs",
-									"StatusCode": {
-										"value": "@activity('pln_green_specialist_case_main').StatusCode",
-										"type": "Expression"
-									},
-									"AppInsIKey": {
-										"value": "@variables('apps_insights_ikey')",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Send Green Specialist Case failed",
+							"name": "Send SAPHR Monthly Weekly Load failed",
 							"type": "ExecutePipeline",
 							"dependsOn": [
 								{
@@ -399,11 +320,11 @@
 								"waitOnCompletion": true,
 								"parameters": {
 									"dataFactorySubscription": {
-										"value": "@variables('subscription_id')",
+										"value": "@pipeline().parameters.subscription_id",
 										"type": "Expression"
 									},
 									"dataFactoryResourceGroup": {
-										"value": "@variables('resource_group')",
+										"value": "@pipeline().parameters.resource_group",
 										"type": "Expression"
 									},
 									"pipelineRunId": {
@@ -411,29 +332,89 @@
 										"type": "Expression"
 									},
 									"teamsWebhookUrl": {
-										"value": "@variables('webhook_url')",
+										"value": "@pipeline().parameters.webhook_url",
 										"type": "Expression"
 									},
 									"activityName": {
 										"value": "@pipeline().Pipeline",
 										"type": "Expression"
 									},
-									"activityMessage": "Green Specialist Case data failed",
+									"activityMessage": "Checkmark data failed",
 									"activityDuration": {
-										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+										"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().parameters.start_time,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
 										"type": "Expression"
 									},
 									"activityStatus": "Failed",
 									"Colour": {
-										"value": "@variables('failed_colour')",
+										"value": "@pipeline().parameters.failed_colour",
 										"type": "Expression"
 									},
 									"Image": {
-										"value": "@variables('failed_image')",
+										"value": "@pipeline().parameters.failed_image",
 										"type": "Expression"
 									},
-									"Message_title": "Unmanaged data - Green Specialist Case Master pipeline failed",
-									"Message_subtitle": "Green Specialist Case data load failed."
+									"Message_title": "Checkmark data load failed",
+									"Message_subtitle": "SAP HR Weekly load failed"
+								}
+							}
+						},
+						{
+							"name": "Record completed SAP HR Weekly Load",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "pln_checkmarkdata_cur_mipins_copy1",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": "Completion",
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StatusMessage": "Completed SAP HR Weekly Load",
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"ActivityType": "Pipeline",
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
 								}
 							}
 						}
