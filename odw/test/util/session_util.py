@@ -20,7 +20,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
     - `PytestSparkSessionUtil().get_spark_warehouse_name()`
     """
 
-    DATABASE_NAMES = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db"]
+    DATABASE_NAMES = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db", "odw_meta_db"]
 
     def __init__(self, *args, **kwargs):
         self._THREAD_ID = str(uuid4())[:8]

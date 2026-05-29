@@ -1,6 +1,8 @@
 from odw.core.io.synapse_data_io import SynapseDataIO
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
+from pyspark.sql.utils import AnalysisException
+from pyspark.sql.types import StructType
 from delta.tables import DeltaTable
 
 
@@ -115,7 +117,17 @@ class SynapseDeltaIO(SynapseDataIO):
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
-        target_delta_table = DeltaTable.forPath(spark, data_path)
+        try:
+            target_delta_table = DeltaTable.forPath(spark, data_path)
+        except AnalysisException:
+            target_delta_table = (
+                DeltaTable.createIfNotExists(spark)
+                .tableName(f"{database_name}.{table_name}")
+                .addColumns(StructType([field for field in data.schema.fields if field.name != update_key_col]))
+                .location(data_path)
+                .execute()
+            )
+
         delta_table_schema = target_delta_table.toDF().schema
         delta_table_cols = set(delta_table_schema.names)
         new_data_cols = set(data.schema.names)

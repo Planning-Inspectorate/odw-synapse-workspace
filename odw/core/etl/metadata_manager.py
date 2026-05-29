@@ -76,7 +76,7 @@ class MetadataManager:
             "run_id": run_id,
             "entity_name": entity_name,
             "stage_name": stage_name,
-            "execution_parameters": json.dumps(execution_parameters, indent=4, default=str),
+            "execution_parameters": json.dumps(execution_parameters, default=str),
             "execution_start_time": datetime.now(),
             "execution_finish_time": None,
             "successful": None,
@@ -86,8 +86,8 @@ class MetadataManager:
 
     def _write(self, data: DataFrame):
         SynapseDeltaIO().write(
-            self._spark,
             data,
+            spark=self._spark,
             storage_endpoint=Util.get_storage_account(),
             database_name=self.METADATA_DB,
             table_name=self.METADATA_TABLE,
@@ -110,13 +110,13 @@ class MetadataManager:
             raise ValueError(
                 "Must supply run_id, entity_name, stage_name, and execution_parameters when creating an entry, but some of these were missing"
             )
-        if self.written_entry:
+        if self._created_entry:
             raise RuntimeError(
                 f"Metadata entry has already been created for the given run_id, entity_name, stage_name ('{run_id}', '{entity_name}', '{stage_name}')"
             )
-        if not self.written_entry:
-            self.written_entry = True
-            data_to_create = self._spark.createDataFrame(self._entry, schema=self.METADATA_SCHEMA)
+        if not self._created_entry:
+            self._created_entry = True
+            data_to_create = self._spark.createDataFrame([self._entry], schema=self.METADATA_SCHEMA)
             self._write(data_to_create)
 
     def update(self, etl_result: ETLResult):
@@ -141,7 +141,7 @@ class MetadataManager:
                 "result_text": etl_result.model_dump_json(indent=4),
                 "_update_key_col": "update",
             }
-            data_to_update = self._spark.createDataFrame(self._entry, schema=self.METADATA_SCHEMA)
+            data_to_update = self._spark.createDataFrame([self._entry], schema=self.METADATA_SCHEMA)
             self._write(data_to_update)
 
     def get_for_run_id(self):
