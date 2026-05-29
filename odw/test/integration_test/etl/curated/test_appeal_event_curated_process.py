@@ -199,7 +199,7 @@ class TestAppealEventCuratedProcess(ETLTestCase):
             ),
         ):
             inst = AppealEventCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_event", orchestration_stage_name="curate", )
             self._assert_etl_successful_or_raise_not_implemented(result)
 
         actual_df = spark.table(f"odw_curated_db.{curated_table}")

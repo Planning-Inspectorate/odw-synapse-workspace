@@ -311,7 +311,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             "odw_harmonised_db.sb_test_arcp_r_ed",
         ):
             inst = AppealRepresentationCurationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_arcp_r_wed", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
             actual_table_data = spark.table("odw_curated_db.appeal_representation")
             assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
@@ -345,7 +345,7 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             "odw_harmonised_db.sb_test_arcp_r_ned",
         ):
             inst = AppealRepresentationCurationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_arcp_r_wned", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
             actual_table_data = spark.table("odw_curated_db.appeal_representation")
             assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)

@@ -126,7 +126,7 @@ class TestEntraIDCurationProcess(ETLTestCase):
             mock.patch.object(EntraIDCurationProcess, "CURATED_TABLE", curated_table),
         ):
             inst = EntraIDCurationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="entraid", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
             actual_data = spark.table(f"odw_curated_db.{curated_table}")
             assert_dataframes_equal(expected_data, actual_data)

@@ -145,10 +145,10 @@ class ETLProcess(ABC):
 
         """
         etl_start_time = datetime.now()
-        run_id = self.load_parameter("run_id", kwargs)
-        entity_name = self.load_parameter("entity_name", kwargs)
-        stage_name = self.load_parameter("stage_name", kwargs)
-        metadata_manager = MetadataManager(run_id, entity_name, stage_name, kwargs)
+        run_id = kwargs.pop("orchestration_run_id", None)
+        entity_name = kwargs.pop("orchestration_entity_name", None)
+        stage_name = kwargs.pop("orchestration_stage_name", None)
+        metadata_manager = MetadataManager(self.spark, run_id, entity_name, stage_name, kwargs)
 
         def generate_failure_result(start_time: datetime, exception: str, exception_trace=None, table_name=None):
             end_time = datetime.now()
@@ -176,7 +176,7 @@ class ETLProcess(ABC):
         except Exception as e:
             failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc())
             LoggingUtil().log_error(failure_result)
-            metadata_manager.update(etl_result)
+            metadata_manager.update(failure_result)
             return failure_result
         if isinstance(etl_result, ETLFailResult):
             LoggingUtil().log_error(etl_result)
@@ -186,10 +186,10 @@ class ETLProcess(ABC):
         try:
             self.write_data(data_to_write)
             LoggingUtil().log_info(etl_result)
-            metadata_manager.update(etl_result)
-            return etl_result
         except Exception as e:
             failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
             LoggingUtil().log_error(failure_result)
-            metadata_manager.update(etl_result)
+            metadata_manager.update(failure_result)
             return failure_result
+        metadata_manager.update(etl_result)
+        return etl_result

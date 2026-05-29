@@ -99,7 +99,7 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_r_nrwaawcm", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
 
         data_to_write = mock_write.call_args[0][0]
         rows = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
@@ -128,7 +128,7 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_r_crcorwidmo", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -158,7 +158,7 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_r_urpaa", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -178,7 +178,7 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run()
+            result = inst.run(orchestration_run_id="t_r_hircf", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -201,7 +201,7 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            inst.run()
+            inst.run(orchestration_run_id="t_r_ocmrs", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]

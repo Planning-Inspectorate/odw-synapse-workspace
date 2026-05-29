@@ -46,7 +46,7 @@ class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):
         ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
 
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attribute_matrix", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(output_table)
             assert_dataframes_equal(expected_data, actual_table_data)

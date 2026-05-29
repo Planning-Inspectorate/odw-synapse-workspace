@@ -639,7 +639,7 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
             mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_REPRESENTATION_TABLE", horizon_representation_table_name),
         ):
             inst = ServiceUserHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="service_user", orchestration_orchestration_stage_name="harmonise")
 
             assert_etl_result_successful(result)
 
@@ -773,7 +773,7 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
             mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_REPRESENTATION_TABLE", horizon_representation_table_name),
         ):
             inst = ServiceUserHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="service_user", orchestration_orchestration_stage_name="harmonise")
 
             assert_etl_result_successful(result)
 

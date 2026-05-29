@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
@@ -309,6 +310,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -366,6 +370,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -425,6 +432,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -479,6 +489,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -534,6 +547,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 

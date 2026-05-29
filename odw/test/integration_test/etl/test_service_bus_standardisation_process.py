@@ -2,11 +2,12 @@ from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa:
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.core.etl.util.schema_util import SchemaUtil
+from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
-from odw.test.util.util import get_all_files_in_directory, format_to_adls_path
+from odw.test.util.util import get_all_files_in_directory, format_to_adls_path, format_adls_path_to_local_path
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
 import mock
@@ -20,14 +21,15 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
         with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
-            with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-                with mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory):
-                    with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                        with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                            with mock.patch.object(LoggingUtil, "__new__"):
-                                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                        yield
+            with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
+                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
+                    with mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory):
+                        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+                            with mock.patch.object(Util, "get_path_to_file", generate_local_path):
+                                with mock.patch.object(LoggingUtil, "__new__"):
+                                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                                            yield
 
     def test__service_bus_standardisation_process__run__with_existing_data(self):
         """
@@ -98,7 +100,7 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
             {"mergeSchema": "true"},
         )
         with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
-            result = ServiceBusStandardisationProcess(spark).run(entity_name="test__service_bus_standardisation_process__run")
+            result = ServiceBusStandardisationProcess(spark).run(orchestration_run_id="t_sbsp_r_wed", orchestration_entity_name="some_entity", orchestration_stage_name="standardise", entity_name="test__service_bus_standardisation_process__run")
             assert_etl_result_successful(result)
         data_after = spark.table("odw_standardised_db.sb_test__service_bus_standardisation_process__run")
         # Drop columns that cannot easily be compared - todo actually compare these cols

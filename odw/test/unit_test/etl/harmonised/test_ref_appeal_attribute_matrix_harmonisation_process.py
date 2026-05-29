@@ -1,5 +1,6 @@
 import pytest
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
@@ -259,6 +260,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -308,6 +312,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -354,6 +361,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 
@@ -400,6 +410,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             with (
                 mock.patch.object(inst, "load_data", return_value=source_data),
                 mock.patch.object(inst, "write_data") as mock_write,
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 result = inst.run()
 

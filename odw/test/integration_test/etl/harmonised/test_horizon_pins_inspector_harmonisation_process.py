@@ -51,7 +51,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             "overwrite",
         )
 
-    def _run(self, spark):
+    def _run(self, spark, test_case):
         with (
             mock.patch.object(
                 HorizonPinsInspectorHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{self.test_case}_horizon_pins_inspector"
@@ -59,7 +59,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{self.test_case}_pins_inspector_stg"),
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector"),
         ):
-            return HorizonPinsInspectorHarmonisationProcess(spark).run()
+            return HorizonPinsInspectorHarmonisationProcess(spark).run(orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise")
 
     def test__run__builds_scd2_timeline_end_to_end(self):
         self.test_case = "t_hpihp_r_bste"
@@ -74,7 +74,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        result = self._run(spark)
+        result = self._run(spark, "t_r_bstete")
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 3
@@ -103,7 +103,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
 
         self._write_horizon(spark)
 
-        result = self._run(spark)
+        result = self._run(spark, "t_r_esweo")
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector")
@@ -124,7 +124,7 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             ],
         )
 
-        result = self._run(spark)
+        result = self._run(spark, "t_r_dnfasete")
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector")

@@ -683,7 +683,7 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             mock.patch.object(AppealHasHarmonisationProcess, "S78_TABLE", appeal_s78_table),
         ):
             inst = AppealHasHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_has", orchestration_stage_name="harmonise")
             assert_etl_result_successful(result)
             actual_has_data = spark.table(appeal_has_table)
             assert_dataframes_equal(expected_appeal_has_data, actual_has_data)

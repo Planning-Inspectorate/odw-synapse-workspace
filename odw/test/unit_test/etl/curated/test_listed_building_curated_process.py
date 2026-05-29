@@ -3,6 +3,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.listed_building_curated_process import ListedBuildingCuratedProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -512,6 +513,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 
@@ -572,6 +576,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 
@@ -629,6 +636,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 
@@ -697,6 +707,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 
@@ -721,6 +734,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 
