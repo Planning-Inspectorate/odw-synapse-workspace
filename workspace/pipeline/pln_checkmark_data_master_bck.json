@@ -1,21 +1,80 @@
 {
-	"name": "pln_checkmark_data_master",
+	"name": "pln_checkmark_data_master_bck",
 	"properties": {
 		"activities": [
 			{
-				"name": "Set key vault URL",
-				"type": "SetVariable",
-				"dependsOn": [],
+				"name": "Send starting teams notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
-					"secureOutput": false,
-					"secureInput": false
+					"secureInput": true
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Key_Vault_Url",
-					"value": {
-						"value": "@if(equals(pipeline().DataFactory,'pins-synw-odw-dev-uks'),'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',if(equals(pipeline().DataFactory,'pins-synw-odw-test-uks'),'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',if(equals(pipeline().DataFactory,'pins-synw-odw-build-uks'),'https://pinskvsynwodwbuilduks.vault.azure.net/secrets/','https://pinskvsynwodwproduks.vault.azure.net/secrets/')))",
-						"type": "Expression"
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Starting checkmark data master pipeline run",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
+						"Colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"Message_title": "checkmark data -  Master pipeline starting",
+						"Message_subtitle": "The checkmark data master pipeline for loading data to ODW is starting with the following parameters:"
 					}
 				}
 			},
@@ -40,147 +99,6 @@
 					"value": {
 						"value": "@utcnow()",
 						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Get subscription",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId', variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Get resource group",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup', variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Get Webhook",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'UnmanagedDataTeamsWebhook', variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
-					}
-				}
-			},
-			{
-				"name": "Get AppIns iKey",
-				"description": "Get the application insights ikey for logging",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Set start time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": true,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"method": "GET",
-					"url": {
-						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string', variables('Key_Vault_API'))",
-						"type": "Expression"
-					},
-					"connectVia": {
-						"referenceName": "PinsIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"authentication": {
-						"type": "MSI",
-						"resource": "https://vault.azure.net"
 					}
 				}
 			},
@@ -257,107 +175,129 @@
 				}
 			},
 			{
-				"name": "Set AppIns iKey",
-				"type": "SetVariable",
+				"name": "Get subscription",
+				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Get AppIns iKey",
+						"activity": "Set start time",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
 				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
 					"secureOutput": true,
-					"secureInput": true
+					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "apps_insights_ikey",
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'SubscriptionId',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get Webhook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'UnmanagedDataTeamsWebhook',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Get resource group",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'DBResourceGroup',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set key vault URL",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Key_Vault_Url",
 					"value": {
-						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-dev-uks'\n    ),\n    'https://pinskvsynwodwdevuks.vault.azure.net/secrets/',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'https://pinskvsynwodwtestuks.vault.azure.net/secrets/',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'https://pinskvsynwodwbuilduks.vault.azure.net/secrets/',\n            'https://pinskvsynwodwproduks.vault.azure.net/secrets/'\n        )\n    )\n)",
 						"type": "Expression"
 					}
 				}
 			},
 			{
-				"name": "Send_Teams_Starting",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Set subscription",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set resource group",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set webhook",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set AppIns iKey",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Starting Checkmark data master pipeline run",
-						"activityDuration": "0H:00M:00s",
-						"activityStatus": "Starting",
-						"Colour": {
-							"value": "@variables('starting_colour')",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@variables('starting_image')",
-							"type": "Expression"
-						},
-						"Message_title": "Checkmark data - Master pipeline starting",
-						"Message_subtitle": "The Checkmark data master pipeline for loading data to ODW is starting."
-					}
-				}
-			},
-			{
-				"name": "Record_Pipeline_Starting_AppIns",
+				"name": "Record pipeline starting",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -422,11 +362,71 @@
 				}
 			},
 			{
-				"name": "Record_Loading_Checkmark_AppIns",
+				"name": "Get AppIns iKey",
+				"description": "Get the application insights ikey for logging",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Set start time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": true,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat(variables('Key_Vault_Url'), 'application-insights-connection-string',variables('Key_Vault_API'))",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "PinsIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Set AppIns iKey",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "apps_insights_ikey",
+					"value": {
+						"value": "@split(split(activity('Get AppIns iKey').output.value, ';')[0], '=')[1]",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record loading checkmark data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record_Pipeline_Starting_AppIns",
+						"activity": "Record pipeline starting",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -456,7 +456,7 @@
 							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
-						"StatusMessage": "Progressing to Checkmark data",
+						"StatusMessage": "Progressing to checkmark data",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -478,7 +478,6 @@
 							"type": "Expression"
 						},
 						"ActivityType": "Pipeline",
-						"AppInsCustomEventName": "ODW_Checkmarkdata_Master_Pipeline_Logs",
 						"AppInsIKey": {
 							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"
@@ -487,75 +486,17 @@
 				}
 			},
 			{
-				"name": "Send_Teams_Progressing",
+				"name": "pln_checkmark data_main",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Send_Teams_Starting",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Progressing Checkmark data load",
-						"activityDuration": "0H:00M:00s",
-						"activityStatus": "On Progress",
-						"Colour": {
-							"value": "@variables('on_progress_colour')",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@variables('progress_image')",
-							"type": "Expression"
-						},
-						"Message_title": "Checkmark data load progressing",
-						"Message_subtitle": "The Checkmark data master pipeline is progressing."
-					}
-				}
-			},
-			{
-				"name": "pln_checkmarkdata_main",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Record_Loading_Checkmark_AppIns",
+						"activity": "Record loading checkmark data",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "Send_Teams_Progressing",
+						"activity": "Send Specialist Cases Green Case and Local Plans",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -567,7 +508,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_checkmarkdata_main_v2",
+						"referenceName": "pln_checkmarkdata_main",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true,
@@ -581,15 +522,51 @@
 							"type": "Expression"
 						},
 						"resource_group": {
-							"value": "@variables('resource_group')",
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"starting_colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"on_progress_colour": {
+							"value": "@variables('on_progress_colour')",
 							"type": "Expression"
 						},
 						"failed_colour": {
 							"value": "@variables('failed_colour')",
 							"type": "Expression"
 						},
+						"start_time": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"starting_image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"progress_image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"warning_image": {
+							"value": "@variables('warning_image')",
+							"type": "Expression"
+						},
 						"failed_image": {
 							"value": "@variables('failed_image')",
+							"type": "Expression"
+						},
+						"warning_colour": {
+							"value": "@variables('warning_colour')",
+							"type": "Expression"
+						},
+						"horizon_feed": {
+							"value": "@variables('horizon_feed')",
+							"type": "Expression"
+						},
+						"apps_insights_ikey": {
+							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"
 						},
 						"completed_colour": {
@@ -599,20 +576,16 @@
 						"completed_image": {
 							"value": "@variables('completed_image')",
 							"type": "Expression"
-						},
-						"apps_insights_ikey": {
-							"value": "@variables('apps_insights_ikey')",
-							"type": "Expression"
 						}
 					}
 				}
 			},
 			{
-				"name": "Record_Checkmark_Failed_AppIns",
+				"name": "Record Checkmark data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_checkmarkdata_main",
+						"activity": "pln_checkmark data_main",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -631,52 +604,52 @@
 					"parameters": {
 						"Stage": "Fail",
 						"PipelineName": {
-							"value": "@activity('pln_checkmarkdata_main').output.pipelineName",
+							"value": "@activity('pln_checkmark data_main').output.pipelineName",
 							"type": "Expression"
 						},
 						"PipelineRunID": {
-							"value": "@activity('pln_checkmarkdata_main').output.pipelineRunId",
+							"value": "@activity('pln_checkmark data_main').output.pipelineRunId",
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@activity('pln_checkmarkdata_main').ExecutionStartTime",
+							"value": "@activity('pln_checkmark data_main').ExecutionStartTime",
 							"type": "Expression"
 						},
 						"EndTime": {
-							"value": "@activity('pln_checkmarkdata_main').ExecutionEndTime",
+							"value": "@activity('pln_checkmark data_main').ExecutionEndTime",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@activity('pln_checkmarkdata_main').Error.message",
+							"value": "@activity('pln_checkmark data_main').Error.message",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@activity('pln_checkmarkdata_main').Status",
+							"value": "@activity('pln_checkmark data_main').Status",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineName": {
-							"value": "@activity('pln_checkmarkdata_main').PipelineName",
+							"value": "@activity('pln_checkmark data_main').PipelineName",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@activity('pln_checkmarkdata_main').PipelineRunId",
+							"value": "@activity('pln_checkmark data_main').PipelineRunId",
 							"type": "Expression"
 						},
 						"PipelineExecutionTimeInSec": {
-							"value": "@activity('pln_checkmarkdata_main').Duration",
+							"value": "@activity('pln_checkmark data_main').Duration",
 							"type": "Expression"
 						},
 						"ActivityType": {
-							"value": "@activity('pln_checkmarkdata_main').ActivityType",
+							"value": "@activity('pln_checkmark data_main').ActivityType",
 							"type": "Expression"
 						},
 						"DurationSeconds": {
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000)",
 							"type": "Expression"
 						},
-						"AppInsCustomEventName": "ODW_Checkmarkdata_Master_Pipeline_Logs",
+						"AppInsCustomEventName": "ODW_Green_Specialist_Case_Master_Pipeline_Logs",
 						"StatusCode": {
-							"value": "@activity('pln_checkmarkdata_main').StatusCode",
+							"value": "@activity('pln_checkmark data_main').StatusCode",
 							"type": "Expression"
 						},
 						"AppInsIKey": {
@@ -687,11 +660,11 @@
 				}
 			},
 			{
-				"name": "Send_Teams_Failed",
+				"name": "Send Checkmark data failed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_checkmarkdata_main",
+						"activity": "pln_checkmark data_main",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -730,7 +703,7 @@
 						},
 						"activityMessage": "Checkmark data failed",
 						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:',string(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
 							"type": "Expression"
 						},
 						"activityStatus": "Failed",
@@ -743,16 +716,16 @@
 							"type": "Expression"
 						},
 						"Message_title": "Checkmark data pipeline failed",
-						"Message_subtitle": "Checkmark data load failed. Check App Insights for details."
+						"Message_subtitle": "Checkmark data load failed."
 					}
 				}
 			},
 			{
-				"name": "Record_Checkmark_Completed_AppIns",
+				"name": "Record Checkmark data pipeline completed",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_checkmarkdata_main",
+						"activity": "pln_checkmark data_main",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -804,7 +777,6 @@
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000)",
 							"type": "Expression"
 						},
-						"AppInsCustomEventName": "ODW_Checkmarkdata_Master_Pipeline_Logs",
 						"AppInsIKey": {
 							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"
@@ -813,11 +785,11 @@
 				}
 			},
 			{
-				"name": "Send_Teams_Completed",
+				"name": "Send Completed to Checkmark data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_checkmarkdata_main",
+						"activity": "pln_checkmark data_main",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -854,9 +826,9 @@
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": "Completed Checkmark data",
+						"activityMessage": "Completed Green Specialist Case data",
 						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:',string(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:', \nstring(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(variables('start_time'),'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
 							"type": "Expression"
 						},
 						"activityStatus": "Completed",
@@ -868,8 +840,66 @@
 							"value": "@variables('completed_image')",
 							"type": "Expression"
 						},
-						"Message_title": "Checkmark data - Master pipeline completed",
-						"Message_subtitle": "Checkmark data load completed successfully."
+						"Message_title": "Unmanaged data - Green Specialist Case Master pipeline completed",
+						"Message_subtitle": "Green Specialist case data load completed successfully"
+					}
+				}
+			},
+			{
+				"name": "Send Specialist Cases Green Case and Local Plans",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send starting teams notification",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Progressing checkmark data load",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "On Progress",
+						"Colour": {
+							"value": "@variables('on_progress_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('progress_image')",
+							"type": "Expression"
+						},
+						"Message_title": "Checkmark data  load progressing",
+						"Message_subtitle": "The checkmark data loading data to ODW is progressing"
 					}
 				}
 			}
@@ -896,14 +926,6 @@
 				"type": "String",
 				"defaultValue": "attention"
 			},
-			"warning_colour": {
-				"type": "String",
-				"defaultValue": "warning"
-			},
-			"completed_colour": {
-				"type": "String",
-				"defaultValue": "good"
-			},
 			"start_time": {
 				"type": "String"
 			},
@@ -923,6 +945,14 @@
 				"type": "String",
 				"defaultValue": "https://tse4.mm.bing.net/th/id/OIP.QvdayQCDbhZL5DsXkaBObwAAAA?w=160&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
 			},
+			"warning_colour": {
+				"type": "String",
+				"defaultValue": "warning"
+			},
+			"completed_colour": {
+				"type": "String",
+				"defaultValue": "good"
+			},
 			"completed_image": {
 				"type": "String",
 				"defaultValue": "https://tse3.mm.bing.net/th/id/OIP.YbfIXY-IWYnBkzHvhrXiXAHaHa?w=177&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
@@ -934,10 +964,25 @@
 				"type": "String",
 				"defaultValue": "?api-version=7.0"
 			},
+			"service_bus_feed": {
+				"type": "Array"
+			},
 			"horizon_feed": {
 				"type": "Array"
 			},
 			"apps_insights_ikey": {
+				"type": "String"
+			},
+			"raw_json": {
+				"type": "String"
+			},
+			"table_name": {
+				"type": "String"
+			},
+			"csv_file_name": {
+				"type": "String"
+			},
+			"standardised_start_time": {
 				"type": "String"
 			}
 		},
