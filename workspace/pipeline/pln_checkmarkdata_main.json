@@ -70,6 +70,12 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "SetCuratedStartTime",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
 				"policy": {
@@ -249,23 +255,11 @@
 				}
 			},
 			{
-				"name": "Send_Teams_Failed",
+				"name": "Record completed Green Specialist Case_TPO_Curated_app",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "pln_raw_checkmark_data_odw_raw_src",
-						"dependencyConditions": [
-							"Failed"
-						]
-					},
-					{
-						"activity": "pln_checkmark_standardised_main",
-						"dependencyConditions": [
-							"Failed"
-						]
-					},
-					{
-						"activity": "pln_checkmark_harmonised_main",
+						"activity": "pln_checkmarkdata_cur_mipins",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -277,59 +271,110 @@
 						]
 					},
 					{
-						"activity": "pln_checkmarkdata_cur_mipins",
+						"activity": "pln_checkmark_harmonised_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					},
+					{
+						"activity": "pln_checkmark_standardised_main",
+						"dependencyConditions": [
+							"Failed"
+						]
+					},
+					{
+						"activity": "pln_raw_checkmark_data_odw_raw_src",
 						"dependencyConditions": [
 							"Failed"
 						]
 					}
 				],
 				"policy": {
-					"secureInput": true
+					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
+						"referenceName": "pln_log_to_appins",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
+						"Stage": {
+							"value": "Fail",
 							"type": "Expression"
 						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
+						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
 						},
-						"activityMessage": "Checkmark data load failed",
-						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'H:',string(mod(div(sub(ticks(formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:sss')),ticks(formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd HH:mm:sss'))),600000000),60)),'M:00s')",
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
+						"StartTime": {
+							"value": "@variables('CuratedStartTime')",
 							"type": "Expression"
 						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
+						"EndTime": {
+							"value": "@utcNow()",
 							"type": "Expression"
 						},
-						"Message_title": "Checkmark data pipeline failed",
-						"Message_subtitle": "Checkmark data load failed. Check App Insights for details."
+						"ErrorMessage": {
+							"value": "@substring(activity('py_vw_green_specialist_case_TPO').error.message, 0, 2000)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@concat(activity('py_vw_green_specialist_case_TPO').output,'Curated Layer Failed')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('CuratedStartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": "400",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "SetCuratedStartTime",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "CuratedStartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
 					}
 				}
 			}
@@ -382,6 +427,17 @@
 			},
 			"completed_image": {
 				"type": "string"
+			}
+		},
+		"variables": {
+			"recordCount": {
+				"type": "String"
+			},
+			"error_message": {
+				"type": "String"
+			},
+			"CuratedStartTime": {
+				"type": "String"
 			}
 		},
 		"folder": {
