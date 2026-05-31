@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a7aebb69-a5e2-4179-8bf2-10c945438796"
+				"spark.autotune.trackingId": "79d2c507-5fc6-4840-8422-ab81b5d587ae"
 			}
 		},
 		"metadata": {
@@ -163,47 +163,6 @@
 			{
 				"cell_type": "code",
 				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# if not error_message:\n",
-					"#     try:\n",
-					"#         # Get data out of the service bus with additional fields needed for Horizon data\n",
-					"#         service_bus_data = spark.sql(f\"\"\"\n",
-					"#                                 SELECT DISTINCT\n",
-					"#                                     NSIPExaminationTimetableID\n",
-					"#                                     ,caseReference\n",
-					"#                                     ,published\n",
-					"#                                     ,events\n",
-					"#                                     ,Migrated\n",
-					"#                                     ,ODTSourceSystem\n",
-					"#                                     ,SourceSystemID\n",
-					"#                                     ,IngestionDate \n",
-					"#                                     ,NULLIF(ValidTo, '') AS ValidTo\n",
-					"#                                     ,'' as RowID\n",
-					"#                                     ,IsActive\n",
-					"#                                 FROM \n",
-					"#                                     {service_bus_table} AS SBT\n",
-					"#                             \"\"\")\n",
-					"\n",
-					"#     except Exception as e:\n",
-					"#         error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
-					"#         end_exec_time = datetime.now()\n",
-					"#         print(error_message)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
 					"collapsed": false
 				},
 				"source": [
@@ -269,21 +228,12 @@
 					"        )\n",
 					"\n",
 					"        print(\"Explode and extract completed successfully.\")\n",
-					"        display(service_bus_data)\n",
-					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
 				"execution_count": 22
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"display(horizon_data)"
-				],
-				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -318,8 +268,8 @@
 					"                                ,Horizon.NameWelsh As eventTitleWelsh\n",
 					"                                ,Horizon.Description As description\n",
 					"                                ,Horizon.DescriptionWelsh As descriptionWelsh\n",
+					"                                ,Horizon.Date As eventDateTime\n",
 					"                                ,Horizon.DeadlineStartDateTime As eventDeadlineStartDate\n",
-					"                                ,Horizon.Date As date\n",
 					"                                ,\"0\" as Migrated\n",
 					"                                ,\"Horizon\" as ODTSourceSystem\n",
 					"                                ,NULL AS SourceSystemID\n",
@@ -342,47 +292,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 23
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        # Establish aggregated view of events\n",
-					"        event_columns = [\"eventId\", \"type\", \"eventTitle\", \"eventTitleWelsh\", \"description\", \"descriptionWelsh\", \"eventDeadlineStartDate\", \"date\"]\n",
-					"\n",
-					"        horizon_events = horizon_data.groupBy(\"caseReference\").agg(F.collect_list(F.struct(event_columns)).alias(\"events\"))\n",
-					"        horizon_data = horizon_data.drop(*event_columns)\n",
-					"        horizon_data = horizon_data.join(horizon_events, on=\"caseReference\", how=\"inner\")\n",
-					"\n",
-					"        # adding eventLineItems column for each event\n",
-					"        horizon_data = horizon_data.withColumn(\"events\",\n",
-					"            F.transform(F.col(\"events\"),\n",
-					"                lambda event: event.withField(\"eventLineItems\", F.expr(\"array()\"))\n",
-					"            )\n",
-					"        )\n",
-					"\n",
-					"        # sort columns into same order as service bus\n",
-					"        horizon_data = horizon_data.select(service_bus_data.columns).drop_duplicates()\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error while aggregating Horizon events and aligning schema to Service Bus: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
-				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -413,14 +323,21 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"        results = service_bus_data.unionByName(horizon_data, allowMissingColumns=True).dropDuplicates()\n",
 					"\n",
-					"        results = service_bus_data.unionByName(horizon_data,allowMissingColumns=True)\n",
-					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"        results.write.format(\"delta\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"overwriteSchema\", \"true\") \\\n",
+					"            .partitionBy(\"IsActive\") \\\n",
+					"            .saveAsTable(f\"{spark_table_final}\")\n",
+					"\n",
+					"        print(f\"Data written successfully to {spark_table_final}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
+					"        print(error_message)\n",
+					"        raise"
 				],
 				"execution_count": null
 			},
