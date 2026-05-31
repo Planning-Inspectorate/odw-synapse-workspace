@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e632cc6d-d990-4fc6-92b9-c1413ddc5190"
+				"spark.autotune.trackingId": "a7aebb69-a5e2-4179-8bf2-10c945438796"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -91,7 +91,7 @@
 					"import pyspark.sql.functions as F\n",
 					"from datetime import datetime"
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "markdown",
@@ -111,7 +111,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -158,7 +158,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -174,32 +174,116 @@
 					}
 				},
 				"source": [
+					"# if not error_message:\n",
+					"#     try:\n",
+					"#         # Get data out of the service bus with additional fields needed for Horizon data\n",
+					"#         service_bus_data = spark.sql(f\"\"\"\n",
+					"#                                 SELECT DISTINCT\n",
+					"#                                     NSIPExaminationTimetableID\n",
+					"#                                     ,caseReference\n",
+					"#                                     ,published\n",
+					"#                                     ,events\n",
+					"#                                     ,Migrated\n",
+					"#                                     ,ODTSourceSystem\n",
+					"#                                     ,SourceSystemID\n",
+					"#                                     ,IngestionDate \n",
+					"#                                     ,NULLIF(ValidTo, '') AS ValidTo\n",
+					"#                                     ,'' as RowID\n",
+					"#                                     ,IsActive\n",
+					"#                                 FROM \n",
+					"#                                     {service_bus_table} AS SBT\n",
+					"#                             \"\"\")\n",
+					"\n",
+					"#     except Exception as e:\n",
+					"#         error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
+					"#         end_exec_time = datetime.now()\n",
+					"#         print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from datetime import datetime\n",
+					"from pyspark.sql import functions as F\n",
+					"\n",
 					"if not error_message:\n",
 					"    try:\n",
-					"        # Get data out of the service bus with additional fields needed for Horizon data\n",
-					"        service_bus_data = spark.sql(f\"\"\"\n",
-					"                                SELECT DISTINCT\n",
-					"                                    NSIPExaminationTimetableID\n",
-					"                                    ,caseReference\n",
-					"                                    ,published\n",
-					"                                    ,events\n",
-					"                                    ,Migrated\n",
-					"                                    ,ODTSourceSystem\n",
-					"                                    ,SourceSystemID\n",
-					"                                    ,IngestionDate \n",
-					"                                    ,NULLIF(ValidTo, '') AS ValidTo\n",
-					"                                    ,'' as RowID\n",
-					"                                    ,IsActive\n",
-					"                                FROM \n",
-					"                                    {service_bus_table} AS SBT\n",
-					"                            \"\"\")\n",
+					"        exploded_df = service_bus_data.select(\n",
+					"            F.col(\"NSIPExaminationTimetableID\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.col(\"published\"),\n",
+					"            F.explode(F.col(\"events\")).alias(\"event\"),\n",
+					"            F.col(\"Migrated\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\"),\n",
+					"            F.col(\"ValidTo\"),\n",
+					"            F.col(\"RowID\"),\n",
+					"            F.col(\"IsActive\")\n",
+					"        )\n",
+					"\n",
+					"        service_bus_data = exploded_df.select(\n",
+					"            F.col(\"NSIPExaminationTimetableID\"),\n",
+					"            F.col(\"caseReference\"),\n",
+					"            F.col(\"published\"),\n",
+					"            F.col(\"event.eventId\").cast(\"int\").alias(\"eventId\"),\n",
+					"            F.col(\"event.type\").alias(\"type\"),\n",
+					"            F.col(\"event.eventTitle\").alias(\"eventTitle\"),\n",
+					"\n",
+					"            F.when(\n",
+					"                F.trim(F.col(\"event.eventTitleWelsh\")) == \"\",\n",
+					"                F.lit(None)\n",
+					"            ).otherwise(F.col(\"event.eventTitleWelsh\")).alias(\"eventTitleWelsh\"),\n",
+					"\n",
+					"            F.when(\n",
+					"                F.trim(F.col(\"event.description\")) == \"\",\n",
+					"                F.lit(None)\n",
+					"            ).otherwise(F.col(\"event.description\")).alias(\"description\"),\n",
+					"\n",
+					"            F.when(\n",
+					"                F.trim(F.col(\"event.descriptionWelsh\")) == \"\",\n",
+					"                F.lit(None)\n",
+					"            ).otherwise(F.col(\"event.descriptionWelsh\")).alias(\"descriptionWelsh\"),\n",
+					"\n",
+					"            F.date_format(\n",
+					"                F.to_timestamp(F.col(\"event.eventDateTime\")),\n",
+					"                \"yyyy-MM-dd HH:mm\"\n",
+					"            ).alias(\"eventDateTime\"),\n",
+					"\n",
+					"            F.date_format(\n",
+					"                F.to_timestamp(F.col(\"event.eventDeadlineStartDate\")),\n",
+					"                \"yyyy-MM-dd HH:mm\"\n",
+					"            ).alias(\"eventDeadlineStartDate\"),\n",
+					"\n",
+					"            F.col(\"Migrated\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\"),\n",
+					"            F.col(\"ValidTo\"),\n",
+					"            F.col(\"RowID\"),\n",
+					"            F.col(\"IsActive\")\n",
+					"        )\n",
+					"\n",
+					"        print(\"Explode and extract completed successfully.\")\n",
+					"        display(service_bus_data)\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
+					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"display(horizon_data)"
+				],
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -258,7 +342,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
