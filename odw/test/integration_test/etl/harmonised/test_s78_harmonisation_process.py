@@ -1527,7 +1527,7 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
         self.write_existing_table(
             spark, group_resolver_data, group_resolver_table, "odw_harmonised_db", "odw-harmonised", group_resolver_table, "overwrite"
         )
-        expected_curated_data_after_writing = spark.createDataFrame(
+        expected_harmonised_data_after_writing = spark.createDataFrame(
             (
                 _harmonised_s78_row(),
                 _harmonised_s78_row(
@@ -1753,8 +1753,8 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
             inst = AppealS78HarmonisationProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
-            actual_table_data = spark.table(f"odw_curated_db.{output_table}")
-            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+            actual_table_data = spark.table(f"odw_harmonised_db.{output_table}")
+            assert_dataframes_equal(expected_harmonised_data_after_writing, actual_table_data)
             # Would be good to move this delta merge logic to the appropriate entities - shouldn't be crossing logic between ETL processes
             # but the original notebook did, so this functionality has been preserved for now
             actual_group_resolver_data = spark.table(f"odw_harmonised_db.{group_resolver_table}")
@@ -1762,7 +1762,7 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
             actual_has_data = spark.table(f"odw_harmonised_db.{has_table}")
             assert_dataframes_equal(expected_has_data, actual_has_data)
 
-    def test__appeal_s78_harmonisation_process__run_with_no_existing_data(self):
+    def test__appeal_s78_harmonisation_process__run__with_no_existing_data(self):
         """
         - Given I have new service bus s78 data, and s78 data extracted from horizon
         - When I call AppealS78HarmonisationProcess.run
@@ -1770,7 +1770,7 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
         """
         self.assert_etl_successful("t_as78hp_wned")
 
-    def test__appeal_s78_harmonisation_process__run_with_existing_data(self):
+    def test__appeal_s78_harmonisation_process__run__with_existing_data(self):
         """
         - Given I have new service bus s78 data, and s78 data extracted from horizon, and an existing GroupResolver and harmnised HAS table
         - When I call AppealS78HarmonisationProcess.run

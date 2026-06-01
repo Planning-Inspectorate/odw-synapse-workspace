@@ -2519,6 +2519,12 @@ def _cleaned_has_schema():
 
 
 class TestAppealS78HarmonisationProcess(SparkTestCase):
+    def test__appeal_s78_harmonisation_process__get_name__returns_expected_name(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        inst = AppealS78HarmonisationProcess(spark)
+
+        assert isinstance(inst.get_name(), str)
+
     def test__appeal_s78_harmonisation_process__load_service_bus_data(self):
         # Should load the source table as-is with no transformations
         test_case = "t_as78hp_lsbd"
@@ -3045,4 +3051,4 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                 AppealS78HarmonisationProcess._clean_aggregate_data.assert_called_once_with("agg")
                 AppealS78HarmonisationProcess._apply_slowly_changing_dimensions.assert_called_once_with("clean_agg")
                 AppealS78HarmonisationProcess._generate_new_group_resolver_data.assert_called_once_with("scd")
-                AppealS78HarmonisationProcess._clean_service_bus_data.assert_called_once_with("scd", "harmonised_appeal_has")
+                AppealS78HarmonisationProcess._generate_new_has_data.assert_called_once_with("scd", "harmonised_appeal_has")
