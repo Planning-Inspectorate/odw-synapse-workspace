@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "79d2c507-5fc6-4840-8422-ab81b5d587ae"
+				"spark.autotune.trackingId": "56ac34c9-d67e-486b-9226-1540c88b75c0"
 			}
 		},
 		"metadata": {
@@ -158,7 +158,40 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 21
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"            SELECT DISTINCT\n",
+					"                NSIPExaminationTimetableID,\n",
+					"                caseReference,\n",
+					"                published,\n",
+					"                events,\n",
+					"                Migrated,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                CASE \n",
+					"                    WHEN ValidTo = '' THEN NULL \n",
+					"                    ELSE ValidTo \n",
+					"                END AS ValidTo,\n",
+					"                '' AS RowID,\n",
+					"                IsActive\n",
+					"            FROM {service_bus_table} AS SBT\n",
+					"        \"\"\")\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = (\n",
+					"            f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -166,9 +199,6 @@
 					"collapsed": false
 				},
 				"source": [
-					"from datetime import datetime\n",
-					"from pyspark.sql import functions as F\n",
-					"\n",
 					"if not error_message:\n",
 					"    try:\n",
 					"        exploded_df = service_bus_data.select(\n",
@@ -185,39 +215,18 @@
 					"            F.col(\"IsActive\")\n",
 					"        )\n",
 					"\n",
-					"        service_bus_data = exploded_df.select(\n",
+					"        service_bus_event_data = exploded_df.select(\n",
 					"            F.col(\"NSIPExaminationTimetableID\"),\n",
 					"            F.col(\"caseReference\"),\n",
 					"            F.col(\"published\"),\n",
 					"            F.col(\"event.eventId\").cast(\"int\").alias(\"eventId\"),\n",
 					"            F.col(\"event.type\").alias(\"type\"),\n",
 					"            F.col(\"event.eventTitle\").alias(\"eventTitle\"),\n",
-					"\n",
-					"            F.when(\n",
-					"                F.trim(F.col(\"event.eventTitleWelsh\")) == \"\",\n",
-					"                F.lit(None)\n",
-					"            ).otherwise(F.col(\"event.eventTitleWelsh\")).alias(\"eventTitleWelsh\"),\n",
-					"\n",
-					"            F.when(\n",
-					"                F.trim(F.col(\"event.description\")) == \"\",\n",
-					"                F.lit(None)\n",
-					"            ).otherwise(F.col(\"event.description\")).alias(\"description\"),\n",
-					"\n",
-					"            F.when(\n",
-					"                F.trim(F.col(\"event.descriptionWelsh\")) == \"\",\n",
-					"                F.lit(None)\n",
-					"            ).otherwise(F.col(\"event.descriptionWelsh\")).alias(\"descriptionWelsh\"),\n",
-					"\n",
-					"            F.date_format(\n",
-					"                F.to_timestamp(F.col(\"event.eventDateTime\")),\n",
-					"                \"yyyy-MM-dd HH:mm\"\n",
-					"            ).alias(\"eventDateTime\"),\n",
-					"\n",
-					"            F.date_format(\n",
-					"                F.to_timestamp(F.col(\"event.eventDeadlineStartDate\")),\n",
-					"                \"yyyy-MM-dd HH:mm\"\n",
-					"            ).alias(\"eventDeadlineStartDate\"),\n",
-					"\n",
+					"            F.when(F.trim(F.col(\"event.eventTitleWelsh\")) == \"\", F.lit(None)).otherwise(F.col(\"event.eventTitleWelsh\")).alias(\"eventTitleWelsh\"),\n",
+					"            F.when(F.trim(F.col(\"event.description\")) == \"\", F.lit(None)).otherwise(F.col(\"event.description\")).alias(\"description\"),\n",
+					"            F.when(F.trim(F.col(\"event.descriptionWelsh\")) == \"\", F.lit(None)).otherwise(F.col(\"event.descriptionWelsh\")).alias(\"descriptionWelsh\"),\n",
+					"            F.date_format(F.to_timestamp(F.col(\"event.date\")), \"yyyy-MM-dd HH:mm\").alias(\"eventDateTime\"),\n",
+					"            F.date_format(F.to_timestamp(F.col(\"event.eventDeadlineStartDate\")), \"yyyy-MM-dd HH:mm\").alias(\"eventDeadlineStartDate\"),\n",
 					"            F.col(\"Migrated\"),\n",
 					"            F.col(\"ODTSourceSystem\"),\n",
 					"            F.col(\"SourceSystemID\"),\n",
@@ -228,12 +237,23 @@
 					"        )\n",
 					"\n",
 					"        print(\"Explode and extract completed successfully.\")\n",
+					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 22
+				"execution_count": 29
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(service_bus_event_data)"
+				],
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -292,7 +312,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 25
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -323,7 +343,7 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        results = service_bus_data.unionByName(horizon_data, allowMissingColumns=True).dropDuplicates()\n",
+					"        results = service_bus_event_data.unionByName(horizon_data, allowMissingColumns=True).dropDuplicates()\n",
 					"\n",
 					"        results.write.format(\"delta\") \\\n",
 					"            .mode(\"overwrite\") \\\n",
@@ -336,10 +356,9 @@
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)\n",
-					"        raise"
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -384,7 +403,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -432,7 +451,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -480,7 +499,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -508,7 +527,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -557,7 +576,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -594,7 +613,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 15
 			}
 		]
 	}
