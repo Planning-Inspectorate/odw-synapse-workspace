@@ -97,6 +97,7 @@ class SynapseDeltaIO(SynapseDataIO):
         merge_keys = kwargs.get("merge_keys", None)
         update_key_col = kwargs.get("update_key_col", None)
         columns_to_update = kwargs.get("columns_to_update", [])
+        partition_by_cols = kwargs.get("partition_by_cols", [])
         if not spark:
             raise ValueError("SynapseDeltaIO.read requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -120,13 +121,15 @@ class SynapseDeltaIO(SynapseDataIO):
         try:
             target_delta_table = DeltaTable.forPath(spark, data_path)
         except AnalysisException:
-            target_delta_table = (
+            delta_builder = (
                 DeltaTable.createIfNotExists(spark)
                 .tableName(f"{database_name}.{table_name}")
                 .addColumns(StructType([field for field in data.schema.fields if field.name != update_key_col]))
                 .location(data_path)
-                .execute()
             )
+            if partition_by_cols:
+                delta_builder.partitionedBy(partition_by_cols)
+            target_delta_table = delta_builder.execute()
 
         delta_table_schema = target_delta_table.toDF().schema
         delta_table_cols = set(delta_table_schema.names)

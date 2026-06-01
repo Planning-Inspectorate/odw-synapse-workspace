@@ -98,6 +98,7 @@ class MetadataManager:
             merge_keys=["run_id", "entity_name", "stage_name"],
             update_key_col="_update_key_col",
             columns_to_update=["execution_finish_time", "successful", "result_text"],
+            partition_by_cols=["run_id"],
         )
 
     def create(self):
