@@ -92,7 +92,7 @@ def test__util__remove_unmodified_files__with_change():
             #"pinssynspodw35.json",
             "workspace/linkedService/ls_sql_mipins.json",
             "workspace/dataset/NSIP_ReleventRepresentation.json",
-            #"workspace/integrationRuntime/PinsIntegrationRuntime.json",
+            #"workspace/integrationRuntime/AutoResolveIntegrationRuntime.json",
             "workspace/linkedService/ls_kv.json"
         }
         Util("some_workspace", "dev").remove_unmodified_files()
