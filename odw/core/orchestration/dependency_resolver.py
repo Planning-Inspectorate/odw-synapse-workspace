@@ -22,7 +22,9 @@ class DependencyResolver:
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         for entity_name, entity in entities.items():
             for stage_name, stage in entity.items():
-                stage["entity_stage_name"] = f"{entity_name}.{stage_name}"
+                stage["orchestration_entity_stage_name"] = f"{entity_name}.{stage_name}"
+                stage["orchestration_entity_name"] = entity_name
+                stage["orchestration_stage_name"] = stage_name
 
     def _topological_sort(self):
         """
@@ -86,7 +88,8 @@ class DependencyResolver:
         # A run is considered "failed" if it is not successful. Entries that were not executed may not appear in execution_details
         successful_executions = {f"{row['entity_name']}.{row['stage_name']}" for row in execution_details if row["successful"]}
         cleaned_groups = [
-            [entity for entity in group if entity["entity_stage_name"] not in successful_executions] for group in topological_order_groups
+            [entity for entity in group if entity["orchestration_entity_stage_name"] not in successful_executions]
+            for group in topological_order_groups
         ]
         return [x for x in cleaned_groups if x]
 

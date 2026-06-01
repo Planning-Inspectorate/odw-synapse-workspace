@@ -26,13 +26,17 @@ def test__dependency_resolver__init():
                     "etl_process": "A-S",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": [],
-                    "entity_stage_name": "entity-a.standardised",
+                    "orchestration_entity_stage_name": "entity-a.standardised",
+                    "orchestration_entity_name": "entity-a",
+                    "orchestration_stage_name": "standardised",
                 },
                 "harmonised": {
                     "etl_process": "A-H",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-a.standardised"],
-                    "entity_stage_name": "entity-a.harmonised",
+                    "orchestration_entity_stage_name": "entity-a.harmonised",
+                    "orchestration_entity_name": "entity-a",
+                    "orchestration_stage_name": "harmonised",
                 },
             },
             "entity-b": {
@@ -40,13 +44,17 @@ def test__dependency_resolver__init():
                     "etl_process": "B-S",
                     "kwargs": {"entity_name": "B"},
                     "depends_on": [],
-                    "entity_stage_name": "entity-b.standardised",
+                    "orchestration_entity_stage_name": "entity-b.standardised",
+                    "orchestration_entity_name": "entity-b",
+                    "orchestration_stage_name": "standardised",
                 },
                 "curated": {
                     "etl_process": "A",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-a.harmonised"],
-                    "entity_stage_name": "entity-b.curated",
+                    "orchestration_entity_stage_name": "entity-b.curated",
+                    "orchestration_entity_name": "entity-b",
+                    "orchestration_stage_name": "curated",
                 },
             },
             "entity-c": {
@@ -54,7 +62,9 @@ def test__dependency_resolver__init():
                     "etl_process": "A",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-b.curated"],
-                    "entity_stage_name": "entity-c.curated",
+                    "orchestration_entity_stage_name": "entity-c.curated",
+                    "orchestration_entity_name": "entity-c",
+                    "orchestration_stage_name": "curated",
                 }
             },
         }
@@ -80,12 +90,53 @@ def test__dependency_resolver__topological_sort():
     }
     expected_output = [
         [
-            {"entity_stage_name": "entity-a.standardised", "etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-            {"entity_stage_name": "entity-b.standardised", "etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
+            {
+                "orchestration_entity_stage_name": "entity-a.standardised",
+                "orchestration_entity_name": "entity-a",
+                "orchestration_stage_name": "standardised",
+                "etl_process": "A-S",
+                "kwargs": {"entity_name": "A"},
+                "depends_on": [],
+            },
+            {
+                "orchestration_entity_stage_name": "entity-b.standardised",
+                "orchestration_entity_name": "entity-b",
+                "orchestration_stage_name": "standardised",
+                "etl_process": "B-S",
+                "kwargs": {"entity_name": "B"},
+                "depends_on": [],
+            },
         ],
-        [{"entity_stage_name": "entity-a.harmonised", "etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]}],
-        [{"entity_stage_name": "entity-b.curated", "etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]}],
-        [{"entity_stage_name": "entity-c.curated", "etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}],
+        [
+            {
+                "orchestration_entity_stage_name": "entity-a.harmonised",
+                "orchestration_entity_name": "entity-a",
+                "orchestration_stage_name": "harmonised",
+                "etl_process": "A-H",
+                "kwargs": {"entity_name": "A"},
+                "depends_on": ["entity-a.standardised"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "entity-b.curated",
+                "orchestration_entity_name": "entity-b",
+                "orchestration_stage_name": "curated",
+                "etl_process": "A",
+                "kwargs": {"entity_name": "A"},
+                "depends_on": ["entity-a.harmonised"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "entity-c.curated",
+                "orchestration_entity_name": "entity-c",
+                "orchestration_stage_name": "curated",
+                "etl_process": "A",
+                "kwargs": {"entity_name": "A"},
+                "depends_on": ["entity-b.curated"],
+            }
+        ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
         actual_output = DependencyResolver(example_config)._topological_sort()
@@ -104,12 +155,55 @@ def test__dependency_resolver__topological_sort__complex_example():
         }
     }
     expected_output = [
-        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
         [
-            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
-            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+            {
+                "orchestration_entity_stage_name": "D.a",
+                "orchestration_entity_name": "D",
+                "orchestration_stage_name": "a",
+                "name": "D",
+                "depends_on": [],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "orchestration_entity_name": "E",
+                "orchestration_stage_name": "a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "A.a",
+                "orchestration_entity_name": "A",
+                "orchestration_stage_name": "a",
+                "name": "A",
+                "depends_on": ["B.a", "C.a"],
+            },
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            },
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
@@ -162,13 +256,17 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
                     "etl_process": "A-S",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": [],
-                    "entity_stage_name": "entity-a.standardised",
+                    "orchestration_entity_stage_name": "entity-a.standardised",
+                    "orchestration_entity_name": "entity-a",
+                    "orchestration_stage_name": "standardised",
                 },
                 "harmonised": {
                     "etl_process": "A-H",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-a.standardised"],
-                    "entity_stage_name": "entity-a.harmonised",
+                    "orchestration_entity_stage_name": "entity-a.harmonised",
+                    "orchestration_entity_name": "entity-a",
+                    "orchestration_stage_name": "harmonised",
                 },
             },
             "entity-b": {
@@ -176,7 +274,9 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
                     "etl_process": "A",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-a.harmonised"],
-                    "entity_stage_name": "entity-b.curated",
+                    "orchestration_entity_stage_name": "entity-b.curated",
+                    "orchestration_entity_name": "entity-b",
+                    "orchestration_stage_name": "curated",
                 },
             },
             "entity-c": {
@@ -184,7 +284,9 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
                     "etl_process": "A",
                     "kwargs": {"entity_name": "A"},
                     "depends_on": ["entity-b.curated"],
-                    "entity_stage_name": "entity-c.curated",
+                    "orchestration_entity_stage_name": "entity-c.curated",
+                    "orchestration_entity_name": "entity-c",
+                    "orchestration_stage_name": "curated",
                 }
             },
         }
@@ -197,12 +299,49 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
 
 def test__dependency_resolver__filter_already_executed_entity_stages():
     topological_order = [
-        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
         [
-            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
-            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+            {
+                "orchestration_entity_stage_name": "D.a",
+                "orchestration_entity_name": "D",
+                "orchestration_stage_name": "a",
+                "name": "D",
+                "depends_on": [],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "A.a",
+                "orchestration_entity_name": "A",
+                "orchestration_stage_name": "a",
+                "name": "A",
+                "depends_on": ["B.a", "C.a"],
+            },
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            },
         ],
     ]
     execution_details = [
@@ -268,9 +407,34 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
         },
     ]
     expected_output = [
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
-        [{"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]}],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            }
+        ],
     ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
@@ -279,12 +443,49 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
 
 def test__dependency_resolver__filter_already_executed_entity_stages__with_missing_entries():
     topological_order = [
-        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
         [
-            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
-            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+            {
+                "orchestration_entity_stage_name": "D.a",
+                "orchestration_entity_name": "D",
+                "orchestration_stage_name": "a",
+                "name": "D",
+                "depends_on": [],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "A.a",
+                "orchestration_entity_name": "A",
+                "orchestration_stage_name": "a",
+                "name": "A",
+                "depends_on": ["B.a", "C.a"],
+            },
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            },
         ],
     ]
     # B.a is missing, so should not be filtered out
@@ -341,9 +542,34 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_missi
         },
     ]
     expected_output = [
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
-        [{"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]}],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            }
+        ],
     ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
@@ -352,12 +578,49 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_missi
 
 def test__dependency_resolver__filter_already_executed_entity_stages__with_empty_execution_details():
     topological_order = [
-        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
-        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
-        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
         [
-            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
-            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+            {
+                "orchestration_entity_stage_name": "D.a",
+                "orchestration_entity_name": "D",
+                "orchestration_stage_name": "a",
+                "name": "D",
+                "depends_on": [],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "C.a",
+                "orchestration_entity_name": "C",
+                "orchestration_stage_name": "a",
+                "name": "C",
+                "depends_on": ["D.a"],
+            },
+            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "B.a",
+                "orchestration_entity_name": "B",
+                "orchestration_stage_name": "a",
+                "name": "B",
+                "depends_on": ["C.a"],
+            }
+        ],
+        [
+            {
+                "orchestration_entity_stage_name": "A.a",
+                "orchestration_entity_name": "A",
+                "orchestration_stage_name": "a",
+                "name": "A",
+                "depends_on": ["B.a", "C.a"],
+            },
+            {
+                "orchestration_entity_stage_name": "F.a",
+                "orchestration_entity_name": "F",
+                "orchestration_stage_name": "a",
+                "name": "F",
+                "depends_on": ["B.a", "D.a"],
+            },
         ],
     ]
     execution_details = []
