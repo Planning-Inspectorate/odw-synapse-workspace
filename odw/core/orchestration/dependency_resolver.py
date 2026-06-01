@@ -83,12 +83,10 @@ class DependencyResolver:
         if not execution_details:
             # Return all entity stages if no execution details could be found
             return topological_order_groups
-        # Might need to change this depending on how the data is structured
-        entity_stage_execution_details = {
-            f"{entity_name}.{stage_name}" for entity_name, stage_name, execution_status in execution_details if execution_status != "Succeeded"
-        }
+        # A run is considered "failed" if it is not successful. Entries that were not executed may not appear in execution_details
+        successful_executions = {f"{row['entity_name']}.{row['stage_name']}" for row in execution_details if row["successful"]}
         cleaned_groups = [
-            [entity for entity in group if entity["entity_stage_name"] in entity_stage_execution_details] for group in topological_order_groups
+            [entity for entity in group if entity["entity_stage_name"] not in successful_executions] for group in topological_order_groups
         ]
         return [x for x in cleaned_groups if x]
 

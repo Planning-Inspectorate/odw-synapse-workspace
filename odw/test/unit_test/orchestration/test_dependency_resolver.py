@@ -206,12 +206,139 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
         ],
     ]
     execution_details = [
-        ("D", "a", "Succeeded"),
-        ("C", "a", "Failed"),
-        ("E", "a", "Canceled"),
-        ("B", "a", "Cancelled"),
-        ("A", "a", "Succeeded"),
-        ("F", "a", "Canceled"),
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "D",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "C",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": False,
+            "result_text": "some error message",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "E",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": None,
+            "successful": None,
+            "result_text": None,
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "B",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": None,
+            "successful": None,
+            "result_text": None,
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "A",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "F",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": None,
+            "successful": None,
+            "result_text": None,
+        },
+    ]
+    expected_output = [
+        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
+        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
+        [{"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]}],
+    ]
+    with mock.patch.object(DependencyResolver, "__init__", return_value=None):
+        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
+        assert actual_output == expected_output
+
+
+def test__dependency_resolver__filter_already_executed_entity_stages__with_missing_entries():
+    topological_order = [
+        [{"entity_stage_name": "D.a", "name": "D", "depends_on": []}],
+        [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
+        [{"entity_stage_name": "B.a", "name": "B", "depends_on": ["C.a"]}],
+        [
+            {"entity_stage_name": "A.a", "name": "A", "depends_on": ["B.a", "C.a"]},
+            {"entity_stage_name": "F.a", "name": "F", "depends_on": ["B.a", "D.a"]},
+        ],
+    ]
+    # B.a is missing, so should not be filtered out
+    execution_details = [
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "D",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "C",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": False,
+            "result_text": "some error message",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "E",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": None,
+            "successful": None,
+            "result_text": None,
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "A",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_faees",
+            "entity_name": "F",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": None,
+            "successful": None,
+            "result_text": None,
+        },
     ]
     expected_output = [
         [{"entity_stage_name": "C.a", "name": "C", "depends_on": ["D.a"]}, {"entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]}],
