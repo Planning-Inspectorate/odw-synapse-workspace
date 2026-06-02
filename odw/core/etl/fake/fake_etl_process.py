@@ -18,11 +18,15 @@ class SuccessfulETLProcess(ETLProcess):  # pragma: no cover
     def load_data(self, **kwargs):
         return dict()
 
+    def write_data(self, data_to_write):
+        return
+
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         data = self.spark.createDataFrame([], StructType([]))
+        data_to_write = {self.OUTPUT_TABLE: {"data": data}}
         end_exec_time = datetime.now()
-        return data, ETLSuccessResult(
+        return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
