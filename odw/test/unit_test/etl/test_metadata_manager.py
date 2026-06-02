@@ -9,6 +9,7 @@ from odw.test.util.assertion import assert_dataframes_equal
 from pyspark.sql.types import StructType
 from pyspark.sql import DataFrame
 from delta.tables import DeltaTable
+from delta.exceptions import ConcurrentAppendException
 from datetime import datetime, timedelta
 import mock
 import pytest
@@ -474,3 +475,89 @@ class TestMetadataManager(SparkTestCase):
         inst = MetadataManager(spark, run_id, entity_name)
         with pytest.raises(RuntimeError):
             inst.get_for_entity_stage()
+
+    def test__metadata_manager__write__retries_on_failure(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_w_rof"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        entry_to_write: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": {"some": "parameters"},
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        side_effects = [ConcurrentAppendException(desc="some exception", stackTrace="some trace"), None]
+        with mock.patch.object(SynapseDeltaIO, "write", side_effect=side_effects):
+            inst = MetadataManager(spark, run_id, entity_name, stage_name)
+            inst._write(entry_to_write)
+            assert SynapseDeltaIO.write.call_count == 2
+
+    def test__metadata_manager__write__only_retries_on_concurrent_append_exception(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_w_orocae"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        entry_to_write: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": {"some": "parameters"},
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        side_effects = [
+            ValueError("some exception"),
+        ]
+        with mock.patch.object(SynapseDeltaIO, "write", side_effect=side_effects):
+            with pytest.raises(ValueError):
+                inst = MetadataManager(spark, run_id, entity_name, stage_name)
+                inst._write(entry_to_write)
+
+    def test__metadata_manager__write__max_retries(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = f"tu_mm_w_mr"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        entry_to_write: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": {"some": "parameters"},
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        side_effects = [
+            ConcurrentAppendException(desc="some exception", stackTrace="some trace"),
+        ] * 10
+        with (
+            mock.patch.object(SynapseDeltaIO, "write", side_effect=side_effects),
+        ):
+            with pytest.raises(ConcurrentAppendException):
+                inst = MetadataManager(spark, run_id, entity_name, stage_name)
+                inst._write.retry.wait.min = 0
+                inst._write.retry.wait.max = 0.1
+                inst._write(entry_to_write)

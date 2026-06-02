@@ -3,6 +3,9 @@ from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, BooleanType
+from delta.exceptions import ConcurrentAppendException
+from tenacity.retry import retry_if_exception
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 from datetime import datetime
 from typing import Dict, Any
 import json
@@ -86,7 +89,16 @@ class MetadataManager:
             "_update_key_col": "create",
         }
 
+    @retry(
+        retry=retry_if_exception(lambda exception: isinstance(exception, ConcurrentAppendException)),
+        wait=wait_random_exponential(min=1, max=60),
+        stop=stop_after_attempt(10),
+        reraise=True,
+    )
     def _write(self, data: DataFrame):
+        """
+        Write a metadata entry. This is resilient to concurrent writing, and will reattempt if a concurrent write is detected
+        """
         SynapseDeltaIO().write(
             data,
             spark=self._spark,
