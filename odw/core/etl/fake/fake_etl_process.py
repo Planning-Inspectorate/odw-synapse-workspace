@@ -49,7 +49,7 @@ class FailedETLProcess(ETLProcess):  # pragma: no cover
 
     @classmethod
     def get_name(cls):
-        return "Faky Failed ETL Process"
+        return "Fake Failed ETL Process"
 
     def load_data(self, **kwargs):
         return dict()
