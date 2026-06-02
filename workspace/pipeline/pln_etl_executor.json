@@ -12,6 +12,7 @@
 						"value": "@pipeline().parameters.entity_stages",
 						"type": "Expression"
 					},
+					"isSequential": false,
 					"activities": [
 						{
 							"name": "Execute ETL",
@@ -67,7 +68,7 @@
 							"typeProperties": {
 								"variableName": "failures",
 								"value": {
-									"value": "@string(item())",
+									"value": "@concat(\n    '{',\n    concat(\n        '\"input_parameters\": \"',\n        string(item()),\n        '\",'\n    ),\n    concat(\n        '\"error\": \"',\n        string(activity('Execute ETL').error.message),\n        '\"'\n    ),\n    '}'\n)",
 									"type": "Expression"
 								}
 							}
@@ -81,9 +82,9 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Inner loop",
+						"activity": "Set pipeline return value",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -101,13 +102,43 @@
 							"userProperties": [],
 							"typeProperties": {
 								"message": {
-									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following parameters: ',\n    string(variables('failures'))\n)",
+									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following result: ',\n    string(variables('failures'))\n)",
 									"type": "Expression"
 								},
 								"errorCode": "500"
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "Set pipeline return value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Inner loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@string(variables('failures'))"
+							}
+						}
+					],
+					"setSystemVariable": true
 				}
 			}
 		],
@@ -116,6 +147,9 @@
 				"type": "array"
 			},
 			"run_id": {
+				"type": "string"
+			},
+			"runContextJson": {
 				"type": "string"
 			}
 		},

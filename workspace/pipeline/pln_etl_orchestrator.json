@@ -94,6 +94,10 @@
 												"run_id": {
 													"value": "@pipeline().parameters.run_id",
 													"type": "Expression"
+												},
+												"runContextJson": {
+													"value": "@string(pipeline().parameters.runContextJson)",
+													"type": "Expression"
 												}
 											}
 										}
@@ -118,8 +122,66 @@
 											"variableName": "failureDetected",
 											"value": true
 										}
+									},
+									{
+										"name": "Set failure message",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Set batch failed",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "failureMessage",
+											"value": {
+												"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue\n)",
+												"type": "Expression"
+											}
+										}
 									}
 								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If failure detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Outer loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@variables('failureDetected')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Inner batch failed",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'Some inner batches failed with the following errors: ',\n    variables('failureMessage')\n)",
+									"type": "Expression"
+								},
+								"errorCode": "500"
 							}
 						}
 					]
@@ -133,12 +195,18 @@
 			},
 			"run_id": {
 				"type": "string"
+			},
+			"runContextJson": {
+				"type": "string"
 			}
 		},
 		"variables": {
 			"failureDetected": {
 				"type": "Boolean",
 				"defaultValue": false
+			},
+			"failureMessage": {
+				"type": "String"
 			}
 		},
 		"folder": {
