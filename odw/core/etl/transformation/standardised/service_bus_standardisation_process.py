@@ -21,7 +21,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
     """
 
     @classmethod
-    def get_name(cls):
+    def get_name(cls) -> str:
         return "Service Bus Standardisation Process"
 
     @LoggingUtil.logging_to_appins

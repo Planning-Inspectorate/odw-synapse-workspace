@@ -32,7 +32,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         self.hrm_db: str = "odw_harmonised_db"
 
     @classmethod
-    def get_name(cls):
+    def get_name(cls) -> str:
         return "Service Bus Harmonisation Process"
 
     def load_data(self, **kwargs):

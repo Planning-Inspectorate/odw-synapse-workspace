@@ -35,7 +35,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         self.harmonised_table_path = f"{self.hrm_db}.{self.OUTPUT_TABLE}"
 
     @classmethod
-    def get_name(cls):
+    def get_name(cls) -> str:
         return "NSIP Project Harmonisation Process"
 
     def _load_service_bus_data(self):
