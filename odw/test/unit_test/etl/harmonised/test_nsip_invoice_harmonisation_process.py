@@ -165,7 +165,7 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        assert isinstance(inst.get_name(), str)
+        assert inst.get_name() == "NSIP Invoice Harmonisation Process"
 
     def test__nsip_invoice_harmonisation_process__process__explodes_invoice_array_and_extracts_fields(
         self,

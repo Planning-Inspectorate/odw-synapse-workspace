@@ -157,7 +157,7 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ListedBuildingHarmonisationProcess(spark)
 
-        assert isinstance(inst.get_name(), str)
+        assert inst.get_name() == "Listed Building Harmonisation Process"
 
     def test__listed_building_harmonisation_process__process__renames_standardised_columns_and_adds_harmonised_fields(
         self,

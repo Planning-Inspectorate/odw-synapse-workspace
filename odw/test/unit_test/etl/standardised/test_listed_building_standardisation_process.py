@@ -394,7 +394,7 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ListedBuildingStandardisationProcess(spark)
 
-        assert isinstance(inst.get_name(), str)
+        assert inst.get_name() == "Listed Building Standardisation Process"
 
     def test__listed_building_standardisation_process__process__returns_both_output_tables(
         self,

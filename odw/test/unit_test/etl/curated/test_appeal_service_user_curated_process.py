@@ -129,7 +129,7 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedProcess(spark)
 
-        assert isinstance(inst.get_name(), str)
+        assert inst.get_name() == "Appeal Service User Curation Process"
 
     def test__appeal_service_user_curated_process__process__outputs_expected_legacy_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()
