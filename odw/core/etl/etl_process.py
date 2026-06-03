@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult, ETLFailResult
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
-from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from odw.core.etl.metadata_manager import MetadataManager
 from typing import List, Dict, Any, Tuple
