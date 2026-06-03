@@ -6,10 +6,6 @@ from odw.test.util.assertion import assert_dataframes_equal
 import pyspark.sql.types as T
 from datetime import datetime
 import mock
-import pytest
-
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(SparkTestCase):
@@ -55,7 +51,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     "1",
                     "Y",
                 ),
-                (  # This row will be dropped
+                (  # This row will be dropped (IsActive = 'N')
                     "3",
                     4,
                     "c",
@@ -92,7 +88,7 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     T.StructField("representationType", T.StringType(), True),
                     T.StructField("dateReceived", T.StringType(), True),
                     T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected,
+                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected
                     T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
@@ -104,16 +100,6 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
             database_name="odw_harmonised_db",
             container="odw-harmonised",
             blob_path="tu_ar_ld__harmonised",
-            mode="overwrite",
-        )
-        curated_data = spark.createDataFrame(((1,),), schema=["colA"])
-        self.write_existing_table(
-            spark,
-            curated_data,
-            table_name="tu_ar_ld__curated",
-            database_name="odw_curated_db",
-            container="odw-curated",
-            blob_path="tu_ar_ld__curated",
             mode="overwrite",
         )
         expected_fetched_harmonised_data = spark.createDataFrame(
@@ -173,17 +159,19 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                 ]
             ),
         )
-        expected_fetched_description = spark.sql("DESCRIBE DETAIL odw_curated_db.tu_ar_ld__curated")
-        expected_output_keys = {"harmonised_data", "curated_data_description"}
-        with mock.patch.object(AppealRepresentationCurationProcess, "__init__", return_value=None):
-            inst = AppealRepresentationCurationProcess()
+        expected_output_keys = {"harmonised_data"}
+        with mock.patch.object(
+            AppealRepresentationCurationProcess,
+            "HARMONISED_TABLE",
+            "odw_harmonised_db.tu_ar_ld__harmonised",
+        ):
+            inst = AppealRepresentationCurationProcess(spark)
             actual_output = inst.load_data()
             actual_keys = set(actual_output.keys())
             assert expected_output_keys == actual_keys, (
                 f"Expected a dictionary with keys {expected_output_keys} to be returned by load_data(), but received the keys {actual_keys} instead"
             )
             assert_dataframes_equal(expected_fetched_harmonised_data, actual_output["harmonised_data"])
-            assert_dataframes_equal(expected_fetched_description, actual_output["curated_data_description"])
 
     def test__appeal_representation__process(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -242,16 +230,6 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                         T.StructField("representationType", T.StringType(), True),
                         T.StructField("dateReceived", T.StringType(), True),
                         T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
-                    ]
-                ),
-            ),
-            "curated_data_description": spark.createDataFrame(
-                data=(("Location", "abfss://odw-curated@pinsstodwdevuks9h80mb.dfs.core.windows.net/appeal_representation", None),),
-                schema=T.StructType(
-                    [
-                        T.StructField("col_name", T.StringType(), False),
-                        T.StructField("data_type", T.StringType(), False),
-                        T.StructField("comment", T.StringType(), True),
                     ]
                 ),
             ),

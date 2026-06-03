@@ -1,15 +1,10 @@
 import mock
-import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
-
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
-
 
 CURATED_COLUMNS = [
     "id",
@@ -104,7 +99,7 @@ def _duplicate_active_harmonised_df(spark):
 
 
 def _source_data(harmonised_data):
-    return {"harmonised_data": harmonised_data}
+    return {"harmonised_appeal_event_estimate": harmonised_data}
 
 
 class TestAppealEventEstimateCuratedProcess(SparkTestCase):
@@ -112,7 +107,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_mixed_active_inactive_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_mixed_active_inactive_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -151,7 +146,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_minimal_missing_columns_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_minimal_missing_columns_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -172,7 +167,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         inactive_df = _mixed_active_inactive_harmonised_df(spark).where("IsActive = 'N'")
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(inactive_df))
+        data_to_write, result = inst.process(source_data=_source_data(inactive_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -184,7 +179,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_empty_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_empty_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -198,7 +193,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_duplicate_active_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_duplicate_active_harmonised_df(spark)))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -210,7 +205,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_active_harmonised_df(spark)))
+        data_to_write, result = inst.process(source_data=_source_data(_active_harmonised_df(spark)))
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
 
@@ -231,7 +226,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         source_df = lower_y.unionByName(spaced_y).unionByName(inactive)
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -244,7 +239,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         source_df = _active_harmonised_df(spark).withColumn("extraColumn", F.lit("ignore me"))
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -258,7 +253,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         source_df = _active_harmonised_df(spark).withColumn("IsActive", F.lit(None).cast(T.StringType()))
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -284,7 +279,7 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(source_df))
+        data_to_write, result = inst.process(source_data=_source_data(source_df))
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
