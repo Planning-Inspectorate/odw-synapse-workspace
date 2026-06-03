@@ -12,7 +12,6 @@ import mock
 from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType, DateType
 from pyspark.sql import DataFrame
 from datetime import datetime
-import pytest
 
 
 def _service_bus_schema():
