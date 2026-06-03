@@ -169,7 +169,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__update__fails_if_entry_not_created_first(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_u_fiencf"
+        run_id = "tu_mm_u_fiencf"
         entity_name = "some_entity"
         stage_name = "some_stage"
         inst = MetadataManager(spark, run_id, entity_name, stage_name)
@@ -192,7 +192,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__update__fails_with_missing_parameters(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_u_fwmp"
+        run_id = "tu_mm_u_fwmp"
         inst = MetadataManager(spark, run_id)
         inst._created_entry = True
         with pytest.raises(ValueError):
@@ -213,7 +213,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__get_for_run_id(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_gfri"
+        run_id = "tu_mm_gfri"
         entity_name = "some_entity"
         stage_name = "some_stage"
         execution_parameters = {"some": "parameters"}
@@ -264,7 +264,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__get_for_entity(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_gfe"
+        run_id = "tu_mm_gfe"
         entity_name = "some_entity"
         stage_name = "some_stage"
         execution_parameters = {"some": "parameters"}
@@ -315,7 +315,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__get_for_entity__fails_with_missing_parameters(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_gfe_wmp"
+        run_id = "tu_mm_gfe_wmp"
         entity_name = "some_entity"
         stage_name = "some_stage"
         execution_parameters = {"some": "parameters"}
@@ -351,7 +351,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__get_for_entity_stage(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_gfes"
+        run_id = "tu_mm_gfes"
         entity_name = "some_entity"
         stage_name = "some_stage"
         execution_parameters = {"some": "parameters"}
@@ -422,7 +422,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__get_for_entity_stage__fails_with_missing_parameters(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_gfes_wmp"
+        run_id = "tu_mm_gfes_wmp"
         entity_name = "some_entity"
         stage_name = "some_stage"
         execution_parameters = {"some": "parameters"}
@@ -478,7 +478,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__write__retries_on_failure(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_w_rof"
+        run_id = "tu_mm_w_rof"
         entity_name = "some_entity"
         stage_name = "some_stage"
         entry_to_write: DataFrame = spark.createDataFrame(
@@ -504,7 +504,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__write__only_retries_on_concurrent_append_exception(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_w_orocae"
+        run_id = "tu_mm_w_orocae"
         entity_name = "some_entity"
         stage_name = "some_stage"
         entry_to_write: DataFrame = spark.createDataFrame(
@@ -532,7 +532,7 @@ class TestMetadataManager(SparkTestCase):
 
     def test__metadata_manager__write__max_retries(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        run_id = f"tu_mm_w_mr"
+        run_id = "tu_mm_w_mr"
         entity_name = "some_entity"
         stage_name = "some_stage"
         entry_to_write: DataFrame = spark.createDataFrame(

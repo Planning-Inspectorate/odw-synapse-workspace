@@ -1,12 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-import pytest
 from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
-from odw.core.io.synapse_legacy_delta_io import SynapseLegacyDeltaIO
-from odw.core.util.util import Util
-from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.util import generate_local_path, format_to_adls_path
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import mock
 from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType, DateType

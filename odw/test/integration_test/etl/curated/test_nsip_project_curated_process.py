@@ -1,11 +1,6 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
-import pytest
 from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
-from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
-from odw.test.util.util import generate_local_path, format_to_adls_path
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful

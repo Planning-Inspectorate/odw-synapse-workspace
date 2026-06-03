@@ -144,7 +144,7 @@ class MetadataManager:
         if not (run_id and entity_name and stage_name):
             raise ValueError("Must supply run_id, entity_name, and stage_name when updating an entry, but some of these were missing")
         if self._updated_entry or not self._created_entry:
-            raise RuntimeError(f"Cannot update the metadata entry before the entry has been created")
+            raise RuntimeError("Cannot update the metadata entry before the entry has been created")
         if self._created_entry and not self._updated_entry:
             self._updated_entry = True
             result_metadata: ETLResult.ETLResultMetadata = etl_result.metadata
