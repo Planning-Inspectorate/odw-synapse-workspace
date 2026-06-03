@@ -90,190 +90,6 @@
 				}
 			},
 			{
-				"name": "Service bus loads",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Record moving on to loading service bus data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Send progressing to service bus data",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@variables('service_bus_feed')",
-						"type": "Expression"
-					},
-					"isSequential": false,
-					"activities": [
-						{
-							"name": "Random wait to allow parallelism_copy4",
-							"type": "Wait",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"waitTimeInSeconds": {
-									"value": "@rand(1, 20)",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Execute Service Bus Pipeline",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Random wait to allow parallelism_copy4",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_service_bus",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"entity_name_input": {
-										"value": "@item()",
-										"type": "Expression"
-									},
-									"apps_insights_ikey": {
-										"value": "@variables('apps_insights_ikey')",
-										"type": "Expression"
-									},
-									"Key_Vault_Url": {
-										"value": "@variables('Key_Vault_Url')",
-										"type": "Expression"
-									},
-									"webhook_url": {
-										"value": "@variables('webhook_url')",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record Service Bus failure",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Execute Service Bus Pipeline",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "Fail",
-									"PipelineName": {
-										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineName",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@activity('Execute Service Bus Pipeline').Output.pipelineRunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@activity('Execute Service Bus Pipeline').ExecutionStartTime",
-										"type": "Expression"
-									},
-									"EndTime": {
-										"value": "@activity('Execute Service Bus Pipeline').ExecutionEndTime",
-										"type": "Expression"
-									},
-									"ErrorMessage": {
-										"value": "@activity('Execute Service Bus Pipeline').Error.message",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item(), ': ', activity('Execute Service Bus Pipeline').Status)",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@activity('Execute Service Bus Pipeline').PipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@activity('Execute Service Bus Pipeline').PipelineRunId",
-										"type": "Expression"
-									},
-									"PipelineExecutionTimeInSec": {
-										"value": "@activity('Execute Service Bus Pipeline').Duration",
-										"type": "Expression"
-									},
-									"ActivityType": {
-										"value": "@activity('Execute Service Bus Pipeline').ActivityType",
-										"type": "Expression"
-									},
-									"DurationSeconds": {
-										"value": "@activity('Execute Service Bus Pipeline').Duration",
-										"type": "Expression"
-									},
-									"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
-									"StatusCode": {
-										"value": "@activity('Execute Service Bus Pipeline').StatusCode",
-										"type": "Expression"
-									},
-									"AppInsIKey": {
-										"value": "@variables('apps_insights_ikey')",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Return Failure",
-							"description": "Return as a failed activity after logging the error",
-							"type": "Fail",
-							"dependsOn": [
-								{
-									"activity": "Record Service Bus failure",
-									"dependencyConditions": [
-										"Completed"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"message": {
-									"value": "@activity('Execute Service Bus Pipeline').Error.message",
-									"type": "Expression"
-								},
-								"errorCode": {
-									"value": "@activity('Execute Service Bus Pipeline').StatusCode",
-									"type": "Expression"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
 				"name": "Load curated data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
@@ -303,93 +119,17 @@
 				}
 			},
 			{
-				"name": "Send starting teams notification",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Set subscription",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set resource group",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set webhook",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Set AppIns iKey",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@variables('subscription_id')",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@variables('resource_group')",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@variables('webhook_url')",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Starting master pipeline run",
-						"activityDuration": "0H:00M:00s",
-						"activityStatus": "Starting",
-						"Colour": {
-							"value": "@variables('starting_colour')",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@variables('starting_image')",
-							"type": "Expression"
-						},
-						"Message_title": "ODW - Master pipeline starting",
-						"Message_subtitle": "The master pipeline for loading data to ODW is starting with the following parameters:"
-					}
-				}
-			},
-			{
 				"name": "Send progressing to Horizon data",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Set Service Bus feed",
+						"activity": "Record pipeline starting",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "Record pipeline starting",
+						"activity": "Send starting teams notification",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -599,7 +339,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Service bus loads",
+						"activity": "Service Bus Load",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -660,7 +400,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Service bus loads",
+						"activity": "Service Bus Load",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1033,64 +773,6 @@
 				}
 			},
 			{
-				"name": "Get Service Bus feed",
-				"description": "Get the enabled service bus feed from master pipeline config",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Send starting teams notification",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\nAND System_name = 'Service bus'",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "ds_odw_main_config",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "Set Service Bus feed",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Get Service Bus feed",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "service_bus_feed",
-					"value": {
-						"value": "@split(activity('Get Service Bus feed').output.value[0].entities, ',')\n\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Record pipeline starting",
 				"type": "ExecutePipeline",
 				"dependsOn": [
@@ -1347,7 +1029,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Service bus loads",
+						"activity": "Service Bus Load",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -1804,6 +1486,213 @@
 						"spark.dynamicAllocation.maxExecutors": null
 					},
 					"numExecutors": null
+				}
+			},
+			{
+				"name": "Service Bus Load",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Send progressing to service bus data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Record moving on to loading service bus data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_service_bus",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"apps_insights_ikey": "@variables('apps_insights_ikey')",
+						"Key_Vault_Url": "@variables('Key_Vault_Url')",
+						"webhook_url": "@variables('webhook_url')"
+					}
+				}
+			},
+			{
+				"name": "Record Service Bus failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Service Bus Load",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@activity('Service Bus Load').Output.pipelineName",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@activity('Service Bus Load').Output.pipelineRunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@activity('Service Bus Load').ExecutionStartTime",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@activity('Service Bus Load').ExecutionEndTime",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('Service Bus Load').Error.message",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@activity('Service Bus Load').Status",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@activity('Service Bus Load').PipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@activity('Service Bus Load').PipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@activity('Service Bus Load').Duration",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "@activity('Service Bus Load').ActivityType",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@activity('Service Bus Load').Duration",
+							"type": "Expression"
+						},
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+						"StatusCode": {
+							"value": "@activity('Service Bus Load').StatusCode",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Return Failure",
+				"description": "Return as a failed activity after logging the error",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Record Service Bus failure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@activity('Service Bus Load').Error.message",
+						"type": "Expression"
+					},
+					"errorCode": {
+						"value": "@activity('Service Bus Load').StatusCode",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Send starting teams notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set webhook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set resource group",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"dataFactorySubscription": {
+							"value": "@variables('subscription_id')",
+							"type": "Expression"
+						},
+						"dataFactoryResourceGroup": {
+							"value": "@variables('resource_group')",
+							"type": "Expression"
+						},
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"teamsWebhookUrl": {
+							"value": "@variables('webhook_url')",
+							"type": "Expression"
+						},
+						"activityName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"activityMessage": "Starting master pipeline run",
+						"activityDuration": "0H:00M:00s",
+						"activityStatus": "Starting",
+						"Colour": {
+							"value": "@variables('starting_colour')",
+							"type": "Expression"
+						},
+						"Image": {
+							"value": "@variables('starting_image')",
+							"type": "Expression"
+						},
+						"Message_title": "ODW - Master pipeline starting",
+						"Message_subtitle": "The master pipeline for loading data to ODW is starting with the following parameters:"
+					}
 				}
 			}
 		],
