@@ -16,7 +16,7 @@ class NsipRepresentationCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-curated",
+        "etl_process_name": "nsip-representation-curated",
         "debug": False
     }
     ```

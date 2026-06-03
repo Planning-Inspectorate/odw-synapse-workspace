@@ -16,7 +16,7 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_event_estimate_curated_mipins_process",
+        "etl_process_name": "appeal_event_estimate_curated_mipins_process",
         "debug": False
     }
     ```

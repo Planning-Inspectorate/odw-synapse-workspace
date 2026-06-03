@@ -16,7 +16,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_curated_process",
+        "etl_process_name": "appeal_document_curated_process",
         "debug": False
     }
     ```

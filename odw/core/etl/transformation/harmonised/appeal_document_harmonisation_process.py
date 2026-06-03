@@ -61,7 +61,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_harmonisation_process",
+        "etl_process_name": "appeal_document_harmonisation_process",
         "debug": False
     }
     ```

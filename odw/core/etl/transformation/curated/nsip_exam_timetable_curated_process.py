@@ -16,7 +16,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-exam-timetable-curated",
+        "etl_process_name": "nsip-exam-timetable-curated",
         "debug": False
     }
     ```

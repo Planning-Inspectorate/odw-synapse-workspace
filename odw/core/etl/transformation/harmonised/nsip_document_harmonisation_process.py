@@ -75,7 +75,7 @@ class NsipDocumentHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-document-harmonised",
+        "etl_process_name": "nsip-document-harmonised",
         "debug": False
     }
     ```

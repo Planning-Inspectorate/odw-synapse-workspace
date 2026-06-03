@@ -25,7 +25,7 @@ class EntraIdStandardisationProcess(StandardisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "EntraID Standardisation",
+        "etl_process_name": "EntraID Standardisation",
         "date_folder": "2024-01-15",  # optional — defaults to latest folder
         "debug": False
     }

@@ -17,7 +17,7 @@ class DependencyResolver:
 
     def _preprocess_config(self):
         """
-        Mutably add a `entity_stage_name` key to each entity stage in the config
+        Mutably add a `orchestration_entity_stage_name` key to each entity stage in the config
         """
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         for entity_name, entity in entities.items():
@@ -40,7 +40,7 @@ class DependencyResolver:
         """
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
-        dependency_map = {entity_stage_name: tuple(entity["depends_on"]) for entity_stage_name, entity in entity_stages.items()}
+        dependency_map = {orchestration_entity_stage_name: tuple(entity["depends_on"]) for orchestration_entity_stage_name, entity in entity_stages.items()}
         sorter = TopologicalSorter(dependency_map)
         sorter.prepare()
         ordered_groups = []
@@ -49,7 +49,7 @@ class DependencyResolver:
             ordered_groups.append(ready_nodes)
             for node in ready_nodes:
                 sorter.done(node)
-        return [[entity_stages[entity_stage_name] for entity_stage_name in group] for group in ordered_groups]
+        return [[entity_stages[orchestration_entity_stage_name] for orchestration_entity_stage_name in group] for group in ordered_groups]
 
     def _filter_irrelevant_dependencies_from_config(self, entity_stages_to_keep: List[str] = []):
         """
@@ -67,11 +67,11 @@ class DependencyResolver:
             unvisited.extend(entity_stages[current].get("depends_on", []))
             visited.add(current)
         cleaned_entities = dict()
-        for entity_stage_name in visited:
-            entity_stage_name_split = entity_stage_name.split(".")
+        for orchestration_entity_stage_name in visited:
+            entity_stage_name_split = orchestration_entity_stage_name.split(".")
             entity_name = entity_stage_name_split[0]
             stage_name = entity_stage_name_split[1]
-            entity_stage = entity_stages[entity_stage_name]
+            entity_stage = entity_stages[orchestration_entity_stage_name]
             if entity_name not in cleaned_entities:
                 cleaned_entities[entity_name] = {stage_name: entity_stage}
             else:

@@ -17,7 +17,7 @@ class NsipMeetingCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-meeting-curated",
+        "etl_process_name": "nsip-meeting-curated",
         "debug": False
     }
     ```

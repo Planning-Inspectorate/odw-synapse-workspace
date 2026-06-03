@@ -63,7 +63,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "AIE Harmonisation",
+        "etl_process_name": "AIE Harmonisation",
         "debug": False
     }
     ```

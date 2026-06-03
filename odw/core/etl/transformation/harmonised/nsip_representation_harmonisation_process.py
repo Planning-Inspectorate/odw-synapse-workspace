@@ -77,7 +77,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-harmonised",
+        "etl_process_name": "nsip-representation-harmonised",
         "debug": False
     }
     ```

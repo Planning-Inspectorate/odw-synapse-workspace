@@ -20,7 +20,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "horizon-pins-inspector-harmonised",
+        "etl_process_name": "horizon-pins-inspector-harmonised",
         "debug": False
     }
     ```

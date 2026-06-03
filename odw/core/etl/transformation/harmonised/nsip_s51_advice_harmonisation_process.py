@@ -57,7 +57,7 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-s51-advice-harmonised",
+        "etl_process_name": "nsip-s51-advice-harmonised",
         "debug": False
     }
     ```

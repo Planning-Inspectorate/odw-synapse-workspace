@@ -9,8 +9,8 @@ class OrchestrationConfig(BaseModel):
 
         @validator("kwargs")
         def validate_kwargs(cls, v):
-            if "entity_stage_name" not in v:
-                raise ValueError("kwargs must contain a 'entity_stage_name' entry")
+            if "etl_process_name" not in v:
+                raise ValueError("kwargs must contain a 'etl_process_name' entry")
             return v
 
     entities: Dict[str, Dict[str, EntityStage]]

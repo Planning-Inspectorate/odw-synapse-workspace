@@ -15,7 +15,7 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-subscription-curated",
+        "etl_process_name": "nsip-subscription-curated",
         "debug": False
     }
     ```

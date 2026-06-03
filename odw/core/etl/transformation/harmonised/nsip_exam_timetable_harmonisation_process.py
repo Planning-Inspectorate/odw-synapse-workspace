@@ -43,7 +43,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-exam-timetable-harmonised",
+        "etl_process_name": "nsip-exam-timetable-harmonised",
         "debug": False
     }
     ```

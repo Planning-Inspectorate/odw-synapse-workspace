@@ -22,7 +22,7 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "EntraID Harmonisation",
+        "etl_process_name": "EntraID Harmonisation",
         "debug": False
     }
     ```

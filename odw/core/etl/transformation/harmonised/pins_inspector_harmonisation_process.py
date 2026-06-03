@@ -19,7 +19,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "pins-inspector-harmonised",
+        "etl_process_name": "pins-inspector-harmonised",
         "debug": False
     }
     ```
