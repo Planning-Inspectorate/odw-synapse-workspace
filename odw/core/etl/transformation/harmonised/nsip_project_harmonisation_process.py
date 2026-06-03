@@ -498,17 +498,15 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         """
         # Need to read the original table
         w_reverse_per_case = Window.partitionBy("caseid").orderBy(F.col("IngestionDate").desc())
-        w_internal_id = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseid").asc())
 
         out_df = combined_data.select(
             F.row_number().over(w_reverse_per_case).alias("ReverseOrderProcessed"),
-            F.row_number().over(w_internal_id).alias("NSIPProjectInfoInternalID"),
+            F.monotonically_increasing_id().cast("int").alias("NSIPProjectInfoInternalID"),
             F.col("caseid"),
             F.col("IngestionDate"),
             F.col("ValidTo"),
             F.lit("0").alias("migrated"),
-            F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit("Y")).otherwise(F.lit("N")).alias("IsActive"),
-        )
+        ).withColumn("IsActive", F.when(F.col("ReverseOrderProcessed") == 1, F.lit("Y")).otherwise("N"))
         df_calcs = (
             out_df.alias("current")
             .join(
