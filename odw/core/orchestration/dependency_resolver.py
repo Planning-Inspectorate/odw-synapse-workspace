@@ -40,7 +40,9 @@ class DependencyResolver:
         """
         entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
         entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
-        dependency_map = {orchestration_entity_stage_name: tuple(entity["depends_on"]) for orchestration_entity_stage_name, entity in entity_stages.items()}
+        dependency_map = {
+            orchestration_entity_stage_name: tuple(entity["depends_on"]) for orchestration_entity_stage_name, entity in entity_stages.items()
+        }
         sorter = TopologicalSorter(dependency_map)
         sorter.prepare()
         ordered_groups = []
@@ -69,6 +71,10 @@ class DependencyResolver:
         cleaned_entities = dict()
         for orchestration_entity_stage_name in visited:
             entity_stage_name_split = orchestration_entity_stage_name.split(".")
+            if len(entity_stage_name_split) != 2:
+                raise RuntimeError(
+                    f"orchestration_entity_stage_name should have the form entity_name.stage_name but had value '{orchestration_entity_stage_name}'"
+                )
             entity_name = entity_stage_name_split[0]
             stage_name = entity_stage_name_split[1]
             entity_stage = entity_stages[orchestration_entity_stage_name]
