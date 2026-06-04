@@ -6,6 +6,7 @@ service_bus_watermarks Delta table. The ON clause must include ingest_date so De
 can prune reads to a single (entity, ingest_date) partition and avoid
 ConcurrentAppendException across entities.
 """
+
 import pytest
 from pyspark.sql import Row, SparkSession
 
@@ -48,7 +49,18 @@ VALUES (src.entity, src.source, src.last_ingest_time, src.ingest_date, src.run_i
 
 def _upsert(spark: SparkSession, entity: str, ingest_date: str, run_id: str, records: int, status: str) -> None:
     df = spark.createDataFrame(
-        [Row(entity=entity, source="service-bus", last_ingest_time="2026-06-03T14:00:00Z", ingest_date=ingest_date, run_id=run_id, records_ingested=records, status=status, updated_at="2026-06-03 15:00:00")]
+        [
+            Row(
+                entity=entity,
+                source="service-bus",
+                last_ingest_time="2026-06-03T14:00:00Z",
+                ingest_date=ingest_date,
+                run_id=run_id,
+                records_ingested=records,
+                status=status,
+                updated_at="2026-06-03 15:00:00",
+            )
+        ]
     ).selectExpr(
         "entity",
         "source",
