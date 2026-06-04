@@ -75,93 +75,97 @@
 					"isSequential": true,
 					"activities": [
 						{
-							"name": "Execute on previous batch success",
-							"description": "Only run the batch if the previous batch was successful, or if this is the first batch",
-							"type": "IfCondition",
-							"dependsOn": [],
+							"name": "Execute inner loop",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Filter steps with failed dependencies",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
 							"userProperties": [],
 							"typeProperties": {
-								"expression": {
-									"value": "@not(\n    variables('failureDetected')\n)",
-									"type": "Expression"
+								"pipeline": {
+									"referenceName": "pln_etl_executor",
+									"type": "PipelineReference"
 								},
-								"ifTrueActivities": [
-									{
-										"name": "Execute inner loop",
-										"type": "ExecutePipeline",
-										"dependsOn": [],
-										"policy": {
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"pipeline": {
-												"referenceName": "pln_etl_executor",
-												"type": "PipelineReference"
-											},
-											"waitOnCompletion": true,
-											"parameters": {
-												"entity_stages": {
-													"value": "@item()",
-													"type": "Expression"
-												},
-												"run_id": {
-													"value": "@pipeline().parameters.run_id",
-													"type": "Expression"
-												},
-												"runContextJson": {
-													"value": "@string(pipeline().parameters.runContextJson)",
-													"type": "Expression"
-												}
-											}
-										}
+								"waitOnCompletion": true,
+								"parameters": {
+									"entity_stages": {
+										"value": "@json(\n    activity('Filter steps with failed dependencies').output.status.Output.result.exitValue\n)",
+										"type": "Expression"
 									},
-									{
-										"name": "Set batch failed",
-										"type": "SetVariable",
-										"dependsOn": [
-											{
-												"activity": "Execute inner loop",
-												"dependencyConditions": [
-													"Failed"
-												]
-											}
-										],
-										"policy": {
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"variableName": "failureDetected",
-											"value": true
-										}
+									"run_id": {
+										"value": "@pipeline().parameters.run_id",
+										"type": "Expression"
 									},
-									{
-										"name": "Set failure message",
-										"type": "SetVariable",
-										"dependsOn": [
-											{
-												"activity": "Set batch failed",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
-										"policy": {
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"variableName": "failureMessage",
-											"value": {
-												"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue\n)",
-												"type": "Expression"
-											}
-										}
+									"runContextJson": {
+										"value": "@string(pipeline().parameters.runContextJson)",
+										"type": "Expression"
 									}
-								]
+								}
+							}
+						},
+						{
+							"name": "Filter steps with failed dependencies",
+							"description": "Filter out the elements from the current batch that have failed dependencies",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_etl_batch_filter",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"config_batch": {
+										"value": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"run_id": {
+										"value": {
+											"value": "@pipeline().parameters.run_id",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true
+							}
+						},
+						{
+							"name": "Append batch failures",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute inner loop",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "batchFailures",
+								"value": {
+									"value": "@json(\n    activity('Execute inner loop').output.pipelineReturnValue\n)",
+									"type": "Expression"
+								}
 							}
 						}
 					]
@@ -186,13 +190,13 @@
 					},
 					"ifTrueActivities": [
 						{
-							"name": "Inner batch failed",
+							"name": "Failure detected",
 							"type": "Fail",
 							"dependsOn": [],
 							"userProperties": [],
 							"typeProperties": {
 								"message": {
-									"value": "@concat(\n    'Some inner batches failed with the following errors: ',\n    variables('failureMessage')\n)",
+									"value": "@concat(\n    'Some batches failed with the following errors: ',\n    variables('batchFailures')\n)",
 									"type": "Expression"
 								},
 								"errorCode": "500"
@@ -218,12 +222,9 @@
 			}
 		},
 		"variables": {
-			"failureDetected": {
-				"type": "Boolean",
-				"defaultValue": false
-			},
-			"failureMessage": {
-				"type": "String"
+			"batchFailures": {
+				"type": "Array",
+				"defaultValue": []
 			}
 		},
 		"variables": {
