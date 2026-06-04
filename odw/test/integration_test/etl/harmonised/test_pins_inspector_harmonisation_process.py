@@ -158,7 +158,9 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False
             ),
         ):
-            result = PinsInspectorHarmonisationProcess(spark).run(orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise")
+            result = PinsInspectorHarmonisationProcess(spark).run(
+                orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise"
+            )
         return result, output_table
 
     def test__run__active_inspectors_written_end_to_end(self):

@@ -329,7 +329,9 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
             mock.patch.object(AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name),
         ):
             inst = AppealServiceUserCuratedMipinsProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate"
+            )
 
             assert_etl_result_successful(result)
 
@@ -409,7 +411,9 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
             mock.patch.object(AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name),
         ):
             inst = AppealServiceUserCuratedMipinsProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate"
+            )
 
             assert_etl_result_successful(result)
 

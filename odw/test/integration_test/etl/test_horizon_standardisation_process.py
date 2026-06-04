@@ -212,7 +212,12 @@ class TestHorizonStandardisationProcess(ETLTestCase):
             with mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_exst_data.csv"]):
                 with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
                     inst = HorizonStandardisationProcess(spark)
-                    result = inst.run(orchestration_run_id="t_hsp_r_wed", orchestration_entity_name="some_entity", orchestration_stage_name="standardise", source_folder=data_folder)
+                    result = inst.run(
+                        orchestration_run_id="t_hsp_r_wed",
+                        orchestration_entity_name="some_entity",
+                        orchestration_stage_name="standardise",
+                        source_folder=data_folder,
+                    )
                     assert_etl_result_successful(result)
                     actual_table_data = spark.table("odw_standardised_db.test_hzn_std_pc_exst_data")
                     print("final table nullable: ", actual_table_data.schema["col_a"].nullable)
@@ -259,7 +264,12 @@ class TestHorizonStandardisationProcess(ETLTestCase):
             with mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_no_exst_data.csv"]):
                 with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
                     inst = HorizonStandardisationProcess(spark)
-                    result = inst.run(orchestration_run_id="t_hsp_r_wned", orchestration_entity_name="some_entity", orchestration_stage_name="standardise", source_folder=data_folder)
+                    result = inst.run(
+                        orchestration_run_id="t_hsp_r_wned",
+                        orchestration_entity_name="some_entity",
+                        orchestration_stage_name="standardise",
+                        source_folder=data_folder,
+                    )
                     assert_etl_result_successful(result)
                     msg = "Expected table 'odw_standardised_db.test_hzn_std_pc_no_exst_data' to exist but it was missing"
                     assert spark.catalog.tableExists("odw_standardised_db.test_hzn_std_pc_no_exst_data"), msg

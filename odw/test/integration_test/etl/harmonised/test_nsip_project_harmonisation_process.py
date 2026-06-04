@@ -800,7 +800,9 @@ class TestNsipProjectHarmonisationProcess(ETLTestCase):
             with mock.patch.object(NsipProjectHarmonisationProcess, "HORIZON_TABLE", f"ti_nphp_r_{test_case_name}"):
                 with mock.patch.object(NsipProjectHarmonisationProcess, "OUTPUT_TABLE", f"ti_nphp_r_{test_case_name}"):
                     inst = NsipProjectHarmonisationProcess(spark)
-                    etl_result = inst.run(orchestration_run_id=test_case_name, orchestration_entity_name="nsip_project", orchestration_stage_name="harmonise")
+                    etl_result = inst.run(
+                        orchestration_run_id=test_case_name, orchestration_entity_name="nsip_project", orchestration_stage_name="harmonise"
+                    )
                     assert_etl_result_successful(etl_result)
                     actual_output_table = spark.table(f"odw_harmonised_db.ti_nphp_r_{test_case_name}")
                     self.compare_final_tables(expected_output_table, actual_output_table)

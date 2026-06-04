@@ -674,7 +674,9 @@ class TestNsipProjectCuratedProcess(ETLTestCase):
         with mock.patch.object(NsipProjectCuratedProcess, "HARMONISED_TABLE", "t_npcp_r_wned"):
             with mock.patch.object(NsipProjectCuratedProcess, "OUTPUT_TABLE", "t_npcp_r_wned"):
                 inst = NsipProjectCuratedProcess(spark)
-                etl_result = inst.run(orchestration_run_id="t_npcp_r_wned", orchestration_entity_name="nsip_project", orchestration_stage_name="curate")
+                etl_result = inst.run(
+                    orchestration_run_id="t_npcp_r_wned", orchestration_entity_name="nsip_project", orchestration_stage_name="curate"
+                )
                 assert_etl_result_successful(etl_result)
                 actual_output_table = spark.table("odw_curated_db.t_npcp_r_wned")
                 assert_dataframes_equal(expected_output_table, actual_output_table)

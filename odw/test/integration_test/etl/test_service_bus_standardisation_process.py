@@ -100,7 +100,12 @@ class TestServiceBusStandardisationProcess(ETLTestCase):
             {"mergeSchema": "true"},
         )
         with mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=mock_standardised_schema):
-            result = ServiceBusStandardisationProcess(spark).run(orchestration_run_id="t_sbsp_r_wed", orchestration_entity_name="some_entity", orchestration_stage_name="standardise", entity_name="test__service_bus_standardisation_process__run")
+            result = ServiceBusStandardisationProcess(spark).run(
+                orchestration_run_id="t_sbsp_r_wed",
+                orchestration_entity_name="some_entity",
+                orchestration_stage_name="standardise",
+                entity_name="test__service_bus_standardisation_process__run",
+            )
             assert_etl_result_successful(result)
         data_after = spark.table("odw_standardised_db.sb_test__service_bus_standardisation_process__run")
         # Drop columns that cannot easily be compared - todo actually compare these cols

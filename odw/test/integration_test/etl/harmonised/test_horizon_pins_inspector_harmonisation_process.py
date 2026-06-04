@@ -59,7 +59,9 @@ class TestHorizonPinsInspectorHarmonisationProcess(ETLTestCase):
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "STAGE_TABLE", f"odw_harmonised_db.{self.test_case}_pins_inspector_stg"),
             mock.patch.object(HorizonPinsInspectorHarmonisationProcess, "OUTPUT_TABLE", f"odw_harmonised_db.{self.test_case}_horizon_pins_inspector"),
         ):
-            return HorizonPinsInspectorHarmonisationProcess(spark).run(orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise")
+            return HorizonPinsInspectorHarmonisationProcess(spark).run(
+                orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise"
+            )
 
     def test__run__builds_scd2_timeline_end_to_end(self):
         self.test_case = "t_hpihp_r_bste"

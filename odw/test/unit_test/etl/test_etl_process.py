@@ -94,7 +94,9 @@ def test__etl_process__run__successful():
                                 with mock.patch.object(MetadataManager, "update"):
                                     inst = ETLProcessImpl()
                                     inst.spark = "x"
-                                    actual_result = inst.run(orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None)
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
                                     assert mock_result == actual_result
                                     MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
                                     MetadataManager.create.assert_called_once()
@@ -119,7 +121,9 @@ def test__etl_process__run__read_exception():
                                 with mock.patch.object(MetadataManager, "update"):
                                     inst = ETLProcessImpl()
                                     inst.spark = "x"
-                                    actual_result = inst.run(orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None)
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
                                     compare_etl_results(expected_result, actual_result)
                                     MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
                                     MetadataManager.create.assert_called_once()
@@ -142,7 +146,9 @@ def test__etl_process__run__transformation_exception():
                             with mock.patch.object(MetadataManager, "update"):
                                 inst = ETLProcessImpl()
                                 inst.spark = "x"
-                                actual_result = inst.run(orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None)
+                                actual_result = inst.run(
+                                    orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                )
                                 compare_etl_results(expected_result, actual_result)
                                 MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
                                 MetadataManager.create.assert_called_once()
@@ -165,7 +171,9 @@ def test__etl_process__run__transformation_failure():
                             with mock.patch.object(MetadataManager, "update"):
                                 inst = ETLProcessImpl()
                                 inst.spark = "x"
-                                actual_result = inst.run(orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None)
+                                actual_result = inst.run(
+                                    orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                )
                                 compare_etl_results(mock_result, actual_result)
                                 MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
                                 MetadataManager.create.assert_called_once()
@@ -190,7 +198,9 @@ def test__etl_process__run__write_exception():
                                 with mock.patch.object(MetadataManager, "update"):
                                     inst = ETLProcessImpl()
                                     inst.spark = "x"
-                                    actual_result = inst.run(orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None)
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
                                     compare_etl_results(expected_result, actual_result)
                                     MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
                                     MetadataManager.create.assert_called_once()

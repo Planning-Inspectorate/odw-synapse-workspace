@@ -146,7 +146,9 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
             mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
         ):
-            result = PinsInspectorCuratedProcess(spark).run(orchestration_run_id="t_r_waiete", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate")
+            result = PinsInspectorCuratedProcess(spark).run(
+                orchestration_run_id="t_r_waiete", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+            )
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_curated_db.{table_name}").orderBy("entraId")
@@ -187,7 +189,9 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
             mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
         ):
-            result = PinsInspectorCuratedProcess(spark).run(orchestration_run_id="t_r_esweo", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate")
+            result = PinsInspectorCuratedProcess(spark).run(
+                orchestration_run_id="t_r_esweo", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+            )
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_curated_db.{table_name}")
@@ -219,7 +223,9 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
             mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
             mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
         ):
-            result = PinsInspectorCuratedProcess(spark).run(orchestration_run_id="t_r_cruurp", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate")
+            result = PinsInspectorCuratedProcess(spark).run(
+                orchestration_run_id="t_r_cruurp", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+            )
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_curated_db.{table_name}").orderBy("entraId")
