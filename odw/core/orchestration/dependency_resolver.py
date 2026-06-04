@@ -99,6 +99,18 @@ class DependencyResolver:
         ]
         return [x for x in cleaned_groups if x]
 
+    @classmethod
+    def filter_entity_stages_with_failed_dependencies(cls, group: List[Dict[str, Any]], execution_details: List[Dict[str, Any]]):
+        """
+        Filter out entity stages from a group that have had any of its dependencies fail
+        """
+        if not execution_details:
+            return group
+        failed_executions = {f"{row['entity_name']}.{row['stage_name']}" for row in execution_details if not row["successful"]}
+        return [
+            entity_stage for entity_stage in group if not any(dependency in failed_executions for dependency in entity_stage.get("depends_on", []))
+        ]
+
     def generate_stages_to_run(self, entity_stages: List[str], execution_details: Dict[str, Any]):
         """
         Filter down the config so that only relevent entities are executed and group them into batches that can run concurrently

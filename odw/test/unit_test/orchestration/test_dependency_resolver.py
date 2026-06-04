@@ -646,3 +646,96 @@ def test__dependency_resolver__generate_stages_to_run():
         DependencyResolver._topological_sort.assert_called_once_with()
         DependencyResolver.filter_already_executed_entity_stages.assert_called_once_with("B", execution_details)
         assert result == DependencyResolver.filter_already_executed_entity_stages.return_value
+
+
+def test__dependency_resolver__filter_entity_stages_with_failed_dependencies():
+    group = [
+        {
+            "orchestration_entity_stage_name": "A.a",
+            "orchestration_entity_name": "A",
+            "orchestration_stage_name": "a",
+            "name": "A",
+            "depends_on": ["E.a"],  # Should be filtered out
+        },
+        {
+            "orchestration_entity_stage_name": "B.a",
+            "orchestration_entity_name": "B",
+            "orchestration_stage_name": "a",
+            "name": "B",
+            "depends_on": ["F.a"],
+        },
+        {
+            "orchestration_entity_stage_name": "C.a",
+            "orchestration_entity_name": "C",
+            "orchestration_stage_name": "a",
+            "name": "C",
+            "depends_on": ["G.a", "E.a"],  # Should be filtered out
+        },
+        {
+            "orchestration_entity_stage_name": "D.a",
+            "orchestration_entity_name": "D",
+            "orchestration_stage_name": "a",
+            "name": "D",
+            "depends_on": ["H.a"],
+        },
+    ]
+    execution_details = [
+        {
+            "run_id": "t_dr_feswfd",
+            "entity_name": "E",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": False,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_feswfd",
+            "entity_name": "F",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_feswfd",
+            "entity_name": "G",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+        {
+            "run_id": "t_dr_feswfd",
+            "entity_name": "H",
+            "stage_name": "a",
+            "execution_parameters": '{"some": "parameters"}',
+            "execution_start_time": "2026-001-01 00:00:00.000000",
+            "execution_finish_time": "2026-001-01 01:00:00.000000",
+            "successful": True,
+            "result_text": "some text",
+        },
+    ]
+    expected_output = [
+        {
+            "orchestration_entity_stage_name": "B.a",
+            "orchestration_entity_name": "B",
+            "orchestration_stage_name": "a",
+            "name": "B",
+            "depends_on": ["F.a"],
+        },
+        {
+            "orchestration_entity_stage_name": "D.a",
+            "orchestration_entity_name": "D",
+            "orchestration_stage_name": "a",
+            "name": "D",
+            "depends_on": ["H.a"],
+        },
+    ]
+    actual_output = DependencyResolver.filter_entity_stages_with_failed_dependencies(group, execution_details)
+    assert actual_output == expected_output
