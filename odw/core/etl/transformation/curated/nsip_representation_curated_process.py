@@ -12,11 +12,11 @@ class NsipRepresentationCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Representation data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-curated",
+        "etl_process_name": "nsip-representation-curated",
         "debug": False
     }
     ```

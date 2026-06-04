@@ -2030,7 +2030,7 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
             for s78_property, override_value in property_override_map.items():
                 stack.enter_context(mock.patch.object(AppealHasStandardisationProcess, s78_property, override_value))
             inst = AppealHasStandardisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_has", orchestration_stage_name="standardise")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_standardised_db.{output_table}")
             assert_dataframes_equal(expected_data_after_writing, actual_table_data)

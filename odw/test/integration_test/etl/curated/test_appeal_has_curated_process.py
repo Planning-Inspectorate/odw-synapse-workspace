@@ -312,7 +312,7 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         expected_curated_data_after_writing = spark.createDataFrame((_curated_row(),), schema=_curated_schema())
         with mock.patch.object(AppealHasCuratedProcess, "OUTPUT_TABLE", appeal_has_table):
             inst = AppealHasCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_has", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(appeal_has_table)
             assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)

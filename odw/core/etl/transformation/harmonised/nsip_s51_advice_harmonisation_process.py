@@ -53,11 +53,11 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP S51 Advice data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-s51-advice-harmonised",
+        "etl_process_name": "nsip-s51-advice-harmonised",
         "debug": False
     }
     ```

@@ -340,7 +340,7 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
         ):
             inst = NsipRepresentationHarmonisationProcess(spark)
 
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_representation", orchestration_stage_name="harmonise")
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")

@@ -2,6 +2,7 @@ import mock
 from pyspark.sql.types import StringType, StructField, StructType, LongType
 from odw.core.etl.transformation.curated.entraid_curation_process import EntraIDCurationProcess
 from odw.core.etl.etl_result import ETLSuccessResult
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -259,6 +260,9 @@ class TestEntraIDCurationProcess(SparkTestCase):
                 mock.patch.object(EntraIDCurationProcess, "load_data", return_value=None),
                 mock.patch.object(EntraIDCurationProcess, "process", return_value=None),
                 mock.patch.object(EntraIDCurationProcess, "write_data", return_value=None),
+                mock.patch.object(MetadataManager, "__init__", return_value=None),
+                mock.patch.object(MetadataManager, "create", return_value=None),
+                mock.patch.object(MetadataManager, "update", return_value=None),
             ):
                 inst.run()
                 EntraIDCurationProcess.load_data.assert_called_once()

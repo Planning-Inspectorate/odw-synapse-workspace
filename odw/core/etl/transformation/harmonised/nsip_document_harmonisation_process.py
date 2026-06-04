@@ -71,11 +71,11 @@ class NsipDocumentHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Document data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-document-harmonised",
+        "etl_process_name": "nsip-document-harmonised",
         "debug": False
     }
     ```

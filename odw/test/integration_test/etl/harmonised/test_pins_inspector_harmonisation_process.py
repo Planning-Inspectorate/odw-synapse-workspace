@@ -141,7 +141,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
             "overwrite",
         )
 
-    def _run(self, spark):
+    def _run(self, spark, test_case):
         tc = self.test_case
         output_table = f"odw_harmonised_db.{tc}_pins_inspector"
         with (
@@ -158,7 +158,9 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment", return_value=False
             ),
         ):
-            result = PinsInspectorHarmonisationProcess(spark).run()
+            result = PinsInspectorHarmonisationProcess(spark).run(
+                orchestration_run_id=test_case, orchestration_entity_name="pins_inspector", orchestration_stage_name="harmonise"
+            )
         return result, output_table
 
     def test__run__active_inspectors_written_end_to_end(self):
@@ -171,7 +173,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        result, output_table = self._run(spark)
+        result, output_table = self._run(spark, "t_r_aiwete")
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 2, f"Expected 2 rows from process, got {result.metadata.insert_count}"
@@ -201,7 +203,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        result, output_table = self._run(spark)
+        result, output_table = self._run(spark, "t_r_naie")
 
         assert_etl_result_successful(result)
         assert result.metadata.insert_count == 1
@@ -219,7 +221,7 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        result, output_table = self._run(spark)
+        result, output_table = self._run(spark, "t_r_esweo")
 
         assert_etl_result_successful(result)
         assert spark.table(output_table).count() == 0
@@ -235,6 +237,6 @@ class TestPinsInspectorHarmonisationProcess(ETLTestCase):
         self._write_address(spark)
         self._write_hist_hr(spark)
 
-        result, output_table = self._run(spark)
+        result, output_table = self._run(spark, "t_r_vfhis")
 
         assert spark.table(output_table).collect()[0]["validFrom"] == "2020-01-01T00:00:00.000Z"

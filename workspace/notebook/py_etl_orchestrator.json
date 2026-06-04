@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5d44c65a-939e-4858-8d04-e813f82b0c9a"
+				"spark.autotune.trackingId": "28d4fc43-e0d3-4373-b79a-434ddc385f19"
 			}
 		},
 		"metadata": {
@@ -53,22 +53,30 @@
 		},
 		"cells": [
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"#%run refactor/combined_odw"
-				],
-				"execution_count": null
+					"`orchestration_transform_dependencies.yaml` in `odw-config` contains information about parameters and dependencies for each part of the ODW ETL Process. Each entry consists of an entity name, which would then contain a number of stages, with each stage containing kwargs to feed into `py_etl_executor` alongside dependent config entries that should be executed first. \n",
+					"\n",
+					"The aim of this notebook is to extract this orchestration config and generate an \"execution order\", which will be composed of a list of parameter groups. Each parameter group will then be executed sequentially, but the parameters within each group would be fed into `py_etl_executor` notebooks in parallel, which should maximise the throughput of the ETL pipeline"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from odw.core.etl.etl_process_factory import ETLProcessFactory\n",
-					"from odw.core.io.data_io_factory import DataIOFactory\n",
-					"from odw.core.io.parser.data_file_parser_factory import DataFileParserFactory\n",
-					"from odw.core.etl.etl_result import ETLFailResult\n",
+					"from odw.core.orchestration.dependency_resolver import DependencyResolver\n",
+					"from odw.core.etl.metadata_manager import MetadataManager\n",
+					"from odw.core.io.synapse_file_data_io import SynapseFileDataIO\n",
 					"from odw.core.util.logging_util import LoggingUtil\n",
-					"from pyspark.sql import SparkSession\n",
-					"from typing import Dict, Any, Union\n",
+					"from odw.core.util.util import Util\n",
+					"from typing import List\n",
+					"import yaml\n",
 					"import json"
 				],
 				"execution_count": null
@@ -83,7 +91,9 @@
 					}
 				},
 				"source": [
-					"# Notebook parameters"
+					"### Parameters\n",
+					"- entity_stages_to_run: A list of the form `entity-name.stage` similar to the `depends_on` property in the `orchestration_transform_dependencies.yaml` file. If specified, then ONLY the elements of this list (and their transitive dependencies) will be returned. If not specified, then the full config will be returned\n",
+					"- `run_id`: The id of a previous execution to rerun from. If specified, then the execution history will be queried so that any parameters that have had successful runs for the associate run_id are skipped. If not specified, then it is assumed that all parameters should be kept"
 				]
 			},
 			{
@@ -94,55 +104,41 @@
 					]
 				},
 				"source": [
-					"input_arguments: Union[Dict[str, Any], str] = {\n",
-					"    \"entity_stage_name\": \"Service Bus Harmonisation\",\n",
-					"    \"entity_name\": \"appeal-has\",\n",
-					"    \"debug\": True\n",
-					"}"
+					"entity_stages_to_run: List[str] = []\n",
+					"config_file: str = \"orchestration_transform_dependencies.yaml\"  # Can override for testing purposes\n",
+					"run_id: str = None"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"if isinstance(input_arguments, str):\n",
-					"    input_arguments = json.loads(input_arguments)"
+					"if isinstance(entity_stages_to_run, str):\n",
+					"    try:\n",
+					"        entity_stages_to_run = json.loads(entity_stages_to_run)\n",
+					"    except ValueError:\n",
+					"        message = (\n",
+					"            \"Failed to run py_etl_orchestrator because the entity_stages_to_run is not json serialiseable. \"\n",
+					"            f\"Please review the input. The actual value was: '{entity_stages_to_run}'\"\n",
+					"        )\n",
+					"        print(message)\n",
+					"        LoggingUtil().log_info(message)"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"debug = input_arguments.get(\"debug\", False)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# Validate notebook parameters"
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if \"entity_stage_name\" not in input_arguments:\n",
-					"    raise ValueError(\"py_etl_ochestrator expects a 'entity_stage_name' property to be supplied, but this was missing\")"
+					"if not isinstance(config_file, str):\n",
+					"    config_file = None"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Initialise spark session\n",
-					"spark = SparkSession.builder.getOrCreate()"
+					"if not config_file:\n",
+					"    config_file = \"orchestration_transform_dependencies.yaml\""
 				],
 				"execution_count": null
 			},
@@ -156,15 +152,21 @@
 					}
 				},
 				"source": [
-					"# Load the relevant ETL Processor"
+					"### Load the config file which contains the execution order for each entity/stage"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"entity_stage_name = input_arguments.get(\"entity_stage_name\")\n",
-					"etl_process_class = ETLProcessFactory.get(entity_stage_name)\n",
-					"etl_process_instance = etl_process_class(spark, debug)"
+					"config_data = SynapseFileDataIO().read(\n",
+					"    spark=spark,\n",
+					"    storage_endpoint=Util.get_storage_account(),\n",
+					"    container_name=\"odw-config\",\n",
+					"    blob_path=f\"orchestration/{config_file}\",\n",
+					"    file_format=\"text\"\n",
+					")\n",
+					"config_text = \"\\n\".join([x.value for x in config_data.collect()])\n",
+					"config = yaml.safe_load(config_text)"
 				],
 				"execution_count": null
 			},
@@ -178,27 +180,15 @@
 					}
 				},
 				"source": [
-					"# Perform ETL"
+					"### Load the execution history for the given run_id"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# Flush any pending logs, so that new logs are captured\n",
-					"LoggingUtil().flush_logging()"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"etl_results = etl_process_instance.run(\n",
-					"    **input_arguments,\n",
-					"    spark=spark\n",
-					")"
+					"execution_history = []\n",
+					"if run_id:\n",
+					"    execution_history = [row.asDict() for row in MetadataManager(spark, run_id=run_id).get_for_run_id().collect()]"
 				],
 				"execution_count": null
 			},
@@ -212,29 +202,34 @@
 					}
 				},
 				"source": [
-					"# Write logging data"
+					"### Generate an execution order, which contains a list of entity-stages that can be executed in parallel, with redundant/irrelevant stages being skipped"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"LoggingUtil().save_pipeline_logs(json.loads(etl_results.metadata.json()), event_name=\"Master_Pipeline_Logs_v2\")"
+					"dependency_resolver = DependencyResolver(config)\n",
+					"stages_to_execute = dependency_resolver.generate_stages_to_run(entity_stages_to_run, execution_history)"
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"# Ensure the notebook fails if there is an ETL exception\n",
-					"if isinstance(etl_results, ETLFailResult):\n",
-					"    raise RuntimeError(etl_results.metadata.exception_trace)"
-				],
-				"execution_count": null
+					"### Return the execution order back to the pipeline"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"mssparkutils.notebook.exit(etl_results.model_dump_json(indent=4))"
+					"mssparkutils.notebook.exit(json.dumps(stages_to_execute, indent=4))"
 				],
 				"execution_count": null
 			}

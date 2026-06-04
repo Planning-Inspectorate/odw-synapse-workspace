@@ -2298,7 +2298,7 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
             for s78_property, override_value in property_override_map.items():
                 stack.enter_context(mock.patch.object(AppealS78StandardisationProcess, s78_property, override_value))
             inst = AppealS78StandardisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_prefix, orchestration_entity_name="appeal_s78", orchestration_stage_name="standardise")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_standardised_db.{expected_output_table}")
             assert_dataframes_equal(expected_data, actual_table_data)

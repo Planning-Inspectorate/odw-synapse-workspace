@@ -38,7 +38,7 @@ def _source_data(raw_df):
 
 
 class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
-    def _run(self, raw_df, folder_name="2024-01-15"):
+    def _run(self, test_case, raw_df, folder_name="2024-01-15"):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         with mock.patch(
@@ -52,7 +52,7 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
                 mock.patch.object(inst, "load_data", return_value=_source_data(raw_df)),
                 mock.patch.object(inst, "write_data") as mock_write,
             ):
-                result = inst.run()
+                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="entraid", orchestration_stage_name="standardise")
 
         data_to_write = mock_write.call_args[0][0]
         return data_to_write, result
@@ -63,7 +63,7 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
             spark,
             [{"id": "u1", "employeeId": "emp1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}],
         )
-        data_to_write, result = self._run(raw_df, folder_name="2024-01-15")
+        data_to_write, result = self._run("t_esp_r_srwed", raw_df, folder_name="2024-01-15")
         write_config = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]
         rows = write_config["data"].collect()
 
@@ -86,7 +86,7 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
                 {"id": "u3", "employeeId": "emp3", "givenName": "Carol", "surname": "White", "userPrincipalName": "carol@test.com"},
             ],
         )
-        data_to_write, result = self._run(raw_df)
+        data_to_write, result = self._run("t_esp_r_mraw", raw_df)
         df = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"]
         assert df.count() == 3
         assert result.metadata.insert_count == 3
@@ -94,7 +94,7 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
     def test__entraid_standardisation_process__run__empty_value_array_writes_empty_output(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = spark.createDataFrame([([],)], _raw_entraid_schema())
-        data_to_write, result = self._run(raw_df)
+        data_to_write, result = self._run("t_esp_r_evaweo", raw_df)
         df = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"]
         assert df.count() == 0
         assert data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["write_mode"] == "overwrite"
@@ -107,7 +107,7 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
             spark,
             [{"id": "u1", "employeeId": None, "givenName": "Alice", "surname": None, "userPrincipalName": "alice@test.com"}],
         )
-        data_to_write, _ = self._run(raw_df)
+        data_to_write, _ = self._run("t_esp_r_nofp", raw_df)
         row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()[0]
         assert row["employeeId"] is None
         assert row["surname"] is None

@@ -1,12 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-import pytest
 from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
-from odw.core.io.synapse_legacy_delta_io import SynapseLegacyDeltaIO
-from odw.core.util.util import Util
-from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.util import generate_local_path, format_to_adls_path
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import mock
 from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType, DateType
@@ -722,17 +717,6 @@ def _final_table_row(**overrides):
 
 
 class TestNsipProjectHarmonisationProcess(ETLTestCase):
-    @pytest.fixture(scope="module", autouse=True)
-    def setup(self, request):
-        with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
-            with mock.patch.object(SynapseLegacyDeltaIO, "_format_to_adls_path", format_to_adls_path):
-                with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    yield
-
     def compare_final_tables(self, expected: DataFrame, actual: DataFrame):
         uncomparable_cols = {"RowID", "IngestionDate", "ValidTo"}
         comparable_cols = set(_final_table_schema().names) - uncomparable_cols
@@ -816,7 +800,9 @@ class TestNsipProjectHarmonisationProcess(ETLTestCase):
             with mock.patch.object(NsipProjectHarmonisationProcess, "HORIZON_TABLE", f"ti_nphp_r_{test_case_name}"):
                 with mock.patch.object(NsipProjectHarmonisationProcess, "OUTPUT_TABLE", f"ti_nphp_r_{test_case_name}"):
                     inst = NsipProjectHarmonisationProcess(spark)
-                    etl_result = inst.run()
+                    etl_result = inst.run(
+                        orchestration_run_id=test_case_name, orchestration_entity_name="nsip_project", orchestration_stage_name="harmonise"
+                    )
                     assert_etl_result_successful(etl_result)
                     actual_output_table = spark.table(f"odw_harmonised_db.ti_nphp_r_{test_case_name}")
                     self.compare_final_tables(expected_output_table, actual_output_table)

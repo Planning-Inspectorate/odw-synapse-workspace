@@ -17,7 +17,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_event_estimate_curated_process",
+        "etl_process_name": "appeal_event_estimate_curated_process",
         "debug": False
     }
     ```

@@ -2,6 +2,7 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -1730,6 +1731,9 @@ class TestRefAppealHasStandardisationProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 

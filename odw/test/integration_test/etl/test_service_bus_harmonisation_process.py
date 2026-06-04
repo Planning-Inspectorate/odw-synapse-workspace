@@ -186,7 +186,12 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
             with mock.patch.object(Util, "display_dataframe"):
                 inst = ServiceBusHarmonisationProcess(spark)
-                result = inst.run(entity_name="test_sb_hrm_pc_exst_data")
+                result = inst.run(
+                    orchestration_run_id="t_sbhp_r_wedss",
+                    orchestration_entity_name="some_entity",
+                    orchestration_stage_name="harmonise",
+                    entity_name="test_sb_hrm_pc_exst_data",
+                )
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_exst_data")
                 self.compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
@@ -265,7 +270,12 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
             with mock.patch.object(Util, "display_dataframe"):
                 inst = ServiceBusHarmonisationProcess(spark)
-                result = inst.run(entity_name="test_sb_hrm_pc_chg_schema")
+                result = inst.run(
+                    orchestration_run_id="t_sbhp_r_wedds",
+                    orchestration_entity_name="some_entity",
+                    orchestration_stage_name="harmonise",
+                    entity_name="test_sb_hrm_pc_chg_schema",
+                )
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_chg_schema")
                 self.compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)
@@ -321,7 +331,12 @@ class TestServiceBusHarmonisationProcess(ETLTestCase):
         with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
             with mock.patch.object(Util, "display_dataframe"):
                 inst = ServiceBusHarmonisationProcess(spark)
-                result = inst.run(entity_name="test_sb_hrm_pc_no_data")
+                result = inst.run(
+                    orchestration_run_id="t_sbhp_r_wned",
+                    orchestration_entity_name="some_entity",
+                    orchestration_stage_name="harmonise",
+                    entity_name="test_sb_hrm_pc_no_data",
+                )
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table("odw_harmonised_db.test_sb_hrm_pc_no_data")
                 self.compare_harmonised_data(expected_harmonised_data_after_writing, actual_table_data)

@@ -27,7 +27,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
     ```
     params = {
-        "entity_stage_name": "Horizon Standardisation",
+        "etl_process_name": "Horizon Standardisation",
         "source_folder": "Horizon",  # Default is Horizon, but this could be any folder in the `odw-raw` container
         "entity_name": "",  # Default is "". Aligns with the `Source_Filename_Start` property in the orchestration file
     }

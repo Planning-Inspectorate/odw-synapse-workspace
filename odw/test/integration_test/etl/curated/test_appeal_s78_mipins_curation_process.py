@@ -989,7 +989,7 @@ class TestAppealS78MIPinsCurationProcess(ETLTestCase):
         with mock.patch.object(AppealS78MIPINSCurationProcess, "APPEALS_S78_TABLE", appeal_s78_table):
             with mock.patch.object(AppealS78MIPINSCurationProcess, "OUTPUT_TABLE", expected_output_table):
                 inst = AppealS78MIPINSCurationProcess(spark)
-                result = inst.run()
+                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_s78_mipins", orchestration_stage_name="curate")
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table(f"odw_curated_db.{expected_output_table}")
                 assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)

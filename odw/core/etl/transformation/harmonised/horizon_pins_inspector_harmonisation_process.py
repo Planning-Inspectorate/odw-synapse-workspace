@@ -16,11 +16,11 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
     Reads from odw_standardised_db.horizon_pins_inspector, deduplicates columns,
     derives IngestionDate, and builds a full SCD-2 timeline keyed by horizonId.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "horizon-pins-inspector-harmonised",
+        "etl_process_name": "horizon-pins-inspector-harmonised",
         "debug": False
     }
     ```

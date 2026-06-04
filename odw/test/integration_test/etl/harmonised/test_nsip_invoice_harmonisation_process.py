@@ -232,7 +232,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -258,7 +258,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -318,7 +318,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -385,7 +385,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -454,7 +454,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -516,7 +516,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -580,7 +580,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -641,7 +641,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -723,7 +723,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
@@ -746,7 +746,7 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
             mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
