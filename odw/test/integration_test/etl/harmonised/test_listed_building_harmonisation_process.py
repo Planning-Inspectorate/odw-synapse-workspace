@@ -136,7 +136,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         )
         with mock.patch.object(ListedBuildingHarmonisationProcess, "OUTPUT_TABLE", listed_building_table_name):
             inst = ListedBuildingHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="harmonise")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_harmonised_db.{listed_building_table_name}")
             self.compare_harmonised_data(expected_harmonised_listed_building, actual_table_data)
@@ -193,7 +193,7 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         )
         with mock.patch.object(ListedBuildingHarmonisationProcess, "OUTPUT_TABLE", listed_building_table_name):
             inst = ListedBuildingHarmonisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="harmonise")
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_harmonised_db.{listed_building_table_name}")
             self.compare_harmonised_data(expected_harmonised_listed_building, actual_table_data)

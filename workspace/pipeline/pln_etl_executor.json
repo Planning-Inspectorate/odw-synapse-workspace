@@ -1,0 +1,166 @@
+{
+	"name": "pln_etl_executor",
+	"properties": {
+		"activities": [
+			{
+				"name": "Inner loop",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.entity_stages",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Execute ETL",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_etl_executor",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"input_arguments": {
+										"value": {
+											"value": "@string(\n    union(\n        item().kwargs,\n        json(\n            concat(\n                '{',\n                concat(\n                    '\"orchestration_run_id\": \"',\n                    pipeline().parameters.run_id,\n                    '\",'\n                ),\n                concat(\n                    '\"orchestration_entity_name\": \"',\n                    item().orchestration_entity_name,\n                    '\",'\n                ),\n                concat(\n                    '\"orchestration_stage_name\": \"',\n                    item().orchestration_stage_name,\n                    '\"'\n                ),\n                '}'\n            )\n        )\n    )\n)",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw35",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Append failure message",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute ETL",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "failures",
+								"value": {
+									"value": "@concat(\n    '{',\n    concat(\n        '\"input_parameters\": \"',\n        string(item()),\n        '\",'\n    ),\n    concat(\n        '\"error\": \"',\n        string(activity('Execute ETL').error.message),\n        '\"'\n    ),\n    '}'\n)",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If failure detected",
+				"description": "Collect failed ETLProcesses and force the pipeline to fail if any were detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set pipeline return value",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(\n    empty(\n        variables('failures')\n    )\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Inner loop failed",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following result: ',\n    string(variables('failures'))\n)",
+									"type": "Expression"
+								},
+								"errorCode": "500"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set pipeline return value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Inner loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@string(variables('failures'))"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"entity_stages": {
+				"type": "array"
+			},
+			"run_id": {
+				"type": "string"
+			},
+			"runContextJson": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"failures": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

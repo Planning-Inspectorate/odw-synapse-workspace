@@ -75,7 +75,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
         ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
 
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attribute_matrix", orchestration_stage_name="harmonise"
+            )
             assert_etl_result_successful(result)
 
         actual_data = spark.table(f"odw_harmonised_db.{output_table}")

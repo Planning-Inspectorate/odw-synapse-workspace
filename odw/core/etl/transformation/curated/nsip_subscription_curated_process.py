@@ -11,11 +11,11 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Subscription data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-subscription-curated",
+        "etl_process_name": "nsip-subscription-curated",
         "debug": False
     }
     ```

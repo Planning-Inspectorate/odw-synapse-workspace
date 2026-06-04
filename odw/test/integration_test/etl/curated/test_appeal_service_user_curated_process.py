@@ -281,7 +281,7 @@ class TestAppealServiceUserCuratedProcess(ETLTestCase):
             mock.patch.object(AppealServiceUserCuratedProcess, "OUTPUT_TABLE", output_appeal_service_user_table_name),
         ):
             inst = AppealServiceUserCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user", orchestration_stage_name="curate")
 
             assert_etl_result_successful(result)
 
@@ -383,7 +383,7 @@ class TestAppealServiceUserCuratedProcess(ETLTestCase):
             mock.patch.object(AppealServiceUserCuratedProcess, "OUTPUT_TABLE", output_appeal_service_user_table_name),
         ):
             inst = AppealServiceUserCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user", orchestration_stage_name="curate")
 
             assert_etl_result_successful(result)
 

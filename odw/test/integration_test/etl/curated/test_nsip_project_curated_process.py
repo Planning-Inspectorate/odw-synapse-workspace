@@ -1,11 +1,6 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
-import pytest
 from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
-from odw.core.io.synapse_table_data_io import SynapseTableDataIO
-from odw.core.util.logging_util import LoggingUtil
-from odw.core.util.util import Util
-from odw.test.util.util import generate_local_path, format_to_adls_path
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
@@ -658,17 +653,6 @@ def _curated_row(**overrides):
 
 
 class TestNsipProjectCuratedProcess(ETLTestCase):
-    @pytest.fixture(scope="module", autouse=True)
-    def setup(self, request):
-        with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
-            with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-                with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                    with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                        with mock.patch.object(LoggingUtil, "__new__"):
-                            with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                    yield
-
     def test__nsip_project_curated_process__run__with_no_existing_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -690,7 +674,9 @@ class TestNsipProjectCuratedProcess(ETLTestCase):
         with mock.patch.object(NsipProjectCuratedProcess, "HARMONISED_TABLE", "t_npcp_r_wned"):
             with mock.patch.object(NsipProjectCuratedProcess, "OUTPUT_TABLE", "t_npcp_r_wned"):
                 inst = NsipProjectCuratedProcess(spark)
-                etl_result = inst.run()
+                etl_result = inst.run(
+                    orchestration_run_id="t_npcp_r_wned", orchestration_entity_name="nsip_project", orchestration_stage_name="curate"
+                )
                 assert_etl_result_successful(etl_result)
                 actual_output_table = spark.table("odw_curated_db.t_npcp_r_wned")
                 assert_dataframes_equal(expected_output_table, actual_output_table)

@@ -1,0 +1,234 @@
+{
+	"name": "pln_etl_orchestrator",
+	"properties": {
+		"activities": [
+			{
+				"name": "Gather stages to execute",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_orchestrator",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"entity_stages_to_run": {
+							"value": {
+								"value": "@string(pipeline().parameters.stages_to_execute)",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"run_id": {
+							"value": {
+								"value": "@pipeline().parameters.run_id",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"config_file": {
+							"value": {
+								"value": "@pipeline().parameters.override_config_file",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw35",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Outer loop",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Gather stages to execute",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@json(\n    activity('Gather stages to execute').output.status.Output.result.exitValue\n)",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Execute on previous batch success",
+							"description": "Only run the batch if the previous batch was successful, or if this is the first batch",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@not(\n    variables('failureDetected')\n)",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Execute inner loop",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_etl_executor",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"entity_stages": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"run_id": {
+													"value": "@pipeline().parameters.run_id",
+													"type": "Expression"
+												},
+												"runContextJson": {
+													"value": "@string(pipeline().parameters.runContextJson)",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									{
+										"name": "Set batch failed",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Execute inner loop",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "failureDetected",
+											"value": true
+										}
+									},
+									{
+										"name": "Set failure message",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "Set batch failed",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "failureMessage",
+											"value": {
+												"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue\n)",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If failure detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Outer loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@variables('failureDetected')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Inner batch failed",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'Some inner batches failed with the following errors: ',\n    variables('failureMessage')\n)",
+									"type": "Expression"
+								},
+								"errorCode": "500"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"stages_to_execute": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"run_id": {
+				"type": "string"
+			},
+			"runContextJson": {
+				"type": "string"
+			},
+			"override_config_file": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"failureDetected": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"failureMessage": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

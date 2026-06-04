@@ -391,7 +391,7 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         with mock.patch.object(AppealHasCuratedMipinsProcess, "HARMONISED_TABLE", appeal_has_table):
             with mock.patch.object(AppealHasCuratedMipinsProcess, "OUTPUT_TABLE", output_table):
                 inst = AppealHasCuratedMipinsProcess(spark)
-                result = inst.run()
+                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_has_mipins", orchestration_stage_name="curate")
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table(output_table)
                 assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)

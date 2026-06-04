@@ -104,7 +104,7 @@ class TestNSIPRepresentationCurated(ETLTestCase):
         ):
             inst = NsipRepresentationCuratedProcess(spark)
 
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_representation", orchestration_stage_name="curate")
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{output_table}")

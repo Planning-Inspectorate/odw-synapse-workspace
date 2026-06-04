@@ -1,6 +1,8 @@
 from odw.core.io.synapse_data_io import SynapseDataIO
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
+from pyspark.sql.utils import AnalysisException
+from pyspark.sql.types import StructType
 from delta.tables import DeltaTable
 
 
@@ -95,6 +97,7 @@ class SynapseDeltaIO(SynapseDataIO):
         merge_keys = kwargs.get("merge_keys", None)
         update_key_col = kwargs.get("update_key_col", None)
         columns_to_update = kwargs.get("columns_to_update", [])
+        partition_by_cols = kwargs.get("partition_by_cols", [])
         if not spark:
             raise ValueError("SynapseDeltaIO.read requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -115,7 +118,19 @@ class SynapseDeltaIO(SynapseDataIO):
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
-        target_delta_table = DeltaTable.forPath(spark, data_path)
+        try:
+            target_delta_table = DeltaTable.forPath(spark, data_path)
+        except AnalysisException:
+            delta_builder = (
+                DeltaTable.createIfNotExists(spark)
+                .tableName(f"{database_name}.{table_name}")
+                .addColumns(StructType([field for field in data.schema.fields if field.name != update_key_col]))
+                .location(data_path)
+            )
+            if partition_by_cols:
+                delta_builder.partitionedBy(partition_by_cols)
+            target_delta_table = delta_builder.execute()
+
         delta_table_schema = target_delta_table.toDF().schema
         delta_table_cols = set(delta_table_schema.names)
         new_data_cols = set(data.schema.names)

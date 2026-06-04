@@ -16,7 +16,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
 
         ```
         params = {
-        "entity_stage_name": "NSIP Project Harmonisation"
+        "etl_process_name": "NSIP Project Harmonisation"
     }
         NSIPProjectHarmonisationProcess(spark).run(**params)
         ```
