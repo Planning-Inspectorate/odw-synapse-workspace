@@ -881,7 +881,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
         # This deviates from the original notebook, which has performance issues
         w = Window.partitionBy(horizon_data["caseid"], "IngestionDate")
-        horizon_data = horizon_data.withColumns({alias: F.collect_list(col).over(w).alias(alias) for col, alias in grouping_cols_map.items()})
+        horizon_data = horizon_data.withColumns({alias: F.collect_list(col).over(w) for col, alias in grouping_cols_map.items()})
         # Sort columns into same order as service bus
         horizon_data = horizon_data.select(service_bus_data.columns)
 
