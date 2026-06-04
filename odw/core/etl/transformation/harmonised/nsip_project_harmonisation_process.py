@@ -498,10 +498,11 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         """
         # Need to read the original table
         w_reverse_per_case = Window.partitionBy("caseid").orderBy(F.col("IngestionDate").desc())
+        w_internal_id = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseid").asc())
 
         out_df = combined_data.select(
             F.row_number().over(w_reverse_per_case).alias("ReverseOrderProcessed"),
-            F.monotonically_increasing_id().cast("int").alias("NSIPProjectInfoInternalID"),
+            F.row_number().over(w_internal_id).alias("NSIPProjectInfoInternalID"),
             F.col("caseid"),
             F.col("IngestionDate"),
             F.col("ValidTo"),
@@ -866,7 +867,6 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         )
 
         # Build Ids
-        horizon_data_grouped = horizon_data.groupBy(horizon_data["caseid"], "IngestionDate")
         grouping_cols = (
             "nsipOfficerIds",
             "nsipAdministrationOfficerIds",
@@ -879,10 +879,9 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
             "environmentalServicesOfficerIds",
         )
         grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
-        for col, alias in grouping_cols_map.items():
-            sub_grouping = horizon_data_grouped.agg(F.collect_list(col).alias(alias))
-            horizon_data = horizon_data.drop(col).join(sub_grouping, on=["caseid", "IngestionDate"], how="inner")
-
+        # This deviates from the original notebook, which has performance issues
+        w = Window.partitionBy(horizon_data["caseid"], "IngestionDate")
+        horizon_data = horizon_data.withColumns({alias: F.collect_list(col).over(w).alias(alias) for col, alias in grouping_cols_map.items()})
         # Sort columns into same order as service bus
         horizon_data = horizon_data.select(service_bus_data.columns)
 
