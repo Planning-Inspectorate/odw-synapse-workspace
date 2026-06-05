@@ -1,10 +1,16 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
 import pyspark.sql.types as T
 import mock
+import os
+
+
+def _abs_format_to_adls_path(inst, container_name: str, blob_path: str, **kwargs) -> str:
+    return os.path.abspath(os.path.join(container_name, blob_path))
 
 
 class TestNSIPExamTimetableCurated(ETLTestCase):
@@ -57,6 +63,7 @@ class TestNSIPExamTimetableCurated(ETLTestCase):
             spark, curated_projects, curated_projects_table, "odw_curated_db", "odw-curated", curated_projects_table, "overwrite"
         )
         output_table = f"{test_case}_nsip_exam_timetable"
+        spark.sql(f"DROP TABLE IF EXISTS odw_curated_db.{output_table}")
 
         with (
             mock.patch(
@@ -66,6 +73,7 @@ class TestNSIPExamTimetableCurated(ETLTestCase):
             mock.patch.object(NsipExamTimetableCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_exam_timetable_table}"),
             mock.patch.object(NsipExamTimetableCuratedProcess, "CURATED_PROJECT_TABLE", f"odw_curated_db.{curated_projects_table}"),
             mock.patch.object(NsipExamTimetableCuratedProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", _abs_format_to_adls_path),
         ):
             inst = NsipExamTimetableCuratedProcess(spark)
 
