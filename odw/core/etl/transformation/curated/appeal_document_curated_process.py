@@ -12,11 +12,11 @@ class AppealDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating Appeal Document data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_curated_process",
+        "etl_process_name": "Appeal Document Curation Process",
         "debug": False
     }
     ```
@@ -30,7 +30,7 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_curated_process"
+        return "Appeal Document Curation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

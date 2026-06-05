@@ -12,11 +12,11 @@ class NsipDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Document data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-document-curated",
+        "etl_process_name": "NSIP Document Curation Process",
         "debug": False
     }
     ```
@@ -31,7 +31,7 @@ class NsipDocumentCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-document-curated"
+        return "NSIP Document Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

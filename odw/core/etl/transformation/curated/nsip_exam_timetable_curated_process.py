@@ -12,11 +12,11 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Exam Timetable data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-exam-timetable-curated",
+        "etl_process_name": "NSIP Exam Timetable Curation Process",
         "debug": False
     }
     ```
@@ -31,7 +31,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-curated"
+        return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

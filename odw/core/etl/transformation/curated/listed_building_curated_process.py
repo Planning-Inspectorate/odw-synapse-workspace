@@ -10,7 +10,7 @@ class ListedBuildingCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "listed_building_curated_process"
+        return "Listed Building Curation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")

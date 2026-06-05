@@ -57,11 +57,11 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising Appeal Document data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_harmonisation_process",
+        "etl_process_name": "appeal_document_harmonisation_process",
         "debug": False
     }
     ```
@@ -78,7 +78,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_harmonisation_process"
+        return "Appeal Document Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

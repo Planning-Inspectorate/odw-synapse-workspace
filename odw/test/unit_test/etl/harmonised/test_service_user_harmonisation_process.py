@@ -3,6 +3,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import ServiceUserHarmonisationProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -299,7 +300,7 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ServiceUserHarmonisationProcess(spark)
 
-        assert inst.get_name() == "service_user_harmonisation_process"
+        assert inst.get_name() == "Service User Harmonisation Process"
 
     def test__service_user_harmonisation_process__process__outputs_expected_legacy_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -751,6 +752,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 

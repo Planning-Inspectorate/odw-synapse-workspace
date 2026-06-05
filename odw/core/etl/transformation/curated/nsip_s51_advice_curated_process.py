@@ -12,11 +12,11 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP S51 Advice data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-s51-advice-curated",
+        "etl_process_name": "NSIP S51 Advice Curation Process",
         "debug": False
     }
     ```
@@ -30,7 +30,7 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-s51-advice-curated"
+        return "NSIP S51 Advice Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

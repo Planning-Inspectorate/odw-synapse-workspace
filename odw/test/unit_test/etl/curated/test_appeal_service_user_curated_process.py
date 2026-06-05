@@ -3,6 +3,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from odw.core.etl.transformation.curated.appeal_service_user_curated_process import AppealServiceUserCuratedProcess
+from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -128,7 +129,7 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedProcess(spark)
 
-        assert inst.get_name() == "appeal_service_user_curated_process"
+        assert inst.get_name() == "Appeal Service User Curation Process"
 
     def test__appeal_service_user_curated_process__process__outputs_expected_legacy_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -432,6 +433,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
+            mock.patch.object(MetadataManager, "__init__", return_value=None),
+            mock.patch.object(MetadataManager, "create", return_value=None),
+            mock.patch.object(MetadataManager, "update", return_value=None),
         ):
             result = inst.run()
 

@@ -1,6 +1,7 @@
 from odw.core.etl.etl_process import ETLProcess
 from odw.core.etl.etl_result import ETLSuccessResult, ETLFailResult, ETLResult
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.etl.metadata_manager import MetadataManager
 from datetime import datetime
 from pyspark.sql import DataFrame
 from typing import Dict, Tuple
@@ -88,8 +89,18 @@ def test__etl_process__run__successful():
             with mock.patch.object(ETLProcessImpl, "process", return_value=(dict(), mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
                     with mock.patch.object(ETLProcessImpl, "_log_data_to_write"):
-                        actual_result = ETLProcessImpl().run(a=None)
-                        assert mock_result == actual_result
+                        with mock.patch.object(MetadataManager, "__init__", return_value=None):
+                            with mock.patch.object(MetadataManager, "create"):
+                                with mock.patch.object(MetadataManager, "update"):
+                                    inst = ETLProcessImpl()
+                                    inst.spark = "x"
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
+                                    assert mock_result == actual_result
+                                    MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
+                                    MetadataManager.create.assert_called_once()
+                                    MetadataManager.update.assert_called_once_with(actual_result)
 
 
 def test__etl_process__run__read_exception():
@@ -105,8 +116,18 @@ def test__etl_process__run__read_exception():
             with mock.patch.object(ETLProcessImpl, "process", return_value=(dict(), mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
                     with mock.patch.object(ETLProcessImpl, "_log_data_to_write", return_value=None):
-                        actual_result = ETLProcessImpl().run(a=None)
-                        compare_etl_results(expected_result, actual_result)
+                        with mock.patch.object(MetadataManager, "__init__", return_value=None):
+                            with mock.patch.object(MetadataManager, "create"):
+                                with mock.patch.object(MetadataManager, "update"):
+                                    inst = ETLProcessImpl()
+                                    inst.spark = "x"
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
+                                    compare_etl_results(expected_result, actual_result)
+                                    MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
+                                    MetadataManager.create.assert_called_once()
+                                    MetadataManager.update.assert_called_once_with(actual_result)
 
 
 def test__etl_process__run__transformation_exception():
@@ -120,8 +141,18 @@ def test__etl_process__run__transformation_exception():
         with mock.patch.object(ETLProcessImpl, "load_data", return_value=dict()):
             with mock.patch.object(ETLProcessImpl, "process", side_effect=Exception("Some transformation exception")):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
-                    actual_result = ETLProcessImpl().run(a=None)
-                    compare_etl_results(expected_result, actual_result)
+                    with mock.patch.object(MetadataManager, "__init__", return_value=None):
+                        with mock.patch.object(MetadataManager, "create"):
+                            with mock.patch.object(MetadataManager, "update"):
+                                inst = ETLProcessImpl()
+                                inst.spark = "x"
+                                actual_result = inst.run(
+                                    orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                )
+                                compare_etl_results(expected_result, actual_result)
+                                MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
+                                MetadataManager.create.assert_called_once()
+                                MetadataManager.update.assert_called_once_with(actual_result)
 
 
 def test__etl_process__run__transformation_failure():
@@ -135,8 +166,18 @@ def test__etl_process__run__transformation_failure():
         with mock.patch.object(ETLProcessImpl, "load_data", return_value=dict()):
             with mock.patch.object(ETLProcessImpl, "process", return_value=(dict(), mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data"):
-                    actual_result = ETLProcessImpl().run(a=None)
-                    compare_etl_results(mock_result, actual_result)
+                    with mock.patch.object(MetadataManager, "__init__", return_value=None):
+                        with mock.patch.object(MetadataManager, "create"):
+                            with mock.patch.object(MetadataManager, "update"):
+                                inst = ETLProcessImpl()
+                                inst.spark = "x"
+                                actual_result = inst.run(
+                                    orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                )
+                                compare_etl_results(mock_result, actual_result)
+                                MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
+                                MetadataManager.create.assert_called_once()
+                                MetadataManager.update.assert_called_once_with(actual_result)
 
 
 def test__etl_process__run__write_exception():
@@ -152,5 +193,15 @@ def test__etl_process__run__write_exception():
             with mock.patch.object(ETLProcessImpl, "process", return_value=({"table_a": None, "table_b": None}, mock_result)):
                 with mock.patch.object(ETLProcessImpl, "write_data", side_effect=Exception("Some write exception")):
                     with mock.patch.object(ETLProcessImpl, "_log_data_to_write", return_value=None):
-                        actual_result = ETLProcessImpl().run(a=None)
-                        compare_etl_results(expected_result, actual_result)
+                        with mock.patch.object(MetadataManager, "__init__", return_value=None):
+                            with mock.patch.object(MetadataManager, "create"):
+                                with mock.patch.object(MetadataManager, "update"):
+                                    inst = ETLProcessImpl()
+                                    inst.spark = "x"
+                                    actual_result = inst.run(
+                                        orchestration_run_id="a", orchestration_entity_name="b", orchestration_stage_name="c", a=None
+                                    )
+                                    compare_etl_results(expected_result, actual_result)
+                                    MetadataManager.__init__.assert_called_once_with("x", "a", "b", "c", {"a": None})
+                                    MetadataManager.create.assert_called_once()
+                                    MetadataManager.update.assert_called_once_with(actual_result)

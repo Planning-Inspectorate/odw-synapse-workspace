@@ -11,7 +11,7 @@ class AppealAttributeMatrixHarmonisationProcess(HarmonisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_attribute_matrix_harmonisation_process"
+        return "Appeal Attribute Matrix Harmonisation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("AppealAttributeMatrixHarmonisationProcess.load_data() has not been implemented yet.")

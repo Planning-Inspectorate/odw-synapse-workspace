@@ -16,11 +16,11 @@ class PinsInspectorCuratedProcess(CurationProcess):
     Reads active inspectors from the harmonised layer and upserts them into
     the curated Delta table using hash-based change detection.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "pins-inspector-curated",
+        "etl_process_name": "PINS Inspector Curation Process",
         "debug": False
     }
     ```
@@ -53,7 +53,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "pins-inspector-curated"
+        return "PINS Inspector Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         LoggingUtil().log_info(f"Loading active inspectors from {self.HARMONISED_TABLE}")

@@ -15,11 +15,11 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for building the harmonised PINS Inspector dataset from SAP HR sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "pins-inspector-harmonised",
+        "etl_process_name": "PINS Inspector Harmonisation Process",
         "debug": False
     }
     ```
@@ -37,7 +37,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "pins-inspector-harmonised"
+        return "PINS Inspector Harmonisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         return {

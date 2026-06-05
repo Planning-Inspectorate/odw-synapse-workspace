@@ -39,11 +39,11 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Exam Timetable data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-exam-timetable-harmonised",
+        "etl_process_name": "NSIP Exam Timetable Harmonisation Process",
         "debug": False
     }
     ```
@@ -59,7 +59,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-harmonised"
+        return "NSIP Exam Timetable Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

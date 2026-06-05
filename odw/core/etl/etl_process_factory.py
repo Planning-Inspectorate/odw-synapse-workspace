@@ -1,4 +1,5 @@
 from odw.core.etl.etl_process import ETLProcess
+from odw.core.etl.fake.fake_etl_process import SuccessfulETLProcess, FailedETLProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
@@ -32,6 +33,8 @@ import json
 
 class ETLProcessFactory:
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
+        SuccessfulETLProcess,  # For testing purposes
+        FailedETLProcess,  # For testing purposes
         StandardisationProcess,
         ServiceBusStandardisationProcess,
         HorizonStandardisationProcess,
@@ -72,7 +75,7 @@ class ETLProcessFactory:
         invalid_types = {k: v for k, v in name_map.items() if len(v) > 1}
         if invalid_types:
             raise DuplicateETLProcessNameException(
-                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4)}"
+                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4, default=str)}"
             )
         return {k: v[0] for k, v in name_map.items()}
 

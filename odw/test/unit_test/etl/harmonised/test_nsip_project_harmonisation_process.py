@@ -693,7 +693,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipProjectHarmonisationProcess(spark)
 
-        assert inst.get_name() == "NSIP Project Harmonisation"
+        assert inst.get_name() == "NSIP Project Harmonisation Process"
 
     def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_cases_and_keeps_non_migrated_history(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -854,6 +854,36 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 caseManagerIds=["caseManagerIds2"],
                 leadInspectorIds=["leadInspectorIds2"],
                 environmentalServicesOfficerIds=["environmentalServicesOfficerIds2"],
+            ),  # Duplicate entry
+            _horizon_row(
+                caseid=3003,
+                Region="wales",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=2,
+                nsipOfficerIds=["nsipOfficerId1"],
+                nsipAdministrationOfficerIds=["nsipAdministrationOfficerIds1"],
+                inspectorIds=["inspectorIds1"],
+                operationsManagerIds=["operationsManagerIds1"],
+                legalOfficerIds=["legalOfficerIds1"],
+                operationsLeadIds=["operationsLeadIds1"],
+                caseManagerIds=["caseManagerIds1"],
+                leadInspectorIds=["leadInspectorIds1"],
+                environmentalServicesOfficerIds=["environmentalServicesOfficerIds1"],
+            ),
+            _horizon_row(  # Different caseid
+                caseid=3004,
+                Region="wales",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=1,
+                nsipOfficerIds=["nsipOfficerId3"],
+                nsipAdministrationOfficerIds=["nsipAdministrationOfficerIds3"],
+                inspectorIds=["inspectorIds3"],
+                operationsManagerIds=["operationsManagerIds3"],
+                legalOfficerIds=["legalOfficerIds3"],
+                operationsLeadIds=["operationsLeadIds3"],
+                caseManagerIds=["caseManagerIds3"],
+                leadInspectorIds=["leadInspectorIds3"],
+                environmentalServicesOfficerIds=["environmentalServicesOfficerIds3"],
             ),
         ]
 
@@ -892,15 +922,40 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
             .collect()[0]
         )
 
-        assert len(row["nsipOfficerIds"]) == 2
-        assert len(row["nsipAdministrationOfficerIds"]) == 2
-        assert len(row["inspectorIds"]) == 2
-        assert len(row["operationsManagerIds"]) == 2
-        assert len(row["legalOfficerIds"]) == 2
-        assert len(row["operationsLeadIds"]) == 2
-        assert len(row["caseManagerIds"]) == 2
-        assert len(row["leadInspectorIds"]) == 2
-        assert len(row["environmentalServicesOfficerIds"]) == 2
+        assert len(row["nsipOfficerIds"]) == 3
+        assert len(row["nsipAdministrationOfficerIds"]) == 3
+        assert len(row["inspectorIds"]) == 3
+        assert len(row["operationsManagerIds"]) == 3
+        assert len(row["legalOfficerIds"]) == 3
+        assert len(row["operationsLeadIds"]) == 3
+        assert len(row["caseManagerIds"]) == 3
+        assert len(row["leadInspectorIds"]) == 3
+        assert len(row["environmentalServicesOfficerIds"]) == 3
+
+        row = (
+            df.where((F.col("caseId") == 3004) & (F.col("sourceSystem") == "Horizon"))
+            .select(
+                "nsipOfficerIds",
+                "nsipAdministrationOfficerIds",
+                "inspectorIds",
+                "operationsManagerIds",
+                "legalOfficerIds",
+                "operationsLeadIds",
+                "caseManagerIds",
+                "leadInspectorIds",
+                "environmentalServicesOfficerIds",
+            )
+            .collect()[0]
+        )
+        assert len(row["nsipOfficerIds"]) == 1
+        assert len(row["nsipAdministrationOfficerIds"]) == 1
+        assert len(row["inspectorIds"]) == 1
+        assert len(row["operationsManagerIds"]) == 1
+        assert len(row["legalOfficerIds"]) == 1
+        assert len(row["operationsLeadIds"]) == 1
+        assert len(row["caseManagerIds"]) == 1
+        assert len(row["leadInspectorIds"]) == 1
+        assert len(row["environmentalServicesOfficerIds"]) == 1
 
     def test__nsip_project_harmonisation_process__process__parses_invoices_and_meetings_json_from_horizon(self):
         spark = PytestSparkSessionUtil().get_spark_session()

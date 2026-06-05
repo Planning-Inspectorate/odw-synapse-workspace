@@ -21,11 +21,11 @@ class EntraIdStandardisationProcess(StandardisationProcess):
     explodes the nested 'value' array, and writes the flattened records with an
     expected_from timestamp to the standardised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "EntraID Standardisation",
+        "etl_process_name": "EntraID Standardisation",
         "date_folder": "2024-01-15",  # optional — defaults to latest folder
         "debug": False
     }
@@ -41,7 +41,7 @@ class EntraIdStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "EntraID Standardisation"
+        return "EntraID Standardisation Process"
 
     def _get_latest_folder(self, raw_path: str) -> str:
         folders = sorted(

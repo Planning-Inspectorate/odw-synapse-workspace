@@ -16,7 +16,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
 
         ```
         params = {
-        "entity_stage_name": "NSIP Project Harmonisation"
+        "etl_process_name": "NSIP Project Harmonisation"
     }
         NSIPProjectHarmonisationProcess(spark).run(**params)
         ```
@@ -35,8 +35,8 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         self.harmonised_table_path = f"{self.hrm_db}.{self.OUTPUT_TABLE}"
 
     @classmethod
-    def get_name(cls):
-        return "NSIP Project Harmonisation"
+    def get_name(cls) -> str:
+        return "NSIP Project Harmonisation Process"
 
     def _load_service_bus_data(self):
         LoggingUtil().log_info("Extracting service bus NSIP project data from the harmonised layer")
@@ -507,8 +507,7 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
             F.col("IngestionDate"),
             F.col("ValidTo"),
             F.lit("0").alias("migrated"),
-            F.when(F.row_number().over(w_reverse_per_case) == 1, F.lit("Y")).otherwise(F.lit("N")).alias("IsActive"),
-        )
+        ).withColumn("IsActive", F.when(F.col("ReverseOrderProcessed") == 1, F.lit("Y")).otherwise("N"))
         df_calcs = (
             out_df.alias("current")
             .join(
@@ -868,7 +867,6 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         )
 
         # Build Ids
-        horizon_data_grouped = horizon_data.groupBy(horizon_data["caseid"], "IngestionDate")
         grouping_cols = (
             "nsipOfficerIds",
             "nsipAdministrationOfficerIds",
@@ -881,10 +879,9 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
             "environmentalServicesOfficerIds",
         )
         grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
-        for col, alias in grouping_cols_map.items():
-            sub_grouping = horizon_data_grouped.agg(F.collect_list(col).alias(alias))
-            horizon_data = horizon_data.drop(col).join(sub_grouping, on=["caseid", "IngestionDate"], how="inner")
-
+        # This deviates from the original notebook, which has performance issues
+        w = Window.partitionBy(horizon_data["caseid"], "IngestionDate")
+        horizon_data = horizon_data.withColumns({alias: F.collect_list(col).over(w) for col, alias in grouping_cols_map.items()})
         # Sort columns into same order as service bus
         horizon_data = horizon_data.select(service_bus_data.columns)
 

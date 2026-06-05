@@ -16,7 +16,7 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_event_estimate_curated_mipins_process",
+        "etl_process_name": "Appeal Event Estimate MIPINS Curation Process",
         "debug": False
     }
     ```
@@ -45,7 +45,7 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_event_estimate_curated_mipins_process"
+        return "Appeal Event Estimate MIPINS Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")

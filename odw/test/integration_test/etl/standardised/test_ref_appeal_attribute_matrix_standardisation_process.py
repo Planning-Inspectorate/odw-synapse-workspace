@@ -34,7 +34,9 @@ class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
         ):
             inst = AppealAttributeMatrixStandardisationProcess(spark)
 
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attrbute_matrix", orchestration_stage_name="standardise"
+            )
             assert_etl_result_successful(result)
 
         expected_data = spark.createDataFrame(

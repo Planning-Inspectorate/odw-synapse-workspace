@@ -73,11 +73,11 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Representation data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-harmonised",
+        "etl_process_name": "NSIP Representation Harmonisation Process",
         "debug": False
     }
     ```
@@ -93,7 +93,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-harmonised"
+        return "NSIP Representation Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

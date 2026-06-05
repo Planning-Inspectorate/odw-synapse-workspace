@@ -16,7 +16,7 @@ class ServiceUserHarmonisationProcess(HarmonisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "service_user_harmonisation_process"
+        return "Service User Harmonisation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("ServiceUserHarmonisationProcess.load_data() has not been implemented yet.")
