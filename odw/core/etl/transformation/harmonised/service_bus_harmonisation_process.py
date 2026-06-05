@@ -19,7 +19,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         ```
         params = {
-        "etl_process_name": "Service Bus Harmonisation",
+        "etl_process_name": "Service Bus Harmonisation Process",
         "entity_name": "appeal-has"
     }
         HorizonStandardisationProcess(spark).run(**params)

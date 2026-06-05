@@ -46,7 +46,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-meeting-harmonised",
+        "etl_process_name": "NSIP Meeting Harmonisation Process",
         "debug": False
     }
     ```

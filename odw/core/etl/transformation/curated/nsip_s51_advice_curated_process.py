@@ -16,7 +16,7 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-s51-advice-curated",
+        "etl_process_name": "NSIP S51 Advice Curation Process",
         "debug": False
     }
     ```

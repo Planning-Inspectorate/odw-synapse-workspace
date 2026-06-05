@@ -16,7 +16,7 @@ class NsipDocumentCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-document-curated",
+        "etl_process_name": "NSIP Document Curation Process",
         "debug": False
     }
     ```

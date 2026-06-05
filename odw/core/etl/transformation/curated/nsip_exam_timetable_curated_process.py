@@ -16,7 +16,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-exam-timetable-curated",
+        "etl_process_name": "NSIP Exam Timetable Curation Process",
         "debug": False
     }
     ```

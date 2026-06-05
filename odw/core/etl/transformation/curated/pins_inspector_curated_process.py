@@ -20,7 +20,7 @@ class PinsInspectorCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "pins-inspector-curated",
+        "etl_process_name": "PINS Inspector Curation Process",
         "debug": False
     }
     ```
