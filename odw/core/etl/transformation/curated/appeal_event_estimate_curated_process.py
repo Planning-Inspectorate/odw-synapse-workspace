@@ -17,7 +17,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "appeal_event_estimate_curated_process",
+        "etl_process_name": "Appeal Event Estimate Curation Process",
         "debug": False
     }
     ```
@@ -39,7 +39,7 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_event_estimate_curated_process"
+        return "Appeal Event Estimate Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

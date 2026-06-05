@@ -16,7 +16,7 @@ class NsipInvoiceCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "nsip_invoice_curated_process"
+        return "NSIP Invoice Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, Any]:
         nsip_invoices = self.spark.sql(f"SELECT * FROM odw_harmonised_db.{self.HARMONISED_TABLE}")

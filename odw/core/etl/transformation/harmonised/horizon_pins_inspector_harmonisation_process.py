@@ -20,7 +20,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "horizon-pins-inspector-harmonised",
+        "etl_process_name": "Horizon PINS Inspector Harmonisation Process",
         "debug": False
     }
     ```
@@ -38,7 +38,7 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "horizon-pins-inspector-harmonised"
+        return "Horizon PINS Inspector Harmonisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         return {"horizon_data": self.spark.table(self.HORIZON_TABLE)}

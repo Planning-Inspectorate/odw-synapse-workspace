@@ -15,7 +15,7 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-subscription-curated",
+        "etl_process_name": "NSIP Subscription Curation Process",
         "debug": False
     }
     ```
@@ -29,7 +29,7 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-subscription-curated"
+        return "NSIP Subscription Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

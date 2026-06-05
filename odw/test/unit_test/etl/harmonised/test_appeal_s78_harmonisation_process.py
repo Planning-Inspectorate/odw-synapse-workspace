@@ -2523,7 +2523,7 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealS78HarmonisationProcess(spark)
 
-        assert isinstance(inst.get_name(), str)
+        assert inst.get_name() == "Appeal S78 Harmonisation Process"
 
     def test__appeal_s78_harmonisation_process__load_service_bus_data(self):
         # Should load the source table as-is with no transformations
