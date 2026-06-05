@@ -77,13 +77,14 @@ class SparkTestCase(TestCase):
         blob_path: str,
         mode: str,
         options: Dict[str, Any] = dict(),
+        format: str = "delta",
     ):
         logging.info(f"Creating table '{database_name}.{table_name}'")
         spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
         table_path = f"{database_name}.{table_name}"
         data_path = format_to_adls_path(None, container, blob_path)
         write_opts = options | {"path": data_path}
-        writer = data.write.format("delta").mode(mode)
+        writer = data.write.format(format).mode(mode)
         for option, value in write_opts.items():
             writer = writer.option(option, value)
         writer.saveAsTable(table_path)
