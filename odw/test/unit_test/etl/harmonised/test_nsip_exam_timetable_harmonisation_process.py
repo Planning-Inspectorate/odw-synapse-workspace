@@ -16,16 +16,18 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                     1,
                     "EN010001",
                     True,
-                    [Row(
-                        eventId=100,
-                        type="sb",
-                        eventTitle="SB Event",
-                        eventTitleWelsh="",
-                        description="SB Desc",
-                        descriptionWelsh=None,
-                        date="2025-01-10 00:00:00",
-                        eventDeadlineStartDate="2025-01-11 00:00:00",
-                    )],
+                    [
+                        Row(
+                            eventId=100,
+                            type="sb",
+                            eventTitle="SB Event",
+                            eventTitleWelsh="",
+                            description="SB Desc",
+                            descriptionWelsh=None,
+                            date="2025-01-10 00:00:00",
+                            eventDeadlineStartDate="2025-01-11 00:00:00",
+                        )
+                    ],
                     "1",
                     "ODT",
                     "SRC1",
@@ -71,8 +73,30 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
 
         horizon_data = spark.createDataFrame(
             [
-                ("EN010002", 200, "Deadline", "Title 1", "Title 1 CY", "Desc 1", "Desc 1 CY", "2025-02-10 00:00", "2025-02-11 00:00", "2025-02-01 00:00:00"),
-                ("EN010002", 201, "Hearing", "Title 2", "Title 2 CY", "Desc 2", "Desc 2 CY", "2025-02-12 00:00", "2025-02-13 00:00", "2025-02-01 00:00:00"),
+                (
+                    "EN010002",
+                    200,
+                    "Deadline",
+                    "Title 1",
+                    "Title 1 CY",
+                    "Desc 1",
+                    "Desc 1 CY",
+                    "2025-02-10 00:00",
+                    "2025-02-11 00:00",
+                    "2025-02-01 00:00:00",
+                ),
+                (
+                    "EN010002",
+                    201,
+                    "Hearing",
+                    "Title 2",
+                    "Title 2 CY",
+                    "Desc 2",
+                    "Desc 2 CY",
+                    "2025-02-12 00:00",
+                    "2025-02-13 00:00",
+                    "2025-02-01 00:00:00",
+                ),
             ],
             [
                 "CaseReference",

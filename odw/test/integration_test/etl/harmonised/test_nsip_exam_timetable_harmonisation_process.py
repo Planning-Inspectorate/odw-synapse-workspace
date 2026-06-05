@@ -20,16 +20,18 @@ class TestNSIPExamTimetableHarmonisation(ETLTestCase):
                     1,
                     "EN010001",
                     True,
-                    [Row(
-                        eventId=100,
-                        type="sb",
-                        eventTitle="SB Event",
-                        eventTitleWelsh="",
-                        description="SB Desc",
-                        descriptionWelsh=None,
-                        date="2025-01-10 00:00:00",
-                        eventDeadlineStartDate="2025-01-11 00:00:00",
-                    )],
+                    [
+                        Row(
+                            eventId=100,
+                            type="sb",
+                            eventTitle="SB Event",
+                            eventTitleWelsh="",
+                            description="SB Desc",
+                            descriptionWelsh=None,
+                            date="2025-01-10 00:00:00",
+                            eventDeadlineStartDate="2025-01-11 00:00:00",
+                        )
+                    ],
                     "1",
                     "ODT",
                     "SRC1",

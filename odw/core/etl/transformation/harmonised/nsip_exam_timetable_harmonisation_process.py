@@ -145,46 +145,37 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
         # Step 1: Explode service bus events into individual rows
         LoggingUtil().log_info("Exploding service bus events into individual rows")
-        service_bus_event_data = (
-            service_bus_data.select(
-                F.col("NSIPExaminationTimetableID"),
-                F.col("caseReference"),
-                F.col("published"),
-                F.explode(F.col("events")).alias("event"),
-                F.col("Migrated"),
-                F.col("ODTSourceSystem"),
-                F.col("SourceSystemID"),
-                F.col("IngestionDate"),
-                F.col("ValidTo"),
-                F.col("RowID"),
-                F.col("IsActive"),
-            )
-            .select(
-                F.col("NSIPExaminationTimetableID"),
-                F.col("caseReference"),
-                F.col("published"),
-                F.col("event.eventId").cast("int").alias("eventId"),
-                F.col("event.type").alias("type"),
-                F.col("event.eventTitle").alias("eventTitle"),
-                F.when(F.trim(F.col("event.eventTitleWelsh")) == "", F.lit(None))
-                .otherwise(F.col("event.eventTitleWelsh"))
-                .alias("eventTitleWelsh"),
-                F.when(F.trim(F.col("event.description")) == "", F.lit(None))
-                .otherwise(F.col("event.description"))
-                .alias("description"),
-                F.when(F.trim(F.col("event.descriptionWelsh")) == "", F.lit(None))
-                .otherwise(F.col("event.descriptionWelsh"))
-                .alias("descriptionWelsh"),
-                F.date_format(F.to_timestamp(F.col("event.date")), "yyyy-MM-dd HH:mm").alias("eventDate"),
-                F.date_format(F.to_timestamp(F.col("event.eventDeadlineStartDate")), "yyyy-MM-dd HH:mm").alias("eventDeadlineStartDate"),
-                F.col("Migrated"),
-                F.col("ODTSourceSystem"),
-                F.col("SourceSystemID"),
-                F.col("IngestionDate"),
-                F.col("ValidTo"),
-                F.col("RowID"),
-                F.col("IsActive"),
-            )
+        service_bus_event_data = service_bus_data.select(
+            F.col("NSIPExaminationTimetableID"),
+            F.col("caseReference"),
+            F.col("published"),
+            F.explode(F.col("events")).alias("event"),
+            F.col("Migrated"),
+            F.col("ODTSourceSystem"),
+            F.col("SourceSystemID"),
+            F.col("IngestionDate"),
+            F.col("ValidTo"),
+            F.col("RowID"),
+            F.col("IsActive"),
+        ).select(
+            F.col("NSIPExaminationTimetableID"),
+            F.col("caseReference"),
+            F.col("published"),
+            F.col("event.eventId").cast("int").alias("eventId"),
+            F.col("event.type").alias("type"),
+            F.col("event.eventTitle").alias("eventTitle"),
+            F.when(F.trim(F.col("event.eventTitleWelsh")) == "", F.lit(None)).otherwise(F.col("event.eventTitleWelsh")).alias("eventTitleWelsh"),
+            F.when(F.trim(F.col("event.description")) == "", F.lit(None)).otherwise(F.col("event.description")).alias("description"),
+            F.when(F.trim(F.col("event.descriptionWelsh")) == "", F.lit(None)).otherwise(F.col("event.descriptionWelsh")).alias("descriptionWelsh"),
+            F.date_format(F.to_timestamp(F.col("event.date")), "yyyy-MM-dd HH:mm").alias("eventDate"),
+            F.date_format(F.to_timestamp(F.col("event.eventDeadlineStartDate")), "yyyy-MM-dd HH:mm").alias("eventDeadlineStartDate"),
+            F.col("Migrated"),
+            F.col("ODTSourceSystem"),
+            F.col("SourceSystemID"),
+            F.col("IngestionDate"),
+            F.col("ValidTo"),
+            F.col("RowID"),
+            F.col("IsActive"),
         )
 
         # Step 2: Join Horizon with horizon_nsip_data and align to SB schema
@@ -304,10 +295,14 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             F.col("IsActive"),
         )
 
-        joined = base.join(
-            calcs_renamed,
-            base["NSIPExaminationTimetableID"] == calcs_renamed["calc_NSIPExaminationTimetableID"],
-        ).drop("calc_NSIPExaminationTimetableID").select(columns)
+        joined = (
+            base.join(
+                calcs_renamed,
+                base["NSIPExaminationTimetableID"] == calcs_renamed["calc_NSIPExaminationTimetableID"],
+            )
+            .drop("calc_NSIPExaminationTimetableID")
+            .select(columns)
+        )
 
         final_df = joined.withColumn("RowID", row_id_expr)
         final_df = final_df.dropDuplicates()
