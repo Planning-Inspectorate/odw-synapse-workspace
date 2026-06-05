@@ -103,10 +103,6 @@
 									"run_id": {
 										"value": "@pipeline().parameters.run_id",
 										"type": "Expression"
-									},
-									"runContextJson": {
-										"value": "@string(pipeline().parameters.runContextJson)",
-										"type": "Expression"
 									}
 								}
 							}
@@ -177,6 +173,26 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "Append batch preprocessing failures",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Filter steps with failed dependencies",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "batchFailures",
+								"value": {
+									"value": "@json(\n    string(activity('Filter steps with failed dependencies').error.message)\n)",
+									"type": "Expression"
+								}
+							}
 						}
 					]
 				}
@@ -222,9 +238,6 @@
 				"defaultValue": []
 			},
 			"run_id": {
-				"type": "string"
-			},
-			"runContextJson": {
 				"type": "string"
 			},
 			"override_config_file": {
