@@ -17,7 +17,7 @@ class NsipProjectCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip_project_curated_process"
+        return "NSIP Project Curation Process"
 
     def _load_nsip_data(self):
         LoggingUtil().log_info("Loading data from curated NSIP project table")

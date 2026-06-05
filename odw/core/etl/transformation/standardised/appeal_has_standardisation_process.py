@@ -29,7 +29,7 @@ class AppealHasStandardisationProcess(StandardisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_has_standardisation_process"
+        return "Appeal HAS Standardisation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("AppealHasStandardisationProcess.load_data() has not been implemented yet.")

@@ -300,7 +300,7 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ServiceUserHarmonisationProcess(spark)
 
-        assert inst.get_name() == "service_user_harmonisation_process"
+        assert inst.get_name() == "Service User Harmonisation Process"
 
     def test__service_user_harmonisation_process__process__outputs_expected_legacy_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()

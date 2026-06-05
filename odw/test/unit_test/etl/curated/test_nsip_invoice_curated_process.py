@@ -90,7 +90,7 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipInvoiceCuratedProcess(spark)
 
-        assert inst.get_name() == "nsip_invoice_curated_process"
+        assert inst.get_name() == "NSIP Invoice Curation Process"
 
     def test__nsip_invoice_curated_process__process__keeps_only_active_rows(
         self,

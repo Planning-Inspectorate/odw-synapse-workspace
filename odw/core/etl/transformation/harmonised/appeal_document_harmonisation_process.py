@@ -78,7 +78,7 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_harmonisation_process"
+        return "Appeal Document Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

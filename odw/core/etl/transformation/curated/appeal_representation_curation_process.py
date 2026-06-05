@@ -26,7 +26,7 @@ class AppealRepresentationCurationProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "appeal-representation-curated"
+        return "Appeal Representation Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         harmonised_data = self.spark.sql(

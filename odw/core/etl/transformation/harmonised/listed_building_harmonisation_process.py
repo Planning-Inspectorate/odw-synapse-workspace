@@ -11,7 +11,7 @@ class ListedBuildingHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "Listed Building Harmonisation"
+        return "Listed Building Harmonisation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("ListedBuildingHarmonisationProcess.load_data() has not been implemented yet.")

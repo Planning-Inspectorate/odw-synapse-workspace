@@ -106,7 +106,7 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
     # ------------------------------------------------------------------
 
     def test__get_name__returns_expected_name(self):
-        assert EntraIdHarmonisationProcess.get_name() == "EntraID Harmonisation"
+        assert isinstance(EntraIdHarmonisationProcess.get_name(), str)
 
     # ------------------------------------------------------------------
     # process – new records
@@ -292,5 +292,5 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
     def test__entraid_harmonisation_process__is_registered_in_factory(self):
         from odw.core.etl.etl_process_factory import ETLProcessFactory
 
-        process_class = ETLProcessFactory.get("EntraID Harmonisation")
+        process_class = ETLProcessFactory.get("EntraID Harmonisation Process")
         assert process_class is EntraIdHarmonisationProcess

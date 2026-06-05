@@ -166,7 +166,7 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedMipinsProcess(spark)
 
-        assert inst.get_name() == "appeal_service_user_curated_mipins_process"
+        assert inst.get_name() == "Appeal Service User MIPINS Curation Process"
 
     def test__appeal_service_user_curated_mipins_process__process__outputs_expected_legacy_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()

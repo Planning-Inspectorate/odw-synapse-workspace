@@ -11,7 +11,7 @@ class AppealServiceUserCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_service_user_curated_process"
+        return "Appeal Service User Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("AppealServiceUserCuratedProcess.load_data() has not been implemented yet.")

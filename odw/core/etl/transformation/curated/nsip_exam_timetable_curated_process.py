@@ -16,7 +16,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-exam-timetable-curated",
+        "etl_process_name": "NSIP Exam Timetable Curation Process",
         "debug": False
     }
     ```
@@ -31,7 +31,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-curated"
+        return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """

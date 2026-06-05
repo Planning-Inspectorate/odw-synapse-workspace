@@ -693,7 +693,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipProjectHarmonisationProcess(spark)
 
-        assert inst.get_name() == "NSIP Project Harmonisation"
+        assert inst.get_name() == "NSIP Project Harmonisation Process"
 
     def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_cases_and_keeps_non_migrated_history(self):
         spark = PytestSparkSessionUtil().get_spark_session()

@@ -8,7 +8,7 @@ class AppealServiceUserCuratedMipinsProcess(CurationProcess):
     OUTPUT_TABLE = "appeal_service_user_curated_mipins"
 
     def get_name(self) -> str:
-        return "appeal_service_user_curated_mipins_process"
+        return "Appeal Service User MIPINS Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("AppealServiceUserCuratedMipinsProcess.load_data() has not been implemented yet.")

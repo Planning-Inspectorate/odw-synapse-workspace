@@ -136,7 +136,7 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealDocumentCuratedProcess(spark)
 
-        assert inst.get_name() == "appeal_document_curated_process"
+        assert inst.get_name() == "Appeal Document Curation Process"
 
     def test__appeal_document_curated_process__process__maps_known_casetype_values_to_legacy_codes(
         self,

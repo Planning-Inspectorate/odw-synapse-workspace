@@ -12,7 +12,7 @@ class AppealEventCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_event_curated_process"
+        return "Appeal Event Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("AppealEventCuratedProcess.load_data() has not been implemented yet.")

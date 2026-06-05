@@ -19,7 +19,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "pins-inspector-harmonised",
+        "etl_process_name": "PINS Inspector Harmonisation Process",
         "debug": False
     }
     ```
@@ -37,7 +37,7 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "pins-inspector-harmonised"
+        return "PINS Inspector Harmonisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         return {

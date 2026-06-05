@@ -10,7 +10,7 @@ class AppealHasCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_has_curated_process"
+        return "Appeal HAS Curation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("AppealHasCuratedProcess.load_data() has not been implemented yet.")

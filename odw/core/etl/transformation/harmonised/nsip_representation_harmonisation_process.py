@@ -77,7 +77,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-representation-harmonised",
+        "etl_process_name": "NSIP Representation Harmonisation Process",
         "debug": False
     }
     ```
@@ -93,7 +93,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-harmonised"
+        return "NSIP Representation Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

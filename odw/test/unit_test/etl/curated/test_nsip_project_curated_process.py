@@ -184,7 +184,7 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipProjectCuratedProcess(spark)
 
-        assert inst.get_name() == "nsip_project_curated_process"
+        assert inst.get_name() == "NSIP Project Curation Process"
 
     def test__nsip_project_curated_process__process__lowercases_publish_status(self):
         spark = PytestSparkSessionUtil().get_spark_session()

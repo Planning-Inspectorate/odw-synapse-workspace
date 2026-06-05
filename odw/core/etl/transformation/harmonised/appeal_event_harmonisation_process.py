@@ -12,7 +12,7 @@ class AppealEventHarmonisationProcess(HarmonisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_event_harmonisation_process"
+        return "Appeal Event Harmonisation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
         raise NotImplementedError("AppealEventHarmonisationProcess.load_data() has not been implemented yet.")
