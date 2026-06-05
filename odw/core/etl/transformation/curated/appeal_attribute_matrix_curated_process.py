@@ -12,7 +12,7 @@ class AppealAttributeMatrixCuratedProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_attribute_matrix_curated_process"
+        return "Appeal Attribute Matrix Curation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("AppealAttributeMatrixCuratedProcess.load_data() has not been implemented yet.")

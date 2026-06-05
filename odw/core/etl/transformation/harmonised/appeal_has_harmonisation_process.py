@@ -14,7 +14,7 @@ class AppealHasHarmonisationProcess(HarmonisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "appeal_has_harmonisation_process"
+        return "Appeal HAS Harmonisation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("AppealHasHarmonisationProcess.load_data() has not been implemented yet.")
