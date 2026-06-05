@@ -5,27 +5,33 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 from datetime import datetime
 from typing import Dict, Tuple
 
 
+# Columns used to build the MD5 RowID hash, matching the notebook's IFNULL(CAST(... AS String), '.') list
 _EXAM_TIMETABLE_ROW_ID_COLUMNS = [
     "NSIPExaminationTimetableID",
     "caseReference",
     "published",
+    "events",
+    "Migrated",
+    "ODTSourceSystem",
+    "IngestionDate",
+    "ValidTo",
+]
+
+# Horizon event columns that get aggregated into the events struct
+_EVENT_COLUMNS = [
     "eventId",
     "type",
     "eventTitle",
     "eventTitleWelsh",
     "description",
     "descriptionWelsh",
-    "eventDate",
     "eventDeadlineStartDate",
-    "Migrated",
-    "ODTSourceSystem",
-    "SourceSystemID",
-    "IngestionDate",
-    "ValidTo",
+    "date",
 ]
 
 
@@ -97,6 +103,10 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         """)
 
     def _load_horizon_data(self) -> DataFrame:
+        """
+        Read Horizon examination timetable data, filtered to latest ingested_datetime.
+        No joins are applied here – the horizon_nsip_data join happens in process().
+        """
         return self.spark.sql(f"""
             SELECT DISTINCT
                 CaseReference
@@ -106,8 +116,8 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
                 ,NameWelsh AS eventTitleWelsh
                 ,Description AS description
                 ,DescriptionWelsh AS descriptionWelsh
-                ,DATE_FORMAT(TO_TIMESTAMP(Date), 'yyyy-MM-dd HH:mm') AS eventDate
-                ,DATE_FORMAT(TO_TIMESTAMP(DeadlineStartDateTime), 'yyyy-MM-dd HH:mm') AS eventDeadlineStartDate
+                ,DeadlineStartDateTime AS eventDeadlineStartDate
+                ,Date AS date
                 ,expected_from
             FROM
                 {self.HORIZON_TABLE}
@@ -115,6 +125,10 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         """)
 
     def _load_horizon_nsip_data(self) -> DataFrame:
+        """
+        Read Horizon NSIP data for ExamTimetablePublishStatus.
+        This is joined to Horizon data in process().
+        """
         return self.spark.sql(f"""
             SELECT DISTINCT
                 CaseReference
@@ -143,51 +157,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         horizon_nsip_data: DataFrame = self.load_parameter("horizon_nsip_data", source_data)
         sb_case_references: DataFrame = self.load_parameter("sb_case_references", source_data)
 
-        # Step 1: Explode service bus events into individual rows
-        LoggingUtil().log_info("Exploding service bus events into individual rows")
-        service_bus_event_data = (
-            service_bus_data.select(
-                F.col("NSIPExaminationTimetableID"),
-                F.col("caseReference"),
-                F.col("published"),
-                F.explode(F.col("events")).alias("event"),
-                F.col("Migrated"),
-                F.col("ODTSourceSystem"),
-                F.col("SourceSystemID"),
-                F.col("IngestionDate"),
-                F.col("ValidTo"),
-                F.col("RowID"),
-                F.col("IsActive"),
-            )
-            .select(
-                F.col("NSIPExaminationTimetableID"),
-                F.col("caseReference"),
-                F.col("published"),
-                F.col("event.eventId").cast("int").alias("eventId"),
-                F.col("event.type").alias("type"),
-                F.col("event.eventTitle").alias("eventTitle"),
-                F.when(F.trim(F.col("event.eventTitleWelsh")) == "", F.lit(None))
-                .otherwise(F.col("event.eventTitleWelsh"))
-                .alias("eventTitleWelsh"),
-                F.when(F.trim(F.col("event.description")) == "", F.lit(None))
-                .otherwise(F.col("event.description"))
-                .alias("description"),
-                F.when(F.trim(F.col("event.descriptionWelsh")) == "", F.lit(None))
-                .otherwise(F.col("event.descriptionWelsh"))
-                .alias("descriptionWelsh"),
-                F.date_format(F.to_timestamp(F.col("event.date")), "yyyy-MM-dd HH:mm").alias("eventDate"),
-                F.date_format(F.to_timestamp(F.col("event.eventDeadlineStartDate")), "yyyy-MM-dd HH:mm").alias("eventDeadlineStartDate"),
-                F.col("Migrated"),
-                F.col("ODTSourceSystem"),
-                F.col("SourceSystemID"),
-                F.col("IngestionDate"),
-                F.col("ValidTo"),
-                F.col("RowID"),
-                F.col("IsActive"),
-            )
-        )
-
-        # Step 2: Join Horizon with horizon_nsip_data and align to SB schema
+        # Step 1: Join Horizon with horizon_nsip_data and align to SB schema
         LoggingUtil().log_info("Joining Horizon with NSIP data and aligning to SB schema")
         horizon_joined = (
             horizon_data.alias("Horizon")
@@ -210,8 +180,8 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
                 F.col("Horizon.eventTitleWelsh"),
                 F.col("Horizon.description"),
                 F.col("Horizon.descriptionWelsh"),
-                F.col("Horizon.eventDate"),
                 F.col("Horizon.eventDeadlineStartDate"),
+                F.col("Horizon.date"),
                 F.lit("0").alias("Migrated"),
                 F.lit("Horizon").alias("ODTSourceSystem"),
                 F.lit(None).cast("string").alias("SourceSystemID"),
@@ -223,11 +193,37 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             .distinct()
         )
 
-        # Step 3: Union SB + Horizon
-        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
-        combined = service_bus_event_data.unionByName(horizon_joined, allowMissingColumns=True)
+        # Step 2: Aggregate Horizon events per caseReference
+        LoggingUtil().log_info("Aggregating Horizon events")
+        horizon_events = horizon_joined.groupBy("caseReference").agg(F.collect_list(F.struct(_EVENT_COLUMNS)).alias("events"))
+        horizon_joined = horizon_joined.drop(*_EVENT_COLUMNS)
+        horizon_joined = horizon_joined.join(horizon_events, on="caseReference", how="inner")
 
-        # Step 4: Window-function calculations
+        # Add empty eventLineItems array to each event
+        horizon_joined = horizon_joined.withColumn(
+            "events",
+            F.transform(
+                F.col("events"),
+                lambda event: event.withField(
+                    "eventLineItems",
+                    F.expr("array()").cast(
+                        ArrayType(
+                            StructType([StructField("description", StringType(), True), StructField("descriptionWelsh", StringType(), True)]),
+                            True,
+                        )
+                    ),
+                ),
+            ),
+        )
+
+        # Align columns and deduplicate
+        horizon_joined = horizon_joined.select(service_bus_data.columns).dropDuplicates()
+
+        # Step 2: Union SB + Horizon
+        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
+        combined = service_bus_data.unionByName(horizon_joined, allowMissingColumns=True)
+
+        # Step 3: Window-function calculations
         win_per_case_desc = Window.partitionBy("caseReference").orderBy(F.col("IngestionDate").desc())
         win_global_asc = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseReference").asc())
 
@@ -240,7 +236,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             )
         )
 
-        # Step 5: Compute ValidTo via self-join
+        # Step 4: Compute ValidTo via self-join
         current = combined.alias("CurrentRow")
         next_row = combined.alias("NextRow")
 
@@ -260,7 +256,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             F.col("CurrentRow.IsActive").alias("IsActive"),
         )
 
-        # Step 6: Derive Migrated flag
+        # Step 5: Derive Migrated flag
         sb_refs = sb_case_references.withColumnRenamed("caseReference", "sb_caseReference")
         calcs = (
             calcs.join(sb_refs, calcs["caseReference"] == sb_refs["sb_caseReference"], "left_outer")
@@ -268,37 +264,30 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             .drop("sb_caseReference")
         )
 
-        # Step 7: Compute RowID via MD5 hash over individual event columns
+        # Step 6: Compute RowID via MD5 hash
         row_id_expr = F.md5(
-            F.concat_ws(
-                "|",
-                F.col("NSIPExaminationTimetableID").cast("string"),
-                F.col("caseReference").cast("string"),
-                F.col("published").cast("string"),
-                F.col("eventId").cast("string"),
-                F.col("type").cast("string"),
-                F.col("eventTitle").cast("string"),
-                F.col("eventTitleWelsh").cast("string"),
-                F.col("description").cast("string"),
-                F.col("descriptionWelsh").cast("string"),
-                F.col("eventDate").cast("string"),
-                F.col("eventDeadlineStartDate").cast("string"),
-                F.col("Migrated").cast("string"),
-                F.col("ODTSourceSystem").cast("string"),
-                F.col("SourceSystemID").cast("string"),
-                F.col("IngestionDate").cast("string"),
-                F.col("ValidTo").cast("string"),
+            F.concat(
+                F.coalesce(F.col("NSIPExaminationTimetableID").cast("bigint").cast("string"), F.lit(".")),
+                F.coalesce(F.col("caseReference").cast("integer").cast("string"), F.lit(".")),
+                F.coalesce(F.col("published").cast("string"), F.lit(".")),
+                F.coalesce(F.col("events").cast("string"), F.lit(".")),
+                F.coalesce(F.col("Migrated").cast("string"), F.lit(".")),
+                F.coalesce(F.col("ODTSourceSystem").cast("string"), F.lit(".")),
+                F.coalesce(F.col("IngestionDate").cast("string"), F.lit(".")),
+                F.coalesce(F.col("ValidTo").cast("string"), F.lit(".")),
             )
         )
 
-        # Step 8: Rejoin calculations back onto the combined dataset
-        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed"}]
+        # Step 7: Rejoin calculations back onto the combined dataset
+        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID"}]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
-        base = base.drop("ValidTo", "Migrated", "IsActive")
+        base = base.drop("NSIPExaminationTimetableID", "ValidTo", "Migrated", "IsActive")
 
         calcs_renamed = calcs.select(
-            F.col("NSIPExaminationTimetableID").alias("calc_NSIPExaminationTimetableID"),
+            F.col("caseReference").alias("calc_caseReference"),
+            F.col("IngestionDate").alias("calc_IngestionDate"),
+            F.col("NSIPExaminationTimetableID"),
             F.col("ValidTo"),
             F.col("Migrated"),
             F.col("IsActive"),
@@ -306,9 +295,10 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
         joined = base.join(
             calcs_renamed,
-            base["NSIPExaminationTimetableID"] == calcs_renamed["calc_NSIPExaminationTimetableID"],
-        ).drop("calc_NSIPExaminationTimetableID").select(columns)
+            (base["caseReference"] == calcs_renamed["calc_caseReference"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+        ).select(columns)
 
+        # Apply RowID and deduplicate
         final_df = joined.withColumn("RowID", row_id_expr)
         final_df = final_df.dropDuplicates()
 
