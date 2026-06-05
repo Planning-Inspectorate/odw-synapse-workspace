@@ -298,5 +298,5 @@ class TestAieDocumentHarmonisationProcess(SparkTestCase):
     def test__aie_document_harmonisation_process__is_registered_in_factory(self):
         from odw.core.etl.etl_process_factory import ETLProcessFactory
 
-        process_class = ETLProcessFactory.get("AIE Harmonisation")
+        process_class = ETLProcessFactory.get("AIE Document Harmonisation Process")
         assert process_class is AieDocumentHarmonisationProcess

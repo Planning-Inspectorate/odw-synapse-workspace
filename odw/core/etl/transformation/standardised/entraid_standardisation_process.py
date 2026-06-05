@@ -41,7 +41,7 @@ class EntraIdStandardisationProcess(StandardisationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "EntraID Standardisation"
+        return "EntraID Standardisation Process"
 
     def _get_latest_folder(self, raw_path: str) -> str:
         folders = sorted(

@@ -18,7 +18,7 @@ class DartAPICurationProcess(CurationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "dart_api_curation_process"
+        return "DART API Curation Process"
 
     def _load_harmonised_appeal_has(self):
         raise NotImplementedError("DartAPICurationProcess._load_harmonised_appeal_has() has not been implemented yet.")

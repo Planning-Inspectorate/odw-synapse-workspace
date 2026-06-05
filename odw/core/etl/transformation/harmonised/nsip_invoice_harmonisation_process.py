@@ -22,7 +22,7 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "nsip_invoice_harmonisation_process"
+        return "NSIP Invoice Harmonisation Process"
 
     def _load_standardised_nsip_project(self):
         return self.spark.sql(f"""

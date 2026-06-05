@@ -10,7 +10,7 @@ class ListedBuildingStandardisationProcess(StandardisationProcess):
         self.spark = spark
 
     def get_name(self) -> str:
-        return "listed_building_standardisation_process"
+        return "Listed Building Standardisation Process"
 
     def load_data(self) -> dict[str, Any]:
         raise NotImplementedError("ListedBuildingStandardisationProcess.load_data() has not been implemented yet.")

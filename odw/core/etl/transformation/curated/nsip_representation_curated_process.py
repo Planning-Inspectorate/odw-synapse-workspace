@@ -16,7 +16,7 @@ class NsipRepresentationCuratedProcess(CurationProcess):
 
     ```
     input_arguments = {
-        "etl_process_name": "nsip-representation-curated",
+        "etl_process_name": "NSIP Representation Curation Process",
         "debug": False
     }
     ```
@@ -30,7 +30,7 @@ class NsipRepresentationCuratedProcess(CurationProcess):
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-curated"
+        return "NSIP Representation Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
