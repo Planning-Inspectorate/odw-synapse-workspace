@@ -34,16 +34,19 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
         return "nsip-exam-timetable-curated"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        """
-        Load source data, selecting only the columns needed downstream.
-        No joins or transformations are applied here – only reads.
-        """
         LoggingUtil().log_info(f"Loading harmonised NSIP Exam Timetable data from {self.HARMONISED_TABLE}")
         harmonised_exam_timetable = self.spark.sql(f"""
             SELECT
                 caseReference,
                 published,
-                events,
+                eventId,
+                type,
+                eventTitle,
+                eventTitleWelsh,
+                description,
+                descriptionWelsh,
+                eventDate,
+                eventDeadlineStartDate,
                 IngestionDate,
                 ODTSourceSystem
             FROM {self.HARMONISED_TABLE}
@@ -97,7 +100,14 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             .select(
                 latest_horizon_exam_timetable["caseReference"],
                 latest_horizon_exam_timetable["published"],
-                latest_horizon_exam_timetable["events"],
+                latest_horizon_exam_timetable["eventId"],
+                latest_horizon_exam_timetable["type"],
+                latest_horizon_exam_timetable["eventTitle"],
+                latest_horizon_exam_timetable["eventTitleWelsh"],
+                latest_horizon_exam_timetable["description"],
+                latest_horizon_exam_timetable["descriptionWelsh"],
+                latest_horizon_exam_timetable["eventDate"],
+                latest_horizon_exam_timetable["eventDeadlineStartDate"],
             )
             .distinct()
         )

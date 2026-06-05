@@ -10,7 +10,7 @@ import mock
 
 
 class TestNSIPExamTimetableHarmonisation(ETLTestCase):
-    def test__nsip_exam_timetable_harmonisation_process__run__aggregates_horizon_events_and_sets_published(self):
+    def test__nsip_exam_timetable_harmonisation_process__run__explodes_events_and_sets_published(self):
         test_case = "t_nethp_r_aheasp"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -20,7 +20,16 @@ class TestNSIPExamTimetableHarmonisation(ETLTestCase):
                     1,
                     "EN010001",
                     True,
-                    [Row(eventId=100, type="sb")],
+                    [Row(
+                        eventId=100,
+                        type="sb",
+                        eventTitle="SB Event",
+                        eventTitleWelsh="",
+                        description="SB Desc",
+                        descriptionWelsh=None,
+                        date="2025-01-10 00:00:00",
+                        eventDeadlineStartDate="2025-01-11 00:00:00",
+                    )],
                     "1",
                     "ODT",
                     "SRC1",
@@ -42,6 +51,12 @@ class TestNSIPExamTimetableHarmonisation(ETLTestCase):
                                 [
                                     T.StructField("eventId", T.IntegerType(), True),
                                     T.StructField("type", T.StringType(), True),
+                                    T.StructField("eventTitle", T.StringType(), True),
+                                    T.StructField("eventTitleWelsh", T.StringType(), True),
+                                    T.StructField("description", T.StringType(), True),
+                                    T.StructField("descriptionWelsh", T.StringType(), True),
+                                    T.StructField("date", T.StringType(), True),
+                                    T.StructField("eventDeadlineStartDate", T.StringType(), True),
                                 ]
                             )
                         ),
@@ -132,13 +147,21 @@ class TestNSIPExamTimetableHarmonisation(ETLTestCase):
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
-        rows = {row["caseReference"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        all_rows = actual_df.collect()
 
-        assert actual_df.count() == 2
-        assert "SourceSystemID" not in actual_df.columns
-        assert "SourceSystemID" not in rows["EN010001"]
-        assert "SourceSystemID" not in rows["EN010002"]
-        assert rows["EN010001"]["Migrated"] == "1"
-        assert rows["EN010002"]["Migrated"] == "0"
-        assert rows["EN010002"]["published"] is True
-        assert len(rows["EN010002"]["events"]) == 2
+        assert actual_df.count() == 3
+        assert "SourceSystemID" in actual_df.columns
+        assert "events" not in actual_df.columns
+
+        rows_en010001 = [r for r in all_rows if r["caseReference"] == "EN010001"]
+        rows_en010002 = [r for r in all_rows if r["caseReference"] == "EN010002"]
+
+        assert len(rows_en010001) == 1
+        assert rows_en010001[0]["Migrated"] == "1"
+        assert rows_en010001[0]["eventId"] == 100
+        assert rows_en010001[0]["eventTitleWelsh"] is None  # empty string converted to null
+
+        assert len(rows_en010002) == 2
+        assert all(r["Migrated"] == "0" for r in rows_en010002)
+        assert all(r["published"] is True for r in rows_en010002)
+        assert set(r["eventId"] for r in rows_en010002) == {200, 201}

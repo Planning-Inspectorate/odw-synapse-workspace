@@ -1,7 +1,6 @@
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from pyspark.sql import Row
 import pyspark.sql.types as T
 import mock
 
@@ -12,27 +11,23 @@ class TestNSIPExamTimetableCurationProcess(SparkTestCase):
 
         harmonised_exam_timetable = spark.createDataFrame(
             [
-                ("EN010001", True, [Row(eventId=1, name="Old Horizon Event")], "2025-01-01 00:00:00", "Horizon"),
-                ("EN010001", False, [Row(eventId=2, name="New Horizon Event")], "2025-02-01 00:00:00", "Horizon"),
-                ("EN010001", True, [Row(eventId=3, name="Service Bus Event")], "2025-03-01 00:00:00", "ODT"),
-                ("EN010002", True, [Row(eventId=4, name="Other Horizon Event")], "2025-01-15 00:00:00", "Horizon"),
+                ("EN010001", True, 1, "Deadline", "Old Event", None, "Old desc", None, "2025-01-01 00:00", "2025-01-05 00:00", "2025-01-01 00:00:00", "Horizon"),
+                ("EN010001", False, 2, "Hearing", "New Event", None, "New desc", None, "2025-02-01 00:00", "2025-02-05 00:00", "2025-02-01 00:00:00", "Horizon"),
+                ("EN010001", True, 3, "Other", "SB Event", None, "SB desc", None, "2025-03-01 00:00", "2025-03-05 00:00", "2025-03-01 00:00:00", "ODT"),
+                ("EN010002", True, 4, "Deadline", "Other Event", None, "Other desc", None, "2025-01-15 00:00", "2025-01-20 00:00", "2025-01-15 00:00:00", "Horizon"),
             ],
             T.StructType(
                 [
                     T.StructField("caseReference", T.StringType(), True),
                     T.StructField("published", T.BooleanType(), True),
-                    T.StructField(
-                        "events",
-                        T.ArrayType(
-                            T.StructType(
-                                [
-                                    T.StructField("eventId", T.IntegerType(), True),
-                                    T.StructField("name", T.StringType(), True),
-                                ]
-                            )
-                        ),
-                        True,
-                    ),
+                    T.StructField("eventId", T.IntegerType(), True),
+                    T.StructField("type", T.StringType(), True),
+                    T.StructField("eventTitle", T.StringType(), True),
+                    T.StructField("eventTitleWelsh", T.StringType(), True),
+                    T.StructField("description", T.StringType(), True),
+                    T.StructField("descriptionWelsh", T.StringType(), True),
+                    T.StructField("eventDate", T.StringType(), True),
+                    T.StructField("eventDeadlineStartDate", T.StringType(), True),
                     T.StructField("IngestionDate", T.StringType(), True),
                     T.StructField("ODTSourceSystem", T.StringType(), True),
                 ]
@@ -66,8 +61,10 @@ class TestNSIPExamTimetableCurationProcess(SparkTestCase):
         assert actual_df.count() == 1
         assert rows[0]["caseReference"] == "EN010001"
         assert rows[0]["published"] is False
-        assert len(rows[0]["events"]) == 1
-        assert rows[0]["events"][0]["eventId"] == 2
+        assert rows[0]["eventId"] == 2
+        assert "events" not in actual_df.columns
+        assert "eventDate" in actual_df.columns
+        assert "eventDeadlineStartDate" in actual_df.columns
 
         assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
         assert data_to_write[expected_data_entry]["table_name"] == "nsip_exam_timetable"
