@@ -481,6 +481,41 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation.engine import AnonymisationEngine\n",
+					"from odw.core.anonymisation.config import load_config, AnonymisationConfig\n",
+					"from odw.core.util.util import Util\n",
+					"\n",
+					"def apply_anonymisation_sb(df, entity_name):\n",
+					"    anon_enabled = Util.is_non_production_environment()\n",
+					"    logInfo(f\"anonymisation_gate: environment={Util.get_environment()} enabled={anon_enabled} entity={entity_name}\")\n",
+					"    if not anon_enabled:\n",
+					"        return df\n",
+					"    anon_config = AnonymisationConfig()\n",
+					"    try:\n",
+					"        policy_path = f\"abfss://odw-config@{storage_account}anonymisation/policy.yaml\"\n",
+					"        policy_text = spark.read.text(policy_path, wholetext=True).first().value\n",
+					"        anon_config = load_config(text=policy_text)\n",
+					"    except Exception as config_err:\n",
+					"        logInfo(f\"Could not load anonymisation policy, using defaults: {config_err}\")\n",
+					"    engine = AnonymisationEngine(\n",
+					"        config=AnonymisationConfig(\n",
+					"            classification_allowlist=anon_config.classification_allowlist,\n",
+					"            seed_column=anon_config.get_seed_column(entity_name),\n",
+					"        )\n",
+					"    )\n",
+					"    logInfo(f\"Applying anonymisation to Service Bus entity: {entity_name}\")\n",
+					"    return engine.apply_from_purview(df, entity_name=entity_name, source_folder=\"ServiceBus\")\n",
+					"\n",
+					"df = run_step(\n",
+					"    \"Apply anonymisation (DEV/TEST only)\",\n",
+					"    lambda: apply_anonymisation_sb(df=df, entity_name=entity_name)\n",
+					")\n"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
