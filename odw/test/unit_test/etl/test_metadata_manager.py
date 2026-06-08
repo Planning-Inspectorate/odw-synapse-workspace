@@ -561,3 +561,135 @@ class TestMetadataManager(SparkTestCase):
                 inst._write.retry.wait.min = 0
                 inst._write.retry.wait.max = 0.1
                 inst._write(entry_to_write)
+
+    def test__metadata_manager__get_most_recent_for_run_id(self):
+        # Only the most recent entries for each run_id-entity_name-stage_name should be taken
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = "tu_mm_gmrfri"
+        entity_name = "some_entity"
+        stage_name = "some_stage"
+        execution_parameters = {"some": "parameters"}
+        existing_entry: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {  # First duplicate
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {  # Second duplicate
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME + timedelta(days=2),
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "x",
+                    "stage_name": "a",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "x",
+                    "stage_name": "a",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "x",
+                    "stage_name": "b",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": f"{run_id}_some_other_id",
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": f"{run_id}_some_other_id",
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        expected_result: DataFrame = spark.createDataFrame(
+            [
+                {
+                    "run_id": run_id,
+                    "entity_name": entity_name,
+                    "stage_name": stage_name,
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME + timedelta(days=2),
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "x",
+                    "stage_name": "a",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+                {
+                    "run_id": run_id,
+                    "entity_name": "x",
+                    "stage_name": "b",
+                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_start_time": self.TEST_START_TIME,
+                    "execution_finish_time": None,
+                    "successful": None,
+                    "result_text": None,
+                },
+            ],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        inst = MetadataManager(spark, run_id)
+        result = inst.get_most_recent_for_run_id()
+        assert_dataframes_equal(expected_result, result)
