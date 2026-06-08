@@ -7,7 +7,6 @@ scope, wiring in test doubles for those globals so the logic can be exercised wi
 live Synapse environment.
 """
 from unittest import mock
-import pyspark.sql.functions as F
 from odw.core.anonymisation.engine import AnonymisationEngine
 from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from odw.core.util.util import Util
