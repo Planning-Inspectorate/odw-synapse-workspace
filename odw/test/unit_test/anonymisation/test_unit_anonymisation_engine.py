@@ -3,6 +3,7 @@ import re
 from datetime import date
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.anonymisation.engine import _build_asset_qualified_name_from_params, _horizon_filename_to_purview_pattern
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 import pyspark.sql.functions as F
@@ -747,3 +748,48 @@ class TestAnonymisationEngine(SparkTestCase):
 
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
+
+
+class TestHorizonPurviewFQNBuilder:
+    """Unit tests for the Horizon Purview qualified-name helpers."""
+
+    def test__filename_to_purview_pattern__replaces_trailing_number(self):
+        assert _horizon_filename_to_purview_pattern("HorizonCases_s78.csv") == "HorizonCases_s{N}.csv"
+
+    def test__filename_to_purview_pattern__replaces_all_digit_runs(self):
+        assert _horizon_filename_to_purview_pattern("Appeals123_v2.csv") == "Appeals{N}_v{N}.csv"
+
+    def test__filename_to_purview_pattern__no_digits_unchanged(self):
+        assert _horizon_filename_to_purview_pattern("HorizonContacts.csv") == "HorizonContacts.csv"
+
+    def test__filename_to_purview_pattern__no_extension(self):
+        assert _horizon_filename_to_purview_pattern("HorizonCases78") == "HorizonCases{N}"
+
+    def test__build_fqn__horizon_uses_archive_prefix(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="Horizon",
+            entity_name=None,
+            file_name="HorizonCases_s78.csv",
+        )
+        assert fqn == ("https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/archive/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv")
+
+    def test__build_fqn__horizon_converts_filename_to_pattern(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="teststorage.dfs.core.windows.net",
+            source_folder="Horizon",
+            entity_name=None,
+            file_name="HorizonAppeals42.csv",
+        )
+        assert "/HorizonAppeals{N}.csv" in fqn
+        assert "/archive/Horizon/" in fqn
+
+    def test__build_fqn__service_bus_unaffected(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="teststorage.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="service-user",
+            file_name=None,
+        )
+        assert "/odw-raw/ServiceBus/service-user/" in fqn
+        assert "archive" not in fqn

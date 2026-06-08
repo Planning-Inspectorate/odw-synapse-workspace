@@ -173,13 +173,27 @@ def _resolve_client_secret() -> str:
     return "AZURE_IDENTITY"
 
 
+def _horizon_filename_to_purview_pattern(file_name: str) -> str:
+    """Convert a literal Horizon filename to its Purview resource set pattern.
+
+    Purview groups files that differ only in numeric sequences into a single resource set,
+    replacing each contiguous run of digits with {N}.
+    E.g. HorizonCases_s78.csv -> HorizonCases_s{N}.csv
+    """
+    base, dot, ext = file_name.rpartition(".")
+    if not base:
+        return re.sub(r"\d+", "{N}", file_name)
+    return re.sub(r"\d+", "{N}", base) + dot + ext
+
+
 def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]) -> str:
     """Build the Purview qualified name for ADLS Gen2 resource sets.
 
     Notes:
     - ServiceBus assets are JSON files with a timestamp in the filename. The pattern must
       include literal Purview placeholders (e.g. {Year}, {Month}, {Day}, {Hour}, {N}).
-    - Horizon assets use a provided file name under a dated folder.
+    - Horizon assets are stored under odw-raw/archive/Horizon/ in ADLS. The filename is
+      converted to a resource set pattern by replacing numeric sequences with {N}.
     - entraid assets are JSON files named after the entity under a dated folder.
     """
     host = (storage_host or "").rstrip("/")
@@ -197,7 +211,8 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
     if source_folder == "Horizon":
         if not file_name:
             raise ValueError("file_name is required for source_folder='Horizon'")
-        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{file_name}"
+        pattern_name = _horizon_filename_to_purview_pattern(file_name)
+        return f"https://{host}/odw-raw/archive/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{pattern_name}"
     if source_folder == "entraid":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='entraid'")
