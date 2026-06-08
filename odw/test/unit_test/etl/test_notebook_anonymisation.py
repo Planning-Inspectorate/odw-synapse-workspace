@@ -6,6 +6,7 @@ The notebooks contain global-scope functions that close over Synapse runtime var
 scope, wiring in test doubles for those globals so the logic can be exercised without a
 live Synapse environment.
 """
+
 from unittest import mock
 from odw.core.anonymisation.engine import AnonymisationEngine
 from odw.core.anonymisation.config import load_config, AnonymisationConfig
@@ -18,37 +19,47 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _raw_sb_df(spark):
-    return spark.createDataFrame([
-        {"EmployeeID": "E1", "full_name": "Alice Smith", "emailAddress": "alice@example.com"},
-        {"EmployeeID": "E2", "full_name": "Bob Jones",  "emailAddress": "bob@example.com"},
-    ])
+    return spark.createDataFrame(
+        [
+            {"EmployeeID": "E1", "full_name": "Alice Smith", "emailAddress": "alice@example.com"},
+            {"EmployeeID": "E2", "full_name": "Bob Jones", "emailAddress": "bob@example.com"},
+        ]
+    )
 
 
 def _anon_sb_df(spark):
-    return spark.createDataFrame([
-        {"EmployeeID": "E1", "full_name": "REDACTED", "emailAddress": "hash_alice"},
-        {"EmployeeID": "E2", "full_name": "REDACTED", "emailAddress": "hash_bob"},
-    ])
+    return spark.createDataFrame(
+        [
+            {"EmployeeID": "E1", "full_name": "REDACTED", "emailAddress": "hash_alice"},
+            {"EmployeeID": "E2", "full_name": "REDACTED", "emailAddress": "hash_bob"},
+        ]
+    )
 
 
 def _raw_horizon_df(spark):
-    return spark.createDataFrame([
-        {"Staff Number": "S1", "First Name": "Carol", "Email Address": "carol@example.com"},
-        {"Staff Number": "S2", "First Name": "Dave",  "Email Address": "dave@example.com"},
-    ])
+    return spark.createDataFrame(
+        [
+            {"Staff Number": "S1", "First Name": "Carol", "Email Address": "carol@example.com"},
+            {"Staff Number": "S2", "First Name": "Dave", "Email Address": "dave@example.com"},
+        ]
+    )
 
 
 def _anon_horizon_df(spark):
-    return spark.createDataFrame([
-        {"Staff Number": "S1", "First Name": "REDACTED", "Email Address": "hash_carol"},
-        {"Staff Number": "S2", "First Name": "REDACTED", "Email Address": "hash_dave"},
-    ])
+    return spark.createDataFrame(
+        [
+            {"Staff Number": "S1", "First Name": "REDACTED", "Email Address": "hash_carol"},
+            {"Staff Number": "S2", "First Name": "REDACTED", "Email Address": "hash_dave"},
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
 # Factory — recreates the notebook function under test in a controlled scope
 # ---------------------------------------------------------------------------
+
 
 def _make_sb_apply_fn(spark, storage_account, log_fn):
     """Return apply_anonymisation_sb as it appears in py_sb_raw_to_std, but with
@@ -56,10 +67,7 @@ def _make_sb_apply_fn(spark, storage_account, log_fn):
 
     def apply_anonymisation_sb(df, entity_name):
         anon_enabled = Util.is_non_production_environment()
-        log_fn(
-            f"anonymisation_gate: environment={Util.get_environment()} "
-            f"enabled={anon_enabled} entity={entity_name}"
-        )
+        log_fn(f"anonymisation_gate: environment={Util.get_environment()} enabled={anon_enabled} entity={entity_name}")
         if not anon_enabled:
             return df
         anon_config = AnonymisationConfig()
@@ -87,10 +95,7 @@ def _make_horizon_anon_block(spark, storage_account, source_folder, log_fn, log_
 
     def apply_anonymisation_horizon(sparkDF, filename, source_filename_start):
         _anon_enabled = Util.is_non_production_environment()
-        log_fn(
-            f"anonymisation_gate: environment={Util.get_environment()} "
-            f"enabled={_anon_enabled} file={filename}"
-        )
+        log_fn(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={filename}")
         if not _anon_enabled:
             return sparkDF
         _anon_config = AnonymisationConfig()
@@ -108,9 +113,7 @@ def _make_horizon_anon_block(spark, storage_account, source_folder, log_fn, log_
         )
         log_fn(f"Applying anonymisation to Horizon file: {filename}")
         try:
-            sparkDF = engine.apply_from_purview(
-                sparkDF, file_name=filename, source_folder=source_folder
-            )
+            sparkDF = engine.apply_from_purview(sparkDF, file_name=filename, source_folder=source_folder)
         except Exception as anon_err:
             log_error_fn(f"Anonymisation failed for {filename}: {str(anon_err)}")
             raise
@@ -123,8 +126,8 @@ def _make_horizon_anon_block(spark, storage_account, source_folder, log_fn, log_
 # py_sb_raw_to_std tests
 # ---------------------------------------------------------------------------
 
-class TestSBNotebookAnonymisation(SparkTestCase):
 
+class TestSBNotebookAnonymisation(SparkTestCase):
     def test__applies_anonymisation_in_dev(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = _raw_sb_df(spark)
@@ -136,9 +139,7 @@ class TestSBNotebookAnonymisation(SparkTestCase):
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(
-                AnonymisationEngine, "apply_from_purview", return_value=anon_df
-            ) as mock_apply,
+            mock.patch.object(AnonymisationEngine, "apply_from_purview", return_value=anon_df) as mock_apply,
         ):
             result = fn(raw_df, "service-user")
 
@@ -219,17 +220,13 @@ class TestSBNotebookAnonymisation(SparkTestCase):
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(
-                AnonymisationEngine, "apply_from_purview", return_value=anon_df
-            ),
+            mock.patch.object(AnonymisationEngine, "apply_from_purview", return_value=anon_df),
         ):
             # policy load will fail (no real ADLS) — function should continue with defaults
             result = fn(raw_df, "service-user")
 
         assert result is anon_df
-        fallback_logged = any(
-            "Could not load anonymisation policy" in str(call) for call in log.call_args_list
-        )
+        fallback_logged = any("Could not load anonymisation policy" in str(call) for call in log.call_args_list)
         assert fallback_logged
 
 
@@ -237,8 +234,8 @@ class TestSBNotebookAnonymisation(SparkTestCase):
 # py_horizon_raw_to_std tests
 # ---------------------------------------------------------------------------
 
-class TestHorizonNotebookAnonymisation(SparkTestCase):
 
+class TestHorizonNotebookAnonymisation(SparkTestCase):
     def test__applies_anonymisation_in_dev(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = _raw_horizon_df(spark)
@@ -246,16 +243,12 @@ class TestHorizonNotebookAnonymisation(SparkTestCase):
         log = mock.Mock()
         log_err = mock.Mock()
 
-        fn = _make_horizon_anon_block(
-            spark, "test.dfs.core.windows.net/", "Horizon", log, log_err
-        )
+        fn = _make_horizon_anon_block(spark, "test.dfs.core.windows.net/", "Horizon", log, log_err)
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(
-                AnonymisationEngine, "apply_from_purview", return_value=anon_df
-            ) as mock_apply,
+            mock.patch.object(AnonymisationEngine, "apply_from_purview", return_value=anon_df) as mock_apply,
         ):
             result = fn(raw_df, "Employees.csv", "Employees")
 
@@ -270,9 +263,7 @@ class TestHorizonNotebookAnonymisation(SparkTestCase):
         raw_df = _raw_horizon_df(spark)
         log = mock.Mock()
 
-        fn = _make_horizon_anon_block(
-            spark, "test.dfs.core.windows.net/", "Horizon", log, mock.Mock()
-        )
+        fn = _make_horizon_anon_block(spark, "test.dfs.core.windows.net/", "Horizon", log, mock.Mock())
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=False),
@@ -289,16 +280,12 @@ class TestHorizonNotebookAnonymisation(SparkTestCase):
         raw_df = _raw_horizon_df(spark)
         log = mock.Mock()
 
-        fn = _make_horizon_anon_block(
-            spark, "test.dfs.core.windows.net/", "Horizon", log, mock.Mock()
-        )
+        fn = _make_horizon_anon_block(spark, "test.dfs.core.windows.net/", "Horizon", log, mock.Mock())
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(
-                AnonymisationEngine, "apply_from_purview", return_value=raw_df
-            ),
+            mock.patch.object(AnonymisationEngine, "apply_from_purview", return_value=raw_df),
         ):
             fn(raw_df, "Addresses.csv", "Addresses")
 
@@ -313,9 +300,7 @@ class TestHorizonNotebookAnonymisation(SparkTestCase):
         log = mock.Mock()
         log_err = mock.Mock()
 
-        fn = _make_horizon_anon_block(
-            spark, "test.dfs.core.windows.net/", "Horizon", log, log_err
-        )
+        fn = _make_horizon_anon_block(spark, "test.dfs.core.windows.net/", "Horizon", log, log_err)
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),

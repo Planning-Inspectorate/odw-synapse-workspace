@@ -219,9 +219,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
 
                 _anon_enabled = Util.is_non_production_environment()
-                LoggingUtil().log_info(
-                    f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}"
-                )
+                LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}")
                 # Apply anonymisation only in DEV/TEST environments
                 if _anon_enabled:
                     try:

@@ -161,9 +161,7 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         new_raw_messages = self.remove_data_duplicates(new_raw_messages)
 
         _anon_enabled = Util.is_non_production_environment()
-        LoggingUtil().log_info(
-            f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} entity={entity_name}"
-        )
+        LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} entity={entity_name}")
         # Apply anonymisation only in DEV/TEST environments
         if _anon_enabled:
             try:
