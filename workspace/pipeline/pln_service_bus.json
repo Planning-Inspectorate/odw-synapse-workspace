@@ -848,7 +848,7 @@
 						},
 						{
 							"name": "If has new data",
-							"description": "Runs Std to Hrm, custom harmonised notebooks, and writes the watermark only when Raw to Std found new messages.",
+							"description": "Runs Std to Hrm only when Raw to Std found new messages.",
 							"type": "IfCondition",
 							"dependsOn": [
 								{
@@ -1205,19 +1205,34 @@
 												}
 											}
 										}
-									},
+									}
+								]
+							}
+						},
+						{
+							"name": "If should run custom harmonised",
+							"description": "Runs custom harmonised notebooks when there is new SB data or when the entity has a horizon dependency (Horizon data may have changed even with no new SB messages).",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If has new data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@or(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false), coalesce(item().has_horizon_dependency, false))",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
 									{
 										"name": "Run Entity Custom Harmonised",
-										"description": "Calls the child pipeline to run each custom harmonised notebook for this entity. Passes an empty array if no custom notebooks are configured \u2014 the child ForEach no-ops in that case.",
+										"description": "Calls the child pipeline to run each custom harmonised notebook for this entity. Passes an empty array if no custom notebooks are configured — the child ForEach no-ops in that case.",
 										"type": "ExecutePipeline",
-										"dependsOn": [
-											{
-												"activity": "Std to Hrm",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
+										"dependsOn": [],
 										"policy": {
 											"secureInput": false
 										},
@@ -1240,19 +1255,34 @@
 												"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId"
 											}
 										}
-									},
+									}
+								]
+							}
+						},
+						{
+							"name": "If should update watermark",
+							"description": "Updates the SB watermark only when Raw to Std found new messages.",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If should run custom harmonised",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false)",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
 									{
 										"name": "Update watermark",
-										"description": "Upserts the max message_enqueued_time_utc into odw_meta_db.service_bus_watermarks for this entity. Runs after custom harmonised completes (or is skipped for entities with no custom notebooks).",
+										"description": "Upserts the max message_enqueued_time_utc into odw_meta_db.service_bus_watermarks for this entity. Runs after custom harmonised completes.",
 										"type": "SynapseNotebook",
-										"dependsOn": [
-											{
-												"activity": "Run Entity Custom Harmonised",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
+										"dependsOn": [],
 										"policy": {
 											"timeout": "0.1:00:00",
 											"retry": 2,
