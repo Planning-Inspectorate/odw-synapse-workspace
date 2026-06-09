@@ -3,11 +3,68 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "Log pipeline start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Pipeline Load Started",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Starting pipeline execution",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Pipeline",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
 				"name": "Copy-Entraid-curated-mipins",
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Lookup-LogStart",
+						"activity": "Log pipeline start",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -59,63 +116,8 @@
 				]
 			},
 			{
-				"name": "Lookup-LogStart",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
-						"storedProcedureParameters": {
-							"Description": {
-								"type": "String",
-								"value": "EntraID_curated_mipins_pipeline_started"
-							},
-							"ErrorMessage": {
-								"type": "String",
-								"value": null
-							},
-							"LogType": {
-								"type": "String",
-								"value": "1"
-							},
-							"Param1Value": {
-								"type": "String",
-								"value": null
-							},
-							"RowCount": {
-								"type": "Int32",
-								"value": null
-							},
-							"RunId": {
-								"type": "Int32",
-								"value": null
-							},
-							"Source": {
-								"type": "String",
-								"value": "EntraID"
-							}
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "Lookup_LogStart",
-						"type": "DatasetReference"
-					}
-				}
-			},
-			{
-				"name": "Record_Count",
-				"type": "SetVariable",
+				"name": "Log pipeline completion success",
+				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
 						"activity": "Copy-Entraid-curated-mipins",
@@ -125,170 +127,264 @@
 					}
 				],
 				"policy": {
-					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Record_Count_EntraID",
-					"value": {
-						"value": "@activity('Copy-Entraid-curated-mipins').output.rowscopied",
-						"type": "Expression"
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Successfully",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@string(activity('Copy-Entraid-curated-mipins').output.rowsCopied)",
+							"type": "Expression"
+						},
+						"ErrorMessage": "",
+						"StatusMessage": "Pipeline run completed successfully",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Copy Activity",
+						"DurationSeconds": {
+							"value": "@string(activity('Copy-Entraid-curated-mipins').output.copyDuration)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
 					}
 				}
 			},
 			{
-				"name": "Error",
-				"type": "SetVariable",
+				"name": "Log pipeline completion failure",
+				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record_Count",
+						"activity": "Copy-Entraid-curated-mipins",
 						"dependencyConditions": [
-							"Failed",
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Failed",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@activity('Copy-Entraid-curated-mipins').Error.Message",
+							"type": "Expression"
+						},
+						"StatusMessage": "Pipeline run failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": "Copy Activity",
+						"DurationSeconds": "",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Send Teams notification on failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Log pipeline completion failure",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_utl_Send_Teams_Message",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"activityName": "Copy-Entraid-curated-mipins",
+						"activityStatus": "Failed",
+						"activityMessage": {
+							"value": "@activity('Copy-Entraid-curated-mipins').Error.Message",
+							"type": "Expression"
+						},
+						"pipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "If failure detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Log pipeline completion success",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Send Teams notification on failure",
+						"dependencyConditions": [
+							"Succeeded",
 							"Skipped"
 						]
 					}
 				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Error_EntraID",
-					"value": {
-						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy-Entraid-curated-mipins')?.Error?.message),'|','')\n",
+					"expression": {
+						"value": "@equals(activity('Copy-Entraid-curated-mipins').Status,'Failed')",
 						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Sp_log_success",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "Record_Count",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Audit].[usp_addETLLog]",
-					"storedProcedureParameters": {
-						"Description": {
-							"value": "EntraID_curated_mipins_pipeline_completed",
-							"type": "String"
-						},
-						"ErrorMessage": {
-							"value": null,
-							"type": "String"
-						},
-						"LogType": {
-							"value": "2",
-							"type": "String"
-						},
-						"Param1Value": {
-							"value": null,
-							"type": "String"
-						},
-						"RowCount": {
-							"value": {
-								"value": "@variables('Record_Count_EntraID')",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"RunId": {
-							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"Source": {
-							"value": "EntraID",
-							"type": "String"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail pipeline",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@activity('Copy-Entraid-curated-mipins').Error.Message",
+									"type": "Expression"
+								},
+								"errorCode": "PLN_COPY_ENTRAID_CURATED_MIPINS_FAILED"
+							}
 						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
-				}
-			},
-			{
-				"name": "Sp_log_failed",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "Error",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Audit].[usp_addETLLog]",
-					"storedProcedureParameters": {
-						"Description": {
-							"value": "EntraID_curated_mipins_pipeline_failed",
-							"type": "String"
-						},
-						"ErrorMessage": {
-							"value": {
-								"value": "@variables('Error_EntraID')",
-								"type": "Expression"
-							},
-							"type": "String"
-						},
-						"LogType": {
-							"value": "2",
-							"type": "String"
-						},
-						"Param1Value": {
-							"value": null,
-							"type": "String"
-						},
-						"RowCount": {
-							"value": null,
-							"type": "Int32"
-						},
-						"RunId": {
-							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"Source": {
-							"value": "EntraID",
-							"type": "String"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
+					]
 				}
 			}
 		],
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
+			},
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"completed_colour": {
+				"type": "string"
+			},
+			"completed_image": {
+				"type": "string"
+			}
+		},
 		"variables": {
 			"Record_Count_EntraID": {
 				"type": "Integer"
