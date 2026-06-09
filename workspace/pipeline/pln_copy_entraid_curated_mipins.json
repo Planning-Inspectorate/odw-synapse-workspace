@@ -61,7 +61,14 @@
 			{
 				"name": "Lookup-LogStart",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record horizon to odw data loading",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -157,7 +164,7 @@
 				"typeProperties": {
 					"variableName": "Error_EntraID",
 					"value": {
-						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy-Entraid-curated-mipins')?.Error?.message),'|','')\n",
+						"value": "@activity('Copy-Entraid-curated-mipins').error.message\n",
 						"type": "Expression"
 					}
 				}
@@ -287,8 +294,124 @@
 					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				}
+			},
+			{
+				"name": "Record horizon to odw data loading",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Entraid curated mipins started",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"StartTime": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+						"StatusMessage": "Loading Entraid curated mipins",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"ActivityType": "Pipeline",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
+			},
+			{
+				"name": "Log_Pipeline_Success",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy-Entraid-curated-mipins",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Succeeded",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"EndTime": "@utcNow()",
+						"Inserts": "@activity('Copy-Entraid-curated-mipins').output.rowsCopied",
+						"ErrorMessage": "@activity('Copy-Entraid-curated-mipins')?.Error?.Message",
+						"StatusMessage": "Entraid curated mipins Successfully",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"ActivityType": "Copy Activity",
+						"DurationSeconds": "@activity('Copy-Entraid-curated-mipins').output.copyDuration",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
+			},
+			{
+				"name": "Log_Pipeline_Failure",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy-Entraid-curated-mipins",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Failed",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"EndTime": "@utcNow()",
+						"Inserts": "@coalesce(activity('Copy-Entraid-curated-mipins').output.rowsCopied, 0)\n\n",
+						"ErrorMessage": "@if(\n  equals(activity('Copy-Entraid-curated-mipins').Status, 'Failed'),\n  replace(activity('Copy-Entraid-curated-mipins').error.message, '\\n', ' '),\n  ''\n)",
+						"StatusMessage": "@if(\n  equals(activity('Copy-Entraid-curated-mipins').Status, 'Failed'),\n  'Entraid curated mipins Failed',\n  concat(\n    'Entraid curated mipins Succeeded. Rows copied: ',\n    string(coalesce(activity('Copy-Entraid-curated-mipins').output.rowsCopied, 0))\n  )\n)\n",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"ActivityType": "Copy Activity",
+						"DurationSeconds": "@activity('Copy-Entraid-curated-mipins').output.copyDuration",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
+				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string",
+				"defaultValue": "test-key"
+			}
+		},
 		"variables": {
 			"Record_Count_EntraID": {
 				"type": "Integer"
