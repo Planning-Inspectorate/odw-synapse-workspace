@@ -61,14 +61,7 @@
 			{
 				"name": "Lookup-LogStart",
 				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Set variable Start Time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -294,273 +287,33 @@
 					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				}
-			},
-			{
-				"name": "Record completed horizon to odw data load",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "copy_appeal_event_curated_mipins",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": {
-							"value": "@if(or(equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)),'Success','Failed')\n",
-							"type": "Expression"
-						},
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@variables('StartTime')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
-							"type": "Expression"
-						},
-						"Inserts": {
-							"value": "@if(\n    or(\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)\n    ),\n    activity('copy_appeal_event_curated_mipins').output.rowsCopied,\n    ''\n)\n",
-							"type": "Expression"
-						},
-						"ErrorMessage": {
-							"value": "@if(or(equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''), equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)), '', activity('copy_appeal_event_curated_mipins')?.Error?.Message)",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@if(\n    or(\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW event mipins event',\n    'Failed copying data from ODW event mipins event'\n)",
-							"type": "Expression"
-						},
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": {
-							"value": "Copy Activity",
-							"type": "Expression"
-						},
-						"DurationSeconds": {
-							"value": "@activity('copy_appeal_event_curated_mipins').output.copyDuration\n",
-							"type": "Expression"
-						},
-						"StatusCode": {
-							"value": "@if(\n    or(\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
-							"type": "Expression"
-						},
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Send horizon to odw copy  data failed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Copy horizon Files errorMessage",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": true
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"dataFactorySubscription": {
-							"value": "@pipeline().parameters.subscription_id",
-							"type": "Expression"
-						},
-						"dataFactoryResourceGroup": {
-							"value": "@pipeline().parameters.resource_group",
-							"type": "Expression"
-						},
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"teamsWebhookUrl": {
-							"value": "@pipeline().parameters.webhook_url",
-							"type": "Expression"
-						},
-						"activityName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"activityMessage": "Copy event_curated_to_mipins data failed",
-						"activityDuration": {
-							"value": "@concat(\n    string(div(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'H:', \n    string(mod(div(sub(\n        ticks(formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:sss')),\n        ticks(formatDateTime(if(equals(pipeline().parameters.start_time, null), utcNow(), pipeline().parameters.start_time), 'yyyy-MM-dd HH:mm:sss'))\n    ), 600000000), 60)), 'M:00s'\n)",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed",
-						"Colour": {
-							"value": "@pipeline().parameters.failed_colour",
-							"type": "Expression"
-						},
-						"Image": {
-							"value": "@pipeline().parameters.failed_image",
-							"type": "Expression"
-						},
-						"Message_title": "Copy Data from Horizon to ODW_Raw Failed",
-						"Message_subtitle": {
-							"value": "@concat('Data Copied From event_curated to mipinsevent data  Failed with the following error:    ',variables('errorMessage'))",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Copy horizon Files errorMessage",
-				"description": "",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "copy_appeal_event_curated_mipins",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "errorMessage",
-					"value": {
-						"value": "@split(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ',')[2]\n",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set variable Start Time",
-				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "StartTime",
-					"value": {
-						"value": "@utcNow()",
-						"type": "Expression"
-					}
-				}
 			}
 		],
-		"parameters": {
-			"webhook_url": {
-				"type": "string"
-			},
-			"subscription_id": {
-				"type": "string"
-			},
-			"resource_group": {
-				"type": "string"
-			},
-			"starting_colour": {
-				"type": "string"
-			},
-			"on_progress_colour": {
-				"type": "string"
-			},
-			"failed_colour": {
-				"type": "string"
-			},
-			"start_time": {
-				"type": "string"
-			},
-			"starting_image": {
-				"type": "string"
-			},
-			"progress_image": {
-				"type": "string"
-			},
-			"warning_image": {
-				"type": "string"
-			},
-			"failed_image": {
-				"type": "string"
-			},
-			"warning_colour": {
-				"type": "string"
-			},
-			"apps_insights_ikey": {
-				"type": "string"
-			},
-			"completed_colour": {
-				"type": "string"
-			},
-			"completed_image": {
-				"type": "string"
-			}
-		},
 		"variables": {
 			"RowCount_event": {
 				"type": "Integer"
 			},
-			"errorMessage": {
-				"type": "String"
-			},
-			"StartTime": {
-				"type": "String"
-			},
 			"Error_event": {
+				"type": "String"
+			},
+			"RowCount_Serviceuser": {
+				"type": "Integer"
+			},
+			"Error_Serviceuser": {
+				"type": "String"
+			},
+			"Record_Count_EntraID": {
+				"type": "Integer"
+			},
+			"Error_EntraID": {
 				"type": "String"
 			}
 		},
 		"folder": {
 			"name": "mipins"
 		},
-		"annotations": []
-	}
+		"annotations": [],
+		"lastPublishTime": "2026-06-09T16:02:32Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
 }
