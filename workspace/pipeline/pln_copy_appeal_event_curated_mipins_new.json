@@ -206,7 +206,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)),'Success','Failed')\n",
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('copy_appeal_event_curated_mipins')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed',\n    'Success'\n)",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -222,7 +222,7 @@
 							"type": "Expression"
 						},
 						"EndTime": {
-							"value": "div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"value": "@utcNow()",
 							"type": "Expression"
 						},
 						"Inserts": {
@@ -230,11 +230,11 @@
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@if(or(equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''), equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)), '', activity('copy_appeal_event_curated_mipins')?.Error?.Message)",
+							"value": "@concat(\n    coalesce(activity('Lookup-LogStart')?.Error?.message, ''),\n    coalesce(activity('copy_appeal_event_curated_mipins')?.Error?.message, ''),\n    coalesce(activity('Sp_log_success')?.Error?.message, '')\n)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    or(\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, ''),\n        equals(activity('copy_appeal_event_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW event mipins event',\n    'Failed copying data from ODW event mipins event'\n)",
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('copy_appeal_event_curated_mipins')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed copying data from ODW event mipins event',\n    'Successfully copied data from ODW event mipins event'\n)\n",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -262,7 +262,7 @@
 							"type": "Expression"
 						},
 						"DurationSeconds": {
-							"value": "@activity('copy_appeal_event_curated_mipins').output.copyDuration\n",
+							"value": "div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)\n",
 							"type": "Expression"
 						},
 						"StatusCode": {
