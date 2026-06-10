@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "690990a1-ec9e-4a86-9048-16bbd67c158c"
+				"spark.autotune.trackingId": "0f8ad7b4-022e-487a-8df7-a801ce59c8d7"
 			}
 		},
 		"metadata": {
@@ -58,7 +58,7 @@
 					"from datetime import datetime, date\n",
 					"import pyspark.sql.functions as F"
 				],
-				"execution_count": 2
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -73,14 +73,14 @@
 					"PipelineTriggeredbyPipelineRunID = \"688cd58a-1365-4e39-8d5e-dd39745c15c5\"\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 4
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -90,9 +90,10 @@
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
-					"error_message=''"
+					"error_message=''\n",
+					"end_exec_time=''"
 				],
-				"execution_count": 5
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -152,69 +153,72 @@
 					"    # Optional: print or log\n",
 					"    print(error_message)"
 				],
-				"execution_count": 6
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# view_df = spark.sql(\"SELECT * FROM odw_curated_db.vw_Appeal_event_curated_mipins\")"
 				],
-				"execution_count": null
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"\n",
 					"if not error_message:\n",
-					"try:\n",
-					"    timestamp_columns = [\n",
-					"        'eventStartDateTime',\n",
-					"        'eventEndDateTime',\n",
-					"        'IngestionDate',\n",
-					"        'ValidTo',\n",
-					"    ]\n",
+					"    try:\n",
+					"        timestamp_columns = [\n",
+					"            'eventStartDateTime',\n",
+					"            'eventEndDateTime',\n",
+					"            'IngestionDate',\n",
+					"            'ValidTo',\n",
+					"        ]\n",
 					"\n",
-					"    final_view_df = view_df.withColumns({\n",
-					"        col: F.to_timestamp(\n",
-					"            F.from_utc_timestamp(F.col(col), 'Europe/London'),\n",
-					"            \"yyyy-MM-dd'T'HH:mm:ss.SSS\"\n",
-					"        )\n",
-					"        for col in timestamp_columns\n",
-					"    })\n",
+					"        final_view_df = view_df.withColumns({\n",
+					"            col: F.to_timestamp(\n",
+					"                F.from_utc_timestamp(F.col(col), 'Europe/London'),\n",
+					"                \"yyyy-MM-dd'T'HH:mm:ss.SSS\"\n",
+					"            )\n",
+					"            for col in timestamp_columns\n",
+					"        })\n",
 					"\n",
-					"except Exception as e:\n",
-					"    error_message = f\"Error in timestamp conversion: {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()\n",
-					"    print(error_message)"
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in timestamp conversion: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"try:\n",
-					"    \n",
+					"    try:\n",
 					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
 					"    \n",
-					"    table_path = (\n",
-					"        df_table_path\n",
-					"        .where(\"col_name == 'Location'\")\n",
-					"        .select(\"data_type\")\n",
-					"        .collect()[0][0]\n",
-					"    )\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
 					"\n",
-					"    final_view_df.write \\\n",
-					"        .format(\"parquet\") \\\n",
-					"        .mode(\"overwrite\") \\\n",
-					"        .option(\"path\", table_path) \\\n",
-					"        .saveAsTable(table_name)\n",
+					"        final_view_df.write \\\n",
+					"            .format(\"parquet\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"path\", table_path) \\\n",
+					"            .saveAsTable(table_name)\n",
 					"\n",
-					"except Exception as e:\n",
-					"    error_message = f\"Error writing table {table_name}: {str(e)[:800]}\"\n",
-					"    end_exec_time = datetime.now()\n",
-					"    print(error_message)"
+					"        end_exec_time = datetime.now() \n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error writing table {table_name}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
@@ -251,7 +255,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 99
 			}
 		]
 	}
