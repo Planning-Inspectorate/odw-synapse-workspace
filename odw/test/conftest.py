@@ -11,6 +11,7 @@ duration of the eager import.  Integration tests that run later and actually nee
 credentials are unaffected because they are skipped by the -m "not integration" marker filter
 used for local unit-test runs.
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 
