@@ -86,16 +86,18 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
 
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
-        with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
-            with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-                    with mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory):
-                        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                            with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                                with mock.patch.object(LoggingUtil, "__new__"):
-                                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                            yield
+        with (
+            mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}),
+            mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path),
+            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path),
+            mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory),
+            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
+            mock.patch.object(Util, "get_path_to_file", generate_local_path),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        ):
+            yield
 
     def _write_sb_input_files(self, entity_name, rows):
         warehouse = PytestSparkSessionUtil().get_spark_warehouse_name()
@@ -212,15 +214,17 @@ class TestAnonymisationGateHorizon(ETLTestCase):
 
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
-        with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
-            with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
-                    with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
-                        with mock.patch.object(Util, "get_path_to_file", generate_local_path):
-                            with mock.patch.object(LoggingUtil, "__new__"):
-                                with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                                    with mock.patch.object(LoggingUtil, "log_error", return_value=None):
-                                        yield
+        with (
+            mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}),
+            mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path),
+            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path),
+            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
+            mock.patch.object(Util, "get_path_to_file", generate_local_path),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch.object(LoggingUtil, "log_info", return_value=None),
+            mock.patch.object(LoggingUtil, "log_error", return_value=None),
+        ):
+            yield
 
     def _prepare_hz_test_data(self, entity):
         csv_data = (
