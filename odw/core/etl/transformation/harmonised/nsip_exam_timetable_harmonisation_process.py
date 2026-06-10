@@ -145,19 +145,7 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
 
         # Step 1: Explode service bus events into individual rows
         LoggingUtil().log_info("Exploding service bus events into individual rows")
-        service_bus_event_data = service_bus_data.select(
-            F.col("NSIPExaminationTimetableID"),
-            F.col("caseReference"),
-            F.col("published"),
-            F.explode(F.col("events")).alias("event"),
-            F.col("Migrated"),
-            F.col("ODTSourceSystem"),
-            F.col("SourceSystemID"),
-            F.col("IngestionDate"),
-            F.col("ValidTo"),
-            F.col("RowID"),
-            F.col("IsActive"),
-        ).select(
+        service_bus_event_data = service_bus_data.withColumn("event", F.explode("events")).select(
             F.col("NSIPExaminationTimetableID"),
             F.col("caseReference"),
             F.col("published"),
