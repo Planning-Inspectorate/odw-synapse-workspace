@@ -63,7 +63,7 @@
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "Record horizon to odw data loading",
+						"activity": "Set variable Start Time",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -330,7 +330,7 @@
 							"type": "Expression"
 						},
 						"EndTime": {
-							"value": "@utcNow()",
+							"value": "div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"Inserts": {
@@ -373,63 +373,6 @@
 							"value": "@activity('copy_appeal_event_curated_mipins').output.copyDuration\n",
 							"type": "Expression"
 						},
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Record horizon to odw data loading",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Appeal event curated mipins load started",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"StatusMessage": "Loading Appeal event ODW curated to mipins",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
@@ -525,6 +468,20 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "StartTime",
+					"value": "@utcNow()"
+				}
 			}
 		],
 		"parameters": {
@@ -575,25 +532,13 @@
 			}
 		},
 		"variables": {
-			"RowCount_event": {
-				"type": "Integer"
-			},
-			"Error_event": {
-				"type": "String"
-			},
-			"RowCount_Serviceuser": {
-				"type": "Integer"
-			},
-			"Error_Serviceuser": {
-				"type": "String"
-			},
 			"Record_Count_EntraID": {
 				"type": "Integer"
 			},
-			"Error_EntraID": {
+			"errorMessage": {
 				"type": "String"
 			},
-			"errorMessage": {
+			"StartTime": {
 				"type": "String"
 			}
 		},
