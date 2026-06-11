@@ -29,7 +29,7 @@
 					},
 					"sink": {
 						"type": "AzureSqlSink",
-						"preCopyScript": "drop table if exists odw.Entraid_curated",
+						"preCopyScript": "SELECT 1/0;",
 						"writeBehavior": "insert",
 						"sqlWriterUseTableLock": false,
 						"tableOption": "autoCreate",
@@ -320,7 +320,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Entraid curated mipins started",
+						"Stage": {
+							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'Failed','Success')",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -385,7 +388,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Successfully','Failed')\n",
+							"value": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Success','Failed')",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -409,7 +412,7 @@
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    or(\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW Entraid MIPINS Entraid',\n    'Failed copying data from ODW Entraid MIPINS Entraid'\n)",
+							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'Pipeline run failed','Pipeline run completed')",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -441,10 +444,83 @@
 							"type": "Expression"
 						},
 						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
+							"value": "8a0ba3c2-9e86-439e-829d-ad13d179514e",
 							"type": "Expression"
 						}
 					}
+				}
+			},
+			{
+				"name": "Set_Error_From_Copy",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy-Entraid-curated-mipins",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Error_EntraID",
+					"value": "@concat(\n    'Activity: Copy-Entraid-curated-mipins; ',\n    'Status: Failed; ',\n    'Error: ',\n    activity('Copy-Entraid-curated-mipins').error.message\n)"
+				}
+			},
+			{
+				"name": "Set_PipelineStatus_Failed",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set_Error_From_Copy",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "Failed"
+				}
+			},
+			{
+				"name": "If_PipelineStatus_Failed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record completed horizon to odw data load",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(variables('PipelineStatus'),'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail_Pipeline_On_Error",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Pipeline failed. See error details in logging pipeline / App Insights.",
+								"errorCode": "PLN_COPY_ENTRAID_FAILURE"
+							}
+						}
+					]
 				}
 			}
 		],
@@ -460,6 +536,10 @@
 			},
 			"Error_EntraID": {
 				"type": "String"
+			},
+			"PipelineStatus": {
+				"type": "String",
+				"defaultValue": "Success"
 			}
 		},
 		"folder": {
