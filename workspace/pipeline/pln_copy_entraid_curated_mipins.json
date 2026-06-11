@@ -388,7 +388,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Success','Failed')",
+							"value": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Failed','success')\n ",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -501,6 +501,12 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "Execute failed",
+						"dependencyConditions": [
+							"Failed"
+						]
 					}
 				],
 				"userProperties": [],
@@ -521,6 +527,46 @@
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "Execute failed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Copy-Entraid-curated-mipins",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Failed','success')\n ",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"EndTime": "@utcNow()",
+						"Inserts": "@if(\n    or(\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)\n    ),\n    activity('Copy-Entraid-curated-mipins').output.rowsCopied,\n    ''\n)\n",
+						"ErrorMessage": "@{if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''), equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)), '', activity('Copy-Entraid-curated-mipins')?.Error?.Message)}",
+						"StatusMessage": "@if(equals(variables('PipelineStatus'),'Failed'),'Pipeline run failed','Pipeline run completed')",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
+						"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId",
+						"ActivityType": "Copy Activity",
+						"DurationSeconds": "@activity('Copy-Entraid-curated-mipins').output.copyDuration\n",
+						"AppInsIKey": "8a0ba3c2-9e86-439e-829d-ad13d179514e"
+					}
 				}
 			}
 		],
