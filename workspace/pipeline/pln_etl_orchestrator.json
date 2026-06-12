@@ -155,27 +155,7 @@
 							}
 						},
 						{
-							"name": "Append batch failures",
-							"type": "AppendVariable",
-							"dependsOn": [
-								{
-									"activity": "Execute inner loop",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "batchFailures",
-								"value": {
-									"value": "@string(\n    activity('Execute inner loop').error?.message\n)",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Append batch preprocessing failures",
+							"name": "Append preprocessing failure",
 							"type": "AppendVariable",
 							"dependsOn": [
 								{
@@ -187,7 +167,7 @@
 							],
 							"userProperties": [],
 							"typeProperties": {
-								"variableName": "batchFailures",
+								"variableName": "preprocessingErrors",
 								"value": {
 									"value": "@string(activity('Filter steps with failed dependencies').error.message)",
 									"type": "Expression"
@@ -222,9 +202,9 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Outer loop",
+						"activity": "Set pipeline return value",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -250,6 +230,77 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "Postprocess result",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Outer loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_result_postprocessor",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"successful_results": {
+							"value": "",
+							"type": "string"
+						},
+						"failed_results": {
+							"value": "",
+							"type": "string"
+						},
+						"batch_failures": {
+							"value": "",
+							"type": "string"
+						}
+					},
+					"snapshot": true
+				}
+			},
+			{
+				"name": "Set pipeline return value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Postprocess result",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "results",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('Postprocess result').output.status.Output.result.exitValue"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
 			}
 		],
 		"parameters": {
@@ -268,6 +319,12 @@
 			"batchFailures": {
 				"type": "Array",
 				"defaultValue": []
+			},
+			"batchSuccesses": {
+				"type": "Array"
+			},
+			"preprocessingErrors": {
+				"type": "Array"
 			}
 		},
 		"folder": {
