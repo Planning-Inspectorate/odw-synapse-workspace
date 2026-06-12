@@ -1059,7 +1059,7 @@
 				}
 			},
 			{
-				"name": "Return_Result",
+				"name": "Return_Result1",
 				"type": "SetVariable",
 				"state": "Inactive",
 				"onInactiveMarkAs": "Succeeded",
@@ -1427,11 +1427,70 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"stages_to_execute": "@pipeline().parameters.transformEntities",
-						"run_id": "@json(pipeline().parameters.runContextJson).runId",
-						"runContextJson": "@pipeline().parameters.runContextJson",
-						"override_config_file": "@pipeline().parameters.overrideTransformConfigFile"
+						"stages_to_execute": {
+							"value": "@pipeline().parameters.transformEntities",
+							"type": "Expression"
+						},
+						"run_id": {
+							"value": "@json(pipeline().parameters.runContextJson).runId",
+							"type": "Expression"
+						},
+						"override_config_file": {
+							"value": "@pipeline().parameters.overrideTransformConfigFile",
+							"type": "Expression"
+						}
 					}
+				}
+			},
+			{
+				"name": "Set_TransformStatusJson",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Execute_ETL_Orchestrator",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "transformStatusJson",
+					"value": "@string(activity('Execute_ETL_Orchestrator').output.pipelineReturnValue.result)"
+				}
+			},
+			{
+				"name": "Return_Result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set_TransformStatusJson",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('transformStatusJson')"
+							}
+						}
+					],
+					"setSystemVariable": true
 				}
 			}
 		],
