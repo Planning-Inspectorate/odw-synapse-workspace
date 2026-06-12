@@ -14,3 +14,8 @@ class OrchestrationConfig(BaseModel):
             return v
 
     entities: Dict[str, Dict[str, EntityStage]]
+
+
+class PreprocessedOrchestrationEntry(BaseModel):
+    # TODO
+    pass
