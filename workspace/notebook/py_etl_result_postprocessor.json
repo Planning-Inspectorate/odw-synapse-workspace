@@ -1,5 +1,5 @@
 {
-	"name": "py_etl_result_cleaner",
+	"name": "py_etl_result_postprocessor",
 	"properties": {
 		"folder": {
 			"name": "refactor"
@@ -20,12 +20,12 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "fb85db04-cd9e-4257-b894-c679d517bb0d"
+				"spark.autotune.trackingId": "26f9c5bd-59e9-4f70-a0d6-c94b0a7498bf"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"enableDebugMode": false,
+			"enableDebugMode": true,
 			"kernelspec": {
 				"name": "synapse_pyspark",
 				"display_name": "Synapse PySpark"
@@ -54,7 +54,88 @@
 			{
 				"cell_type": "code",
 				"source": [
-					""
+					"from odw.core.orchestration.orchestration_util import OrchestrationUtil\n",
+					"from typing import Dic, List, Any\n",
+					"import json"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"successful_results: List[List[Dict[str, Any]]] = []\n",
+					"failed_results: List[List[Dict[str, Any]]] = []\n",
+					"batch_failures: List[Dict[str, Any]] = []"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Load parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if isinstance(successful_results, str):\n",
+					"     successful_results = json.loads(successful_results)\n",
+					"if isinstance(failed_results, str):\n",
+					"     failed_results = json.loads(failed_results)\n",
+					"if isinstance(batch_failures, str):\n",
+					"     batch_failures = json.loads(batch_failures)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Perform post processing of the collected py_etl_orchestrator results"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"cleaned_results = OrchestrationUtil.clean_results(successful_results, failed_results, batch_failures)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Return the output"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.notebook.exit(json.dumps(cleaned_results, indent=4))"
 				],
 				"execution_count": null
 			}
