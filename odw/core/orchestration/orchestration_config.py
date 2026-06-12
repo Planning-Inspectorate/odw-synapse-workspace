@@ -17,5 +17,8 @@ class OrchestrationConfig(BaseModel):
 
 
 class PreprocessedOrchestrationEntry(BaseModel):
-    # TODO
-    pass
+    kwargs: Dict[str, Any]
+    depends_on: List[str]
+    orchestration_entity_stage_name: str
+    orchestration_entity_name: str
+    orchestration_stage_name: str
