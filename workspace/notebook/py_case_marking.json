@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a1e03982-6776-414c-8f38-fa61e90bc797"
+				"spark.autotune.trackingId": "b4040020-ab84-4032-adf7-7bafec4f0d4e"
 			}
 		},
 		"metadata": {
@@ -86,7 +86,7 @@
 					"PipelineTriggeredbyPipelineRunID = \"7f446fc7-6541-4347-9178-cbaa36080fdd\"\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -98,21 +98,162 @@
 					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
 					"from datetime import datetime, timedelta"
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_logging_decorator"
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 4
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import time, json, requests\n",
+					"from datetime import datetime, timezone\n",
+					"\n",
+					"KV_LINKED_SERVICE   = \"ls_kv\"\n",
+					"APPINSIGHTS_SECRET  = \"application-insights-connection-string\"\n",
+					"HTTP_TIMEOUT_SECONDS = 15\n",
+					"MAX_RETRIES = 3\n",
+					"RETRY_BACKOFF_SECONDS = 2\n",
+					"DEFAULT_INGESTION_ENDPOINT = \"https://uksouth-1.in.applicationinsights.azure.com/\"\n",
+					"\n",
+					"def _parse_connection_string(conn_str):\n",
+					"    parts = {}\n",
+					"    for seg in conn_str.split(\";\"):\n",
+					"        seg = seg.strip()\n",
+					"        if seg and \"=\" in seg:\n",
+					"            k, v = seg.split(\"=\", 1)\n",
+					"            parts[k.strip()] = v.strip()\n",
+					"    return parts\n",
+					"\n",
+					"def _get_appinsights_config():\n",
+					"    conn_str = mssparkutils.credentials.getSecretWithLS(KV_LINKED_SERVICE, APPINSIGHTS_SECRET)\n",
+					"    if not conn_str:\n",
+					"        raise ValueError(\"App Insights connection string secret is empty.\")\n",
+					"    cfg = _parse_connection_string(conn_str)\n",
+					"    ikey = cfg.get(\"InstrumentationKey\")\n",
+					"    if not ikey:\n",
+					"        if \"=\" not in conn_str and len(conn_str.strip()) >= 32:\n",
+					"            ikey = conn_str.strip()\n",
+					"        else:\n",
+					"            raise ValueError(\"Could not find InstrumentationKey in connection string.\")\n",
+					"    endpoint = cfg.get(\"IngestionEndpoint\", DEFAULT_INGESTION_ENDPOINT).rstrip(\"/\")\n",
+					"    return ikey, endpoint + \"/v2/track\"\n",
+					"\n",
+					"def _utc_now_iso():\n",
+					"    return datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%S.%f\")[:-3] + \"Z\""
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def send_telemetry_to_app_insights(params):\n",
+					"    result = {\"ok\": False, \"status\": None, \"accepted\": None, \"error\": None}\n",
+					"    try:\n",
+					"        ikey, track_url = _get_appinsights_config()\n",
+					"    except Exception as e:\n",
+					"        result[\"error\"] = f\"Config error: {e!r}\"; print(result[\"error\"]); return result\n",
+					"\n",
+					"    print(f\"App Insights target ikey prefix: {ikey[:8]} | endpoint: {track_url}\")\n",
+					"\n",
+					"    body = {\n",
+					"        \"Stage\": params.get(\"Stage\"), \"PipelineName\": params.get(\"PipelineName\"),\n",
+					"        \"PipelineRunID\": params.get(\"PipelineRunID\"), \"StartTime\": params.get(\"StartTime\"),\n",
+					"        \"EndTime\": params.get(\"EndTime\"), \"Inserts\": str(params.get(\"Inserts\", 0)),\n",
+					"        \"Updates\": str(params.get(\"Updates\", 0)), \"Deletes\": str(params.get(\"Deletes\", 0)),\n",
+					"        \"ErrorMessage\": params.get(\"ErrorMessage\"), \"StatusMessage\": params.get(\"StatusMessage\"),\n",
+					"        \"PipelineTriggerID\": params.get(\"PipelineTriggerID\"),\n",
+					"        \"PipelineTriggerName\": params.get(\"PipelineTriggerName\"),\n",
+					"        \"PipelineTriggerType\": params.get(\"PipelineTriggerType\"),\n",
+					"        \"PipelineTriggeredbyPipelineName\": params.get(\"PipelineTriggeredbyPipelineName\"),\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": params.get(\"PipelineTriggeredbyPipelineRunID\"),\n",
+					"        \"PipelineExecutionTimeInSec\": params.get(\"PipelineExecutionTimeInSec\"),\n",
+					"        \"ActivityType\": params.get(\"ActivityType\"), \"StatusCode\": params.get(\"StatusCode\"),\n",
+					"        \"DurationSeconds\": params.get(\"DurationSeconds\"),\n",
+					"    }\n",
+					"    payload = {\n",
+					"        \"name\": \"Microsoft.ApplicationInsights.Event\", \"time\": _utc_now_iso(), \"iKey\": ikey,\n",
+					"        \"data\": {\"baseType\": \"EventData\", \"baseData\": {\n",
+					"            \"ver\": 2, \"name\": params.get(\"AppInsCustomEventName\", \"ODW_Master_Pipeline_Logs\"),\n",
+					"            \"properties\": {k: (\"\" if v is None else str(v)) for k, v in body.items()}}},\n",
+					"    }\n",
+					"\n",
+					"    last_error = None\n",
+					"    for attempt in range(1, MAX_RETRIES + 1):\n",
+					"        try:\n",
+					"            resp = requests.post(track_url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)\n",
+					"            result[\"status\"] = resp.status_code\n",
+					"            accepted = None\n",
+					"            try: accepted = resp.json().get(\"itemsAccepted\"); result[\"accepted\"] = accepted\n",
+					"            except Exception: pass\n",
+					"            if resp.status_code == 200 and (accepted is None or accepted >= 1):\n",
+					"                print(f\"Telemetry accepted: status=200 itemsAccepted={accepted}\")\n",
+					"                result[\"ok\"] = True; return result\n",
+					"            if resp.status_code == 200 and accepted == 0:\n",
+					"                last_error = f\"itemsAccepted=0 (throttled/rejected). Body: {resp.text[:300]}\"\n",
+					"                print(\"WARNING:\", last_error)\n",
+					"            elif resp.status_code in (429, 500, 502, 503, 504):\n",
+					"                last_error = f\"Transient {resp.status_code}. Body: {resp.text[:200]}\"\n",
+					"                print(\"WARNING:\", last_error)\n",
+					"            else:\n",
+					"                result[\"error\"] = f\"Non-retryable {resp.status_code}. Body: {resp.text[:300]}\"\n",
+					"                print(\"ERROR:\", result[\"error\"]); return result\n",
+					"        except requests.exceptions.RequestException as e:\n",
+					"            last_error = f\"{type(e).__name__}: {e}\"\n",
+					"            print(f\"WARNING: attempt {attempt} failed: {last_error}\")\n",
+					"        if attempt < MAX_RETRIES:\n",
+					"            time.sleep(RETRY_BACKOFF_SECONDS * attempt)\n",
+					"\n",
+					"    result[\"error\"] = last_error or \"send failed after retries\"\n",
+					"    print(f\"ERROR: telemetry failed after {MAX_RETRIES} attempts: {result['error']}\")\n",
+					"    return result"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def log_telemetry_and_exit(stage, start_exec_time, end_exec_time, error_message, table_name,\n",
+					"    insert_count, update_count, delete_count, PipelineName, PipelineRunID, PipelineTriggerID,\n",
+					"    PipelineTriggerName, PipelineTriggerType, PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID, activity_type, duration_seconds, status_message,\n",
+					"    status_code, raise_on_telemetry_failure=False):\n",
+					"\n",
+					"    params = {\n",
+					"        \"Stage\": stage, \"PipelineName\": PipelineName, \"PipelineRunID\": PipelineRunID,\n",
+					"        \"StartTime\": start_exec_time.isoformat(), \"EndTime\": end_exec_time.isoformat(),\n",
+					"        \"Inserts\": insert_count, \"Updates\": update_count, \"Deletes\": delete_count,\n",
+					"        \"ErrorMessage\": error_message, \"StatusMessage\": status_message,\n",
+					"        \"PipelineTriggerID\": PipelineTriggerID, \"PipelineTriggerName\": PipelineTriggerName,\n",
+					"        \"PipelineTriggerType\": PipelineTriggerType,\n",
+					"        \"PipelineTriggeredbyPipelineName\": PipelineTriggeredbyPipelineName,\n",
+					"        \"PipelineTriggeredbyPipelineRunID\": PipelineTriggeredbyPipelineRunID,\n",
+					"        \"PipelineExecutionTimeInSec\": duration_seconds, \"ActivityType\": activity_type,\n",
+					"        \"DurationSeconds\": duration_seconds, \"StatusCode\": status_code,\n",
+					"        \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\",\n",
+					"    }\n",
+					"    r = send_telemetry_to_app_insights(params)\n",
+					"    if not r[\"ok\"]:\n",
+					"        warn = f\"Telemetry FAILED PipelineRunID={PipelineRunID} Stage={stage}: {r.get('error')}\"\n",
+					"        print(warn)\n",
+					"        if raise_on_telemetry_failure:\n",
+					"            raise RuntimeError(warn)\n",
+					"    if error_message:\n",
+					"        print(f\"Notebook Failed for load : {error_message}\")\n",
+					""
+				],
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -126,7 +267,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 5
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -147,7 +288,7 @@
 					"        error_message = f\"Error in setting policy or deleting data from {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 6
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -230,7 +371,7 @@
 					"        error_message = f\"Error in inserting data into {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 7
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -294,7 +435,7 @@
 					"        )\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": 8
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -331,7 +472,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 9
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -349,7 +490,7 @@
 					"})\n",
 					"print(\"RESULT:\", res)"
 				],
-				"execution_count": 10
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -357,7 +498,145 @@
 					"import inspect\n",
 					"print(inspect.getsource(send_telemetry_to_app_insights)[:400])"
 				],
-				"execution_count": 11
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import inspect\n",
+					"print(inspect.getsource(send_telemetry_to_app_insights)[:300])"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from datetime import datetime, timezone\n",
+					"now = datetime.now(timezone.utc)\n",
+					"res = send_telemetry_to_app_insights({\n",
+					"    \"Stage\": \"DEV_14TH_AM\",\n",
+					"    \"PipelineName\": \"manual_test\",\n",
+					"    \"PipelineRunID\": \"manual-14th-am-001\",\n",
+					"    \"StartTime\": now.isoformat(),\n",
+					"    \"EndTime\": now.isoformat(),\n",
+					"    \"StatusMessage\": \"morning check\",\n",
+					"    \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"})\n",
+					"print(\"RESULT:\", res)\n",
+					""
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%pip install azure-monitor-opentelemetry"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"\n",
+					"import logging\n",
+					"from opentelemetry import _logs\n",
+					"from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler\n",
+					"from opentelemetry.sdk._logs.export import BatchLogRecordProcessor\n",
+					"from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter\n",
+					"\n",
+					"_OTEL_READY = False\n",
+					"_otel_logger = None\n",
+					"\n",
+					"def _init_otel(connection_string):\n",
+					"    \"\"\"Configure the Azure Monitor log exporter once per session.\"\"\"\n",
+					"    global _OTEL_READY, _otel_logger\n",
+					"    if _OTEL_READY:\n",
+					"        return _otel_logger\n",
+					"    provider = LoggerProvider()\n",
+					"    exporter = AzureMonitorLogExporter(connection_string=connection_string)\n",
+					"    provider.add_log_record_processor(BatchLogRecordProcessor(exporter))\n",
+					"    _logs.set_logger_provider(provider)\n",
+					"    handler = LoggingHandler(logger_provider=provider)\n",
+					"    pylogger = logging.getLogger(\"odw_pipeline_telemetry\")\n",
+					"    pylogger.setLevel(logging.INFO)\n",
+					"    pylogger.addHandler(handler)\n",
+					"    _otel_logger = pylogger\n",
+					"    _OTEL_READY = True\n",
+					"    return _otel_logger\n",
+					"\n",
+					"\n",
+					"def send_telemetry_to_app_insights(params, force_flush=True):\n",
+					"    \"\"\"\n",
+					"    Send an ODW pipeline log as a customEvent through the OpenTelemetry exporter.\n",
+					"    Returns a result dict; never raises by default.\n",
+					"    \"\"\"\n",
+					"    result = {\"ok\": False, \"error\": None}\n",
+					"    try:\n",
+					"        ikey, conn_str = _get_appinsights_config()   # reuse your existing config helper\n",
+					"    except Exception as e:\n",
+					"        result[\"error\"] = f\"Config error: {e!r}\"\n",
+					"        print(result[\"error\"])\n",
+					"        return result\n",
+					"\n",
+					"    event_name = params.get(\"AppInsCustomEventName\", \"ODW_Master_Pipeline_Logs\")\n",
+					"\n",
+					"    # All custom dimensions go in attributes; the microsoft.custom_event.name\n",
+					"    # attribute is what makes Application Insights store this as a customEvent.\n",
+					"    attributes = {\"microsoft.custom_event.name\": event_name}\n",
+					"    for k, v in params.items():\n",
+					"        if k != \"AppInsCustomEventName\" and v is not None:\n",
+					"            attributes[str(k)] = str(v)\n",
+					"\n",
+					"    try:\n",
+					"        pylogger = _init_otel(conn_str)\n",
+					"        print(f\"App Insights target ikey prefix: {ikey[:8]} | path: OTel exporter (SDK)\")\n",
+					"        pylogger.info(params.get(\"StatusMessage\", event_name), extra=attributes)\n",
+					"\n",
+					"        if force_flush:\n",
+					"            # Force the batch processor to export immediately (notebooks can tear\n",
+					"            # down before the async batch flushes — this is the equivalent of the\n",
+					"            # timeout fix from the raw sender).\n",
+					"            _logs.get_logger_provider().force_flush(timeout_millis=15000)\n",
+					"\n",
+					"        result[\"ok\"] = True\n",
+					"        print(f\"Telemetry emitted via OTel exporter: event={event_name}\")\n",
+					"    except Exception as e:\n",
+					"        result[\"error\"] = f\"Emit error: {e!r}\"\n",
+					"        print(result[\"error\"])\n",
+					"    return result"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from datetime import datetime, timezone\n",
+					"now = datetime.now(timezone.utc)\n",
+					"res = send_telemetry_to_app_insights({\n",
+					"    \"Stage\": \"DEV_OTEL_TEST\",\n",
+					"    \"PipelineName\": \"manual_test\",\n",
+					"    \"PipelineRunID\": \"otel-14th-001\",\n",
+					"    \"StartTime\": now.isoformat(),\n",
+					"    \"EndTime\": now.isoformat(),\n",
+					"    \"StatusMessage\": \"otel path test\",\n",
+					"    \"AppInsCustomEventName\": \"ODW_Master_Pipeline_Logs\"\n",
+					"})\n",
+					"print(\"RESULT:\", res)"
+				],
+				"execution_count": 26
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _get_appinsights_config():\n",
+					"    conn_str = (\"InstrumentationKey=87864c3b-0d8b-4a98-b2c4-596ddf8fe123;\"\n",
+					"                \"IngestionEndpoint=https://uksouth-1.in.applicationinsights.azure.com/;\"\n",
+					"                \"LiveEndpoint=https://uksouth.livediagnostics.monitor.azure.com/\")\n",
+					"    ikey = \"87864c3b-0d8b-4a98-b2c4-596ddf8fe123\"\n",
+					"    return ikey, conn_str"
+				],
+				"execution_count": 25
 			}
 		]
 	}
