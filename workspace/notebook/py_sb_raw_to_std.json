@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "82f10c6d-ca36-4406-b9e1-2cf21bd793b2"
+				"spark.autotune.trackingId": "8480c675-9fe8-4e76-85cb-ab013d672eec"
 			}
 		},
 		"metadata": {
@@ -74,7 +74,8 @@
 					"- `entity_name` — Service Bus entity name\n",
 					"- `raw_entity_path` — path under `odw-raw` container (e.g. `ServiceBus/appeal-has/`)\n",
 					"- `standardised_table` — target table name in `odw_standardised_db`\n",
-					"- `watermark_column` — column used for incremental filtering (default `message_enqueued_time_utc`)\n"
+					"- `watermark_column` — column used for incremental filtering (default `message_enqueued_time_utc`)\n",
+					""
 				]
 			},
 			{
@@ -100,11 +101,6 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [],
 				"execution_count": null
 			},
 			{
@@ -140,39 +136,40 @@
 					"from datetime import datetime\n",
 					"from pyspark.sql import DataFrame\n",
 					"from pyspark.sql.types import StructType\n",
-					"import pyspark.sql.functions as F\n"
+					"import pyspark.sql.functions as F\n",
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"def _fail_and_log(step_name: str, e: Exception):\r\n",
-					"    global error_message\r\n",
-					"\r\n",
-					"    try:\r\n",
-					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\r\n",
-					"    except Exception as format_error:\r\n",
-					"        error_message = (\r\n",
-					"            f\"[{step_name}] Failed to format original exception: \"\r\n",
-					"            f\"{type(format_error).__name__}: {str(format_error)}\"\r\n",
-					"        )[:800]\r\n",
-					"\r\n",
-					"    try:\r\n",
-					"        logError(error_message)\r\n",
-					"    except Exception as log_error:\r\n",
-					"        print(f\"Primary logging failed: {log_error}\")\r\n",
-					"        print(error_message)\r\n",
-					"\r\n",
-					"    try:\r\n",
-					"        telemetry_fn = globals().get(\"_log_telemetry\")\r\n",
-					"        if callable(telemetry_fn):\r\n",
-					"            telemetry_fn(\"Failed\", error_message, step_name)\r\n",
-					"        else:\r\n",
-					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\r\n",
-					"    except Exception as telemetry_error:\r\n",
-					"        print(f\"Telemetry logging failed: {telemetry_error}\")\r\n",
-					"\r\n",
+					"def _fail_and_log(step_name: str, e: Exception):\n",
+					"    global error_message\n",
+					"\n",
+					"    try:\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\n",
+					"    except Exception as format_error:\n",
+					"        error_message = (\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\n",
+					"        )[:800]\n",
+					"\n",
+					"    try:\n",
+					"        logError(error_message)\n",
+					"    except Exception as log_error:\n",
+					"        print(f\"Primary logging failed: {log_error}\")\n",
+					"        print(error_message)\n",
+					"\n",
+					"    try:\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\n",
+					"        if callable(telemetry_fn):\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\n",
+					"        else:\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\n",
+					"    except Exception as telemetry_error:\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\n",
+					"\n",
 					"    raise e"
 				],
 				"execution_count": null
@@ -184,18 +181,19 @@
 					"    try:\n",
 					"        return fn()\n",
 					"    except Exception as e:\n",
-					"        _fail_and_log(step_name, e)\n"
+					"        _fail_and_log(step_name, e)\n",
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"insert_count = 0\r\n",
-					"update_count = 0\r\n",
-					"delete_count = 0\r\n",
-					"error_message= None\r\n",
-					"max_message_enqueued_time_utc = None\r\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message= None\n",
+					"max_message_enqueued_time_utc = None\n",
 					""
 				],
 				"execution_count": null
@@ -228,24 +226,9 @@
 					")\n",
 					"schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 30, {\"db_name\": 'odw_standardised_db', \"entity_name\": entity_name})\n",
 					"spark_schema = StructType.fromJson(json.loads(schema)) if schema != '' else ''\n",
-					"start_exec_time = datetime.now()\n"
+					"start_exec_time = datetime.now()\n",
+					""
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [],
 				"execution_count": null
 			},
 			{
@@ -282,7 +265,8 @@
 					"    )\n",
 					"\n",
 					"    logInfo(f\"Read {df.count()} rows from {source_path}\")\n",
-					"    return df\n"
+					"    return df\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -300,28 +284,28 @@
 					}
 				},
 				"source": [
-					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\r\n",
-					"    \"\"\"\r\n",
-					"    Dedupes a DataFrame based on certain columns\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        df: a DataFrame of service bus data\r\n",
-					"\r\n",
-					"    Returns:\r\n",
-					"        a deduped DataFrame\r\n",
-					"    \"\"\"\r\n",
-					"    # Handle empty or missing DataFrame\r\n",
-					"    if df is None or df.rdd.isEmpty():\r\n",
-					"        logInfo(\"No rows found. Skipping dedupe step\")\r\n",
-					"        return df\r\n",
-					"    # removing duplicates while ignoring the ingestion dates columns\r\n",
-					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\r\n",
-					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\r\n",
-					"    if not columns_to_consider:\r\n",
-					"        logWarning(\"No columns available for dedupe. Returning DataFrame unchanged\")\r\n",
-					"        return df\r\n",
-					"\r\n",
-					"    return df.dropDuplicates(subset=columns_to_consider)\r\n",
+					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\n",
+					"    \"\"\"\n",
+					"    Dedupes a DataFrame based on certain columns\n",
+					"\n",
+					"    Args:\n",
+					"        df: a DataFrame of service bus data\n",
+					"\n",
+					"    Returns:\n",
+					"        a deduped DataFrame\n",
+					"    \"\"\"\n",
+					"    # Handle empty or missing DataFrame\n",
+					"    if df is None or df.rdd.isEmpty():\n",
+					"        logInfo(\"No rows found. Skipping dedupe step\")\n",
+					"        return df\n",
+					"    # removing duplicates while ignoring the ingestion dates columns\n",
+					"    columns_to_ignore: list = ['expected_to', 'expected_from', 'ingested_datetime']\n",
+					"    columns_to_consider: list = [c for c in df.columns if c not in columns_to_ignore]\n",
+					"    if not columns_to_consider:\n",
+					"        logWarning(\"No columns available for dedupe. Returning DataFrame unchanged\")\n",
+					"        return df\n",
+					"\n",
+					"    return df.dropDuplicates(subset=columns_to_consider)\n",
 					""
 				],
 				"execution_count": null
@@ -341,40 +325,41 @@
 					"        .option(\"path\", table_path)\n",
 					"        .saveAsTable(target_table)\n",
 					"    )\n",
-					"    logInfo(f\"Successfully appended data to table {target_table}\")\n"
+					"    logInfo(f\"Successfully appended data to table {target_table}\")\n",
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"@logging_to_appins\r\n",
-					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\r\n",
-					"    \"\"\"\r\n",
-					"    Test if the new row count matches the expected row count.\r\n",
-					"    If True then rows have been appended successfully.\r\n",
-					"\r\n",
-					"    Args:\r\n",
-					"        new_table_row_count: count of rows after the append operation\r\n",
-					"        expected_row_count: count of rows we expect after the append operation\r\n",
-					"\r\n",
-					"    Returns:\r\n",
-					"        True if the counts match\r\n",
-					"    \"\"\"\r\n",
-					"    logInfo(\r\n",
-					"        f\"Testing row counts - New: {new_table_row_count}, Expected: {expected_row_count}\"\r\n",
-					"    )\r\n",
-					"\r\n",
-					"    result = new_table_row_count == expected_row_count\r\n",
-					"\r\n",
-					"    if result:\r\n",
-					"        logInfo(f\"Row count test passed: {new_table_row_count} == {expected_row_count}\")\r\n",
-					"    else:\r\n",
-					"        logError(\r\n",
-					"            f\"Row count test failed: {new_table_row_count} != {expected_row_count}\"\r\n",
-					"        )\r\n",
-					"\r\n",
-					"    return result\r\n",
+					"@logging_to_appins\n",
+					"def test_rows_appended(new_table_row_count: int, expected_row_count: int) -> bool:\n",
+					"    \"\"\"\n",
+					"    Test if the new row count matches the expected row count.\n",
+					"    If True then rows have been appended successfully.\n",
+					"\n",
+					"    Args:\n",
+					"        new_table_row_count: count of rows after the append operation\n",
+					"        expected_row_count: count of rows we expect after the append operation\n",
+					"\n",
+					"    Returns:\n",
+					"        True if the counts match\n",
+					"    \"\"\"\n",
+					"    logInfo(\n",
+					"        f\"Testing row counts - New: {new_table_row_count}, Expected: {expected_row_count}\"\n",
+					"    )\n",
+					"\n",
+					"    result = new_table_row_count == expected_row_count\n",
+					"\n",
+					"    if result:\n",
+					"        logInfo(f\"Row count test passed: {new_table_row_count} == {expected_row_count}\")\n",
+					"    else:\n",
+					"        logError(\n",
+					"            f\"Row count test failed: {new_table_row_count} != {expected_row_count}\"\n",
+					"        )\n",
+					"\n",
+					"    return result\n",
 					""
 				],
 				"execution_count": null
@@ -385,27 +370,28 @@
 					"df = run_step(\n",
 					"    \"Read raw messages from source path\",\n",
 					"    lambda: read_raw_messages(source_path=source_path)\n",
-					")\n"
+					")\n",
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"last_ingest_time = None\r\n",
-					"try:\r\n",
-					"    wm_row = spark.sql(\r\n",
-					"        f\"SELECT MAX(last_ingest_time) AS wm_ts \"\r\n",
-					"        f\"FROM odw_meta_db.service_bus_watermarks \"\r\n",
-					"        f\"WHERE entity = '{entity_name}' AND source = 'service-bus'\"\r\n",
-					"    ).collect()\r\n",
-					"    if wm_row and wm_row[0][0]:\r\n",
-					"        last_ingest_time = str(wm_row[0][0])\r\n",
-					"        logInfo(f\"Watermark found: last_ingest_time={last_ingest_time}\")\r\n",
-					"    else:\r\n",
-					"        logInfo(f\"No watermark found for {entity_name} — all RAW records will be processed\")\r\n",
-					"except Exception as e:\r\n",
-					"    logInfo(f\"Watermark table not accessible, processing all RAW records: {str(e)[:200]}\")\r\n",
+					"last_ingest_time = None\n",
+					"try:\n",
+					"    wm_row = spark.sql(\n",
+					"        f\"SELECT MAX(last_ingest_time) AS wm_ts \"\n",
+					"        f\"FROM odw_meta_db.service_bus_watermarks \"\n",
+					"        f\"WHERE entity = '{entity_name}' AND source = 'service-bus'\"\n",
+					"    ).collect()\n",
+					"    if wm_row and wm_row[0][0]:\n",
+					"        last_ingest_time = str(wm_row[0][0])\n",
+					"        logInfo(f\"Watermark found: last_ingest_time={last_ingest_time}\")\n",
+					"    else:\n",
+					"        logInfo(f\"No watermark found for {entity_name} — all RAW records will be processed\")\n",
+					"except Exception as e:\n",
+					"    logInfo(f\"Watermark table not accessible, processing all RAW records: {str(e)[:200]}\")\n",
 					""
 				],
 				"execution_count": null
@@ -431,7 +417,8 @@
 					"    max_ts_row = df.agg({watermark_column: \"max\"}).collect()\n",
 					"    max_message_enqueued_time_utc = str(max_ts_row[0][0]) if max_ts_row and max_ts_row[0][0] else None\n",
 					"except Exception as _mts_err:\n",
-					"    logError(f\"Failed to compute max watermark value: {str(_mts_err)[:200]}\")\n"
+					"    logError(f\"Failed to compute max watermark value: {str(_mts_err)[:200]}\")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -445,11 +432,11 @@
 					}
 				},
 				"source": [
-					"##### Dedupe the DataFrame and generate counts.\r\n",
-					"\r\n",
-					"1. Get existing row count of target table  \r\n",
-					"2. Dedupe the DataFrame  \r\n",
-					"3. Get count of rows to append  \r\n",
+					"##### Dedupe the DataFrame and generate counts.\n",
+					"\n",
+					"1. Get existing row count of target table  \n",
+					"2. Dedupe the DataFrame  \n",
+					"3. Get count of rows to append  \n",
 					"4. Get the expected new row count which is existing count + new rows"
 				]
 			},
@@ -476,7 +463,44 @@
 					"expected_new_count, insert_count, df = run_step(\n",
 					"    \"Calculate expected new row count\",\n",
 					"    step_calculate_expected_new_count\n",
-					")\n"
+					")\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from odw.core.anonymisation.engine import AnonymisationEngine\n",
+					"from odw.core.anonymisation.config import load_config, AnonymisationConfig\n",
+					"from odw.core.util.util import Util\n",
+					"\n",
+					"def apply_anonymisation_sb(df, entity_name):\n",
+					"    anon_enabled = Util.is_non_production_environment()\n",
+					"    logInfo(f\"anonymisation_gate: environment={Util.get_environment()} enabled={anon_enabled} entity={entity_name}\")\n",
+					"    if not anon_enabled:\n",
+					"        return df\n",
+					"    anon_config = AnonymisationConfig()\n",
+					"    try:\n",
+					"        policy_path = f\"abfss://odw-config@{storage_account}anonymisation/policy.yaml\"\n",
+					"        policy_text = spark.read.text(policy_path, wholetext=True).first().value\n",
+					"        anon_config = load_config(text=policy_text)\n",
+					"    except Exception as config_err:\n",
+					"        logInfo(f\"Could not load anonymisation policy, using defaults: {config_err}\")\n",
+					"    engine = AnonymisationEngine(\n",
+					"        config=AnonymisationConfig(\n",
+					"            classification_allowlist=anon_config.classification_allowlist,\n",
+					"            seed_column=anon_config.get_seed_column(entity_name),\n",
+					"        )\n",
+					"    )\n",
+					"    logInfo(f\"Applying anonymisation to Service Bus entity: {entity_name}\")\n",
+					"    return engine.apply_from_purview(df, entity_name=entity_name, source_folder=\"ServiceBus\")\n",
+					"\n",
+					"df = run_step(\n",
+					"    \"Apply anonymisation (DEV/TEST only)\",\n",
+					"    lambda: apply_anonymisation_sb(df=df, entity_name=entity_name)\n",
+					")\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -496,13 +520,13 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def step_append_df_to_table():\r\n",
-					"    \r\n",
-					"    logInfo(f\"Appending new rows to table {target_table}\")\r\n",
-					"    append_df_to_table(df=df, target_table=target_table)\r\n",
-					"    end_exec_time = datetime.now()\r\n",
-					"    logInfo(\"Done appending rows to table\")\r\n",
-					"    return spark.table(target_table).count()\r\n",
+					"def step_append_df_to_table():\n",
+					"    \n",
+					"    logInfo(f\"Appending new rows to table {target_table}\")\n",
+					"    append_df_to_table(df=df, target_table=target_table)\n",
+					"    end_exec_time = datetime.now()\n",
+					"    logInfo(\"Done appending rows to table\")\n",
+					"    return spark.table(target_table).count()\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],
 				"execution_count": null
@@ -517,8 +541,8 @@
 					}
 				},
 				"source": [
-					"##### Test rows were appended successfully\r\n",
-					"\r\n",
+					"##### Test rows were appended successfully\n",
+					"\n",
 					"Test that the new row count in the target table matches the expected new row count above"
 				]
 			},
@@ -538,7 +562,8 @@
 					"    logInfo(\"Rows appended successfully\")\n",
 					"    return True\n",
 					"\n",
-					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)\n"
+					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -606,7 +631,8 @@
 					"except Exception as te:\n",
 					"    print(f\"Telemetry failed: {te}\")\n",
 					"\n",
-					"mssparkutils.notebook.exit(exit_payload)\n"
+					"mssparkutils.notebook.exit(exit_payload)\n",
+					""
 				],
 				"execution_count": null
 			}
