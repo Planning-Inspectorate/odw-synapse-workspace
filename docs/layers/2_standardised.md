@@ -43,6 +43,56 @@ In order to add a new raw source and convert the data in standardised form, foll
 - Make sure to add your changes in the `orchestration.json` and `[synapse_data_lake]/odw-config/standardised_table_definitions/{newly_created_schema.json}` to your branch. This will help keep things consistent between environments.
 
 
+## Anonymisation (DEV / TEST only)
+
+In non-production environments (DEV and TEST) all sensitive columns are anonymised **before** the standardised table is written. Production outputs are never modified.
+
+### How it works
+
+1. The standardisation process checks `Util.is_non_production_environment()`, which reads `spark.executorEnv.environment` from the attached Spark configuration artifact (`DEVConfiguration` / `TESTConfiguration`). Production defaults to `PROD` if the key is absent.
+2. When enabled, the `AnonymisationEngine` fetches column classifications from Azure Purview for the asset being processed, then applies strategy-based masking:
+   - **Names** → `"REDACTED"`
+   - **Email addresses** → SHA-256 hash (preserves join-ability; case-insensitive)
+   - **NI numbers** → deterministic fake in `AA000000A` format
+   - **Dates of birth** → pseudorandom date 1955–2005 (seeded per row)
+   - **Ages / salaries** → pseudorandom integer in a plausible range (seeded per row)
+   - **Postcodes / addresses** → outward code only / `"REDACTED"`
+3. If anonymisation fails the process raises and **does not write** any data (atomicity preserved).
+
+### Configuration
+
+An optional YAML policy file can restrict which Purview classifications trigger anonymisation and configure per-entity seed columns. Deploy it to:
+
+```text
+abfss://odw-config@<storage-account>/anonymisation/policy.yaml
+```
+
+A reference copy with all supported classifications is at [`docs/anonymisation/mock_policy.yaml`](../anonymisation/mock_policy.yaml). If the file is absent the engine applies anonymisation to **all** classified columns.
+
+### Observability
+
+Every run emits a structured log line at the anonymisation gate (visible in Application Insights / Synapse Monitor):
+
+```text
+anonymisation_gate: environment=DEV enabled=True entity=service-user
+```
+
+In PROD the line reads `enabled=False` and no anonymisation is applied. The engine additionally logs the list of columns anonymised and row counts (event `apply_from_purview.summary`).
+
+### Deployment checklist
+
+- [ ] `DEVConfiguration` Spark configuration is attached to the DEV Spark pool.
+- [ ] `TESTConfiguration` Spark configuration is attached to the TEST Spark pool.
+- [ ] `policy.yaml` is uploaded to `odw-config/anonymisation/` in the target storage account (optional — defaults apply without it).
+- [ ] The Synapse workspace service principal has Purview Data Reader role.
+- [ ] Verify DEV output: confirm PII columns in `odw_standardised_db` contain masked values, non-PII columns are unchanged.
+
+### Rollback
+
+To disable anonymisation in DEV/TEST without a code change, remove or rename the `spark.executorEnv.environment` key in the attached Spark configuration artifact. The engine will then default to `PROD` behaviour and skip anonymisation.
+
+See [`odw/core/anonymisation/README.md`](../../odw/core/anonymisation/README.md) for full engine documentation and [`docs/anonymisation/INTEGRATION_TESTING_GUIDE.md`](../anonymisation/INTEGRATION_TESTING_GUIDE.md) for testing instructions.
+
 ## Pipeline
 
 ## Workspace
