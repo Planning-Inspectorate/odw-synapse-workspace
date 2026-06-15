@@ -12,6 +12,11 @@ class OrchestrationResult(BaseModel):
     errors: Optional[str] = None
 
 
+class PreprocessingError(BaseModel):
+    batch: List[PreprocessedOrchestrationEntry]
+    error: str
+
+
 class OrchestrationUtil:
     @classmethod
     def _validate_results(cls, results: ResultType):
@@ -32,8 +37,19 @@ class OrchestrationUtil:
         return results_json
 
     @classmethod
-    def _validate_batch_failures(cls, batch_failures: List[Dict[str, Any]]):
-        pass
+    def _validate_preprocessing_failures(cls, preprocessing_failures: List[Dict[str, Any]]):
+        if not isinstance(preprocessing_failures, list):
+            raise ValueError(f"Preprocessing errors should be a list, but was of type {type(preprocessing_failures)}")
+        preprocessing_failures_json = [json.loads(x) for x in preprocessing_failures]
+        invalid_entries = []
+        for error_list in preprocessing_failures_json:
+            try:
+                PreprocessingError.model_validate(error_list)
+            except ValidationError as e:
+                invalid_entries.append((error_list, e))
+        if invalid_entries:
+            raise ValueError(f"The following preprocessing errors are not valid: {json.dumps(invalid_entries, indent=4, default=str)}")
+        return preprocessing_failures_json
 
     @classmethod
     def _clean_results(cls, results: List[List[Dict[str, Any]]]):
@@ -49,12 +65,28 @@ class OrchestrationUtil:
         ]
 
     @classmethod
-    def postprocess_orchestration_results(cls, successful_results: ResultType, failed_results: ResultType, batch_failures: List[Dict[str, Any]]):
+    def _clean_preprocessing_failures(cls, preprocessing_failures: List[Dict[str, Any]]):
+        return [
+            {
+                "entity": entity_stage["orchestration_entity_name"],
+                "stage": entity_stage["orchestration_stage_name"],
+                "successful": False,
+                "error": batch["error"],
+            }
+            for batch in preprocessing_failures
+            for entity_stage in batch["batch"]
+        ]
+
+    @classmethod
+    def postprocess_orchestration_results(
+        cls, successful_results: ResultType, failed_results: ResultType, preprocessing_failures: List[Dict[str, Any]]
+    ):
         successful_results_json = cls._validate_results(failed_results)
         failed_results_json = cls._validate_results(successful_results)
-        batch_failures_json = cls._validate_batch_failures(batch_failures)
+        preprocessing_failures_json = cls._validate_preprocessing_failures(preprocessing_failures)
 
         clean_successful_results = cls._clean_results(successful_results_json)
         clean_failed_results = cls._clean_results(failed_results_json)
-        results = clean_successful_results + clean_failed_results
-        return {"hasFailure": bool(failed_results), "results": results}
+        clean_preprocessing_failures = cls._clean_preprocessing_failures(preprocessing_failures_json)
+        results = clean_successful_results + clean_failed_results + clean_preprocessing_failures
+        return {"hasFailure": bool(failed_results) or bool(clean_preprocessing_failures), "results": results}
