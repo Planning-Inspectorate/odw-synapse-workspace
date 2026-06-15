@@ -328,6 +328,20 @@ def _extract_classified_columns(
 
     def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
         cols = source.get("referredEntities", {}) or {}
+        _log_event(
+            "purview.referred_entities_debug",
+            total=len(cols),
+            entities=[
+                {
+                    "guid": g,
+                    "typeName": (v or {}).get("typeName"),
+                    "name": ((v or {}).get("attributes", {}) or {}).get("name"),
+                    "has_classifications": bool((v or {}).get("classifications")),
+                    "rel_keys": sorted(((v or {}).get("relationshipAttributes", {}) or {}).keys()),
+                }
+                for g, v in list(cols.items())[:10]  # cap at 10 to avoid log flood
+            ],
+        )
         out: List[dict] = []
         for guid, col in cols.items():
             if only_guids is not None and guid not in only_guids:
