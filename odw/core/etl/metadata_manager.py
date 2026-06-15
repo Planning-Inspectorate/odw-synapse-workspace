@@ -3,6 +3,8 @@ from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, BooleanType
+from pyspark.sql.window import Window
+import pyspark.sql.functions as F
 from delta.exceptions import ConcurrentAppendException
 from tenacity.retry import retry_if_exception
 from tenacity import retry, wait_random_exponential, stop_after_attempt
@@ -99,6 +101,7 @@ class MetadataManager:
         """
         Write a metadata entry. This is resilient to concurrent writing, and will reattempt if a concurrent write is detected
         """
+        keys = ["run_id", "entity_name", "stage_name"]
         SynapseDeltaIO().write(
             data,
             spark=self._spark,
@@ -107,10 +110,10 @@ class MetadataManager:
             table_name=self.METADATA_TABLE,
             container_name=self.METADATA_CONTAINER,
             blob_path=self.METADATA_TABLE,
-            merge_keys=["run_id", "entity_name", "stage_name"],
+            merge_keys=keys,
             update_key_col="_update_key_col",
             columns_to_update=["execution_finish_time", "successful", "result_text"],
-            partition_by_cols=["run_id"],
+            partition_by_cols=keys,
         )
 
     def create(self):
@@ -165,6 +168,19 @@ class MetadataManager:
         """
         run_id = self._entry.get("run_id", None)
         return self._spark.sql(f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}'")
+
+    def get_most_recent_for_run_id(self):
+        """
+        Return all most-recent entries for the run_id
+        """
+        entries = self.get_for_run_id()
+        partition_cols = ["run_id", "entity_name", "stage_name"]
+        return (
+            entries.withColumn("execution_order", F.row_number().over(Window.partitionBy(partition_cols).orderBy("execution_start_time")))
+            .withColumn("max_execution_order", F.max("execution_order").over(Window.partitionBy(partition_cols)))
+            .filter(F.col("execution_order") == F.col("max_execution_order"))
+            .drop("execution_order", "max_execution_order")
+        )
 
     def get_for_entity(self):
         """
