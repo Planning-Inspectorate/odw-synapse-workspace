@@ -478,6 +478,11 @@ class AnonymisationEngine:
             col_raw = item.get("column_name")
             col_norm = _norm_col_name(col_raw)
             actual_col = norm_to_actual.get(col_norm)
+            if not actual_col and col_raw and "." in col_raw:
+                # Purview stores nested column names as paths (e.g. "value[].surname").
+                # Fall back to matching on just the leaf segment.
+                leaf_norm = _norm_col_name(col_raw.rsplit(".", 1)[-1])
+                actual_col = norm_to_actual.get(leaf_norm)
             if not actual_col:
                 continue
             classes = set(item.get("classifications") or [])
