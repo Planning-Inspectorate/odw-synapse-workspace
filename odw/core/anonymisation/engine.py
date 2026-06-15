@@ -308,8 +308,16 @@ def _extract_classified_columns(
     Falls back to scanning the original entity's referredEntities if necessary.
     """
     rel_attrs = (entity_with_refs.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+
+    # attachedSchema: list form used by most asset types
     attached_schema = rel_attrs.get("attachedSchema", []) or []
     schema_guid = attached_schema[0].get("guid") if attached_schema else None
+
+    # tabSchema: single-dict form used by ADLS Gen2 resource sets
+    if not schema_guid:
+        tab_schema = rel_attrs.get("tabSchema") or {}
+        if isinstance(tab_schema, dict):
+            schema_guid = tab_schema.get("guid")
 
     def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
         cols = source.get("referredEntities", {}) or {}
@@ -397,11 +405,15 @@ def fetch_purview_classifications_by_qualified_name(
     if cols:
         return cols
 
-    # Fallback: attached schema -> its referred entities -> extract from each
+    # Fallback: schema entity (attachedSchema list or tabSchema dict) -> its referred entities
     try:
         rel_attrs = (entity.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
         attached_schema = rel_attrs.get("attachedSchema", []) or []
         schema_guid = attached_schema[0].get("guid") if attached_schema else None
+        if not schema_guid:
+            tab_schema = rel_attrs.get("tabSchema") or {}
+            if isinstance(tab_schema, dict):
+                schema_guid = tab_schema.get("guid")
     except Exception:
         schema_guid = None
 

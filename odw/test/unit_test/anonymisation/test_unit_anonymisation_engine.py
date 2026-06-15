@@ -815,6 +815,50 @@ class TestHorizonPurviewFQNBuilder:
         assert "/HorizonAppeals{N}.csv" in fqn
         assert "/archive/Horizon/" in fqn
 
+    def test__extract_classified_columns__reads_tab_schema_guid(self):
+        """tabSchema (single dict) must be followed when attachedSchema is absent."""
+        from odw.core.anonymisation.engine import _extract_classified_columns
+
+        # Simulate a Purview entity whose schema is linked via tabSchema (ADLS Gen2 resource set)
+        schema_guid = "schema-guid-001"
+        col_guid = "col-guid-surname"
+        entity_with_refs = {
+            "entity": {
+                "relationshipAttributes": {
+                    "tabSchema": {"guid": schema_guid, "typeName": "tabular_schema"},
+                }
+            },
+            "referredEntities": {},  # columns are NOT here — they need a second hop
+        }
+        schema_entity_with_refs = {
+            "entity": {
+                "relationshipAttributes": {
+                    "columns": [{"guid": col_guid, "typeName": "tabular_column"}],
+                }
+            },
+            "referredEntities": {
+                col_guid: {
+                    "guid": col_guid,
+                    "typeName": "tabular_column",
+                    "attributes": {"name": "surname"},
+                    "classifications": [{"typeName": "All Full Names"}],
+                }
+            },
+        }
+
+        def mock_get_entity(purview_name, guid, api_version, headers):
+            if guid == schema_guid:
+                return schema_entity_with_refs
+            raise ValueError(f"Unexpected GUID: {guid}")
+
+        from unittest import mock
+        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
+            result = _extract_classified_columns(entity_with_refs, purview_name="pins-pview")
+
+        assert len(result) == 1
+        assert result[0]["column_name"] == "surname"
+        assert "All Full Names" in result[0]["classifications"]
+
     def test__build_fqn__entraid_no_entity_subfolder(self):
         fqn = _build_asset_qualified_name_from_params(
             storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
