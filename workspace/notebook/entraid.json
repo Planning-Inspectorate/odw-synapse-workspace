@@ -332,34 +332,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def step_build_entraid_new():\n",
-					"    \"\"\"\n",
-					"    Creates or replaces the temporary view 'entraid_new'\n",
-					"    by joining entraid_new_candidates with raw_entraids.\n",
-					"    \"\"\"\n",
-					"    logInfo(\"Starting: Build entraid_new view\")\n",
-					"\n",
-					"    query = \"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n",
-					"    SELECT\n",
-					"        candidates.*\n",
-					"    FROM entraid_new_candidates AS candidates\n",
-					"    INNER JOIN raw_entraids\n",
-					"        ON candidates.id = raw_entraids.id\n",
-					"        AND candidates.employeeId = raw_entraids.employeeId\n",
-					"        AND candidates.givenName = raw_entraids.givenName\n",
-					"        AND candidates.userPrincipalName = raw_entraids.userPrincipalName\n",
-					"    \"\"\"\n",
-					"\n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n",
-					"\n",
-					"    return row_count\n",
-					"entraid_new_count = run_step(\n",
-					"    \"Build entraid_new view\",\n",
-					"    step_build_entraid_new\n",
-					")"
+					"def step_build_entraid_new():\n    \"\"\"\n    Creates or replaces the temporary view 'entraid_new'\n    by joining entraid_new_candidates with raw_entraids.\n    \"\"\"\n    logInfo(\"Starting: Build entraid_new view\")\n\n    query = \"\"\"\n    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n    SELECT\n        candidates.*\n    FROM entraid_new_candidates AS candidates\n    INNER JOIN raw_entraids\n        ON candidates.id = raw_entraids.id\n    \"\"\"\n\n    spark.sql(query)\n    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n\n    return row_count\nentraid_new_count = run_step(\n    \"Build entraid_new view\",\n    step_build_entraid_new\n)"
 				],
 				"execution_count": null
 			},
@@ -572,6 +545,15 @@
 					"    step_insert_overwrite_entraid\n",
 					")"
 				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"def step_anonymise_entraid():\n    \"\"\"Anonymise PII columns in the harmonised entraid table in non-production environments.\n\n    The standardised layer anonymises on write, but since this notebook also reads from the\n    raw ADLS snapshot (step_load_current_raw_entraid), any pre-existing harmonised records\n    with real names must also be anonymised here. The Purview classifications on the raw\n    entraid resource set are reused — column names are identical across standardised and\n    harmonised layers.\n    \"\"\"\n    from odw.core.util.util import Util\n    if not Util.is_non_production_environment():\n        logInfo(\"step_anonymise_entraid: skipped in production\")\n        return\n\n    from odw.core.anonymisation.engine import AnonymisationEngine\n    from odw.core.anonymisation.config import AnonymisationConfig\n\n    logInfo(\"step_anonymise_entraid: applying anonymisation to odw_harmonised_db.entraid\")\n    storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n\n    engine = AnonymisationEngine(config=AnonymisationConfig())\n    df = spark.table(\"odw_harmonised_db.entraid\")\n    df_anon = engine.apply_from_purview(df, entity_name=\"entraid\", source_folder=\"entraid\")\n\n    table_location = (\n        spark.sql(\"DESCRIBE FORMATTED odw_harmonised_db.entraid\")\n        .filter(\"col_name = 'Location'\")\n        .select(\"data_type\")\n        .collect()[0][0]\n    )\n    df_anon.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"false\").save(table_location)\n    logInfo(\"step_anonymise_entraid: anonymisation complete\")\n\nrun_step(\"Anonymise PII in harmonised entraid\", step_anonymise_entraid)\n"
+				],
+				"outputs": [],
 				"execution_count": null
 			},
 			{
