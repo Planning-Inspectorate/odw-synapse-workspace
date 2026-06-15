@@ -549,15 +549,6 @@
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
-				"source": [
-					"def step_anonymise_entraid():\n    \"\"\"Anonymise PII columns in the harmonised entraid table in non-production environments.\n\n    The standardised layer anonymises on write, but since this notebook also reads from the\n    raw ADLS snapshot (step_load_current_raw_entraid), any pre-existing harmonised records\n    with real names must also be anonymised here. The Purview classifications on the raw\n    entraid resource set are reused — column names are identical across standardised and\n    harmonised layers.\n    \"\"\"\n    from odw.core.util.util import Util\n    if not Util.is_non_production_environment():\n        logInfo(\"step_anonymise_entraid: skipped in production\")\n        return\n\n    from odw.core.anonymisation.engine import AnonymisationEngine\n    from odw.core.anonymisation.config import AnonymisationConfig\n\n    logInfo(\"step_anonymise_entraid: applying anonymisation to odw_harmonised_db.entraid\")\n    storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n\n    engine = AnonymisationEngine(config=AnonymisationConfig())\n    df = spark.table(\"odw_harmonised_db.entraid\")\n    df_anon = engine.apply_from_purview(df, entity_name=\"entraid\", source_folder=\"entraid\")\n\n    table_location = (\n        spark.sql(\"DESCRIBE FORMATTED odw_harmonised_db.entraid\")\n        .filter(\"col_name = 'Location'\")\n        .select(\"data_type\")\n        .collect()[0][0]\n    )\n    df_anon.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"false\").save(table_location)\n    logInfo(\"step_anonymise_entraid: anonymisation complete\")\n\nrun_step(\"Anonymise PII in harmonised entraid\", step_anonymise_entraid)\n"
-				],
-				"outputs": [],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
 				"source": [
 					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
 					"    end_exec_time = datetime.now()\n",
