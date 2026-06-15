@@ -370,9 +370,9 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Copy-Entraid-curated-mipins",
+						"activity": "Set_PipelineStatus_Success",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -388,7 +388,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Failed','success')\n ",
+							"value": "@variables('PipelineStatus')",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -399,20 +399,26 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
+						"StartTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
 						"EndTime": {
 							"value": "@utcNow()",
 							"type": "Expression"
 						},
 						"Inserts": {
-							"value": "@if(\n    or(\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)\n    ),\n    activity('Copy-Entraid-curated-mipins').output.rowsCopied,\n    ''\n)\n",
+							"value": "0",
 							"type": "Expression"
 						},
+						"Updates": 0,
+						"Deletes": 0,
 						"ErrorMessage": {
-							"value": "@{if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''), equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)), '', activity('Copy-Entraid-curated-mipins')?.Error?.Message)}",
+							"value": "@coalesce(variables('Error'),'')",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'Pipeline run failed','Pipeline run completed')",
+							"value": "@if(equals(variables('PipelineStatus'),'Success'),\n'Pipeline completed successfully',\n'Pipeline failed')\n",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -435,6 +441,7 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
+						"PipelineExecutionTimeInSec": "0",
 						"ActivityType": {
 							"value": "Copy Activity",
 							"type": "Expression"
@@ -468,7 +475,10 @@
 				"userProperties": [],
 				"typeProperties": {
 					"variableName": "Error_EntraID",
-					"value": "@concat(\n    'Activity: Copy-Entraid-curated-mipins; ',\n    'Status: Failed; ',\n    'Error: ',\n    activity('Copy-Entraid-curated-mipins').error.message\n)"
+					"value": {
+						"value": "@activity('Copy-Entraid-curated-mipins').error.message",
+						"type": "Expression"
+					}
 				}
 			},
 			{
@@ -536,7 +546,13 @@
 					{
 						"activity": "Copy-Entraid-curated-mipins",
 						"dependencyConditions": [
-							"Completed"
+							"Failed"
+						]
+					},
+					{
+						"activity": "Set_PipelineStatus_Failed",
+						"dependencyConditions": [
+							"Succeeded"
 						]
 					}
 				],
@@ -551,12 +567,24 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "@if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)),'Failed','success')\n ",
+						"Stage": {
+							"value": "Failed",
+							"type": "Expression"
+						},
 						"PipelineName": "@pipeline().Pipeline",
 						"PipelineRunID": "@pipeline().RunId",
+						"StartTime": "@utcNow()",
 						"EndTime": "@utcNow()",
-						"Inserts": "@if(\n    or(\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''),\n        equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)\n    ),\n    activity('Copy-Entraid-curated-mipins').output.rowsCopied,\n    ''\n)\n",
-						"ErrorMessage": "@{if(or(equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, ''), equals(activity('Copy-Entraid-curated-mipins')?.Error?.Message, null)), '', activity('Copy-Entraid-curated-mipins')?.Error?.Message)}",
+						"Inserts": {
+							"value": "0",
+							"type": "Expression"
+						},
+						"Updates": 0,
+						"Deletes": 0,
+						"ErrorMessage": {
+							"value": "@coalesce(variables('Error'),'')",
+							"type": "Expression"
+						},
 						"StatusMessage": "@if(equals(variables('PipelineStatus'),'Failed'),'Pipeline run failed','Pipeline run completed')",
 						"PipelineTriggerID": "@pipeline().TriggerId",
 						"PipelineTriggerName": "@pipeline().TriggerName",
@@ -567,6 +595,27 @@
 						"DurationSeconds": "@activity('Copy-Entraid-curated-mipins').output.copyDuration\n",
 						"AppInsIKey": "8a0ba3c2-9e86-439e-829d-ad13d179514e"
 					}
+				}
+			},
+			{
+				"name": "Set_PipelineStatus_Success",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy-Entraid-curated-mipins",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "'Success'"
 				}
 			}
 		],
@@ -586,6 +635,9 @@
 			"PipelineStatus": {
 				"type": "String",
 				"defaultValue": "Success"
+			},
+			"Error": {
+				"type": "String"
 			}
 		},
 		"folder": {
