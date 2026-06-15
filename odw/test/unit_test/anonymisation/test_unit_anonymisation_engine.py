@@ -749,7 +749,6 @@ class TestAnonymisationEngine(SparkTestCase):
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
 
-
     def test__anonymisation__nested_purview_column_matched_by_leaf(self):
         from odw.core.anonymisation.engine import AnonymisationEngine
 
@@ -852,6 +851,7 @@ class TestHorizonPurviewFQNBuilder:
             raise ValueError(f"Unexpected GUID: {guid}")
 
         from unittest import mock
+
         with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
             result = _extract_classified_columns(entity_with_refs, purview_name="pins-pview")
 
