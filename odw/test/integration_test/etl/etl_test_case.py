@@ -4,7 +4,7 @@ from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.test.util.util import generate_local_path
-from odw.test.util.util import format_adls_path_to_local_path, format_to_adls_path
+from odw.test.util.util import format_adls_path_to_local_path
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import json
@@ -23,8 +23,7 @@ class ETLTestCase(SparkTestCase):
     def setup(self, request):
         with mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}):
             with mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
-                # Table io automatically writes to the spark warehouse, so drop the spark warehouse from its write path
-                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path):
+                with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_adls_path_to_local_path):
                     with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
                         with mock.patch.object(Util, "get_path_to_file", generate_local_path):
                             with mock.patch.object(LoggingUtil, "__new__"):

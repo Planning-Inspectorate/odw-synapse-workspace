@@ -7,7 +7,7 @@ import mock
 
 
 class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
-    def test__nsip_exam_timetable_harmonisation_process__process__aggregates_horizon_events_and_sets_published(self):
+    def test__nsip_exam_timetable_harmonisation_process__process__explodes_events_and_sets_published(self):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -16,7 +16,18 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                     1,
                     "EN010001",
                     True,
-                    [Row(eventId=100, type="sb")],
+                    [
+                        Row(
+                            eventId=100,
+                            type="sb",
+                            eventTitle="SB Event",
+                            eventTitleWelsh="",
+                            description="SB Desc",
+                            descriptionWelsh=None,
+                            date="2025-01-10 00:00:00",
+                            eventDeadlineStartDate="2025-01-11 00:00:00",
+                        )
+                    ],
                     "1",
                     "ODT",
                     "SRC1",
@@ -38,6 +49,12 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                                 [
                                     T.StructField("eventId", T.IntegerType(), True),
                                     T.StructField("type", T.StringType(), True),
+                                    T.StructField("eventTitle", T.StringType(), True),
+                                    T.StructField("eventTitleWelsh", T.StringType(), True),
+                                    T.StructField("description", T.StringType(), True),
+                                    T.StructField("descriptionWelsh", T.StringType(), True),
+                                    T.StructField("date", T.StringType(), True),
+                                    T.StructField("eventDeadlineStartDate", T.StringType(), True),
                                 ]
                             )
                         ),
@@ -56,8 +73,30 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
 
         horizon_data = spark.createDataFrame(
             [
-                ("EN010002", 200, "Deadline", "Title 1", "Title 1 CY", "Desc 1", "Desc 1 CY", "2025-02-10", "2025-02-11", "2025-02-01 00:00:00"),
-                ("EN010002", 201, "Hearing", "Title 2", "Title 2 CY", "Desc 2", "Desc 2 CY", "2025-02-12", "2025-02-13", "2025-02-01 00:00:00"),
+                (
+                    "EN010002",
+                    200,
+                    "Deadline",
+                    "Title 1",
+                    "Title 1 CY",
+                    "Desc 1",
+                    "Desc 1 CY",
+                    "2025-02-10 00:00",
+                    "2025-02-11 00:00",
+                    "2025-02-01 00:00:00",
+                ),
+                (
+                    "EN010002",
+                    201,
+                    "Hearing",
+                    "Title 2",
+                    "Title 2 CY",
+                    "Desc 2",
+                    "Desc 2 CY",
+                    "2025-02-12 00:00",
+                    "2025-02-13 00:00",
+                    "2025-02-01 00:00:00",
+                ),
             ],
             [
                 "CaseReference",
@@ -67,8 +106,8 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                 "eventTitleWelsh",
                 "description",
                 "descriptionWelsh",
+                "eventDate",
                 "eventDeadlineStartDate",
-                "date",
                 "expected_from",
             ],
         )
@@ -102,17 +141,25 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
         write_entry_key = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[write_entry_key]["data"]
-        rows = {row["caseReference"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        all_rows = actual_df.collect()
 
-        assert actual_df.count() == 2
-        assert "SourceSystemID" not in actual_df.columns
-        assert "SourceSystemID" not in rows["EN010001"]
-        assert "SourceSystemID" not in rows["EN010002"]
-        assert rows["EN010001"]["Migrated"] == "1"
-        assert rows["EN010002"]["Migrated"] == "0"
-        assert rows["EN010002"]["published"] is True
-        assert len(rows["EN010002"]["events"]) == 2
+        assert actual_df.count() == 3
+        assert "SourceSystemID" in actual_df.columns
+        assert "events" not in actual_df.columns
+
+        rows_en010001 = [r for r in all_rows if r["caseReference"] == "EN010001"]
+        rows_en010002 = [r for r in all_rows if r["caseReference"] == "EN010002"]
+
+        assert len(rows_en010001) == 1
+        assert rows_en010001[0]["Migrated"] == "1"
+        assert rows_en010001[0]["eventId"] == 100
+        assert rows_en010001[0]["eventTitleWelsh"] is None  # empty string converted to null
+
+        assert len(rows_en010002) == 2
+        assert all(r["Migrated"] == "0" for r in rows_en010002)
+        assert all(r["published"] is True for r in rows_en010002)
+        assert set(r["eventId"] for r in rows_en010002) == {200, 201}
 
         assert data_to_write[write_entry_key]["write_mode"] == "overwrite"
         assert data_to_write[write_entry_key]["partition_by"] == ["IsActive"]
-        assert result.metadata.insert_count == 2
+        assert result.metadata.insert_count == 3
