@@ -216,7 +216,7 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
     if source_folder == "entraid":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='entraid'")
-        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
+        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
     raise ValueError("source_folder must be one of 'ServiceBus', 'Horizon', 'entraid'")
 
 

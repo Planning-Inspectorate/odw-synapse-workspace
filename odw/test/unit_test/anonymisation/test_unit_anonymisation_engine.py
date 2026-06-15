@@ -784,6 +784,15 @@ class TestHorizonPurviewFQNBuilder:
         assert "/HorizonAppeals{N}.csv" in fqn
         assert "/archive/Horizon/" in fqn
 
+    def test__build_fqn__entraid_no_entity_subfolder(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="entraid",
+            entity_name="entraid",
+            file_name=None,
+        )
+        assert fqn == "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/entraid/{Year}-{Month}-{Day}/entraid.json"
+
     def test__build_fqn__service_bus_unaffected(self):
         fqn = _build_asset_qualified_name_from_params(
             storage_host="teststorage.dfs.core.windows.net",
