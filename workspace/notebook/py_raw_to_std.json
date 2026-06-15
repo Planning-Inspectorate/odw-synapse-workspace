@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5671d68b-60b2-4df6-9b81-622126a1fd49"
+				"spark.autotune.trackingId": "e304f62a-8fbf-4ee6-bb8f-df01f7d43042"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -130,7 +130,7 @@
 					"    }\n",
 					"}"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -315,7 +315,7 @@
 					"from odw.core.anonymisation.config import load_config, AnonymisationConfig\n",
 					"from odw.core.util.util import Util\n",
 					"\n",
-					"def apply_anonymisation_hr(df, source_folder, entity_name, filename, source_filename_start):\n",
+					"def apply_anonymisation(df, source_folder, entity_name, filename, source_filename_start):\n",
 					"    anon_enabled = Util.is_non_production_environment()\n",
 					"    logInfo(f\"anonymisation_gate: environment={Util.get_environment()} enabled={anon_enabled} source_folder={source_folder} file={filename}\")\n",
 					"    if not anon_enabled or source_folder not in {\"ServiceBus\", \"Horizon\", \"entraid\"}:\n",
@@ -338,7 +338,8 @@
 					"        return engine.apply_from_purview(df, entity_name=entity_name, file_name=filename, source_folder=source_folder)\n",
 					"    except Exception as anon_err:\n",
 					"        logError(f\"Anonymisation failed for {filename}: {str(anon_err)}\")\n",
-					"        raise\n"
+					"        raise\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -438,7 +439,7 @@
 					"                logInfo(f\"Ingesting {file.name}\")\n",
 					"                _anon_source_folder = definition.get('Source_Folder', source_folder)\n",
 					"                _anon_entity_name = definition.get('Source_Frequency_Folder') or None\n",
-					"                pre_write_fn = lambda df, s=_anon_source_folder, e=_anon_entity_name, f=file.name, ss=definition.get('Source_Filename_Start', ''): apply_anonymisation_hr(df, s, e, f, ss)\n",
+					"                pre_write_fn = lambda df, s=_anon_source_folder, e=_anon_entity_name, f=file.name, ss=definition.get('Source_Filename_Start', ''): apply_anonymisation(df, s, e, f, ss)\n",
 					"                (error_message,ingestion_failure, row_count) = ingest_adhoc(storage_account, definition, source_path, file.name, expected_from, expected_to, process_name, isMultiLine, dataAttribute, pre_write_fn=pre_write_fn)\n",
 					"                insert_count = row_count\n",
 					"    except Exception as e:\n",
