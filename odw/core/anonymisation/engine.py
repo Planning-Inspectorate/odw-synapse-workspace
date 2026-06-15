@@ -319,6 +319,13 @@ def _extract_classified_columns(
         if isinstance(tab_schema, dict):
             schema_guid = tab_schema.get("guid")
 
+    _log_event(
+        "purview.extract_columns_debug",
+        rel_keys=sorted(rel_attrs.keys()),
+        schema_guid_found=bool(schema_guid),
+        referred_entity_count=len((entity_with_refs.get("referredEntities", {}) or {})),
+    )
+
     def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
         cols = source.get("referredEntities", {}) or {}
         out: List[dict] = []
@@ -366,6 +373,13 @@ def _extract_classified_columns(
                 if gid:
                     guids.add(gid)
 
+        _log_event(
+            "purview.schema_entity_debug",
+            schema_entity_fetched=schema_entity is not None,
+            schema_rel_keys=sorted(schema_rel.keys()),
+            column_guids_found=len(guids),
+            referred_in_schema=len((schema_entity or {}).get("referredEntities", {}) or {}) if schema_entity else 0,
+        )
         extracted = _collect_from_referred(source, only_guids=guids if guids else None)
         if extracted:
             return extracted
@@ -400,6 +414,15 @@ def fetch_purview_classifications_by_qualified_name(
     guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
 
+    # Diagnostic: log the raw entity structure so we can see how Purview models the asset
+    _log_event(
+        "purview.entity_debug",
+        entity_type=((entity.get("entity", {}) or {}).get("typeName")),
+        relationship_keys=sorted((((entity.get("entity", {}) or {}).get("relationshipAttributes", {})) or {}).keys()),
+        referred_entity_count=len((entity.get("referredEntities", {}) or {})),
+        referred_entity_types=sorted({v.get("typeName") for v in (entity.get("referredEntities", {}) or {}).values() if isinstance(v, dict)}),
+    )
+
     # Primary extraction attempt
     cols = _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
     if cols:
@@ -414,6 +437,7 @@ def fetch_purview_classifications_by_qualified_name(
             tab_schema = rel_attrs.get("tabSchema") or {}
             if isinstance(tab_schema, dict):
                 schema_guid = tab_schema.get("guid")
+        _log_event("purview.schema_lookup", attached_schema_count=len(attached_schema), tab_schema_guid=schema_guid)
     except Exception:
         schema_guid = None
 
