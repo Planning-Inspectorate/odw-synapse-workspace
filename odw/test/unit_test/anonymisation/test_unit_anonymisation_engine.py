@@ -877,3 +877,75 @@ class TestHorizonPurviewFQNBuilder:
         )
         assert "/odw-raw/ServiceBus/service-user/" in fqn
         assert "archive" not in fqn
+
+    def test__fetch_classified_columns_deep__traverses_nested_json_schema(self):
+        """BFS should find classified columns 4 hops deep.
+
+        Simulates the entraid ADLS Gen2 resource set graph:
+          schema_guid → root json_schema ("-")
+            → value (json_property, array)
+              → array element json_schema ("-")
+                → surname, givenName (json_property, classified)
+        """
+        from odw.core.anonymisation.engine import _fetch_classified_columns_deep
+        from unittest import mock
+
+        schema_guid = "ent-schema-root"
+        root_schema_guid = "ent-root-json-schema"
+        value_guid = "ent-value-prop"
+        array_schema_guid = "ent-array-json-schema"
+        surname_guid = "ent-col-surname"
+        given_name_guid = "ent-col-givenname"
+
+        entity_map = {
+            schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    root_schema_guid: {"guid": root_schema_guid, "typeName": "json_schema", "attributes": {"name": "-"}, "classifications": []},
+                },
+            },
+            root_schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    value_guid: {"guid": value_guid, "typeName": "json_property", "attributes": {"name": "value"}, "classifications": []},
+                },
+            },
+            value_guid: {
+                "entity": {
+                    "relationshipAttributes": {
+                        "items": [{"guid": array_schema_guid, "typeName": "json_schema"}],
+                    }
+                },
+                "referredEntities": {},
+            },
+            array_schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    surname_guid: {
+                        "guid": surname_guid,
+                        "typeName": "json_property",
+                        "attributes": {"name": "surname"},
+                        "classifications": [{"typeName": "All Full Names"}],
+                    },
+                    given_name_guid: {
+                        "guid": given_name_guid,
+                        "typeName": "json_property",
+                        "attributes": {"name": "givenName"},
+                        "classifications": [{"typeName": "All Full Names"}],
+                    },
+                },
+            },
+        }
+
+        def mock_get_entity(purview_name, guid, api_version, headers):
+            if guid in entity_map:
+                return entity_map[guid]
+            raise ValueError(f"Unexpected GUID: {guid}")
+
+        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
+            result = _fetch_classified_columns_deep("pins-pview", schema_guid, "2023-09-01", {})
+
+        assert len(result) == 2
+        names = {r["column_name"] for r in result}
+        assert names == {"surname", "givenName"}
+        assert all("All Full Names" in r["classifications"] for r in result)

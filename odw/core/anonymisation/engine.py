@@ -402,6 +402,81 @@ def _extract_classified_columns(
     return _collect_from_referred(entity_with_refs)
 
 
+def _fetch_classified_columns_deep(
+    purview_name: str,
+    start_guid: str,
+    api_version: str,
+    headers: dict,
+    max_depth: int = 5,
+) -> List[dict]:
+    """BFS traversal of the Purview entity graph starting from start_guid.
+
+    At each hop, follows schema-type relationship attributes (items, properties, columns,
+    schema, fields, schemaElements) AND referredEntities. Returns the first set of
+    classified referredEntities found, or [] if none exist within max_depth hops.
+
+    Required for assets with deeply-nested JSON schemas where classified columns sit
+    several levels below the attachedSchema root — e.g. ADLS Gen2 entraid resource sets
+    where the Purview graph is:
+      attachedSchema → root json_schema → value (json_property) → array json_schema
+        → surname, givenName, ... (classified json_property entities)
+    """
+    _FOLLOW_KEYS = ("items", "properties", "columns", "column", "fields", "schemaElements", "schema")
+    visited: Set[str] = {start_guid}
+    queue: List[str] = [start_guid]
+
+    for depth in range(max_depth):
+        if not queue:
+            break
+        next_queue: List[str] = []
+        for guid in queue:
+            try:
+                ent = _get_entity_with_refs(purview_name, guid, api_version, headers)
+            except Exception:
+                continue
+
+            ref_ents = ent.get("referredEntities", {}) or {}
+
+            # Check for classified columns in this entity's referredEntities
+            classified = [
+                {
+                    "column_guid": g,
+                    "column_name": ((e or {}).get("attributes", {}) or {}).get("name"),
+                    "column_type": (e or {}).get("typeName"),
+                    "classifications": [c.get("typeName") for c in ((e or {}).get("classifications", []) or [])],
+                }
+                for g, e in ref_ents.items()
+                if (e or {}).get("classifications")
+            ]
+            if classified:
+                _log_event("purview.deep_bfs.found", depth=depth, classified_count=len(classified))
+                return classified
+
+            # Enqueue guids from relationship attributes
+            rel_attrs = (ent.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+            for key in _FOLLOW_KEYS:
+                val = rel_attrs.get(key)
+                if not val:
+                    continue
+                children = val if isinstance(val, list) else [val]
+                for child in children:
+                    if isinstance(child, dict):
+                        child_guid = child.get("guid")
+                        if child_guid and child_guid not in visited:
+                            visited.add(child_guid)
+                            next_queue.append(child_guid)
+
+            # Also enqueue all referredEntities (they may have deeper schemas)
+            for ref_guid in ref_ents:
+                if ref_guid not in visited:
+                    visited.add(ref_guid)
+                    next_queue.append(ref_guid)
+
+        queue = next_queue
+
+    return []
+
+
 def fetch_purview_classifications_by_qualified_name(
     purview_name: str,
     tenant_id: str,
@@ -418,9 +493,10 @@ def fetch_purview_classifications_by_qualified_name(
     Strategy:
     1) Resolve GUID for (type, qualifiedName) and read entity with refs;
        attempt to extract columns directly (covers most assets).
-    2) Fallback: follow attachedSchema -> fetch schema entity -> iterate its
-       referred entities, fetch each with refs, and try extraction again. This
-       handles cases where the actual column entities are one hop deeper.
+    2) Fallback: BFS traversal from the schema GUID (attachedSchema / tabSchema),
+       following items, properties, schema, columns, fields, schemaElements relationships
+       up to 5 hops deep. Handles assets where classified columns are deeply nested in
+       the json_schema entity graph (e.g. ADLS Gen2 entraid resource sets).
     """
     token = _get_access_token(tenant_id, client_id, client_secret)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -428,7 +504,6 @@ def fetch_purview_classifications_by_qualified_name(
     guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
 
-    # Diagnostic: log the raw entity structure so we can see how Purview models the asset
     _log_event(
         "purview.entity_debug",
         entity_type=((entity.get("entity", {}) or {}).get("typeName")),
@@ -442,7 +517,7 @@ def fetch_purview_classifications_by_qualified_name(
     if cols:
         return cols
 
-    # Fallback: schema entity (attachedSchema list or tabSchema dict) -> its referred entities
+    # Fallback: BFS from schema GUID for deeply-nested JSON schema entity graphs
     try:
         rel_attrs = (entity.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
         attached_schema = rel_attrs.get("attachedSchema", []) or []
@@ -456,27 +531,10 @@ def fetch_purview_classifications_by_qualified_name(
         schema_guid = None
 
     if schema_guid:
-        try:
-            schema_ent = _get_entity_with_refs(purview_name, schema_guid, api_version, headers)
-        except Exception:
-            schema_ent = None
+        deep_cols = _fetch_classified_columns_deep(purview_name, schema_guid, api_version, headers)
+        if deep_cols:
+            return deep_cols
 
-        if schema_ent:
-            ref_ents = schema_ent.get("referredEntities", {}) or {}
-            for ref in ref_ents.values():
-                ref_guid = (ref or {}).get("guid")
-                if not ref_guid:
-                    continue
-                try:
-                    deep_ent = _get_entity_with_refs(purview_name, ref_guid, api_version, headers)
-                    deep_cols = _extract_classified_columns(deep_ent, purview_name=purview_name, headers=headers, api_version=api_version)
-                    if deep_cols:
-                        return deep_cols
-                except Exception:
-                    # Ignore and try the next referred entity
-                    continue
-
-    # Nothing found
     return []
 
 
