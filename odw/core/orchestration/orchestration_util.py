@@ -40,16 +40,15 @@ class OrchestrationUtil:
     def _validate_preprocessing_failures(cls, preprocessing_failures: List[Dict[str, Any]]):
         if not isinstance(preprocessing_failures, list):
             raise ValueError(f"Preprocessing errors should be a list, but was of type {type(preprocessing_failures)}")
-        preprocessing_failures_json = [json.loads(x) for x in preprocessing_failures]
         invalid_entries = []
-        for error_list in preprocessing_failures_json:
+        for error_list in preprocessing_failures:
             try:
                 PreprocessingError.model_validate(error_list)
             except ValidationError as e:
                 invalid_entries.append((error_list, e))
         if invalid_entries:
             raise ValueError(f"The following preprocessing errors are not valid: {json.dumps(invalid_entries, indent=4, default=str)}")
-        return preprocessing_failures_json
+        return preprocessing_failures
 
     @classmethod
     def _clean_results(cls, results: List[List[Dict[str, Any]]]):
