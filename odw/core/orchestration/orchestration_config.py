@@ -14,3 +14,11 @@ class OrchestrationConfig(BaseModel):
             return v
 
     entities: Dict[str, Dict[str, EntityStage]]
+
+
+class PreprocessedOrchestrationEntry(BaseModel):
+    kwargs: Dict[str, Any]
+    depends_on: List[str]
+    orchestration_entity_stage_name: str
+    orchestration_entity_name: str
+    orchestration_stage_name: str
