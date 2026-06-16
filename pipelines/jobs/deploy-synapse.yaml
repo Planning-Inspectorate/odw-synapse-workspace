@@ -46,15 +46,6 @@ jobs:
             pythonVersion: 3
             failoverDeployment: false
         
-        # Disable triggers in the target Synapse Workspace
-        - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
-          displayName: 'Disable Synapse Triggers'
-          inputs:
-            azureSubscription: ${{ parameters.armServiceConnectionName }}
-            ResourceGroupName: $(data_resource_group_name)
-            WorkspaceName: $(synapse_workspace_name)
-            ToggleOn: false
-        
         - ${{ if ne(lower(parameters.fullDeployment), true) }}:
           # Delete local Synapse workspace files to optimise the Synapse deployment
           - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/delete-unmodified-synapse-workspace-files.yaml
@@ -99,13 +90,3 @@ jobs:
               ls_storage_mpesc_properties_typeProperties_url: $(mpesc_storage_endpoint)
             ResourceGroupName: $(data_resource_group_name)
             TargetWorkspaceName: $(synapse_workspace_name)
-        
-        # Re-enable triggers in the target Synapse Workspace
-        - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
-          condition: and(succeededOrFailed(), ne(variables.synapseTriggers, ''))
-          displayName: 'Enable Synapse Triggers'
-          inputs:
-            azureSubscription: ${{ parameters.armServiceConnectionName }}
-            ResourceGroupName: $(data_resource_group_name)
-            WorkspaceName: $(synapse_workspace_name)
-            Triggers: ${{ variables.synapseTriggers }}
