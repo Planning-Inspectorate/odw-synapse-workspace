@@ -28,6 +28,7 @@ from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process
 from odw.core.etl.transformation.harmonised.horizon_pins_inspector_harmonisation_process import HorizonPinsInspectorHarmonisationProcess
 from odw.core.etl.transformation.curated.pins_inspector_curated_process import PinsInspectorCuratedProcess
 from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -62,7 +63,8 @@ class ETLProcessFactory:
         PinsInspectorHarmonisationProcess,
         HorizonPinsInspectorHarmonisationProcess,
         PinsInspectorCuratedProcess,
-        NsipProjectHarmonisationProcess
+        NsipProjectHarmonisationProcess,
+        NsipInvoiceHarmonisationProcess
     }
 
     @classmethod
