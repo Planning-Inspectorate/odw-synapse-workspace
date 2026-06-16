@@ -1,7 +1,6 @@
 {
-	"name": "py_etl_batch_filter",
+	"name": "py_etl_result_postprocessor",
 	"properties": {
-		"description": "Additional filter that prunes any entity stages from the config based on the set of failed entity stages from the previous batch",
 		"folder": {
 			"name": "refactor"
 		},
@@ -21,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ed0110ce-fe04-4c26-b010-ac74dcd0489f"
+				"spark.autotune.trackingId": "2b870f54-b117-4af2-b781-e11ef61f81a3"
 			}
 		},
 		"metadata": {
@@ -55,10 +54,8 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from odw.core.orchestration.dependency_resolver import DependencyResolver\n",
-					"from odw.core.etl.metadata_manager import MetadataManager\n",
-					"from odw.core.util.logging_util import LoggingUtil\n",
-					"from typing import List, Dict, Any\n",
+					"from odw.core.orchestration.orchestration_util import OrchestrationUtil\n",
+					"from typing import Dict, List, Any\n",
 					"import json"
 				],
 				"execution_count": null
@@ -71,61 +68,74 @@
 					]
 				},
 				"source": [
-					"config_batch: List[Dict[str, Any]] = []\n",
-					"run_id: str = None"
+					"successful_results: List[List[Dict[str, Any]]] = []\n",
+					"failed_results: List[List[Dict[str, Any]]] = []\n",
+					"preprocessing_failures: List[Dict[str, Any]] = []"
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"if isinstance(config_batch, str):\n",
-					"    try:\n",
-					"        config_batch = json.loads(config_batch)\n",
-					"    except ValueError:\n",
-					"        message = (\n",
-					"            \"Failed to run py_etl_batch_filter because the config_batch is not json serialiseable. \"\n",
-					"            f\"Please review the input. The actual value was: '{config_batch}'\"\n",
-					"        )\n",
-					"        print(message)\n",
-					"        LoggingUtil().log_info(message)"
-				],
-				"execution_count": null
+					"# Load parameters"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"execution_history = []\n",
-					"if run_id:\n",
-					"    execution_history = [row.asDict() for row in MetadataManager(spark, run_id=run_id).get_most_recent_for_run_id().collect()]"
+					"if isinstance(successful_results, str):\n",
+					"     successful_results = json.loads(successful_results)\n",
+					"if isinstance(failed_results, str):\n",
+					"     failed_results = json.loads(failed_results)\n",
+					"if isinstance(preprocessing_failures, str):\n",
+					"     preprocessing_failures = json.loads(preprocessing_failures)"
 				],
 				"execution_count": null
 			},
 			{
-				"cell_type": "code",
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
-					"filtered_config_batch = DependencyResolver.filter_entity_stages_with_failed_dependencies(config_batch, execution_history)"
-				],
-				"execution_count": null
+					"# Perform post processing of the collected py_etl_orchestrator results"
+				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"# For convenience\n",
-					"removed_elements = [\n",
-					"    x\n",
-					"    for x in config_batch\n",
-					"    if x not in filtered_config_batch\n",
-					"]\n",
-					"print(\"The following entity stages were filtered out because dependent stages have failed\")\n",
-					"print(json.dumps(removed_elements, indent=4))"
+					"cleaned_results = OrchestrationUtil.postprocess_orchestration_results(successful_results, failed_results, preprocessing_failures)"
 				],
 				"execution_count": null
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Return the output"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
-					"mssparkutils.notebook.exit(json.dumps(filtered_config_batch, indent=4))"
+					"mssparkutils.notebook.exit(json.dumps(cleaned_results, indent=4))"
 				],
 				"execution_count": null
 			}
