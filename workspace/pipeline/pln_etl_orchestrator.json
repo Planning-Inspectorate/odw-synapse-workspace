@@ -155,27 +155,7 @@
 							}
 						},
 						{
-							"name": "Append batch failures",
-							"type": "AppendVariable",
-							"dependsOn": [
-								{
-									"activity": "Execute inner loop",
-									"dependencyConditions": [
-										"Failed"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "batchFailures",
-								"value": {
-									"value": "@string(\n    activity('Execute inner loop').error?.message\n)",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Append batch preprocessing failures",
+							"name": "Append preprocessing failure",
 							"type": "AppendVariable",
 							"dependsOn": [
 								{
@@ -187,9 +167,49 @@
 							],
 							"userProperties": [],
 							"typeProperties": {
+								"variableName": "preprocessingErrors",
+								"value": {
+									"value": "@json(\n    concat(\n        '{',\n        '\"batch\": ',\n        item(),\n        ',',\n        '\"error\": \"',\n        replace(\n            string(activity('Filter steps with failed dependencies').error.message),\n            '\"',\n            '\\\"'\n        ),\n        '\"',\n        '}'\n    )\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append batch successes",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute inner loop",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "batchSuccesses",
+								"value": {
+									"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue.successes\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append batch failures",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute inner loop",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
 								"variableName": "batchFailures",
 								"value": {
-									"value": "@string(activity('Filter steps with failed dependencies').error.message)",
+									"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue.failures\n)",
 									"type": "Expression"
 								}
 							}
@@ -202,16 +222,16 @@
 				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "Outer loop",
+						"activity": "Set pipeline return value",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@not(\n    empty(\n        variables('batchFailures')\n    )\n)",
+						"value": "@not(\n    and(\n        empty(\n            variables('batchFailures')\n        ),\n        empty(\n            variables('preprocessingErrors')\n        )\n    )\n)",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -222,13 +242,99 @@
 							"userProperties": [],
 							"typeProperties": {
 								"message": {
-									"value": "@concat(\n    'Some batches failed with the following errors: ',\n    variables('batchFailures')\n)",
+									"value": "@concat(\n    'Some batches failed with the following errors: ',\n    string(\n        union(\n            variables('batchFailures'),\n            variables('preprocessingErrors')\n        )\n    )\n)",
 									"type": "Expression"
 								},
 								"errorCode": "500"
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "Postprocess result",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Outer loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_result_postprocessor",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"successful_results": {
+							"value": {
+								"value": "@string(variables('batchSuccesses'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"failed_results": {
+							"value": {
+								"value": "@string(variables('batchFailures'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"preprocessing_failures": {
+							"value": {
+								"value": "@string(variables('preprocessingErrors'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set pipeline return value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Postprocess result",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "results",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('Postprocess result').output.status.Output.result.exitValue"
+							}
+						}
+					],
+					"setSystemVariable": true
 				}
 			}
 		],
@@ -248,6 +354,12 @@
 			"batchFailures": {
 				"type": "Array",
 				"defaultValue": []
+			},
+			"batchSuccesses": {
+				"type": "Array"
+			},
+			"preprocessingErrors": {
+				"type": "Array"
 			}
 		},
 		"folder": {

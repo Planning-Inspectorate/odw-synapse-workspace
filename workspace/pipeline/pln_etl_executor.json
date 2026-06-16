@@ -68,7 +68,27 @@
 							"typeProperties": {
 								"variableName": "failures",
 								"value": {
-									"value": "@concat(\n    '{',\n    concat(\n        '\"input_parameters\": \"',\n        string(item()),\n        '\",'\n    ),\n    concat(\n        '\"error\": \"',\n        string(activity('Execute ETL').error.message),\n        '\"'\n    ),\n    '}'\n)",
+									"value": "@json(\n    concat(\n        '{',\n        concat(\n            '\"input_parameters\": ',\n            item(),\n            ','\n        ),\n        concat(\n            '\"error\": \"',\n            replace(\n                string(activity('Execute ETL').error.message),\n                '\"',\n                '\\\"'\n            ),\n            '\"'\n        ),\n        '}'\n    )\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append success message",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute ETL",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "successes",
+								"value": {
+									"value": "@json(\n    concat(\n        '{',\n        concat(\n            '\"input_parameters\": ',\n            string(item()),\n            ''\n        ),\n        '}'\n    )\n)",
 									"type": "Expression"
 								}
 							}
@@ -102,7 +122,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"message": {
-									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following result: ',\n    string(variables('failures'))\n)",
+									"value": "@concat(\n    'The py_etl_executor notebook had failures with the following results: ',\n    string(variables('failures'))\n)",
 									"type": "Expression"
 								},
 								"errorCode": "500"
@@ -131,10 +151,17 @@
 					"variableName": "pipelineReturnValue",
 					"value": [
 						{
-							"key": "result",
+							"key": "failures",
 							"value": {
 								"type": "Expression",
-								"content": "@string(variables('failures'))"
+								"content": "@variables('failures')"
+							}
+						},
+						{
+							"key": "successes",
+							"value": {
+								"type": "Expression",
+								"content": "@variables('successes')"
 							}
 						}
 					],
@@ -152,6 +179,9 @@
 		},
 		"variables": {
 			"failures": {
+				"type": "Array"
+			},
+			"successes": {
 				"type": "Array"
 			}
 		},
