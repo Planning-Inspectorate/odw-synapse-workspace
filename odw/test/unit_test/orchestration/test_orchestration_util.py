@@ -1,6 +1,11 @@
 # successes = "[{\"input_parameters\":{\"kwargs\":{\"etl_process_name\":\"Fake Successful ETL Process\",\"entity_name\":\"nsip-subscription\"},\"depends_on\":[],\"orchestration_entity_stage_name\":\"nsip-subscription.service_bus_standardised\",\"orchestration_entity_name\":\"nsip-subscription\",\"orchestration_stage_name\":\"service_bus_standardised\"}}]"
 from odw.core.orchestration.orchestration_util import OrchestrationUtil
+from typing import Dict, Any
 import pytest
+
+
+def sort_key(x: Dict[str, Any]):
+    return str(x.get("entity", "")) + str(x.get("stage", "")) + str(x.get("successful", ""))
 
 
 def test__orchestration_util__validate():
@@ -58,7 +63,18 @@ def test__orchestration_util__validate__with_invalid_content():
 
 def test__orchestration_util__validate_preprocessing_failures():
     preprocessing_failures = [
-        '{"batch": [{"kwargs":{"etl_process_name":"Some ETL Process E"},"depends_on":[],"orchestration_entity_stage_name":"E.X","orchestration_entity_name":"E","orchestration_stage_name":"X"}], "error": "some preprocessing error"}'
+        {
+            "batch": [
+                {
+                    "kwargs": {"etl_process_name": "Some ETL Process E"},
+                    "depends_on": [],
+                    "orchestration_entity_stage_name": "E.X",
+                    "orchestration_entity_name": "E",
+                    "orchestration_stage_name": "X",
+                }
+            ],
+            "error": "some preprocessing error",
+        }
     ]
     expected_output = [
         {
@@ -80,7 +96,17 @@ def test__orchestration_util__validate_preprocessing_failures():
 
 def test__orchestration_util__validate_preprocessing_failures__invalid_input__missing_error():
     preprocessing_failures = [
-        '{"batch": [{"kwargs":{"etl_process_name":"Some ETL Process E"},"depends_on":[],"orchestration_entity_stage_name":"E.X","orchestration_entity_name":"E","orchestration_stage_name":"X"}]}'
+        {
+            "batch": [
+                {
+                    "kwargs": {"etl_process_name": "Some ETL Process E"},
+                    "depends_on": [],
+                    "orchestration_entity_stage_name": "E.X",
+                    "orchestration_entity_name": "E",
+                    "orchestration_stage_name": "X",
+                }
+            ]
+        }
     ]
     # Missing error in the first entry
     with pytest.raises(ValueError) as e:
@@ -90,7 +116,17 @@ def test__orchestration_util__validate_preprocessing_failures__invalid_input__mi
 
 def test__orchestration_util__validate_preprocessing_failures__invalid_input__invalid_batch():
     preprocessing_failures = [
-        '{"batch": [{"kwargs":{"etl_process_name":"Some ETL Process E"},"depends_on":[],"orchestration_entity_name":"E","orchestration_stage_name":"X"}], "error": "some preprocessing error"}'
+        {
+            "batch": [
+                {
+                    "kwargs": {"etl_process_name": "Some ETL Process E"},
+                    "depends_on": [],
+                    "orchestration_entity_name": "E",
+                    "orchestration_stage_name": "X",
+                }
+            ],
+            "error": "some preprocessing error",
+        }
     ]
     # Missing orchestration_entity_stage_name in the first entry
     with pytest.raises(ValueError) as e:
@@ -106,7 +142,6 @@ def test__orchestration_util__postprocess_orchestration_results__with_failures()
     failures = [
         '[{"input_parameters":{"kwargs":{"etl_process_name":"Some ETL Process D"},"depends_on":[],"orchestration_entity_stage_name":"D.X","orchestration_entity_name":"D","orchestration_stage_name":"X"},"error":"Some error message"}]'
     ]
-    sort_key = lambda x: str(x.get("entity", "")) + str(x.get("stage", "")) + str(x.get("successful", ""))
     expected_results = sorted(
         [
             {"entity": "A", "stage": "X", "successful": True, "error": None},
@@ -128,7 +163,6 @@ def test__orchestration_util__postprocess_orchestration_results__with_no_failure
         '[{"input_parameters":{"kwargs":{"etl_process_name":"Some ETL Process C"},"depends_on":[],"orchestration_entity_stage_name":"C.X","orchestration_entity_name":"C","orchestration_stage_name":"X"}}]',
     ]
     failures = []
-    sort_key = lambda x: str(x.get("entity", "")) + str(x.get("stage", "")) + str(x.get("successful", ""))
     expected_results = sorted(
         [
             {"entity": "A", "stage": "X", "successful": True, "error": None},
@@ -150,9 +184,19 @@ def test__orchestration_util__postprocess_orchestration_results__with_preprocess
     ]
     failures = []
     preprocessing_failures = [
-        '{"batch": [{"kwargs":{"etl_process_name":"Some ETL Process E"},"depends_on":[],"orchestration_entity_stage_name":"E.X","orchestration_entity_name":"E","orchestration_stage_name":"X"}], "error": "some preprocessing error"}'
+        {
+            "batch": [
+                {
+                    "kwargs": {"etl_process_name": "Some ETL Process E"},
+                    "depends_on": [],
+                    "orchestration_entity_stage_name": "E.X",
+                    "orchestration_entity_name": "E",
+                    "orchestration_stage_name": "X",
+                }
+            ],
+            "error": "some preprocessing error",
+        }
     ]
-    sort_key = lambda x: str(x.get("entity", "")) + str(x.get("stage", "")) + str(x.get("successful", ""))
     expected_results = sorted(
         [
             {"entity": "A", "stage": "X", "successful": True, "error": None},
