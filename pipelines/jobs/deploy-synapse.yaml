@@ -46,12 +46,6 @@ jobs:
             pythonVersion: 3
             failoverDeployment: false
         
-        # Check if the dedicated SQL pool is currently paused
-        - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/synapse-sql-pool-check.yaml
-          parameters:
-            armServiceConnectionName: ${{ parameters.armServiceConnectionName }}
-            synapseWorkspaceName: $(synapse_workspace_name)
-        
         # Disable triggers in the target Synapse Workspace
         - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
           displayName: 'Disable Synapse Triggers'
@@ -60,12 +54,6 @@ jobs:
             ResourceGroupName: $(data_resource_group_name)
             WorkspaceName: $(synapse_workspace_name)
             ToggleOn: false
-        
-        # Resume the dedicated SQL pool if it was in a paused state
-        - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/synapse-sql-pool-resume.yaml
-          parameters:
-            armServiceConnectionName: ${{ parameters.armServiceConnectionName }}
-            synapseWorkspaceName: $(synapse_workspace_name)
         
         - ${{ if ne(lower(parameters.fullDeployment), true) }}:
           # Delete local Synapse workspace files to optimise the Synapse deployment
@@ -112,12 +100,6 @@ jobs:
             ResourceGroupName: $(data_resource_group_name)
             TargetWorkspaceName: $(synapse_workspace_name)
         
-        # Pause the dedicated SQL pool if it was previously resumed
-        - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/synapse-sql-pool-pause.yaml
-          parameters:
-            armServiceConnectionName: ${{ parameters.armServiceConnectionName }}
-            synapseWorkspaceName: $(synapse_workspace_name)
-        
         # Re-enable triggers in the target Synapse Workspace
         - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
           condition: and(succeededOrFailed(), ne(variables.synapseTriggers, ''))
@@ -127,17 +109,3 @@ jobs:
             ResourceGroupName: $(data_resource_group_name)
             WorkspaceName: $(synapse_workspace_name)
             Triggers: ${{ variables.synapseTriggers }}
-- deployment: BuildDeployODWPackageJob
-  pool: ${{ parameters.agentPool }}
-  environment: ${{ parameters.adoEnvName }}
-  strategy:
-    runOnce:
-      deploy:
-        steps:
-        - checkout: self
-          clean: true
-        - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/azure-login.yaml@odw-common
-        - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/build-and-deploy-odw-package.yaml
-          parameters:
-            armServiceConnectionName: ${{ parameters.armServiceConnectionName }}
-            env: ${{ lower(parameters.env) }}
