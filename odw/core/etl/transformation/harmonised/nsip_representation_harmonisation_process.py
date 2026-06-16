@@ -253,9 +253,6 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
                 ,other
                 ,descriptionifother
                 ,preferredcontactmethod
-                ,IngestionDate
-                ,ValidTo
-                ,IsActive
             FROM
                 {self.HORIZON_TABLE}
             WHERE
@@ -270,7 +267,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         This is joined to Horizon data in process().
         """
         return self.spark.sql(f"""
-            SELECT SourceSystemID
+            SELECT SourceSystemID, IngestionDate, ValidTo, IsActive
             FROM {self.SOURCE_SYSTEM_TABLE}
             WHERE Description = 'Casework'
                 AND IsActive = 'Y'
@@ -287,7 +284,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         """)
 
     # ------------------------------------------------------------------
-    # process – pure transformation, no reads or writes
+    # process - pure transformation, no reads or writes
     # ------------------------------------------------------------------
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
@@ -307,7 +304,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Joining Horizon with source system data and aligning to SB schema")
         horizon_joined = (
             horizon_data.alias("Horizon")
-            .crossJoin(source_system_data.alias("source"))
+            .join(source_system_data.alias("source"), how="inner")
             .select(
                 F.lit(None).cast("long").alias("NSIPRepresentaionID"),
                 F.col("Horizon.relevantrepid").cast("integer").alias("representationId"),
@@ -371,10 +368,10 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
                 F.lit(0).alias("Migrated"),
                 F.lit("Horizon").alias("ODTSourceSystem"),
                 F.col("source.SourceSystemID"),
-                F.col("Horizon.IngestionDate"),
-                F.col("Horizon.ValidTo"),
+                F.col("source.IngestionDate"),
+                F.col("source.ValidTo"),
                 F.lit("").alias("RowID"),
-                F.col("Horizon.IsActive"),
+                F.col("source.IsActive"),
             )
             .distinct()
         )
