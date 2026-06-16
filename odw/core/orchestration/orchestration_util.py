@@ -56,7 +56,8 @@ class OrchestrationUtil:
             {
                 "entity": result["input_parameters"]["orchestration_entity_name"],
                 "stage": result["input_parameters"]["orchestration_stage_name"],
-                "successful": "error" not in result,
+                "successful": "error" not in result,  # For machine-readability
+                "status": "Success" if "error" not in result else "Fail",  # For human-readability
                 "error": result.get("error", None),
             }
             for batch in results
@@ -70,6 +71,7 @@ class OrchestrationUtil:
                 "entity": entity_stage["orchestration_entity_name"],
                 "stage": entity_stage["orchestration_stage_name"],
                 "successful": False,
+                "status": "Fail",
                 "error": batch["error"],
             }
             for batch in preprocessing_failures

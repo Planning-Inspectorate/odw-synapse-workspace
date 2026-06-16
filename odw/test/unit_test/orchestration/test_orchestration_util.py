@@ -144,10 +144,10 @@ def test__orchestration_util__postprocess_orchestration_results__with_failures()
     ]
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "error": None},
-            {"entity": "D", "stage": "X", "successful": False, "error": "Some error message"},
+            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "D", "stage": "X", "successful": False, "status": "Fail", "error": "Some error message"},
         ],
         key=sort_key,
     )
@@ -165,9 +165,9 @@ def test__orchestration_util__postprocess_orchestration_results__with_no_failure
     failures = []
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "error": None},
+            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
         ],
         key=sort_key,
     )
@@ -199,10 +199,10 @@ def test__orchestration_util__postprocess_orchestration_results__with_preprocess
     ]
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "error": None},
-            {"entity": "E", "stage": "X", "successful": False, "error": "some preprocessing error"},
+            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {"entity": "E", "stage": "X", "successful": False, "status": "Fail", "error": "some preprocessing error"},
         ],
         key=sort_key,
     )
