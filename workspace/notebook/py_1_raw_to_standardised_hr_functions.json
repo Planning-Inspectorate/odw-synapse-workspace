@@ -383,6 +383,8 @@
 					}
 				},
 				"source": [
+					"from typing import Callable\n",
+					"\n",
 					"@logging_to_appins\n",
 					"def ingest_adhoc(storage_account, \n",
 					"                    definition,\n",
@@ -392,7 +394,8 @@
 					"                    expected_to,\n",
 					"                    process_name, \n",
 					"                    isMultilineJSON=False, \n",
-					"                    dataAttribute=None):\n",
+					"                    dataAttribute=None,\n",
+					"                    pre_write_fn: Callable | None = None):\n",
 					"    \n",
 					"    from pyspark.sql import SparkSession\n",
 					"    from notebookutils import mssparkutils\n",
@@ -539,6 +542,8 @@
 					"            sparkDF = sparkDF.withColumn(field.name, col(field.name).cast(table_field.dataType))\n",
 					"\n",
 					"    ### writing the dataframe to the existing standardised table\n",
+					"    if pre_write_fn:\n",
+					"        sparkDF = pre_write_fn(sparkDF)\n",
 					"    logInfo(f\"Writing data to odw_standardised_db.{standardised_table_name}\")\n",
 					"    sparkDF.write.option(\"mergeSchema\", \"true\").option(\"path\", standardised_table_location).format(\"delta\").mode(\"append\").saveAsTable(f\"odw_standardised_db.{standardised_table_name}\")\n",
 					"    logInfo(f\"Written data to odw_standardised_db.{standardised_table_name}\")\n",
