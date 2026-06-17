@@ -4,8 +4,8 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 class AppealS78CurationProcess(CurationProcess):
     HARMONISED_TABLE = "appeal_s78"
     OUTPUT_TABLE = "appeal_s78"
-
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Appeal S78 Curation Process"
 
     def load_data(self, **kwargs):

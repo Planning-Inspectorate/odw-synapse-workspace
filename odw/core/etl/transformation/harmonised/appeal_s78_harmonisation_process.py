@@ -8,8 +8,8 @@ class AppealS78HarmonisationProcess(HarmonisationProcess):
     HAS_TABLE = "appeal_has"
     GROUP_RESOLVER = "GroupResolver"
     OUTPUT_TABLE = "appeal_s78"
-
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Appeal S78 Harmonisation Process"
 
     def _load_service_bus_data(self) -> DataFrame:

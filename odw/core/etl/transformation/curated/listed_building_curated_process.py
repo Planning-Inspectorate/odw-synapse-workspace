@@ -8,8 +8,8 @@ class ListedBuildingCuratedProcess(CurationProcess):
     def __init__(self, spark):
         super().__init__(spark)
         self.spark = spark
-
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Listed Building Curation Process"
 
     def load_data(self) -> dict[str, Any]:
