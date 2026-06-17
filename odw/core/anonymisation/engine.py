@@ -192,7 +192,7 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
     Notes:
     - ServiceBus assets are JSON files with a timestamp in the filename. The pattern must
       include literal Purview placeholders (e.g. {Year}, {Month}, {Day}, {Hour}, {N}).
-    - Horizon assets are stored under odw-raw/archive/Horizon/ in ADLS. The filename is
+    - Horizon assets are stored under odw-raw/Horizon/ in ADLS. The filename is
       converted to a resource set pattern by replacing numeric sequences with {N}.
     - entraid assets are JSON files named after the entity under a dated folder.
     """
@@ -212,7 +212,7 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
         if not file_name:
             raise ValueError("file_name is required for source_folder='Horizon'")
         pattern_name = _horizon_filename_to_purview_pattern(file_name)
-        return f"https://{host}/odw-raw/archive/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{pattern_name}"
+        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{pattern_name}"
     if source_folder == "entraid":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='entraid'")

@@ -95,8 +95,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 return_value=anonymised_df,
@@ -138,8 +136,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=False),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
             ) as mock_apply,
@@ -178,8 +174,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 return_value=anonymised_df,
@@ -219,8 +213,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 side_effect=RuntimeError("Purview anonymisation failed"),
@@ -234,3 +226,31 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
                 assert False, "Expected process() to raise when anonymisation fails"
             except RuntimeError as ex:
                 assert str(ex) == "Purview anonymisation failed"
+
+    def test__service_bus_standardisation__process_skips_anonymisation_when_no_new_rows(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        table_df = _build_existing_table_df(spark)
+        empty_df = _build_raw_messages_df(spark).filter(F.lit(False))
+
+        process = ServiceBusStandardisationProcess(spark=spark)
+
+        source_data = {
+            "odw_standardised_db.sb_service_user": table_df,
+            "raw_messages": empty_df,
+        }
+
+        with (
+            mock.patch.object(Util, "is_non_production_environment", return_value=True),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(LoggingUtil, "__new__"),
+            mock.patch(
+                "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
+            ) as mock_apply,
+        ):
+            process.process(
+                source_data=source_data.copy(),
+                entity_name="service-user",
+            )
+
+        mock_apply.assert_not_called()
