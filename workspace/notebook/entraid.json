@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4ae751d9-cc55-4a35-b75d-3ed871a6235f"
+				"spark.autotune.trackingId": "683f7dc5-be83-4610-9cd1-ce469718aff1"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -107,18 +107,37 @@
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\n",
 					"    global error_message\n",
-					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
-					"    logError(error_message)\n",
 					"\n",
-					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
-					"    raise e "
+					"    try:\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\n",
+					"    except Exception as format_error:\n",
+					"        error_message = (\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\n",
+					"        )[:800]\n",
+					"\n",
+					"    try:\n",
+					"        logError(error_message)\n",
+					"    except Exception as log_error:\n",
+					"        print(f\"Primary logging failed: {log_error}\")\n",
+					"        print(error_message)\n",
+					"\n",
+					"    try:\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\n",
+					"        if callable(telemetry_fn):\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\n",
+					"        else:\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\n",
+					"    except Exception as telemetry_error:\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\n",
+					"\n",
+					"    raise e"
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"start_exec_time = datetime.now()\n",
 					"error_message = None\n",
 					"def run_step(step_name: str, fn):\n",
 					"    try:\n",
@@ -616,7 +635,6 @@
 					"        )\n",
 					"    except Exception as te:\n",
 					"        print(f\"Telemetry logging failed: {te}\")\n",
-					" \n",
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
