@@ -95,8 +95,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 return_value=anonymised_df,
@@ -138,8 +136,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=False),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
             ) as mock_apply,
@@ -178,8 +174,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 return_value=anonymised_df,
@@ -219,8 +213,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
                 side_effect=RuntimeError("Purview anonymisation failed"),
@@ -252,8 +244,6 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
             mock.patch.object(LoggingUtil, "__new__"),
-            mock.patch.object(LoggingUtil, "log_info", return_value=None),
-            mock.patch.object(LoggingUtil, "log_error", return_value=None),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
             ) as mock_apply,
