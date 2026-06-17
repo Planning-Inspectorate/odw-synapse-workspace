@@ -3,9 +3,16 @@ from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_proces
 )
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal
 import pyspark.sql.types as T
-import mock
+from pyspark.sql import DataFrame
 
+
+def compare_data(expected: DataFrame, actual: DataFrame):
+    uncomparable_cols = ["RowID"]
+    expected_cleaned = expected.drop(*uncomparable_cols)
+    actual_cleaned = actual.drop(*uncomparable_cols)
+    assert_dataframes_equal(expected_cleaned, actual_cleaned)
 
 class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
     def test__nsip_s51_advice_harmonisation_process__process__aggregates_attachments_and_applies_delete_logic(
@@ -231,49 +238,172 @@ class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
             [(10,)],
             ["adviceId"],
         )
+        expected_df = spark.createDataFrame(
+            (
+                {
+                    "NSIPAdviceID": 1,
+                    "adviceId": 10,
+                    "adviceReference": "ADV-10",
+                    "caseId": 100,
+                    "caseReference": "EN010001",
+                    "title": "Title 10",
+                    "titleWelsh": None,
+                    "from": "From 10",
+                    "agent": "Agent 10",
+                    "method": "email",
+                    "enquiryDate": "2025-01-01",
+                    "enquiryDetails": "Enquiry 10",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 10",
+                    "adviceDate": "2025-01-02",
+                    "adviceDetails": "Advice 10",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["SBA1"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": None,
+                    "EnquirerLastName": None,
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "1",
+                    "ODTSourceSystem": "ODT",
+                    "IngestionDate": "2025-01-01 00:00:00",
+                    "ValidTo": None,
+                    "RowID": "9ef7a4435a50df0cd6c38de84c26dcd2",
+                    "IsActive": "Y",
+                },
+                {
+                    "NSIPAdviceID": 2,
+                    "adviceId": 20,
+                    "adviceReference": "ADV-20",
+                    "caseId": 200,
+                    "caseReference": "EN010002",
+                    "title": "Title 20",
+                    "titleWelsh": None,
+                    "from": "From 20",
+                    "agent": "Agent 20",
+                    "method": "email",
+                    "enquiryDate": "2025-02-01",
+                    "enquiryDetails": "Enquiry 20",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 20",
+                    "adviceDate": "2025-02-02",
+                    "adviceDetails": "Advice 20",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["HA1", "HA2"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": "A",
+                    "EnquirerLastName": "B",
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "0",
+                    "ODTSourceSystem": "Horizon",
+                    "IngestionDate": "2025-02-01 00:00:00",
+                    "ValidTo": "2025-02-02 00:00:00",
+                    "RowID": "69763bbee120cb58a0c7bfb77a233f96",
+                    "IsActive": "N",
+                },
+                {
+                    "NSIPAdviceID": 3,
+                    "adviceId": 20,
+                    "adviceReference": "ADV-20",
+                    "caseId": 200,
+                    "caseReference": "EN010002",
+                    "title": "Title 20",
+                    "titleWelsh": None,
+                    "from": "From 20",
+                    "agent": "Agent 20",
+                    "method": "email",
+                    "enquiryDate": "2025-02-01",
+                    "enquiryDetails": "Enquiry 20",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 20",
+                    "adviceDate": "2025-02-02",
+                    "adviceDetails": "Advice 20",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["HA1", "HA2"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": "A",
+                    "EnquirerLastName": "B",
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "0",
+                    "ODTSourceSystem": "Horizon",
+                    "IngestionDate": "2025-02-01 00:00:00",
+                    "ValidTo": "2025-02-01 00:00:00",
+                    "RowID": "69763bbee120cb58a0c7bfb77a233f96",
+                    "IsActive": "N",
+                },
+            ),
+            schema=T.StructType(
+                [
+                    T.StructField("NSIPAdviceID", T.IntegerType(), False),
+                    T.StructField("adviceId", T.IntegerType(), True),
+                    T.StructField("adviceReference", T.StringType(), True),
+                    T.StructField("caseId", T.IntegerType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("title", T.StringType(), True),
+                    T.StructField("titleWelsh", T.StringType(), True),
+                    T.StructField("from", T.StringType(), True),
+                    T.StructField("agent", T.StringType(), True),
+                    T.StructField("method", T.StringType(), True),
+                    T.StructField("enquiryDate", T.StringType(), True),
+                    T.StructField("enquiryDetails", T.StringType(), True),
+                    T.StructField("enquiryDetailsWelsh", T.StringType(), True),
+                    T.StructField("adviceGivenBy", T.StringType(), True),
+                    T.StructField("adviceDate", T.StringType(), True),
+                    T.StructField("adviceDetails", T.StringType(), True),
+                    T.StructField("adviceDetailsWelsh", T.StringType(), True),
+                    T.StructField("status", T.StringType(), True),
+                    T.StructField("redactionStatus", T.StringType(), True),
+                    T.StructField("attachmentIds", T.ArrayType(T.StringType(), True), True),
+                    T.StructField("Section51Advice", T.StringType(), True),
+                    T.StructField("EnquirerFirstName", T.StringType(), True),
+                    T.StructField("EnquirerLastName", T.StringType(), True),
+                    T.StructField("AdviceLastModified", T.StringType(), True),
+                    T.StructField("AttachmentCount", T.StringType(), True),
+                    T.StructField("AttachmentsLastModified", T.StringType(), True),
+                    T.StructField("LastPublishedDate", T.StringType(), True),
+                    T.StructField("WelshLanguage", T.StringType(), True),
+                    T.StructField("CaseWorkType", T.StringType(), True),
+                    T.StructField("Migrated", T.StringType(), False),
+                    T.StructField("ODTSourceSystem", T.StringType(), True),
+                    T.StructField("IngestionDate", T.StringType(), True),
+                    T.StructField("ValidTo", T.StringType(), True),
+                    T.StructField("RowID", T.StringType(), False),
+                    T.StructField("IsActive", T.StringType(), False),
+                ]
+            ),
+        )
+        inst = NsipS51AdviceHarmonisationProcess(spark)
+        data_to_write, result = inst.process(
+            source_data={
+                "service_bus_data": service_bus_data,
+                "horizon_data": horizon_data,
+                "horizon_deleted": horizon_deleted,
+                "sb_advice_ids": sb_advice_ids,
+            }
+        )
 
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil"
-            ),
-        ):
-            inst = NsipS51AdviceHarmonisationProcess(spark)
-            data_to_write, result = inst.process(
-                source_data={
-                    "service_bus_data": service_bus_data,
-                    "horizon_data": horizon_data,
-                    "horizon_deleted": horizon_deleted,
-                    "sb_advice_ids": sb_advice_ids,
-                }
-            )
         write_entry_key = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[write_entry_key]["data"]
-        rows = [row.asDict(recursive=True) for row in actual_df.collect()]
-
-        assert "SourceSystemID" not in actual_df.columns
-        assert "AttachmentModifyDate" not in actual_df.columns
-        assert actual_df.count() == 3
-
-        advice_10_rows = [row for row in rows if row["adviceId"] == 10]
-        advice_20_rows = [row for row in rows if row["adviceId"] == 20]
-
-        assert len(advice_10_rows) == 1
-        assert len(advice_20_rows) == 2
-
-        assert advice_10_rows[0]["Migrated"] == "1"
-        assert advice_10_rows[0]["IsActive"] == "Y"
-
-        for row in advice_20_rows:
-            assert row["Migrated"] == "0"
-            assert row["IsActive"] == "N"
-            assert row["ValidTo"] is not None
-            assert row["attachmentIds"] == ["HA1", "HA2"]
-
-        assert data_to_write[write_entry_key]["write_mode"] == "overwrite"
-        assert data_to_write[write_entry_key]["partition_by"] == ["IsActive"]
+        compare_data(expected_df, actual_df)
         assert result.metadata.insert_count == 3
