@@ -11,9 +11,6 @@ class NsipInvoiceCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "sb_nsip_invoice"
     OUTPUT_TABLE = "nsip_invoice"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Invoice Curation Process"
