@@ -1336,7 +1336,9 @@
 									"retryCount": {
 										"value": "@pipeline().parameters.transformRetryCount",
 										"type": "Expression"
-									}
+									},
+									"transformEntities": "@pipeline().parameters.transformEntities",
+									"overrideTransformConfigFile": "@pipeline().parameters.overrideTransformConfigFile"
 								}
 							}
 						},
@@ -1501,7 +1503,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@equals(item().status,'Failed')\n",
+									"value": "@or(\n  equals(item().status, 'Failed'),\n  equals(item().successful, false)\n)",
 									"type": "Expression"
 								},
 								"ifTrueActivities": [
@@ -1513,7 +1515,7 @@
 										"typeProperties": {
 											"variableName": "transformFailedEntities",
 											"value": {
-												"value": "@item().entity\n",
+												"value": "@concat(item().entity, '.', item().stage)",
 												"type": "Expression"
 											}
 										}
@@ -1533,7 +1535,7 @@
 										"typeProperties": {
 											"variableName": "transformFailedErrors",
 											"value": {
-												"value": "@concat(item().entity, ': ', coalesce(item().error, 'Unknown error'))\n",
+												"value": "@concat(item().entity, '.', item().stage, ': ', coalesce(item().error, 'Unknown error'))",
 												"type": "Expression"
 											}
 										}
@@ -1711,8 +1713,7 @@
 				"defaultValue": []
 			},
 			"previousRunSummaryPath": {
-				"type": "string",
-				"defaultValue": ""
+				"type": "string"
 			},
 			"runCuratedToMiPINS": {
 				"type": "bool",
@@ -1737,6 +1738,14 @@
 			"transformRetryCount": {
 				"type": "int",
 				"defaultValue": 2
+			},
+			"transformEntities": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"overrideTransformConfigFile": {
+				"type": "string",
+				"defaultValue": "orchestration/orchestration_transform_dependencies.yaml"
 			}
 		},
 		"variables": {
