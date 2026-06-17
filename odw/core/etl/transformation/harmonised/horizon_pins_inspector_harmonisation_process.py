@@ -33,9 +33,6 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
     # Columns excluded from the SCD-2 state hash (plumbing / tracking fields)
     _HASH_EXCLUDE = frozenset({"RowID", "ValidTo", "IsActive", "IngestionDate", "ODTSourceSystem", "Migrated", "SourceSystemID"})
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "Horizon PINS Inspector Harmonisation Process"

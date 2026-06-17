@@ -73,9 +73,6 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "odw_harmonised_db.appeal_document"
     PRIMARY_KEY = "TEMP_PK"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Document Harmonisation Process"

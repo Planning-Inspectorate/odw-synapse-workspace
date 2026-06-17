@@ -7,9 +7,6 @@ class AppealEventHarmonisationProcess(HarmonisationProcess):
     SERVICE_BUS_TABLE = "sb_appeal_event"
     HORIZON_TABLE = "horizon_appeals_event"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Event Harmonisation Process"

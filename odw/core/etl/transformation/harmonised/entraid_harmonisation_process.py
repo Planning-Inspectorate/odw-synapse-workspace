@@ -33,9 +33,6 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
     SOURCE_SYSTEM_TABLE = "odw_harmonised_db.main_sourcesystem_fact"
     OUTPUT_TABLE = "odw_harmonised_db.entraid"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "EntraID Harmonisation Process"

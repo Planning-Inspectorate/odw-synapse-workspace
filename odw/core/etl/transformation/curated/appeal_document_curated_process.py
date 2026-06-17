@@ -25,9 +25,6 @@ class AppealDocumentCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.appeal_document"
     OUTPUT_TABLE = "odw_curated_db.appeal_document"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Document Curation Process"

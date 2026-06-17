@@ -26,9 +26,6 @@ class NsipMeetingCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.sb_nsip_meeting"
     OUTPUT_TABLE = "nsip_meeting"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Meeting Curation Process"

@@ -6,9 +6,6 @@ class AppealAttributeMatrixStandardisationProcess(StandardisationProcess):
     CSV_FOLDER = "AppealAttributeMatrix"
     OUTPUT_TABLE = "appeal_attribute_matrix"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Attribute Matrix Standardisation Process"

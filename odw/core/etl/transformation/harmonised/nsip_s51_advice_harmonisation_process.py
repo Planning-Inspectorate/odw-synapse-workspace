@@ -67,9 +67,6 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
     HORIZON_TABLE = "odw_standardised_db.horizon_nsip_advice"
     OUTPUT_TABLE = "nsip_s51_advice"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP S51 Advice Harmonisation Process"

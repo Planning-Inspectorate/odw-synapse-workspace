@@ -5,9 +5,6 @@ from odw.core.etl.transformation.standardised.standardisation_process import Sta
 class ListedBuildingStandardisationProcess(StandardisationProcess):
     OUTPUT_TABLE = "listed_building"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Listed Building Standardisation Process"

@@ -24,9 +24,6 @@ class AppealHasStandardisationProcess(StandardisationProcess):
     STANDARDISED_TYPE_OF_PROCEDURE = "typeofprocedure"
     STANDARDISED_TYPE_OF_LEVEL = "TypeOfLevel"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal HAS Standardisation Process"

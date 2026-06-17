@@ -26,9 +26,6 @@ class NsipDocumentCuratedProcess(CurationProcess):
     CURATED_PROJECT_TABLE = "odw_curated_db.nsip_project"
     OUTPUT_TABLE = "nsip_document"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Document Curation Process"

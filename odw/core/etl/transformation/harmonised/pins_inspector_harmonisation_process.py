@@ -32,9 +32,6 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
     HIST_SAP_HR_TABLE = "odw_harmonised_db.hist_sap_hr"
     OUTPUT_TABLE = "odw_harmonised_db.pins_inspector"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "PINS Inspector Harmonisation Process"

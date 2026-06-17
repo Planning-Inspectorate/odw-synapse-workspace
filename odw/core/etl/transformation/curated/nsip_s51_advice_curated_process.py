@@ -25,9 +25,6 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.nsip_s51_advice"
     OUTPUT_TABLE = "s51_advice"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP S51 Advice Curation Process"

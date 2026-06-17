@@ -13,9 +13,6 @@ class DartAPICurationProcess(CurationProcess):
     HARMONISED_APPEAL_S78 = "appeal_s78"
     OUTPUT_TABLE = "dart_api"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "DART API Curation Process"

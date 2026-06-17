@@ -34,9 +34,6 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
         "reportingTime",
     ]
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Event Estimate Curation Process"

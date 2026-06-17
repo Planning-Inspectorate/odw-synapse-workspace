@@ -48,9 +48,6 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
     HORIZON_NSIP_DATA_TABLE = "odw_standardised_db.horizon_nsip_data"
     OUTPUT_TABLE = "nsip_exam_timetable"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Exam Timetable Harmonisation Process"

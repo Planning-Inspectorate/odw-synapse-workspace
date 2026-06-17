@@ -73,9 +73,6 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "aie_document_data"
     PRIMARY_KEY = "TEMP_PK"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "AIE Document Harmonisation Process"

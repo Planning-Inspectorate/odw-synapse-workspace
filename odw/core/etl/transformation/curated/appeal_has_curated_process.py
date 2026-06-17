@@ -5,9 +5,6 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 class AppealHasCuratedProcess(CurationProcess):
     OUTPUT_TABLE = "appeal_has"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal HAS Curation Process"

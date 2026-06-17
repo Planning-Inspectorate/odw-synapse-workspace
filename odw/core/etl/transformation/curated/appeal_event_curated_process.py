@@ -7,9 +7,6 @@ class AppealEventCuratedProcess(CurationProcess):
     OUTPUT_TABLE = "appeal_event"
     SOURCE_TABLE = "appeal_event"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal Event Curation Process"

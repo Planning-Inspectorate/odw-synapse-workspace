@@ -88,9 +88,6 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
     SOURCE_SYSTEM_TABLE = "odw_harmonised_db.main_sourcesystem_fact"
     OUTPUT_TABLE = "nsip_representation"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Representation Harmonisation Process"

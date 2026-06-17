@@ -9,9 +9,6 @@ class AppealHasHarmonisationProcess(HarmonisationProcess):
     GROUP_RESOLVER_TABLE = "GroupResolver"
     S78_TABLE = "appeal_s78"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "Appeal HAS Harmonisation Process"
