@@ -14,6 +14,7 @@ def compare_data(expected: DataFrame, actual: DataFrame):
     actual_cleaned = actual.drop(*uncomparable_cols)
     assert_dataframes_equal(expected_cleaned, actual_cleaned)
 
+
 class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
     def test__nsip_s51_advice_harmonisation_process__process__aggregates_attachments_and_applies_delete_logic(
         self,
