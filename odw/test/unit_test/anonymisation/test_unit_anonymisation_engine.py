@@ -795,14 +795,14 @@ class TestHorizonPurviewFQNBuilder:
     def test__filename_to_purview_pattern__no_extension(self):
         assert _horizon_filename_to_purview_pattern("HorizonCases78") == "HorizonCases{N}"
 
-    def test__build_fqn__horizon_uses_archive_prefix(self):
+    def test__build_fqn__horizon_path(self):
         fqn = _build_asset_qualified_name_from_params(
             storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
             source_folder="Horizon",
             entity_name=None,
             file_name="HorizonCases_s78.csv",
         )
-        assert fqn == ("https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/archive/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv")
+        assert fqn == ("https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv")
 
     def test__build_fqn__horizon_converts_filename_to_pattern(self):
         fqn = _build_asset_qualified_name_from_params(
@@ -812,7 +812,7 @@ class TestHorizonPurviewFQNBuilder:
             file_name="HorizonAppeals42.csv",
         )
         assert "/HorizonAppeals{N}.csv" in fqn
-        assert "/archive/Horizon/" in fqn
+        assert "/odw-raw/Horizon/" in fqn
 
     def test__extract_classified_columns__reads_tab_schema_guid(self):
         """tabSchema (single dict) must be followed when attachedSchema is absent."""
