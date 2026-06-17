@@ -17,9 +17,6 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
     HARMONISED_DB = "odw_harmonised_db"
     _INCREMENTAL_KEY = "NSIPInvoiceID"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Invoice Harmonisation Process"
