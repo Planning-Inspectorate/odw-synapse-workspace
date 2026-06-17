@@ -5,6 +5,7 @@ from pyspark.sql import DataFrame
 class AppealS78MIPINSCurationProcess(CurationProcess):
     APPEALS_S78_TABLE = "appeal_s78"
     OUTPUT_TABLE = "appeals_s78_curated_mipins"
+
     @classmethod
     def get_name(cls) -> str:
         return "Appeal S78 MIPINS Curation Process"

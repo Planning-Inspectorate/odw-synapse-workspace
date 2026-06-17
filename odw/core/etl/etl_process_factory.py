@@ -68,7 +68,7 @@ class ETLProcessFactory:
         NsipProjectHarmonisationProcess,
         NsipInvoiceHarmonisationProcess,
         NsipInvoiceCuratedProcess,
-        NsipProjectCuratedProcess
+        NsipProjectCuratedProcess,
     }
 
     @classmethod

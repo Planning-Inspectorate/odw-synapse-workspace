@@ -7,6 +7,7 @@ from typing import Tuple, Dict
 class EntraIDMIPINSCurationProcess(CurationProcess):
     HARMONISED_TABLE = "entraid"
     CURATED_TABLE = "entraid_curated_mipins"
+
     @classmethod
     def get_name(cls) -> str:
         return "Entrad ID Curation"

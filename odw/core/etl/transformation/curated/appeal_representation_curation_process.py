@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, Tuple
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.etl.transformation.curated.curation_process import CurationProcess

@@ -26,6 +26,7 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     STANDARDISED_HORIZON_APPEAL_GROUNDS = "horizon_appeal_grounds"
     STANDARDISED_TYPE_OF_PROCEDURE = "typeofprocedure"
     STANDARDISED_TYPE_OF_LEVEL = "TypeOfLevel"
+
     @classmethod
     def get_name(cls) -> str:
         return "Appeal S78 Standardisation Process"

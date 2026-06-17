@@ -8,6 +8,7 @@ class AppealS78HarmonisationProcess(HarmonisationProcess):
     HAS_TABLE = "appeal_has"
     GROUP_RESOLVER = "GroupResolver"
     OUTPUT_TABLE = "appeal_s78"
+
     @classmethod
     def get_name(cls) -> str:
         return "Appeal S78 Harmonisation Process"
