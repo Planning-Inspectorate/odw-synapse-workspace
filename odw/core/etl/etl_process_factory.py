@@ -27,6 +27,10 @@ from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_pr
 from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
 from odw.core.etl.transformation.harmonised.horizon_pins_inspector_harmonisation_process import HorizonPinsInspectorHarmonisationProcess
 from odw.core.etl.transformation.curated.pins_inspector_curated_process import PinsInspectorCuratedProcess
+from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
+from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
@@ -61,6 +65,10 @@ class ETLProcessFactory:
         PinsInspectorHarmonisationProcess,
         HorizonPinsInspectorHarmonisationProcess,
         PinsInspectorCuratedProcess,
+        NsipProjectHarmonisationProcess,
+        NsipInvoiceHarmonisationProcess,
+        NsipInvoiceCuratedProcess,
+        NsipProjectCuratedProcess,
     }
 
     @classmethod

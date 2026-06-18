@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonsation_process import Harmonis
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -32,9 +32,6 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
     HRM_TABLE = "odw_harmonised_db.entraid"
     SOURCE_SYSTEM_TABLE = "odw_harmonised_db.main_sourcesystem_fact"
     OUTPUT_TABLE = "odw_harmonised_db.entraid"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:

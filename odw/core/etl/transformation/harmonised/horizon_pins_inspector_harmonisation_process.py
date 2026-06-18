@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonsation_process import Harmonis
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import Window as W
 from datetime import datetime
@@ -32,9 +32,6 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     # Columns excluded from the SCD-2 state hash (plumbing / tracking fields)
     _HASH_EXCLUDE = frozenset({"RowID", "ValidTo", "IsActive", "IngestionDate", "ODTSourceSystem", "Migrated", "SourceSystemID"})
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:

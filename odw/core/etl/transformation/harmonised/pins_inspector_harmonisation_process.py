@@ -4,7 +4,7 @@ from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name
-from pyspark.sql import DataFrame, SparkSession, Window as W
+from pyspark.sql import DataFrame, Window as W
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -31,9 +31,6 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
     LIVE_DIM_TABLE = "odw_harmonised_db.live_dim_inspector"
     HIST_SAP_HR_TABLE = "odw_harmonised_db.hist_sap_hr"
     OUTPUT_TABLE = "odw_harmonised_db.pins_inspector"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:

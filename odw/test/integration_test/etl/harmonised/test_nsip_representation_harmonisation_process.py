@@ -80,7 +80,7 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
             ],
             T.StructType(
                 [
-                    T.StructField("NSIPRepresentaionID", T.IntegerType(), True),
+                    T.StructField("NSIPRepresentationID", T.IntegerType(), True),
                     T.StructField("representationId", T.IntegerType(), True),
                     T.StructField("referenceId", T.StringType(), True),
                     T.StructField("examinationLibraryRef", T.StringType(), True),
@@ -197,9 +197,6 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
                     "other2",
                     "desc-other2",
                     "email",
-                    "2025-02-01 00:00:00",
-                    None,
-                    "Y",
                     datetime(2025, 1, 1),
                 ),
                 (
@@ -251,9 +248,6 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
                     "other2",
                     "desc-other2",
                     "email",
-                    "2025-02-01 00:00:00",
-                    None,
-                    "Y",
                     datetime(2025, 1, 1),
                 ),
             ],
@@ -307,9 +301,6 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
                     T.StructField("other", T.StringType(), True),
                     T.StructField("descriptionifother", T.StringType(), True),
                     T.StructField("preferredcontactmethod", T.StringType(), True),
-                    T.StructField("IngestionDate", T.StringType(), True),
-                    T.StructField("ValidTo", T.StringType(), True),
-                    T.StructField("IsActive", T.StringType(), True),
                     T.StructField("ingested_datetime", T.TimestampType(), True),
                 ]
             ),
@@ -318,8 +309,16 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
         self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
 
         source_system_data = spark.createDataFrame(
-            [("SRC_CASEWORK", "Casework", "Y")],
-            ["SourceSystemID", "Description", "IsActive"],
+            [("SRC_CASEWORK", "Casework", "Y", None, "2025-02-01 00:00:00")],
+            schema=T.StructType(
+                [
+                    T.StructField("SourceSystemID", T.StringType(), True),
+                    T.StructField("Description", T.StringType(), True),
+                    T.StructField("IsActive", T.StringType(), True),
+                    T.StructField("ValidTo", T.StringType(), True),
+                    T.StructField("IngestionDate", T.StringType(), True),
+                ]
+            ),
         )
         source_system_table = f"{test_case}_main_sourcesystem_fact"
         self.write_existing_table(

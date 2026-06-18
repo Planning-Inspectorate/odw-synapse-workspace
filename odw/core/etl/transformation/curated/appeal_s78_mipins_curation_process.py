@@ -6,7 +6,8 @@ class AppealS78MIPINSCurationProcess(CurationProcess):
     APPEALS_S78_TABLE = "appeal_s78"
     OUTPUT_TABLE = "appeals_s78_curated_mipins"
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Appeal S78 MIPINS Curation Process"
 
     def load_data(self, **kwargs):

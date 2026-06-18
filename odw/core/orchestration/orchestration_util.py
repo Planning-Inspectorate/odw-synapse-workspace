@@ -82,12 +82,12 @@ class OrchestrationUtil:
     def postprocess_orchestration_results(
         cls, successful_results: ResultType, failed_results: ResultType, preprocessing_failures: List[Dict[str, Any]]
     ):
-        successful_results_json = cls._validate_results(failed_results)
-        failed_results_json = cls._validate_results(successful_results)
+        successful_results_json = cls._validate_results(successful_results)
+        failed_results_json = cls._validate_results(failed_results)
         preprocessing_failures_json = cls._validate_preprocessing_failures(preprocessing_failures)
 
         clean_successful_results = cls._clean_results(successful_results_json)
         clean_failed_results = cls._clean_results(failed_results_json)
         clean_preprocessing_failures = cls._clean_preprocessing_failures(preprocessing_failures_json)
         results = clean_successful_results + clean_failed_results + clean_preprocessing_failures
-        return {"hasFailure": bool(failed_results) or bool(clean_preprocessing_failures), "results": results}
+        return {"hasFailure": bool(clean_failed_results) or bool(clean_preprocessing_failures), "results": results}

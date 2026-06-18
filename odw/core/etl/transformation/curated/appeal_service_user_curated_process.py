@@ -6,11 +6,8 @@ class AppealServiceUserCuratedProcess(CurationProcess):
     OUTPUT_TABLE = "appeal_service_user"
     SOURCE_TABLE = "service_user"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
-
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Appeal Service User Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:

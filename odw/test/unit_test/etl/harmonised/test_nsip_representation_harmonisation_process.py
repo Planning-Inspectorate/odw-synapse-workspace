@@ -76,7 +76,7 @@ class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
             ],
             T.StructType(
                 [
-                    T.StructField("NSIPRepresentaionID", T.IntegerType(), True),
+                    T.StructField("NSIPRepresentationID", T.IntegerType(), True),
                     T.StructField("representationId", T.IntegerType(), True),
                     T.StructField("referenceId", T.StringType(), True),
                     T.StructField("examinationLibraryRef", T.StringType(), True),
@@ -191,9 +191,6 @@ class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
                     "other2",
                     "desc-other2",
                     "email",
-                    "2025-02-01 00:00:00",
-                    None,
-                    "Y",
                 ),
                 (
                     20,
@@ -244,9 +241,6 @@ class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
                     "other2",
                     "desc-other2",
                     "email",
-                    "2025-02-01 00:00:00",
-                    None,
-                    "Y",
                 ),
             ],
             T.StructType(
@@ -299,16 +293,27 @@ class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
                     T.StructField("other", T.StringType(), True),
                     T.StructField("descriptionifother", T.StringType(), True),
                     T.StructField("preferredcontactmethod", T.StringType(), True),
-                    T.StructField("IngestionDate", T.StringType(), True),
-                    T.StructField("ValidTo", T.StringType(), True),
-                    T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
         )
 
         source_system_data = spark.createDataFrame(
-            [("SRC_CASEWORK",)],
-            ["SourceSystemID"],
+            [
+                (
+                    "SRC_CASEWORK",
+                    "2025-02-01 00:00:00",
+                    None,
+                    "Y",
+                )
+            ],
+            schema=T.StructType(
+                [
+                    T.StructField("SourceSystemID", T.StringType(), True),
+                    T.StructField("IngestionDate", T.StringType(), True),
+                    T.StructField("ValidTo", T.StringType(), True),
+                    T.StructField("IsActive", T.StringType(), True),
+                ]
+            ),
         )
 
         sb_representation_ids = spark.createDataFrame(
