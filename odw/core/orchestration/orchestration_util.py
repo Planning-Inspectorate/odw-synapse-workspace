@@ -90,4 +90,4 @@ class OrchestrationUtil:
         clean_failed_results = cls._clean_results(failed_results_json)
         clean_preprocessing_failures = cls._clean_preprocessing_failures(preprocessing_failures_json)
         results = clean_successful_results + clean_failed_results + clean_preprocessing_failures
-        return {"hasFailure": bool(failed_results) or bool(clean_preprocessing_failures), "results": results}
+        return {"hasFailure": bool(clean_failed_results) or bool(clean_preprocessing_failures), "results": results}
