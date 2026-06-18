@@ -200,13 +200,14 @@ def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder:
     if source_folder == "ServiceBus":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
-        # Example:
-        # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
-        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}.json
+        # Purview keeps the entity folder name literal (it never varies across files) but
+        # replaces digit sequences in the filename prefix with {N}. Minute and Second have
+        # no Purview named placeholder, so they become {N} like the rest.
+        entity_pattern = re.sub(r"\d+", "{N}", entity_name)
         return (
             f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
             f"{{Year}}-{{Month}}-{{Day}}/"
-            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}.json"
+            f"{entity_pattern}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}.json"
         )
     if source_folder == "Horizon":
         if not file_name:
@@ -227,8 +228,14 @@ def _purview_base_url(purview_name: str) -> str:
     return f"https://{purview_name}.catalog.purview.azure.com/api/atlas/v2"
 
 
+class _PurviewEntityNotFoundError(Exception):
+    pass
+
+
 def _http_get(url: str, headers: Dict[str, str], timeout: int = 60) -> dict:
     r = requests.get(url, headers=headers, timeout=timeout)
+    if r.status_code == 404:
+        raise _PurviewEntityNotFoundError(f"HTTP 404 – {r.text[:800]}")
     if not r.ok:
         raise Exception(f"HTTP {r.status_code} – {r.text[:800]}")
     return r.json()
@@ -501,7 +508,15 @@ def fetch_purview_classifications_by_qualified_name(
     token = _get_access_token(tenant_id, client_id, client_secret)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+    try:
+        guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+    except _PurviewEntityNotFoundError:
+        _log_event(
+            "purview.entity_not_found",
+            asset_type_name=asset_type_name,
+            asset_qualified_name=asset_qualified_name,
+        )
+        return []
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
 
     _log_event(

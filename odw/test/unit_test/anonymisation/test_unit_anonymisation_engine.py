@@ -878,6 +878,36 @@ class TestHorizonPurviewFQNBuilder:
         assert "/odw-raw/ServiceBus/service-user/" in fqn
         assert "archive" not in fqn
 
+
+    def test__build_fqn__service_bus_appeal_s78_exact_fqn(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="appeal-s78",
+            file_name=None,
+        )
+        expected = (
+            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/appeal-s78/"
+            "{Year}-{Month}-{Day}/"
+            "appeal-s{N}_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}.json"
+        )
+        assert fqn == expected
+
+    def test__build_fqn__service_bus_s51_advice_exact_fqn(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="s51-advice",
+            file_name=None,
+        )
+        expected = (
+            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/s51-advice/"
+            "{Year}-{Month}-{Day}/"
+            "s{N}-advice_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}.json"
+        )
+        assert fqn == expected
+
+
     def test__fetch_classified_columns_deep__traverses_nested_json_schema(self):
         """BFS should find classified columns 4 hops deep.
 
