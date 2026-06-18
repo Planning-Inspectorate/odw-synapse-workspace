@@ -7,7 +7,8 @@ class AppealServiceUserCuratedMipinsProcess(CurationProcess):
     SOURCE_SERVICE_USER_TABLE = "service_user"
     OUTPUT_TABLE = "appeal_service_user_curated_mipins"
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Appeal Service User MIPINS Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:

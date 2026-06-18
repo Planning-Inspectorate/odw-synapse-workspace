@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, Tuple
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
@@ -20,9 +20,6 @@ class AppealRepresentationCurationProcess(CurationProcess):
 
     HARMONISED_TABLE = "odw_harmonised_db.sb_appeal_representation"
     OUTPUT_TABLE = "odw_curated_db.appeal_representation"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:

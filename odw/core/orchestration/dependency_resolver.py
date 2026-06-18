@@ -1,6 +1,7 @@
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
 from graphlib import TopologicalSorter
 from typing import List, Dict, Any, Union
+import json
 
 
 class DependencyResolver:
@@ -14,6 +15,39 @@ class DependencyResolver:
         self.config = config
         OrchestrationConfig.model_validate(self.config)
         self._preprocess_config()
+
+    def _preprocess_entity_stages(self, entity_stages: List[str]):
+        delimiter = "."
+        # Get the entries that have too many delimiters
+        invalid_entries = [str(entry) for entry in entity_stages if len(str(entry).split(delimiter)) > 2]
+        if invalid_entries:
+            raise ValueError(
+                f"Each entry of the entity_stages must have the form <entity_name.stage_name>. The following entries were invalid: {json.dumps(invalid_entries, indent=4)}"
+            )
+        # Get the entries that have exactly one delimiter
+        valid_entries = [entry for entry in entity_stages if len(entry.split(delimiter)) == 2]
+        # Get the entries that do not have a delimiter - element after the delimiter can be inferred from the config
+        entities_to_explode = [entry for entry in entity_stages if len(entry.split(delimiter)) == 1]
+        missing_entities = [entity for entity in entities_to_explode if entity not in self.config.get("entities", dict())]
+        if missing_entities:
+            raise ValueError(
+                f"The following entities were provided but could not be found in the config file: {json.dumps(missing_entities, indent=4)}"
+            )
+        # Generate new groups of entity_stages by extracting all stages for each entity
+        exploded_entries = [
+            [f"{entity}.{stage}" for stage in self.config.get("entities", dict()).get(entity, dict()).keys()] for entity in entities_to_explode
+        ]
+        # Combine the valid entries with the exploded entries
+        flattened_exploded_entries = [y for x in exploded_entries for y in x]
+        entries = list(set(valid_entries + flattened_exploded_entries))
+        missing_entity_stages = [
+            entity_stage
+            for entity_stage in entries
+            if not self.config.get("entities", dict()).get(entity_stage.split(delimiter)[0], dict()).get(entity_stage.split(delimiter)[1], None)
+        ]
+        if missing_entity_stages:
+            raise ValueError(f"The following entity_stages could not be found in the config: {json.dumps(missing_entity_stages, indent=4)}")
+        return entries
 
     def _preprocess_config(self):
         """
@@ -99,10 +133,23 @@ class DependencyResolver:
         ]
         return [x for x in cleaned_groups if x]
 
+    @classmethod
+    def filter_entity_stages_with_failed_dependencies(cls, group: List[Dict[str, Any]], execution_details: List[Dict[str, Any]]):
+        """
+        Filter out entity stages from a group that have had any of its dependencies fail
+        """
+        if not execution_details:
+            return group
+        failed_executions = {f"{row['entity_name']}.{row['stage_name']}" for row in execution_details if not row["successful"]}
+        return [
+            entity_stage for entity_stage in group if not any(dependency in failed_executions for dependency in entity_stage.get("depends_on", []))
+        ]
+
     def generate_stages_to_run(self, entity_stages: List[str], execution_details: Dict[str, Any]):
         """
         Filter down the config so that only relevent entities are executed and group them into batches that can run concurrently
         """
-        self._filter_irrelevant_dependencies_from_config(entity_stages)
+        cleaned_entity_stages = self._preprocess_entity_stages(entity_stages)
+        self._filter_irrelevant_dependencies_from_config(cleaned_entity_stages)
         groups = self._topological_sort()
         return self.filter_already_executed_entity_stages(groups, execution_details)

@@ -3,6 +3,7 @@ import re
 from datetime import date
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.anonymisation.engine import _build_asset_qualified_name_from_params, _horizon_filename_to_purview_pattern
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 import pyspark.sql.functions as F
@@ -747,3 +748,232 @@ class TestAnonymisationEngine(SparkTestCase):
 
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
+
+    def test__anonymisation__nested_purview_column_matched_by_leaf(self):
+        from odw.core.anonymisation.engine import AnonymisationEngine
+
+        spark = PytestSparkSessionUtil().get_spark_session()
+
+        data = [{"id": "u-1", "surname": "Smith", "givenName": "Alice"}]
+        df = spark.createDataFrame(data)
+
+        # Purview returns nested column paths (e.g. from an entraid resource set)
+        mocked_purview_cols = [
+            {"column_name": "value[].surname", "classifications": ["All Full Names"]},
+            {"column_name": "value[].givenName", "classifications": ["All Full Names"]},
+        ]
+
+        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
+            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+                with mock.patch.object(LoggingUtil, "__new__"):
+                    with mock.patch.object(LoggingUtil, "log_info", return_value=None):
+                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                            with mock.patch(
+                                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                                return_value=mocked_purview_cols,
+                            ):
+                                engine = AnonymisationEngine()
+                                result_df = engine.apply_from_purview(df, entity_name="entraid", file_name="entraid.json", source_folder="entraid")
+
+        rows = result_df.collect()
+        assert rows[0]["surname"] != "Smith", "surname should have been anonymised"
+        assert rows[0]["givenName"] != "Alice", "givenName should have been anonymised"
+
+
+class TestHorizonPurviewFQNBuilder:
+    """Unit tests for the Horizon Purview qualified-name helpers."""
+
+    def test__filename_to_purview_pattern__replaces_trailing_number(self):
+        assert _horizon_filename_to_purview_pattern("HorizonCases_s78.csv") == "HorizonCases_s{N}.csv"
+
+    def test__filename_to_purview_pattern__replaces_all_digit_runs(self):
+        assert _horizon_filename_to_purview_pattern("Appeals123_v2.csv") == "Appeals{N}_v{N}.csv"
+
+    def test__filename_to_purview_pattern__no_digits_unchanged(self):
+        assert _horizon_filename_to_purview_pattern("HorizonContacts.csv") == "HorizonContacts.csv"
+
+    def test__filename_to_purview_pattern__no_extension(self):
+        assert _horizon_filename_to_purview_pattern("HorizonCases78") == "HorizonCases{N}"
+
+    def test__build_fqn__horizon_path(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="Horizon",
+            entity_name=None,
+            file_name="HorizonCases_s78.csv",
+        )
+        assert fqn == ("https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv")
+
+    def test__build_fqn__horizon_converts_filename_to_pattern(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="teststorage.dfs.core.windows.net",
+            source_folder="Horizon",
+            entity_name=None,
+            file_name="HorizonAppeals42.csv",
+        )
+        assert "/HorizonAppeals{N}.csv" in fqn
+        assert "/odw-raw/Horizon/" in fqn
+
+    def test__extract_classified_columns__reads_tab_schema_guid(self):
+        """tabSchema (single dict) must be followed when attachedSchema is absent."""
+        from odw.core.anonymisation.engine import _extract_classified_columns
+
+        # Simulate a Purview entity whose schema is linked via tabSchema (ADLS Gen2 resource set)
+        schema_guid = "schema-guid-001"
+        col_guid = "col-guid-surname"
+        entity_with_refs = {
+            "entity": {
+                "relationshipAttributes": {
+                    "tabSchema": {"guid": schema_guid, "typeName": "tabular_schema"},
+                }
+            },
+            "referredEntities": {},  # columns are NOT here — they need a second hop
+        }
+        schema_entity_with_refs = {
+            "entity": {
+                "relationshipAttributes": {
+                    "columns": [{"guid": col_guid, "typeName": "tabular_column"}],
+                }
+            },
+            "referredEntities": {
+                col_guid: {
+                    "guid": col_guid,
+                    "typeName": "tabular_column",
+                    "attributes": {"name": "surname"},
+                    "classifications": [{"typeName": "All Full Names"}],
+                }
+            },
+        }
+
+        def mock_get_entity(purview_name, guid, api_version, headers):
+            if guid == schema_guid:
+                return schema_entity_with_refs
+            raise ValueError(f"Unexpected GUID: {guid}")
+
+        from unittest import mock
+
+        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
+            result = _extract_classified_columns(entity_with_refs, purview_name="pins-pview")
+
+        assert len(result) == 1
+        assert result[0]["column_name"] == "surname"
+        assert "All Full Names" in result[0]["classifications"]
+
+    def test__build_fqn__entraid_no_entity_subfolder(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="entraid",
+            entity_name="entraid",
+            file_name=None,
+        )
+        assert fqn == "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/entraid/{Year}-{Month}-{Day}/entraid.json"
+
+    def test__build_fqn__service_bus_unaffected(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="teststorage.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="service-user",
+            file_name=None,
+        )
+        assert "/odw-raw/ServiceBus/service-user/" in fqn
+        assert "archive" not in fqn
+
+    def test__build_fqn__service_bus_appeal_s78_exact_fqn(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="appeal-s78",
+            file_name=None,
+        )
+        expected = (
+            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/appeal-s78/"
+            "{Year}-{Month}-{Day}/"
+            "appeal-s{N}_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}.json"
+        )
+        assert fqn == expected
+
+    def test__build_fqn__service_bus_s51_advice_exact_fqn(self):
+        fqn = _build_asset_qualified_name_from_params(
+            storage_host="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            source_folder="ServiceBus",
+            entity_name="s51-advice",
+            file_name=None,
+        )
+        expected = (
+            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/ServiceBus/s51-advice/"
+            "{Year}-{Month}-{Day}/"
+            "s{N}-advice_{Year}-{Month}-{Day}T{Hour}:{N}:{N}.{N}+{N}.json"
+        )
+        assert fqn == expected
+
+    def test__fetch_classified_columns_deep__traverses_nested_json_schema(self):
+        """BFS should find classified columns 4 hops deep.
+
+        Simulates the entraid ADLS Gen2 resource set graph:
+          schema_guid → root json_schema ("-")
+            → value (json_property, array)
+              → array element json_schema ("-")
+                → surname, givenName (json_property, classified)
+        """
+        from odw.core.anonymisation.engine import _fetch_classified_columns_deep
+        from unittest import mock
+
+        schema_guid = "ent-schema-root"
+        root_schema_guid = "ent-root-json-schema"
+        value_guid = "ent-value-prop"
+        array_schema_guid = "ent-array-json-schema"
+        surname_guid = "ent-col-surname"
+        given_name_guid = "ent-col-givenname"
+
+        entity_map = {
+            schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    root_schema_guid: {"guid": root_schema_guid, "typeName": "json_schema", "attributes": {"name": "-"}, "classifications": []},
+                },
+            },
+            root_schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    value_guid: {"guid": value_guid, "typeName": "json_property", "attributes": {"name": "value"}, "classifications": []},
+                },
+            },
+            value_guid: {
+                "entity": {
+                    "relationshipAttributes": {
+                        "items": [{"guid": array_schema_guid, "typeName": "json_schema"}],
+                    }
+                },
+                "referredEntities": {},
+            },
+            array_schema_guid: {
+                "entity": {"relationshipAttributes": {}},
+                "referredEntities": {
+                    surname_guid: {
+                        "guid": surname_guid,
+                        "typeName": "json_property",
+                        "attributes": {"name": "surname"},
+                        "classifications": [{"typeName": "All Full Names"}],
+                    },
+                    given_name_guid: {
+                        "guid": given_name_guid,
+                        "typeName": "json_property",
+                        "attributes": {"name": "givenName"},
+                        "classifications": [{"typeName": "All Full Names"}],
+                    },
+                },
+            },
+        }
+
+        def mock_get_entity(purview_name, guid, api_version, headers):
+            if guid in entity_map:
+                return entity_map[guid]
+            raise ValueError(f"Unexpected GUID: {guid}")
+
+        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
+            result = _fetch_classified_columns_deep("pins-pview", schema_guid, "2023-09-01", {})
+
+        assert len(result) == 2
+        names = {r["column_name"] for r in result}
+        assert names == {"surname", "givenName"}
+        assert all("All Full Names" in r["classifications"] for r in result)

@@ -2,7 +2,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -26,24 +26,24 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
     CURATED_PROJECT_TABLE = "odw_curated_db.nsip_project"
     OUTPUT_TABLE = "nsip_exam_timetable"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
         return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        """
-        Load source data, selecting only the columns needed downstream.
-        No joins or transformations are applied here – only reads.
-        """
         LoggingUtil().log_info(f"Loading harmonised NSIP Exam Timetable data from {self.HARMONISED_TABLE}")
         harmonised_exam_timetable = self.spark.sql(f"""
             SELECT
                 caseReference,
                 published,
-                events,
+                eventId,
+                type,
+                eventTitle,
+                eventTitleWelsh,
+                description,
+                descriptionWelsh,
+                eventDate,
+                eventDeadlineStartDate,
                 IngestionDate,
                 ODTSourceSystem
             FROM {self.HARMONISED_TABLE}
@@ -97,7 +97,14 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             .select(
                 latest_horizon_exam_timetable["caseReference"],
                 latest_horizon_exam_timetable["published"],
-                latest_horizon_exam_timetable["events"],
+                latest_horizon_exam_timetable["eventId"],
+                latest_horizon_exam_timetable["type"],
+                latest_horizon_exam_timetable["eventTitle"],
+                latest_horizon_exam_timetable["eventTitleWelsh"],
+                latest_horizon_exam_timetable["description"],
+                latest_horizon_exam_timetable["descriptionWelsh"],
+                latest_horizon_exam_timetable["eventDate"],
+                latest_horizon_exam_timetable["eventDeadlineStartDate"],
             )
             .distinct()
         )

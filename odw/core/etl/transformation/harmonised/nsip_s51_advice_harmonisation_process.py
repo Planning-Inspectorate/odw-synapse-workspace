@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonsation_process import Harmonis
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -66,9 +66,6 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_s51_advice"
     HORIZON_TABLE = "odw_standardised_db.horizon_nsip_advice"
     OUTPUT_TABLE = "nsip_s51_advice"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:
