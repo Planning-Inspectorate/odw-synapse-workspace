@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4ae751d9-cc55-4a35-b75d-3ed871a6235f"
+				"spark.autotune.trackingId": "85574c18-d677-4776-92a1-0b996ee9c246"
 			}
 		},
 		"metadata": {
@@ -45,12 +45,25 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
 		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"EntraID\"\n",
+					"PipelineRunID = \"9f5580a7-1b40-4af1-8f08-7a2ba3d01a9f\"\n",
+					"PipelineTriggerID = \"0732e73cf36c4de2b204908733a628ec\"\n",
+					"PipelineTriggerName = \"Sandbox\"\n",
+					"PipelineTriggerType = \"Manual\"\n",
+					"PipelineTriggeredbyPipelineName = None\n",
+					"PipelineTriggeredbyPipelineRunID = None"
+				],
+				"execution_count": 14
+			},
 			{
 				"cell_type": "code",
 				"source": [
@@ -62,7 +75,7 @@
 					"from notebookutils import mssparkutils\n",
 					"from pyspark.sql import functions as F"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -80,7 +93,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -100,20 +113,40 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"def _fail_and_log(step_name: str, e: Exception):\n",
 					"    global error_message\n",
-					"    error_message = f\"[{step_name}]{type(e).__name__}:{str(e)}\"[:800]\n",
-					"    logError(error_message)\n",
 					"\n",
-					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
-					"    raise e "
+					"    try:\n",
+					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\n",
+					"    except Exception as format_error:\n",
+					"        error_message = (\n",
+					"            f\"[{step_name}] Failed to format original exception: \"\n",
+					"            f\"{type(format_error).__name__}: {str(format_error)}\"\n",
+					"        )[:800]\n",
+					"\n",
+					"    try:\n",
+					"        logError(error_message)\n",
+					"    except Exception as log_error:\n",
+					"        print(f\"Primary logging failed: {log_error}\")\n",
+					"        print(error_message)\n",
+					"\n",
+					"    try:\n",
+					"        telemetry_fn = globals().get(\"_log_telemetry\")\n",
+					"        if callable(telemetry_fn):\n",
+					"            telemetry_fn(\"Failed\", error_message, step_name)\n",
+					"        else:\n",
+					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\n",
+					"    except Exception as telemetry_error:\n",
+					"        print(f\"Telemetry logging failed: {telemetry_error}\")\n",
+					"\n",
+					"    raise e"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -126,7 +159,7 @@
 					"    except Exception as e:\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -153,7 +186,7 @@
 					"delete_count = 0\n",
 					"error_message = \"\""
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +263,7 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -313,7 +346,7 @@
 					"    step_build_entraid_new_candidates\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "markdown",
@@ -332,9 +365,33 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def step_build_entraid_new():\n    \"\"\"\n    Creates or replaces the temporary view 'entraid_new'\n    by joining entraid_new_candidates with raw_entraids.\n    \"\"\"\n    logInfo(\"Starting: Build entraid_new view\")\n\n    query = \"\"\"\n    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n    SELECT\n        candidates.*\n    FROM entraid_new_candidates AS candidates\n    INNER JOIN raw_entraids\n        ON candidates.id = raw_entraids.id\n    \"\"\"\n\n    spark.sql(query)\n    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n\n    return row_count\nentraid_new_count = run_step(\n    \"Build entraid_new view\",\n    step_build_entraid_new\n)"
+					"def step_build_entraid_new():\n",
+					"    \"\"\"\n",
+					"    Creates or replaces the temporary view 'entraid_new'\n",
+					"    by joining entraid_new_candidates with raw_entraids.\n",
+					"    \"\"\"\n",
+					"    logInfo(\"Starting: Build entraid_new view\")\n",
+					"\n",
+					"    query = \"\"\"\n",
+					"    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n",
+					"    SELECT\n",
+					"        candidates.*\n",
+					"    FROM entraid_new_candidates AS candidates\n",
+					"    INNER JOIN raw_entraids\n",
+					"        ON candidates.id = raw_entraids.id\n",
+					"    \"\"\"\n",
+					"\n",
+					"    spark.sql(query)\n",
+					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n",
+					"    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n",
+					"\n",
+					"    return row_count\n",
+					"entraid_new_count = run_step(\n",
+					"    \"Build entraid_new view\",\n",
+					"    step_build_entraid_new\n",
+					")"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -413,7 +470,7 @@
 					"    step_build_entraid_changed_rows\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -488,7 +545,7 @@
 					")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -545,7 +602,7 @@
 					"    step_insert_overwrite_entraid\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "code",
@@ -593,7 +650,7 @@
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
+				"execution_count": 27
 			}
 		]
 	}
