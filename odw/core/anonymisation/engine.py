@@ -228,14 +228,14 @@ def _purview_base_url(purview_name: str) -> str:
     return f"https://{purview_name}.catalog.purview.azure.com/api/atlas/v2"
 
 
-class _PurviewEntityNotFoundError(Exception):
+class PurviewEntityNotFoundError(Exception):
     pass
 
 
 def _http_get(url: str, headers: Dict[str, str], timeout: int = 60) -> dict:
     r = requests.get(url, headers=headers, timeout=timeout)
     if r.status_code == 404:
-        raise _PurviewEntityNotFoundError(f"HTTP 404 – {r.text[:800]}")
+        raise PurviewEntityNotFoundError(f"HTTP 404 – {r.text[:800]}")
     if not r.ok:
         raise Exception(f"HTTP {r.status_code} – {r.text[:800]}")
     return r.json()
@@ -510,7 +510,7 @@ def fetch_purview_classifications_by_qualified_name(
 
     try:
         guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
-    except _PurviewEntityNotFoundError:
+    except PurviewEntityNotFoundError:
         _log_event(
             "purview.entity_not_found",
             asset_type_name=asset_type_name,
