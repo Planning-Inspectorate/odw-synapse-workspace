@@ -12,7 +12,7 @@ from typing import Dict, Tuple
 # Columns used to build the MD5 RowID hash, matching the IFNULL(CAST(... AS String), '.') list
 # in the original notebook's final SELECT DISTINCT
 _REPRESENTATION_ROW_ID_COLUMNS = [
-    "NSIPRepresentaionID",
+    "NSIPRepresentationID",
     "representationId",
     "referenceId",
     "examinationLibraryRef",
@@ -128,7 +128,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                NSIPRepresentaionID
+                NSIPRepresentationID
                 ,representationId
                 ,referenceId
                 ,examinationLibraryRef
@@ -303,7 +303,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
             horizon_data.alias("Horizon")
             .join(source_system_data.alias("source"), how="inner")
             .select(
-                F.lit(None).cast("long").alias("NSIPRepresentaionID"),
+                F.lit(None).cast("long").alias("NSIPRepresentationID"),
                 F.col("Horizon.relevantrepid").cast("integer").alias("representationId"),
                 F.concat(
                     F.coalesce(F.col("Horizon.casereference"), F.lit("")),
@@ -390,7 +390,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
         combined = (
             combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_per_rep_desc))
-            .withColumn("NSIPRepresentaionID", F.row_number().over(win_global_asc))
+            .withColumn("NSIPRepresentationID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",
                 F.when(F.row_number().over(win_per_rep_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
@@ -407,7 +407,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
             & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
             "left_outer",
         ).select(
-            F.col("CurrentRow.NSIPRepresentaionID").alias("NSIPRepresentaionID"),
+            F.col("CurrentRow.NSIPRepresentationID").alias("NSIPRepresentationID"),
             F.col("CurrentRow.representationId").alias("representationId"),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
@@ -432,12 +432,12 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         all_columns = [c for c in combined.columns if c != "ReverseOrderProcessed"]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
-        base = base.drop("NSIPRepresentaionID", "ValidTo", "Migrated", "IsActive")
+        base = base.drop("NSIPRepresentationID", "ValidTo", "Migrated", "IsActive")
 
         calcs_renamed = calcs.select(
             F.col("representationId").alias("calc_representationId"),
             F.col("IngestionDate").alias("calc_IngestionDate"),
-            F.col("NSIPRepresentaionID"),
+            F.col("NSIPRepresentationID"),
             F.col("ValidTo"),
             F.col("Migrated"),
             F.col("IsActive"),
