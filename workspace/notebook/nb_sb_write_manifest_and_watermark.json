@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2e3b400c-a283-4013-9d4c-c9735ddb1951"
+				"spark.autotune.trackingId": "203a5e2a-fce3-435f-93f3-1bfe7da5a56e"
 			}
 		},
 		"metadata": {
@@ -349,17 +349,29 @@
 					"        'to_timestamp(updated_at) as updated_at'\n",
 					"    )\n",
 					"\n",
-					"    \n",
-					"    wm_df.write \\\n",
-					"        .format(\"delta\") \\\n",
-					"        .mode(\"overwrite\") \\\n",
-					"        .option(\n",
-					"            \"replaceWhere\",\n",
-					"            f\"entity='{entity_name}' AND source='{source}' AND ingest_date='{ingest_date}'\"\n",
-					"        ) \\\n",
-					"        .saveAsTable(\"odw_meta_db.service_bus_watermarks\")\n",
+					"    wm_df.createOrReplaceTempView('wm_upd')\n",
 					"\n",
-					"    print(f'Watermark upserted for {entity_name} / {ingest_date}')"
+					"    spark.sql(f\"\"\"\n",
+					"        MERGE INTO odw_meta_db.service_bus_watermarks AS tgt\n",
+					"        USING wm_upd AS src\n",
+					"        ON  tgt.entity = src.entity\n",
+					"        AND tgt.source = src.source\n",
+					"        AND tgt.ingest_date = src.ingest_date\n",
+					"        AND tgt.run_id = src.run_id\n",
+					"        WHEN MATCHED THEN UPDATE SET\n",
+					"          tgt.last_ingest_time = src.last_ingest_time,\n",
+					"          tgt.records_ingested = src.records_ingested,\n",
+					"          tgt.status           = src.status,\n",
+					"          tgt.updated_at       = src.updated_at\n",
+					"        WHEN NOT MATCHED THEN INSERT (\n",
+					"          entity, source, last_ingest_time, ingest_date, run_id, records_ingested, status, updated_at\n",
+					"        )\n",
+					"        VALUES (\n",
+					"          src.entity, src.source, src.last_ingest_time, src.ingest_date, src.run_id, src.records_ingested, src.status, src.updated_at\n",
+					"        )\n",
+					"    \"\"\")\n",
+					"\n",
+					"    print(f'Watermark upserted for {entity_name} / {ingest_date} / {run_id}')``"
 				],
 				"execution_count": null
 			},
