@@ -72,35 +72,11 @@
 							}
 						},
 						{
-							"name": "Set_SbEntities_From_Init",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Set_RunContext_From_Init",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": true,
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "sbEntities",
-								"value": {
-									"value": "@activity('A_Init').output.pipelineReturnValue.sbEntities",
-									"type": "Expression"
-								}
-							}
-						},
-						{
 							"name": "Set_HzEntities_From_Init",
 							"type": "SetVariable",
 							"dependsOn": [
 								{
-									"activity": "Set_SbEntities_From_Init",
+									"activity": "Set_RunContext_From_Init",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -170,35 +146,11 @@
 							}
 						},
 						{
-							"name": "Set_SB_Entities",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Set_Context_From_Summary",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": true,
-								"secureInput": true
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "sbEntities",
-								"value": {
-									"value": "@activity('Lookup_Previous_Run_Summary').output.firstRow.sbEntities\n",
-									"type": "Expression"
-								}
-							}
-						},
-						{
 							"name": "Set_HZ_Entities",
 							"type": "SetVariable",
 							"dependsOn": [
 								{
-									"activity": "Set_SB_Entities",
+									"activity": "Set_Context_From_Summary",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -489,7 +441,7 @@
 						},
 						"status": {
 							"value": {
-								"value": "@if(\n  or(\n    or(\n      greater(length(variables('sbFailedEntities')), 0),\n      greater(length(variables('hzFailedEntities')), 0)\n    ),\n    or(\n      or(\n        greater(length(variables('transformFailedEntities')), 0),\n        greater(length(variables('mipinsFailedEntities')), 0)\n      ),\n      greater(length(variables('apiFailedEntities')), 0)\n    )\n  ),\n  'Failed',\n  'Succeeded'\n)",
+								"value": "@if(\n  or(\n    or(\n      greater(length(variables('hzFailedEntities')), 0),\n      greater(length(variables('transformFailedEntities')), 0)\n    ),\n    or(\n      greater(length(variables('mipinsFailedEntities')), 0),\n      greater(length(variables('apiFailedEntities')), 0)\n    )\n  ),\n  'Failed',\n  'Succeeded'\n)",
 								"type": "Expression"
 							},
 							"type": "string"
@@ -693,7 +645,7 @@
 										"type": "Expression"
 									},
 									"activityMessage": {
-										"value": "@concat(\n  'Orchestrator failed', '\\n',\n  '\\n',\n  'Failures detected', '\\n',\n  if(greater(length(variables('sbFailedEntities')), 0),\n    concat('• Service Bus failed: ', join(variables('sbFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('• Horizon failed: ', join(variables('hzFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('• Transform failed: ', join(variables('transformFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('• MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('apiFailedEntities')), 0),\n    concat('• API failed: ', join(variables('apiFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  '\\n',\n  'Manifest', '\\n',\n  '• ', variables('manifestPath')\n)\n",
+										"value": "@concat(\n  'Orchestrator failed', '\\n',\n  '\\n',\n  'Failures detected', '\\n',\n  if(greater(length(variables('hzFailedEntities')), 0),\n    concat('• Horizon failed: ', join(variables('hzFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('transformFailedEntities')), 0),\n    concat('• Transform failed: ', join(variables('transformFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('mipinsFailedEntities')), 0),\n    concat('• MiPINS failed: ', join(variables('mipinsFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  if(greater(length(variables('apiFailedEntities')), 0),\n    concat('• API failed: ', join(variables('apiFailedEntities'), ', '), '\\n'),\n    ''\n  ),\n  '\\n',\n  'Manifest', '\\n',\n  '• ', variables('manifestPath')\n)",
 										"type": "Expression"
 									},
 									"activityDuration": "0H:00M:00s",
@@ -1389,7 +1341,7 @@
 							"type": "Expression"
 						},
 						"activityMessage": {
-							"value": "@concat(\n  'Orchestrator started', '\\n\\n',\n\n  'Run options:', '\\n',\n  '- Service Bus ingest: ', if(pipeline().parameters.runIngestSB,'ON','OFF'), '\\n',\n  '- Horizon ingest: ', if(pipeline().parameters.runIngestHZ,'ON','OFF'), '\\n',\n  '- API ingest: ', if(pipeline().parameters.runIngestAPI,'ON','OFF'), '\\n',\n  '- Transform & Load: ', if(pipeline().parameters.runTransformAndLoad,'ON','OFF'), '\\n',\n  '- MiPINS copy: ', if(pipeline().parameters.runCuratedToMiPINS,'ON','OFF'), '\\n\\n',\n\n  'Filters:', '\\n',\n  '- Service Bus: ',\n    if(equals(length(variables('sbEntities')),0),'(none)', join(variables('sbEntities'), ', ')), '\\n',\n  '- Horizon: ',\n    if(equals(length(variables('hzEntities')),0),'(none)', join(variables('hzEntities'), ', ')), '\\n',\n  '- API: ',\n    if(equals(length(pipeline().parameters.apiEntitiesFilter),0),'(none)', join(pipeline().parameters.apiEntitiesFilter, ', ')), '\\n',\n  '- MiPINS: ',\n    if(equals(length(pipeline().parameters.mipinsEntitiesFilter),0),'(none)', join(pipeline().parameters.mipinsEntitiesFilter, ', '))\n)\n",
+							"value": "@concat(\n  'Orchestrator started', '\\n\\n',\n\n  'Run options:', '\\n',\n  '- Horizon ingest: ', if(pipeline().parameters.runIngestHZ,'ON','OFF'), '\\n',\n  '- API ingest: ', if(pipeline().parameters.runIngestAPI,'ON','OFF'), '\\n',\n  '- Transform & Load: ', if(pipeline().parameters.runTransformAndLoad,'ON','OFF'), '\\n',\n  '- MiPINS copy: ', if(pipeline().parameters.runCuratedToMiPINS,'ON','OFF'), '\\n\\n',\n\n  'Filters:', '\\n',\n  '- Horizon: ',\n    if(equals(length(variables('hzEntities')),0),'(none)', join(variables('hzEntities'), ', ')), '\\n',\n  '- API: ',\n    if(equals(length(variables('apiEntities')),0),'(none)', join(variables('apiEntities'), ', ')), '\\n',\n  '- Transform entities: ',\n    if(equals(length(pipeline().parameters.transformEntities),0),'(all from config)', join(pipeline().parameters.transformEntities, ', ')), '\\n',\n  '- MiPINS: ',\n    if(equals(length(pipeline().parameters.mipinsEntitiesFilter),0),'(none)', join(pipeline().parameters.mipinsEntitiesFilter, ', '))\n)",
 							"type": "Expression"
 						},
 						"activityDuration": "0H:00M:00s",
@@ -1496,10 +1448,6 @@
 				"type": "bool",
 				"defaultValue": true
 			},
-			"sbEntitiesFilter": {
-				"type": "array",
-				"defaultValue": []
-			},
 			"hzEntitiesFilter": {
 				"type": "array",
 				"defaultValue": []
@@ -1547,9 +1495,6 @@
 		"variables": {
 			"runContextJson": {
 				"type": "String"
-			},
-			"sbEntities": {
-				"type": "Array"
 			},
 			"hzEntities": {
 				"type": "Array"
