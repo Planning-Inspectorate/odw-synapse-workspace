@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "pinssynspodw34",
+			"referenceName": "pinssynspodw35",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1fe0d8b7-80cc-4cff-9b84-b5230a83f59f"
+				"spark.autotune.trackingId": "bb95cda5-78bc-4e08-9619-0d0fa7735f63"
 			}
 		},
 		"metadata": {
@@ -35,19 +35,19 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw34",
-				"name": "pinssynspodw34",
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
 				"type": "Spark",
-				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw34",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
 				"auth": {
 					"type": "AAD",
 					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "3.4",
+				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -72,6 +72,19 @@
 					"for h in list(logger.handlers):\n",
 					"    if isinstance(h, LoggingHandler):\n",
 					"        logger.removeHandler(h)\n",
+					"\n",
+					"# Silence Azure SDK's own HTTP export logging (the /v2.1/track POST storm).\n",
+					"# These loggers emit one INFO trace per telemetry batch the exporter ships,\n",
+					"# which gets re-captured and re-exported -> feedback loop flooding App Insights.\n",
+					"for _noisy in (\n",
+					"    \"azure.core.pipeline.policies.http_logging_policy\",\n",
+					"    \"azure.monitor.opentelemetry.exporter\",\n",
+					"    \"azure.identity\",\n",
+					"    \"azure.servicebus\",\n",
+					"    \"uamqp\",\n",
+					"):\n",
+					"    logging.getLogger(_noisy).setLevel(logging.WARNING)\n",
+					"    logging.getLogger(_noisy).propagate = False\n",
 					"\n",
 					"logger_provider = LoggerProvider()\n",
 					"LOGGING_INITIALISED = globals().get(\"LOGGING_INITIALISED\", False)\n",
@@ -118,6 +131,18 @@
 					"\n",
 					"    if not any(isinstance(h, LoggingHandler) for h in logger.handlers):\n",
 					"        logger.addHandler(LoggingHandler())\n",
+					"\n",
+					"    # Re-assert SDK logger suppression AFTER the OTel handler is attached,\n",
+					"    # so these never feed the export pipeline even if something reset them.\n",
+					"    for _noisy in (\n",
+					"        \"azure.core.pipeline.policies.http_logging_policy\",\n",
+					"        \"azure.monitor.opentelemetry.exporter\",\n",
+					"        \"azure.identity\",\n",
+					"        \"azure.servicebus\",\n",
+					"        \"uamqp\",\n",
+					"    ):\n",
+					"        logging.getLogger(_noisy).setLevel(logging.WARNING)\n",
+					"        logging.getLogger(_noisy).propagate = False\n",
 					"\n",
 					"    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):\n",
 					"        logger.addHandler(logging.StreamHandler())\n",
@@ -171,9 +196,10 @@
 					"\n",
 					"if not LOGGING_INITIALISED:\n",
 					"    setupLogging()\n",
-					"    flushLogging()"
+					"    flushLogging()\n",
+					""
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -201,7 +227,7 @@
 					"        logError(\"Caught error\")\n",
 					"        flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -229,7 +255,7 @@
 					"        logError(\"Caught error\")\n",
 					"        flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -257,7 +283,7 @@
 					"        logError(\"Caught error\")\n",
 					"        flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -285,7 +311,7 @@
 					"        logError(\"Caught error\")\n",
 					"        flushLogging()"
 				],
-				"execution_count": null
+				"execution_count": 5
 			}
 		]
 	}
