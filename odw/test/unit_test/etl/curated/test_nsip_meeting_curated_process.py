@@ -11,9 +11,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
 
         harmonised_meeting = spark.createDataFrame(
             [
-                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a", "Y"),
-                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a", "Y"),
-                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b", "Y"),
+                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a"),
+                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a"),
+                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b"),
             ],
             T.StructType(
                 [
@@ -24,7 +24,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     T.StructField("meetingId", T.StringType(), True),
                     T.StructField("meetingDate", T.StringType(), True),
                     T.StructField("meetingType", T.StringType(), True),
-                    T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
         )

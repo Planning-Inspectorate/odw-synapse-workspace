@@ -36,10 +36,10 @@ class NsipInvoiceCuratedProcess(CurationProcess):
                 "refundCreditNoteNumber",
                 "refundAmount",
                 "refundIssueDate",
-                "IsActive",
             )
             .distinct()
             .filter(F.col("IsActive") == "Y")
+            .drop("IsActive")
         )
 
         data_to_write = {

@@ -45,8 +45,7 @@ class NsipMeetingCuratedProcess(CurationProcess):
                 planningInspectorateRole,
                 meetingId,
                 meetingDate,
-                meetingType,
-                IsActive
+                meetingType
             FROM {self.HARMONISED_TABLE}
             WHERE IsActive = 'Y'
                 AND meetingId IS NOT NULL
@@ -79,7 +78,6 @@ class NsipMeetingCuratedProcess(CurationProcess):
                 "meetingId",
                 "meetingDate",
                 "meetingType",
-                "IsActive",
             )
         )
 

@@ -57,7 +57,6 @@ def _curated_schema():
             StructField("refundCreditNoteNumber", StringType(), True),
             StructField("refundAmount", DoubleType(), True),
             StructField("refundIssueDate", StringType(), True),
-            StructField("IsActive", StringType(), True),
         ]
     )
 
@@ -102,7 +101,6 @@ def _curated_row(**overrides):
         "refundCreditNoteNumber": None,
         "refundAmount": None,
         "refundIssueDate": None,
-        "IsActive": "Y",
     }
     row.update(overrides)
     return row
