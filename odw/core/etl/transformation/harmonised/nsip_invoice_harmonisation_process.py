@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict
 from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
@@ -17,11 +17,8 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
     HARMONISED_DB = "odw_harmonised_db"
     _INCREMENTAL_KEY = "NSIPInvoiceID"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
-
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "NSIP Invoice Harmonisation Process"
 
     def _load_standardised_nsip_project(self):
@@ -46,7 +43,7 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
             blob_path=self.OUTPUT_TABLE,
         )
 
-    def load_data(self) -> dict[str, Any]:
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         try:
             existing_table = self._load_harmonised_nsip_invoice()
         except AnalysisException:

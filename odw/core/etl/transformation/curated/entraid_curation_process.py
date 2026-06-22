@@ -8,7 +8,8 @@ class EntraIDCurationProcess(CurationProcess):
     HARMONISED_TABLE = "entraid"
     CURATED_TABLE = "entraid"
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "Entrad ID Curation"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
