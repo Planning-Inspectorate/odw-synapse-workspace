@@ -3,6 +3,23 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "StartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
 				"name": "Copy_appeals_has_curated_mipins",
 				"type": "Copy",
 				"dependsOn": [
@@ -70,7 +87,14 @@
 			{
 				"name": "Lookup-LogStart",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set variable Start Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -141,7 +165,7 @@
 				"typeProperties": {
 					"variableName": "RowCount_Has",
 					"value": {
-						"value": "@activity('Copy_appeals_has_curated_mipins').output.rowscopied",
+						"value": "@activity('Copy_appeals_has_curated_mipins').output.rowsCopied",
 						"type": "Expression"
 					}
 				}
@@ -184,6 +208,49 @@
 				"linkedServiceName": {
 					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Set_PipelineStatus_Success",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "SP_update dim_source_system",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "Success"
+				}
+			},
+			{
+				"name": "Set_PipelineStatus_Failed",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "SP_update dim_source_system",
+						"dependencyConditions": [
+							"Failed",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "Failed"
 				}
 			},
 			{
@@ -336,8 +403,153 @@
 					"referenceName": "ls_sql_mipins",
 					"type": "LinkedServiceReference"
 				}
+			},
+			{
+				"name": "Record completed",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Sp_log_success",
+						"dependencyConditions": [
+							"Succeeded",
+							"Skipped"
+						]
+					},
+					{
+						"activity": "Sp_log_failed",
+						"dependencyConditions": [
+							"Succeeded",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(or(equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)),'Success','Failed')",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('StartTime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    activity('Copy_appeals_has_curated_mipins').output.rowsCopied,\n    ''\n)\n",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@if(or(equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''), equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)), '', activity('Copy_appeals_has_curated_mipins')?.Error?.Message)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW has mipins event',\n    'Failed copying data from ODW has mipins event'\n)",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "@concat('Copy_appeals_has_curated_mipins',' Activity')",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Check Pipeline Status",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Record completed",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(variables('PipelineStatus'), 'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail Pipeline",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Pipeline failed: ', variables('Error_Has'))",
+									"type": "Expression"
+								},
+								"errorCode": "500"
+							}
+						}
+					]
+				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string",
+				"defaultValue": "87864c3b-0d8b-4a98-b2c4-596ddf8fe123"
+			}
+		},
 		"variables": {
 			"RowCount_Has": {
 				"type": "Integer"
@@ -355,6 +567,12 @@
 				"type": "Integer"
 			},
 			"Error_EntraID": {
+				"type": "String"
+			},
+			"StartTime": {
+				"type": "String"
+			},
+			"PipelineStatus": {
 				"type": "String"
 			}
 		},
