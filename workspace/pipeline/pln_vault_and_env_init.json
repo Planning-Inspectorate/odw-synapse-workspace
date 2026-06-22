@@ -370,12 +370,6 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "If_ServiceBus",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
 						"activity": "If_Horizon",
 						"dependencyConditions": [
 							"Succeeded"
@@ -428,13 +422,6 @@
 							}
 						},
 						{
-							"key": "sbEntities",
-							"value": {
-								"type": "Expression",
-								"content": "@variables('service_bus_feed')"
-							}
-						},
-						{
 							"key": "hzEntities",
 							"value": {
 								"type": "Expression",
@@ -450,98 +437,6 @@
 						}
 					],
 					"setSystemVariable": true
-				}
-			},
-			{
-				"name": "If_ServiceBus",
-				"description": "Check if includeServiceBus is True or False",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "If Condition1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@pipeline().parameters.includeServiceBus\n",
-						"type": "Expression"
-					},
-					"ifFalseActivities": [
-						{
-							"name": "Init Service Bus",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "service_bus_feed",
-								"value": {
-									"value": "@json('[]')",
-									"type": "Expression"
-								}
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "Get Service Bus feed",
-							"description": "Get the enabled service bus feed from master pipeline config",
-							"type": "Lookup",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"source": {
-									"type": "AzureSqlSource",
-									"sqlReaderQuery": "SELECT STRING_AGG(entity_name, ',') AS entities\nFROM [odw_config_db].[dbo].[main_pipeline_config]\nWHERE is_enabled = 1\n  AND System_name = 'Service bus'\n  AND entity_name IS NOT NULL\n",
-									"queryTimeout": "02:00:00",
-									"partitionOption": "None"
-								},
-								"dataset": {
-									"referenceName": "ds_odw_main_config",
-									"type": "DatasetReference"
-								},
-								"firstRowOnly": false
-							}
-						},
-						{
-							"name": "Set Service Bus feed",
-							"type": "SetVariable",
-							"dependsOn": [
-								{
-									"activity": "Get Service Bus feed",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "service_bus_feed",
-								"value": {
-									"value": "@if(\n  greater(length(pipeline().parameters.sbEntitiesFilter), 0),\n  pipeline().parameters.sbEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get Service Bus feed').output.value)),\n      not(empty(activity('Get Service Bus feed').output.value[0].entities))\n    ),\n    split(activity('Get Service Bus feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
-									"type": "Expression"
-								}
-							}
-						}
-					]
 				}
 			},
 			{
@@ -633,76 +528,6 @@
 							}
 						}
 					]
-				}
-			},
-			{
-				"name": "pln_service_bus_ingest",
-				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "Return outputs",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_service_bus_ingest",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"runContextJson": {
-							"value": "@variables('runContextJson')",
-							"type": "Expression"
-						},
-						"sbEntities": {
-							"value": "@variables('service_bus_feed')",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "pln_horizon_ingest",
-				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "Return outputs",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_horizon_ingest",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"runContextJson": {
-							"value": "@variables('runContextJson')",
-							"type": "Expression"
-						},
-						"hzEntities": {
-							"value": "@variables('horizon_feed')",
-							"type": "Expression"
-						}
-					}
 				}
 			},
 			{
@@ -799,17 +624,9 @@
 			}
 		],
 		"parameters": {
-			"sbEntitiesFilter": {
-				"type": "array",
-				"defaultValue": []
-			},
 			"hzEntitiesFilter": {
 				"type": "array",
 				"defaultValue": []
-			},
-			"includeServiceBus": {
-				"type": "bool",
-				"defaultValue": true
 			},
 			"includeHorizon": {
 				"type": "bool",
@@ -843,9 +660,6 @@
 			},
 			"webhook_url": {
 				"type": "String"
-			},
-			"service_bus_feed": {
-				"type": "Array"
 			},
 			"api_feed": {
 				"type": "Array"
