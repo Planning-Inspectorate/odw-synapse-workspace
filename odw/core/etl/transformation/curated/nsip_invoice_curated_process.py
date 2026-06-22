@@ -39,7 +39,6 @@ class NsipInvoiceCuratedProcess(CurationProcess):
             )
             .distinct()
             .filter(F.col("IsActive") == "Y")
-            .drop("IsActive")
         )
 
         data_to_write = {
