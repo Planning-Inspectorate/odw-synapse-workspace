@@ -1,6 +1,7 @@
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal
 from pyspark.sql import Row
 import pyspark.sql.types as T
 import hashlib
@@ -305,9 +306,10 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
 
         expected_data_entry = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
         actual_df = data_to_write[expected_data_entry]["data"]
+        expected_df = spark.createDataFrame([], actual_df.schema)
 
         # No insert/update should occur because business key excludes NSIPProjectInfoInternalID.
-        assert actual_df.count() == 0
+        assert_dataframes_equal(expected_df, actual_df)
         assert data_to_write[expected_data_entry]["write_mode"] == "append"
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0

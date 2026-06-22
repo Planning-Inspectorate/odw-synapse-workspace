@@ -2,7 +2,7 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_etl_result_successful
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import Row
 import pyspark.sql.types as T
 import hashlib
@@ -307,9 +307,7 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
-        rows = actual_df.collect()
+        actual_subset_df = actual_df.select("IsActive", "ValidTo", "meetingAgenda")
+        expected_subset_df = spark.createDataFrame([("Y", None, "same")], actual_subset_df.schema)
 
-        assert len(rows) == 1
-        assert rows[0]["IsActive"] == "Y"
-        assert rows[0]["ValidTo"] is None
-        assert rows[0]["meetingAgenda"] == "same"
+        assert_dataframes_equal(expected_subset_df, actual_subset_df)
