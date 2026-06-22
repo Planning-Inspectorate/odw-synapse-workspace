@@ -1,4 +1,3 @@
-
 import mock
 import pyspark.sql.types as T
 import pytest
@@ -179,12 +178,8 @@ class TestAppealFolderCurationProcess(SparkTestCase):
                 inst = AppealFolderCurationProcess()
                 actual_data_to_write, _ = inst.process(mock_data)
 
-                expected_data_to_write_without_data = {
-                    k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()
-                }
-                actual_data_to_write_without_data = {
-                    k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()
-                }
+                expected_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()}
+                actual_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()}
 
                 assert expected_data_to_write_without_data == actual_data_to_write_without_data
                 assert_dataframes_equal(
@@ -235,4 +230,3 @@ class TestAppealFolderCurationProcess(SparkTestCase):
             actual_output = inst.load_data()
             actual_case_stage_df = actual_output["harmonised_data"].select("id", "caseStage")
             assert_dataframes_equal(expected_case_stage_df, actual_case_stage_df)
-

@@ -25,7 +25,20 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         return spark.createDataFrame(
             data=self.ACTIVE_HARMONISED_DATA
             + [
-                ("102", "LFD/102", "Inquiry", "Inquiry CY", "30", "31", "Pre-examination", datetime(2025, 1, 3).isoformat(), None, "row-102-dupe", None, "m-102-dupe")
+                (
+                    "102",
+                    "LFD/102",
+                    "Inquiry",
+                    "Inquiry CY",
+                    "30",
+                    "31",
+                    "Pre-examination",
+                    datetime(2025, 1, 3).isoformat(),
+                    None,
+                    "row-102-dupe",
+                    None,
+                    "m-102-dupe",
+                )
             ],
             schema=T.StructType(
                 [
@@ -223,4 +236,3 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         )
 
         assert_dataframes_equal(expected_stage_data, actual_stage_data)
-

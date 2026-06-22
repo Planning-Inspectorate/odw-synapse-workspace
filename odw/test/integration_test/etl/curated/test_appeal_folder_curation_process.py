@@ -261,4 +261,3 @@ class TestAppealFolderCurationProcess(ETLTestCase):
         )
 
         assert_dataframes_equal(expected_stage_data, actual_stage_data)
-

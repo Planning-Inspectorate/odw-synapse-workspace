@@ -16,4 +16,3 @@ class AppealFolderCurationProcess(CurationProcess):
 
     def process(self, source_data: dict[str, Any]):
         raise NotImplementedError("AppealFolderCurationProcess.process() has not been implemented yet.")
-

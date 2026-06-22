@@ -16,4 +16,3 @@ class LegacyFolderDataCurationProcess(CurationProcess):
 
     def process(self, source_data: dict[str, Any]):
         raise NotImplementedError("LegacyFolderDataCurationProcess.process() has not been implemented yet.")
-
