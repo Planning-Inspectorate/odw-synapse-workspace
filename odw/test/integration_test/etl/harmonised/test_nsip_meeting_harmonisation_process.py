@@ -313,4 +313,3 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
         assert rows[0]["IsActive"] == "Y"
         assert rows[0]["ValidTo"] is None
         assert rows[0]["meetingAgenda"] == "same"
-

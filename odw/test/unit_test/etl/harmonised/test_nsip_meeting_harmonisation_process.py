@@ -311,4 +311,3 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
         assert data_to_write[expected_data_entry]["write_mode"] == "append"
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
-
