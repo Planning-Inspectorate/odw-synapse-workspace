@@ -55,11 +55,8 @@
 					},
 					"sink": {
 						"type": "AzureSqlSink",
-						"preCopyScript": "drop table if exists odw.appeals_has_curated_mipins",
 						"writeBehavior": "insert",
-						"sqlWriterUseTableLock": false,
-						"tableOption": "autoCreate",
-						"disableMetricsCollection": false
+						"sqlWriterUseTableLock": false
 					},
 					"enableStaging": false,
 					"translator": {
@@ -435,7 +432,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(or(equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)),'Success','Failed')",
+							"value": "@variables('PipelineStatus')",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -455,15 +452,15 @@
 							"type": "Expression"
 						},
 						"Inserts": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    activity('Copy_appeals_has_curated_mipins').output.rowsCopied,\n    ''\n)\n",
+							"value": "@if(equals(variables('PipelineStatus'),'Failed'),0,variables('RowCount_Has'))",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@if(or(equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''), equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)), '', activity('Copy_appeals_has_curated_mipins')?.Error?.Message)",
+							"value": "@variables('Error_Has')",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW has mipins event',\n    'Failed copying data from ODW has mipins event'\n)",
+							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'Failed copying data from ODW has mipins event','Successfully copied data from ODW has mipins event')",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -479,11 +476,11 @@
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
+							"value": "@coalesce(pipeline()?.TriggeredByPipelineName, '')",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"value": "@coalesce(pipeline()?.TriggeredByPipelineRunId, '')",
 							"type": "Expression"
 						},
 						"PipelineExecutionTimeInSec": {
@@ -499,7 +496,7 @@
 							"type": "Expression"
 						},
 						"StatusCode": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_has_curated_mipins')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
+							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'500','200')",
 							"type": "Expression"
 						},
 						"AppInsIKey": {
