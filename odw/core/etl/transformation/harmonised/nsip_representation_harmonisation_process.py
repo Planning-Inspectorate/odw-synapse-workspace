@@ -128,7 +128,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                NSIPRepresentationID
+                NSIPRepresentaionID
                 ,representationId
                 ,referenceId
                 ,examinationLibraryRef

@@ -80,7 +80,7 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
             ],
             T.StructType(
                 [
-                    T.StructField("NSIPRepresentationID", T.IntegerType(), True),
+                    T.StructField("NSIPRepresentaionID", T.IntegerType(), True),
                     T.StructField("representationId", T.IntegerType(), True),
                     T.StructField("referenceId", T.StringType(), True),
                     T.StructField("examinationLibraryRef", T.StringType(), True),
