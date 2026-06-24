@@ -505,6 +505,13 @@
 							"value": "@pipeline().TriggerType",
 							"type": "Expression"
 						},
+						"PipelineTriggeredbyPipelineName": "@coalesce(pipeline()?.TriggeredByPipelineName, '')",
+						"PipelineTriggeredbyPipelineRunID": "@coalesce(pipeline()?.TriggeredByPipelineRunId, '')",
+						"PipelineExecutionTimeInSec": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+						"ActivityType": {
+							"value": "@concat('NSIP Project',' Activity')",
+							"type": "Expression"
+						},
 						"DurationSeconds": {
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
 							"type": "Expression"
@@ -521,7 +528,7 @@
 				}
 			},
 			{
-				"name": "If_PipelineStatus_Failed",
+				"name": "Check Pipeline Status",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -577,6 +584,33 @@
 							"typeProperties": {
 								"message": "Pipeline failed. Check AppInsights logs.",
 								"errorCode": "PIPELINE_FAILED"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Check Pipeline Status_copy1",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(variables('PipelineStatus'), 'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Fail Pipeline_copy1",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Pipeline failed: ', variables('Error_Has'))",
+									"type": "Expression"
+								},
+								"errorCode": "500"
 							}
 						}
 					]
