@@ -3,63 +3,19 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Lookup-LogStart",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Set variable Start Time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
 				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
-						"storedProcedureParameters": {
-							"Description": {
-								"type": "String",
-								"value": "NSIP_curated_mipins_pipeline_started"
-							},
-							"ErrorMessage": {
-								"type": "String",
-								"value": null
-							},
-							"LogType": {
-								"type": "String",
-								"value": "1"
-							},
-							"Param1Value": {
-								"type": "String",
-								"value": null
-							},
-							"RowCount": {
-								"type": "Int32",
-								"value": null
-							},
-							"RunId": {
-								"type": "Int32",
-								"value": null
-							},
-							"Source": {
-								"type": "String",
-								"value": "NSIP Project"
-							}
-						},
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "Lookup_LogStart",
-						"type": "DatasetReference"
+					"variableName": "StartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
 					}
 				}
 			},
@@ -118,6 +74,134 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "Set_PipelineStatus_Success",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy NSIP Project",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "Success"
+				}
+			},
+			{
+				"name": "NSIP errorMessage",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Copy NSIP Project",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "errorMessage",
+					"value": {
+						"value": "@activity('Copy NSIP Project')?.Error?.Message",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set_PipelineStatus_Failed",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "NSIP errorMessage",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PipelineStatus",
+					"value": "Failed"
+				}
+			},
+			{
+				"name": "Lookup-LogStart",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set variable Start Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "NSIP_curated_mipins_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "NSIP Project"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
 			},
 			{
 				"name": "Record_Count",
@@ -188,7 +272,7 @@
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "Set_PipelineStatus_Success",
+						"activity": "SP_update dim_source_system",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -251,9 +335,9 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Set_PipelineStatus_Failed",
+						"activity": "SP_update dim_source_system",
 						"dependencyConditions": [
-							"Succeeded"
+							"Failed"
 						]
 					}
 				],
@@ -334,86 +418,35 @@
 				}
 			},
 			{
-				"name": "Send_Teams_Notification",
+				"name": "Record completed NSIP to mipins",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Sp_log_failed",
+						"activity": "Set_PipelineStatus_Success",
 						"dependencyConditions": [
-							"Succeeded"
+							"Succeeded",
+							"Skipped"
 						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_utl_Send_Teams_Message",
-						"type": "PipelineReference"
 					},
-					"parameters": {
-						"pipelineRunId": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"activityMessage": {
-							"value": "@variables('Error_NSIP')",
-							"type": "Expression"
-						},
-						"activityStatus": "Failed"
-					}
-				}
-			},
-			{
-				"name": "Check_Failure",
-				"type": "IfCondition",
-				"dependsOn": [
 					{
-						"activity": "Record completed",
+						"activity": "Set_PipelineStatus_Failed",
 						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@not(empty(variables('Error_NSIP')))",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "Fail_Pipeline",
-							"type": "Fail",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"message": {
-									"value": "@variables('Error_NSIP')",
-									"type": "Expression"
-								},
-								"errorCode": "PipelineFailed"
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Record completed",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Sp_log_failed",
-						"dependencyConditions": [
-							"Completed"
+							"Succeeded",
+							"Skipped"
 						]
 					},
 					{
 						"activity": "Sp_log_success",
 						"dependencyConditions": [
-							"Completed"
+							"Succeeded",
+							"Skipped"
+						]
+					},
+					{
+						"activity": "Sp_log_failed",
+						"dependencyConditions": [
+							"Succeeded",
+							"Skipped"
 						]
 					}
 				],
@@ -429,7 +462,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@variables('PipelineStatus')",
+							"value": "@if(or(equals(activity('Copy NSIP Project')?.Error?.Message,''),equals(activity('Copy NSIP Project')?.Error?.Message,null)),'Success','Failed')",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -449,15 +482,15 @@
 							"type": "Expression"
 						},
 						"Inserts": {
-							"value": "@if(equals(variables('PipelineStatus'),'Failed'),0,variables('RowCount_NSIP Project'))",
+							"value": "@if(or(equals(activity('Copy NSIP Project')?.Error?.Message,''),equals(activity('Copy NSIP Project')?.Error?.Message,null)),activity('Copy NSIP Project').output.rowsCopied,0)",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@variables('Error_NSIP')",
+							"value": "@if(or(equals(activity('Copy NSIP Project')?.Error?.Message,''),equals(activity('Copy NSIP Project')?.Error?.Message,null)),'',activity('Copy NSIP Project')?.Error?.Message)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'Failed copying NSIP Project','Successfully copied NSIP Project')",
+							"value": "@if(or(equals(activity('Copy NSIP Project')?.Error?.Message,''),equals(activity('Copy NSIP Project')?.Error?.Message,null)),'Successfully copied NSIP data','Failed copying NSIP data')",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -472,28 +505,12 @@
 							"value": "@pipeline().TriggerType",
 							"type": "Expression"
 						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@coalesce(pipeline()?.TriggeredByPipelineName, '')",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@coalesce(pipeline()?.TriggeredByPipelineRunId, '')",
-							"type": "Expression"
-						},
-						"PipelineExecutionTimeInSec": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
-							"type": "Expression"
-						},
-						"ActivityType": {
-							"value": "@concat('Copy NSIP Project',' Activity')",
-							"type": "Expression"
-						},
 						"DurationSeconds": {
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": {
-							"value": "@if(equals(variables('PipelineStatus'),'Failed'),'500','200')",
+							"value": "@if(or(equals(activity('Copy NSIP Project')?.Error?.Message,''),equals(activity('Copy NSIP Project')?.Error?.Message,null)),'200','500')",
 							"type": "Expression"
 						},
 						"AppInsIKey": {
@@ -504,63 +521,65 @@
 				}
 			},
 			{
-				"name": "Set variable Start Time",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "StartTime",
-					"value": {
-						"value": "@utcNow()",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Set_PipelineStatus_Failed",
-				"type": "SetVariable",
+				"name": "If_PipelineStatus_Failed",
+				"type": "IfCondition",
 				"dependsOn": [
 					{
-						"activity": "SP_update dim_source_system",
-						"dependencyConditions": [
-							"Failed",
-							"Skipped"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "PipelineStatus",
-					"value": "Failed"
-				}
-			},
-			{
-				"name": "Set_PipelineStatus_Success",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "SP_update dim_source_system",
+						"activity": "Record completed NSIP to mipins",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "PipelineStatus",
-					"value": "Success"
+					"expression": {
+						"value": "@equals(variables('PipelineStatus'),'Failed')",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Send NSIP failure notification",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_utl_Send_Teams_Message",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"pipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"activityName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"activityStatus": "Failed",
+									"activityMessage": {
+										"value": "@variables('errorMessage')",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Fail_Pipeline_On_Error",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Pipeline failed. Check AppInsights logs.",
+								"errorCode": "PIPELINE_FAILED"
+							}
+						}
+					]
 				}
 			}
 		],
@@ -571,37 +590,26 @@
 			}
 		},
 		"variables": {
-			"RowCount_NSIP_Project": {
+			"RowCount_NSIP Project": {
 				"type": "Integer"
 			},
-			"RowCount_Serviceuser": {
-				"type": "Integer"
+			"PipelineStatus": {
+				"type": "String",
+				"defaultValue": "Success"
 			},
-			"Error_Serviceuser": {
-				"type": "String"
-			},
-			"Record_Count_EntraID": {
-				"type": "Integer"
-			},
-			"Error_EntraID": {
+			"errorMessage": {
 				"type": "String"
 			},
 			"StartTime": {
 				"type": "String"
 			},
-			"PipelineStatus": {
-				"type": "String"
-			},
-			"RowCount_NSIP Project": {
-				"type": "Integer"
-			},
 			"Error_NSIP": {
 				"type": "String"
 			}
 		},
+		"folder": {
+			"name": "nsip project"
+		},
 		"annotations": []
-	},
-	"folder": {
-		"name": "nsip project"
 	}
 }
