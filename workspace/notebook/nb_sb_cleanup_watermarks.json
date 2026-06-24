@@ -1,171 +1,169 @@
 {
-  "name": "nb_sb_cleanup_watermarks",
-  "properties": {
-    "folder": {
-      "name": "service-bus"
-    },
-    "nbformat": 4,
-    "nbformat_minor": 2,
-    "bigDataPool": {
-      "referenceName": "pinssynspodw35",
-      "type": "BigDataPoolReference"
-    },
-    "sessionProperties": {
-      "driverMemory": "28g",
-      "driverCores": 4,
-      "executorMemory": "28g",
-      "executorCores": 4,
-      "numExecutors": 2,
-      "conf": {
-        "spark.dynamicAllocation.enabled": "false",
-        "spark.dynamicAllocation.minExecutors": "2",
-        "spark.dynamicAllocation.maxExecutors": "2",
-        "spark.autotune.trackingId": "a6ab44a9-b4c0-4882-99a8-bad64ae673f9"
-      }
-    },
-    "metadata": {
-      "saveOutput": true,
-      "enableDebugMode": false,
-      "kernelspec": {
-        "name": "synapse_pyspark",
-        "display_name": "Synapse PySpark"
-      },
-      "language_info": {
-        "name": "python"
-      },
-      "a365ComputeOptions": {
-        "id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
-        "name": "pinssynspodw35",
-        "type": "Spark",
-        "endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
-        "auth": {
-          "type": "AAD",
-          "authResource": "https://dev.azuresynapse.net"
-        },
-        "sparkVersion": "3.5",
-        "nodeCount": 3,
-        "cores": 4,
-        "memory": 28,
-        "automaticScaleJobs": false
-      },
-      "sessionKeepAliveTimeout": 30
-    },
-    "cells": [
-      {
-        "cell_type": "markdown",
-        "source": [
-          "# Clean up Service Bus watermarks table\n",
-          "\n",
-          "Post-deployment notebook for release 37.0.0.\n",
-          "\n",
-          "## Background\n",
-          "\n",
-          "Prior to this release the `nb_sb_write_manifest_and_watermark` notebook keyed its MERGE\n",
-          "on `(entity, source, ingest_date, run_id)`. Because `run_id` is a fresh UUID every pipeline\n",
-          "execution, the `WHEN MATCHED` branch never fired — every run inserted a new row instead of\n",
-          "updating the existing watermark. The table therefore accumulated one row per pipeline run\n",
-          "rather than one canonical row per entity.\n",
-          "\n",
-          "Release 37.0.0 fixes the MERGE key to `(entity, source)` so future runs update in place.\n",
-          "This notebook collapses the accumulated historical rows to leave exactly **one row per\n",
-          "`(entity, source)`** — the entry with the latest `last_ingest_time` — and then runs\n",
-          "`VACUUM` to reclaim the orphaned Delta files.\n",
-          "\n",
-          "Safe to re-run: a no-op when the table already has at most one row per entity."
-        ]
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "#### Imports"
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "from pyspark.sql import SparkSession\n",
-          "from pyspark.sql import functions as F\n",
-          "from pyspark.sql.window import Window\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "#### Deduplicate watermark table\n",
-          "\n",
-          "Keeps the single row with the latest `last_ingest_time` for each `(entity, source)` pair,\n",
-          "removing all older duplicate rows that accumulated due to the previous MERGE key bug."
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "spark = SparkSession.builder.getOrCreate()\n",
-          "\n",
-          "TABLE = 'odw_meta_db.service_bus_watermarks'\n",
-          "\n",
-          "try:\n",
-          "    wm = spark.table(TABLE)\n",
-          "    total = wm.count()\n",
-          "    print(f'Rows before cleanup: {total}')\n",
-          "\n",
-          "    w = Window.partitionBy('entity', 'source').orderBy(\n",
-          "        F.col('last_ingest_time').desc_nulls_last(),\n",
-          "        F.col('updated_at').desc_nulls_last()\n",
-          "    )\n",
-          "    deduped = (\n",
-          "        wm\n",
-          "        .withColumn('_rn', F.row_number().over(w))\n",
-          "        .filter(F.col('_rn') == 1)\n",
-          "        .drop('_rn')\n",
-          "    )\n",
-          "    kept = deduped.count()\n",
-          "    removed = total - kept\n",
-          "\n",
-          "    if removed > 0:\n",
-          "        print(f'Collapsing {total} rows -> {kept} rows ({removed} duplicate(s) removed)')\n",
-          "        (\n",
-          "            deduped.write\n",
-          "            .format('delta')\n",
-          "            .mode('overwrite')\n",
-          "            .option('overwriteSchema', 'false')\n",
-          "            .saveAsTable(TABLE)\n",
-          "        )\n",
-          "        print('Deduplication complete')\n",
-          "    else:\n",
-          "        print(f'No duplicates found — table already clean ({total} row(s))')\n",
-          "\nexcept Exception as e:\n",
-          "    print(f'Cleanup skipped (table may not exist yet): {e}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      },
-      {
-        "cell_type": "markdown",
-        "source": [
-          "#### VACUUM\n",
-          "\n",
-          "Reclaims Delta Lake storage files left behind by the overwrite above.\n",
-          "Uses the default 7-day retention window."
-        ]
-      },
-      {
-        "cell_type": "code",
-        "source": [
-          "try:\n",
-          "    spark.sql(f'VACUUM {TABLE}')\n",
-          "    print(f'VACUUM complete on {TABLE}')\n",
-          "except Exception as e:\n",
-          "    print(f'VACUUM skipped: {e}')\n"
-        ],
-        "outputs": [],
-        "execution_count": null,
-        "metadata": {}
-      }
-    ]
-  }
+	"name": "nb_sb_cleanup_watermarks",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "ef9fdd4d-8234-4808-bd68-acd813b269df"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Clean up Service Bus watermarks table\n",
+					"\n",
+					"Post-deployment notebook for release 37.0.0.\n",
+					"\n",
+					"## Background\n",
+					"\n",
+					"Prior to this release the `nb_sb_write_manifest_and_watermark` notebook keyed its MERGE\n",
+					"on `(entity, source, ingest_date, run_id)`. Because `run_id` is a fresh UUID every pipeline\n",
+					"execution, the `WHEN MATCHED` branch never fired — every run inserted a new row instead of\n",
+					"updating the existing watermark. The table therefore accumulated one row per pipeline run\n",
+					"rather than one canonical row per entity.\n",
+					"\n",
+					"Release 37.0.0 fixes the MERGE key to `(entity, source)` so future runs update in place.\n",
+					"This notebook collapses the accumulated historical rows to leave exactly **one row per\n",
+					"`(entity, source)`** — the entry with the latest `last_ingest_time` — and then runs\n",
+					"`VACUUM` to reclaim the orphaned Delta files.\n",
+					"\n",
+					"Safe to re-run: a no-op when the table already has at most one row per entity."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Deduplicate watermark table\n",
+					"\n",
+					"Keeps the single row with the latest `last_ingest_time` for each `(entity, source)` pair,\n",
+					"removing all older duplicate rows that accumulated due to the previous MERGE key bug."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"TABLE = 'odw_meta_db.service_bus_watermarks'\n",
+					"\n",
+					"try:\n",
+					"    wm = spark.table(TABLE)\n",
+					"    total = wm.count()\n",
+					"    print(f'Rows before cleanup: {total}')\n",
+					"\n",
+					"    w = Window.partitionBy('entity', 'source').orderBy(\n",
+					"        F.col('last_ingest_time').desc_nulls_last(),\n",
+					"        F.col('updated_at').desc_nulls_last()\n",
+					"    )\n",
+					"    deduped = (\n",
+					"        wm\n",
+					"        .withColumn('_rn', F.row_number().over(w))\n",
+					"        .filter(F.col('_rn') == 1)\n",
+					"        .drop('_rn')\n",
+					"    )\n",
+					"    kept = deduped.count()\n",
+					"    removed = total - kept\n",
+					"\n",
+					"    if removed > 0:\n",
+					"        print(f'Collapsing {total} rows -> {kept} rows ({removed} duplicate(s) removed)')\n",
+					"        (\n",
+					"            deduped.write\n",
+					"            .format('delta')\n",
+					"            .mode('overwrite')\n",
+					"            .option('overwriteSchema', 'false')\n",
+					"            .saveAsTable(TABLE)\n",
+					"        )\n",
+					"        print('Deduplication complete')\n",
+					"    else:\n",
+					"        print(f'No duplicates found — table already clean ({total} row(s))')\n",
+					"\n",
+					"except Exception as e:\n",
+					"    print(f'Cleanup skipped (table may not exist yet): {e}')\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### VACUUM\n",
+					"\n",
+					"Reclaims Delta Lake storage files left behind by the overwrite above.\n",
+					"Uses the default 7-day retention window."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    spark.sql(f'VACUUM {TABLE}')\n",
+					"    print(f'VACUUM complete on {TABLE}')\n",
+					"except Exception as e:\n",
+					"    print(f'VACUUM skipped: {e}')\n",
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
 }
