@@ -82,15 +82,18 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         )
 
     def test__legacy_folder_data_curation_process__run__with_existing_data(self):
+        test_case = "t_lfdcp_r_wed"
+        harmonised_table = f"{test_case}_horizon_folder"
+        curated_table = f"{test_case}_legacy_folder_data"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         self.write_existing_table(
             spark,
             self.generate_harmonised_table(),
-            "horizon_folder",
+            harmonised_table,
             "odw_harmonised_db",
             "odw-harmonised",
-            "horizon_folder",
+            harmonised_table,
             "overwrite",
         )
 
@@ -102,10 +105,10 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         self.write_existing_table(
             spark,
             existing_curated_data,
-            "legacy_folder_data",
+            curated_table,
             "odw_curated_db",
             "odw-curated",
-            "legacy_folder_data",
+            curated_table,
             "overwrite",
         )
 
@@ -114,30 +117,33 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         with mock.patch.object(
             LegacyFolderDataCurationProcess,
             "HARMONISED_TABLE",
-            "odw_harmonised_db.horizon_folder",
-        ):
+            f"odw_harmonised_db.{harmonised_table}",
+        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
-                orchestration_run_id="t_lfdcp_r_wed",
+                orchestration_run_id=test_case,
                 orchestration_entity_name="legacy_folder_data",
                 orchestration_stage_name="curate",
             )
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.legacy_folder_data")
+        actual_table_data = spark.table(f"odw_curated_db.{curated_table}")
         assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
 
     def test__legacy_folder_data_curation_process__run__with_no_existing_data(self):
+        test_case = "t_lfdcp_r_wned"
+        harmonised_table = f"{test_case}_horizon_folder"
+        curated_table = f"{test_case}_legacy_folder_data"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        spark.sql("DROP TABLE IF EXISTS odw_curated_db.legacy_folder_data")
+        spark.sql(f"DROP TABLE IF EXISTS odw_curated_db.{curated_table}")
 
         self.write_existing_table(
             spark,
             self.generate_harmonised_table(),
-            "horizon_folder",
+            harmonised_table,
             "odw_harmonised_db",
             "odw-harmonised",
-            "horizon_folder",
+            harmonised_table,
             "overwrite",
         )
 
@@ -146,19 +152,22 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         with mock.patch.object(
             LegacyFolderDataCurationProcess,
             "HARMONISED_TABLE",
-            "odw_harmonised_db.horizon_folder",
-        ):
+            f"odw_harmonised_db.{harmonised_table}",
+        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
-                orchestration_run_id="t_lfdcp_r_wned",
+                orchestration_run_id=test_case,
                 orchestration_entity_name="legacy_folder_data",
                 orchestration_stage_name="curate",
             )
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.legacy_folder_data")
+        actual_table_data = spark.table(f"odw_curated_db.{curated_table}")
         assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
 
     def test__legacy_folder_data_curation_process__run__maps_all_case_stage_values_and_lowercases_unmapped(self):
+        test_case = "t_lfdcp_stage_map"
+        harmonised_table = f"{test_case}_horizon_folder"
+        curated_table = f"{test_case}_legacy_folder_data"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_data = spark.createDataFrame(
@@ -194,26 +203,26 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         self.write_existing_table(
             spark,
             harmonised_data,
-            "horizon_folder",
+            harmonised_table,
             "odw_harmonised_db",
             "odw-harmonised",
-            "horizon_folder",
+            harmonised_table,
             "overwrite",
         )
 
         with mock.patch.object(
             LegacyFolderDataCurationProcess,
             "HARMONISED_TABLE",
-            "odw_harmonised_db.horizon_folder",
-        ):
+            f"odw_harmonised_db.{harmonised_table}",
+        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
-                orchestration_run_id="t_lfdcp_stage_map",
+                orchestration_run_id=test_case,
                 orchestration_entity_name="legacy_folder_data",
                 orchestration_stage_name="curate",
             )
         assert_etl_result_successful(result)
-        actual_stage_data = spark.table("odw_curated_db.legacy_folder_data").select("id", "caseStage")
+        actual_stage_data = spark.table(f"odw_curated_db.{curated_table}").select("id", "caseStage")
 
         expected_stage_data = spark.createDataFrame(
             [

@@ -73,16 +73,18 @@ def _all_case_stage_harmonised_rows():
 
 class TestLegacyFolderDataCurationProcess(SparkTestCase):
     def test__legacy_folder_data__load_data(self):
+        test_case = "t_lfdcp_ld"
         spark = PytestSparkSessionUtil().get_spark_session()
         harmonised_data = spark.createDataFrame(data=_harmonised_rows(), schema=_harmonised_schema())
 
+        table_name = f"{test_case}_horizon_folder"
         self.write_existing_table(
             spark,
             harmonised_data,
-            table_name="horizon_folder",
+            table_name=table_name,
             database_name="odw_harmonised_db",
             container="odw-harmonised",
-            blob_path="horizon_folder",
+            blob_path=table_name,
             mode="overwrite",
         )
 
@@ -96,7 +98,7 @@ class TestLegacyFolderDataCurationProcess(SparkTestCase):
         with mock.patch.object(
             LegacyFolderDataCurationProcess,
             "HARMONISED_TABLE",
-            "odw_harmonised_db.horizon_folder",
+            f"odw_harmonised_db.{test_case}_horizon_folder",
         ):
             inst = LegacyFolderDataCurationProcess(spark)
             actual_output = inst.load_data()
@@ -147,16 +149,18 @@ class TestLegacyFolderDataCurationProcess(SparkTestCase):
                 )
 
     def test__legacy_folder_data__load_data__maps_all_legacy_case_stage_values_and_lowercases_unmapped(self):
+        test_case = "t_lfdcp_ld_mlcsvlu"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_data = spark.createDataFrame(data=_all_case_stage_harmonised_rows(), schema=_harmonised_schema())
+        table_name = f"{test_case}_horizon_folder"
         self.write_existing_table(
             spark,
             harmonised_data,
-            table_name="horizon_folder",
+            table_name=table_name,
             database_name="odw_harmonised_db",
             container="odw-harmonised",
-            blob_path="horizon_folder",
+            blob_path=table_name,
             mode="overwrite",
         )
 
@@ -183,7 +187,7 @@ class TestLegacyFolderDataCurationProcess(SparkTestCase):
         with mock.patch.object(
             LegacyFolderDataCurationProcess,
             "HARMONISED_TABLE",
-            "odw_harmonised_db.horizon_folder",
+            f"odw_harmonised_db.{test_case}_horizon_folder",
         ):
             inst = LegacyFolderDataCurationProcess(spark)
             actual_output = inst.load_data()
