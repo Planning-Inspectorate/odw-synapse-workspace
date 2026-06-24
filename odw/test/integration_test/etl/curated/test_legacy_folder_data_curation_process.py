@@ -114,11 +114,14 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
 
         expected_curated_data_after_writing = self.generate_curated_data()
 
-        with mock.patch.object(
-            LegacyFolderDataCurationProcess,
-            "HARMONISED_TABLE",
-            f"odw_harmonised_db.{harmonised_table}",
-        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
+        with (
+            mock.patch.object(
+                LegacyFolderDataCurationProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+        ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
                 orchestration_run_id=test_case,
@@ -149,11 +152,14 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
 
         expected_curated_data_after_writing = self.generate_curated_data()
 
-        with mock.patch.object(
-            LegacyFolderDataCurationProcess,
-            "HARMONISED_TABLE",
-            f"odw_harmonised_db.{harmonised_table}",
-        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
+        with (
+            mock.patch.object(
+                LegacyFolderDataCurationProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+        ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
                 orchestration_run_id=test_case,
@@ -210,11 +216,14 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
             "overwrite",
         )
 
-        with mock.patch.object(
-            LegacyFolderDataCurationProcess,
-            "HARMONISED_TABLE",
-            f"odw_harmonised_db.{harmonised_table}",
-        ), mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table):
+        with (
+            mock.patch.object(
+                LegacyFolderDataCurationProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+        ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
                 orchestration_run_id=test_case,
