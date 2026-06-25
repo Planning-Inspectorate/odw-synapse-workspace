@@ -254,7 +254,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_ilml",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -292,7 +296,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_foir",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -338,7 +346,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_cmadtes",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -382,7 +394,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_pnp",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -419,7 +435,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_ddr",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -463,7 +483,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_ucip",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")
@@ -492,7 +516,11 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             mock_process_logging.return_value = mock.Mock()
 
             inst = AppealDocumentCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(
+                orchestration_run_id="t_adcp_r_esreo",
+                orchestration_entity_name="appeal_document",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table("odw_curated_db.appeal_document")

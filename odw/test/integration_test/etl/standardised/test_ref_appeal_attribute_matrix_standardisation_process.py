@@ -3,6 +3,7 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 import mock
 import pyspark.sql.types as T
 
@@ -10,284 +11,66 @@ pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet
 
 
 class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
-    def test__appeal_attribute_matrix_standardisation_process__run__standardises_end_to_end_and_matches_legacy(self):
+    def assert_standardisation(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        raw_data = spark.createDataFrame(
-            [
-                ("Housing Need", "APP-001", 1, "ignore", "drop-blank"),
-                ("", "APP-002", 0, "ignore", "drop-blank"),
-                ("   ", "APP-003", 1, "ignore", "drop-blank"),
-                ("Green Belt", "APP-004", 0, "ignore", "drop-blank"),
-                (None, "APP-005", 1, "ignore", "drop-blank"),
-            ],
-            T.StructType(
+        data_folder = f"{test_case}_AppealAttributeMatrix"
+        date_folder = "2027-02-01"
+        raw_csv_data = (
+            ("attribute", "Appeal Reference", "S78", "_c0", ""),
+            ("Housing Need", "APP-001", 1, "ignore", "drop-blank"),
+            ("", "APP-002", 0, "ignore", "drop-blank"),
+            ("   ", "APP-003", 1, "ignore", "drop-blank"),
+            ("Green Belt", "APP-004", 0, "ignore", "drop-blank"),
+            (None, "APP-005", 1, "ignore", "drop-blank"),
+        )
+        self.write_csv(raw_csv_data, ["odw-raw", data_folder, date_folder, "appeal-attribute-matrix.csv"])
+
+        output_table = f"{test_case}_appeal_attribute_matrix"
+
+        with (
+            mock.patch.object(AppealAttributeMatrixStandardisationProcess, "CSV_FOLDER", output_table),
+            mock.patch.object(AppealAttributeMatrixStandardisationProcess, "OUTPUT_TABLE", output_table),
+        ):
+            inst = AppealAttributeMatrixStandardisationProcess(spark)
+
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attrbute_matrix", orchestration_stage_name="standardise"
+            )
+            assert_etl_result_successful(result)
+
+        expected_data = spark.createDataFrame(
+            (
+                {"attribute": "Housing Need", "appealReference": "APP-001", "s78": "1"},
+                {"attribute": "Green Belt", "appealReference": "APP-004", "s78": "0"},
+            ),
+            schema=T.StructType(
                 [
                     T.StructField("attribute", T.StringType(), True),
-                    T.StructField("Appeal Reference", T.StringType(), True),
-                    T.StructField("S78", T.IntegerType(), True),
-                    T.StructField("_c0", T.StringType(), True),
-                    T.StructField("", T.StringType(), True),
+                    T.StructField("appealReference", T.StringType(), True),
+                    T.StructField("s78", T.StringType(), True),
                 ]
             ),
         )
+        actual_data = spark.table(f"odw_standardised_db.{output_table}")
+        assert_dataframes_equal(expected_data, actual_data)
 
-        source_data = {
-            "raw_data": raw_data,
-        }
+    def test__appeal_attribute_matrix_standardisation_process__run__with_no_existing_data(self):
+        self.assert_standardisation("t_aamsp_r_wned")
 
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
-
-        expected_rows = [
-            ("Housing Need", "APP-001", "1"),
-            ("Green Belt", "APP-004", "0"),
-        ]
-
-        assert actual_df.columns == ["attribute", "appealReference", "s78"]
-        assert "_c0" not in actual_df.columns
-        assert "" not in actual_df.columns
-        assert dict(actual_df.dtypes)["s78"] == "string"
-        assert rows == expected_rows
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
-
-    def test__appeal_attribute_matrix_standardisation_process__run__handles_missing_s78_like_legacy(self):
+    def test__appeal_attribute_matrix_standardisation_process__run__with_existing_data(self):
+        test_case = "t_aamsp_r_wned"
         spark = PytestSparkSessionUtil().get_spark_session()
-
-        raw_data = spark.createDataFrame(
-            [
-                ("Housing Need", "APP-001"),
-                ("Green Belt", "APP-002"),
-            ],
-            T.StructType(
+        existing_data = spark.createDataFrame(
+            ({"attribute": "Old record", "appealReference": "old-ref", "s78": "1"},),
+            schema=T.StructType(
                 [
                     T.StructField("attribute", T.StringType(), True),
-                    T.StructField("Appeal Reference", T.StringType(), True),
+                    T.StructField("appealReference", T.StringType(), True),
+                    T.StructField("s78", T.StringType(), True),
                 ]
             ),
         )
-
-        source_data = {
-            "raw_data": raw_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        rows = [tuple(row) for row in actual_df.orderBy("appealReference").collect()]
-
-        expected_rows = [
-            ("Housing Need", "APP-001"),
-            ("Green Belt", "APP-002"),
-        ]
-
-        assert actual_df.columns == ["attribute", "appealReference"]
-        assert rows == expected_rows
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
-
-    def test__appeal_attribute_matrix_standardisation_process__run__filters_invalid_attribute_values_exactly_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        raw_data = spark.createDataFrame(
-            [
-                (None, "APP-001", 1),
-                ("", "APP-002", 0),
-                ("   ", "APP-003", 1),
-                ('"', "APP-004", 0),
-                ("'", "APP-005", 1),
-                ("Valid Attribute", "APP-006", 1),
-            ],
-            T.StructType(
-                [
-                    T.StructField("attribute", T.StringType(), True),
-                    T.StructField("Appeal Reference", T.StringType(), True),
-                    T.StructField("S78", T.IntegerType(), True),
-                ]
-            ),
-        )
-
-        source_data = {
-            "raw_data": raw_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = actual_df.collect()
-
-        assert actual_df.columns == ["attribute", "appealReference", "s78"]
-        assert len(rows) == 1
-        assert rows[0]["attribute"] == "Valid Attribute"
-        assert rows[0]["appealReference"] == "APP-006"
-        assert rows[0]["s78"] == "1"
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
-
-    def test__appeal_attribute_matrix_standardisation_process__run__preserves_duplicates_and_column_order_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        raw_data = spark.createDataFrame(
-            [
-                ("Housing Need", "APP-001", 1, "drop"),
-                ("Housing Need", "APP-001", 1, "drop"),
-                ("Green Belt", "APP-002", 0, "drop"),
-            ],
-            T.StructType(
-                [
-                    T.StructField("attribute", T.StringType(), True),
-                    T.StructField("Appeal Reference", T.StringType(), True),
-                    T.StructField("S78", T.IntegerType(), True),
-                    T.StructField("_c1", T.StringType(), True),
-                ]
-            ),
-        )
-
-        source_data = {
-            "raw_data": raw_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        rows = [tuple(row) for row in actual_df.orderBy("appealReference", "attribute").collect()]
-
-        expected_rows = [
-            ("Housing Need", "APP-001", "1"),
-            ("Housing Need", "APP-001", "1"),
-            ("Green Belt", "APP-002", "0"),
-        ]
-
-        assert actual_df.columns == ["attribute", "appealReference", "s78"]
-        assert rows == expected_rows
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 3
-
-    def test__appeal_attribute_matrix_standardisation_process__run__handles_multiple_spaces_in_column_names_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        raw_data = spark.createDataFrame(
-            [
-                ("Housing Need", "APP-001", 1),
-            ],
-            T.StructType(
-                [
-                    T.StructField("attribute", T.StringType(), True),
-                    T.StructField("Appeal    Reference", T.StringType(), True),
-                    T.StructField("S78", T.IntegerType(), True),
-                ]
-            ),
-        )
-
-        source_data = {
-            "raw_data": raw_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixStandardisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = actual_df.collect()
-
-        assert actual_df.columns == ["attribute", "appealReference", "s78"]
-        assert len(rows) == 1
-        assert rows[0]["attribute"] == "Housing Need"
-        assert rows[0]["appealReference"] == "APP-001"
-        assert rows[0]["s78"] == "1"
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
+        output_table = f"{test_case}_appeal_attribute_matrix"
+        self.write_existing_table(spark, existing_data, output_table, "odw_standardised_db", "odw-standardised", output_table, "overwrite")
+        self.assert_standardisation("t_aamsp_r_wed")

@@ -2,12 +2,14 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_etl_result_successful
 import pyspark.sql.types as T
 import mock
 
 
-class NSIPDocumntCuratedTestCase(ETLTestCase):
+class TestNSIPDocumntCurated(ETLTestCase):
     def test__nsip_document_curated_process__run__applies_expected_transformations(self):
+        test_case = "t_ndcp_r_aet"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_docs = spark.createDataFrame(
@@ -50,6 +52,7 @@ class NSIPDocumntCuratedTestCase(ETLTestCase):
                     "filter2-1",
                     "folder-1",
                     "transcript-1",
+                    "Y",
                 ),
                 (
                     2,
@@ -89,6 +92,7 @@ class NSIPDocumntCuratedTestCase(ETLTestCase):
                     "filter2-2",
                     "folder-2",
                     "transcript-2",
+                    "Y",
                 ),
             ],
             T.StructType(
@@ -130,6 +134,7 @@ class NSIPDocumntCuratedTestCase(ETLTestCase):
                     T.StructField("filter2", T.StringType(), True),
                     T.StructField("horizonFolderId", T.StringType(), True),
                     T.StructField("transcriptId", T.StringType(), True),
+                    T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
         )
@@ -139,29 +144,29 @@ class NSIPDocumntCuratedTestCase(ETLTestCase):
             T.StructType([T.StructField("caseReference", T.StringType(), True)]),
         )
 
-        source_data = {
-            "harmonised_docs": harmonised_docs,
-            "curated_projects": curated_projects,
-        }
+        harmonised_table = f"{test_case}_nsip_document"
+        self.write_existing_table(spark, harmonised_docs, harmonised_table, "odw_harmonised_db", "odw-harmonised", harmonised_table, "overwrite")
+        curated_projects_table = f"{test_case}_nsip_project"
+        self.write_existing_table(
+            spark, curated_projects, curated_projects_table, "odw_curated_db", "odw-curated", curated_projects_table, "overwrite"
+        )
+        curated_nsip_document_table = f"{test_case}_nsip_document"
 
         with (
             mock.patch(
                 "odw.core.etl.transformation.curated.nsip_document_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_document_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch.object(NsipDocumentCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_table}"),
+            mock.patch.object(NsipDocumentCuratedProcess, "CURATED_PROJECT_TABLE", f"odw_curated_db.{curated_projects_table}"),
+            mock.patch.object(NsipDocumentCuratedProcess, "OUTPUT_TABLE", curated_nsip_document_table),
         ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
             inst = NsipDocumentCuratedProcess(spark)
 
-            with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
-                result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_document", orchestration_stage_name="curate")
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = spark.table(f"odw_curated_db.{curated_nsip_document_table}")
         rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -176,6 +181,4 @@ class NSIPDocumntCuratedTestCase(ETLTestCase):
         assert rows[2]["publishedStatus"] == "ready_to_publish"
         assert rows[2]["documentCaseStage"] == "post_decision"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_document"
         assert result.metadata.insert_count == 2

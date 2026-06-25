@@ -27,7 +27,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
     ```
     params = {
-        "entity_stage_name": "Horizon Standardisation",
+        "etl_process_name": "Horizon Standardisation Process",
         "source_folder": "Horizon",  # Default is Horizon, but this could be any folder in the `odw-raw` container
         "entity_name": "",  # Default is "". Aligns with the `Source_Filename_Start` property in the orchestration file
     }
@@ -36,8 +36,8 @@ class HorizonStandardisationProcess(StandardisationProcess):
     """
 
     @classmethod
-    def get_name(cls):
-        return "Horizon Standardisation"
+    def get_name(cls) -> str:
+        return "Horizon Standardisation Process"
 
     def get_last_modified_folder(self, path: str):
         # List all items in the directory
@@ -218,8 +218,10 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     if table_field is not None and field.dataType != table_field.dataType:
                         data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
 
+                _anon_enabled = Util.is_non_production_environment()
+                LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}")
                 # Apply anonymisation only in DEV/TEST environments
-                if Util.is_non_production_environment():
+                if _anon_enabled:
                     try:
                         anon_config = AnonymisationConfig()
                         try:

@@ -21,8 +21,8 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
     """
 
     @classmethod
-    def get_name(cls):
-        return "Service Bus Standardisation"
+    def get_name(cls) -> str:
+        return "Service Bus Standardisation Process"
 
     @LoggingUtil.logging_to_appins
     def get_max_file_date(self, df: DataFrame) -> datetime:
@@ -159,9 +159,12 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
             raise ValueError("ServiceBusStandardisationProcess.process requires new_raw_messages dataframe to be provided, but was missing")
         table_row_count = table_df.count()
         new_raw_messages = self.remove_data_duplicates(new_raw_messages)
+        insert_count = new_raw_messages.count()
 
-        # Apply anonymisation only in DEV/TEST environments
-        if Util.is_non_production_environment():
+        _anon_enabled = Util.is_non_production_environment()
+        LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} entity={entity_name}")
+        # Apply anonymisation only in DEV/TEST environments, and only when there are rows to process
+        if _anon_enabled and insert_count > 0:
             try:
                 anon_config = AnonymisationConfig()
                 try:
@@ -182,7 +185,6 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
                 LoggingUtil().log_error(f"Anonymisation failed for {entity_name}: {str(e)}")
                 raise
 
-        insert_count = new_raw_messages.count()
         LoggingUtil().log_info(f"Rows to append: {insert_count}")
         expected_new_count = table_row_count + insert_count
         LoggingUtil().log_info(f"Expected new count: {expected_new_count}")

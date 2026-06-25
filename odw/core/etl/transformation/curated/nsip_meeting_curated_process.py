@@ -2,7 +2,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -13,25 +13,22 @@ class NsipMeetingCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Meeting data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-meeting-curated",
+        "etl_process_name": "NSIP Meeting Curation Process",
         "debug": False
     }
     ```
     """
 
     HARMONISED_TABLE = "odw_harmonised_db.sb_nsip_meeting"
-    OUTPUT_TABLE = "odw_curated_db.nsip_meeting"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
+    OUTPUT_TABLE = "nsip_meeting"
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-meeting-curated"
+        return "NSIP Meeting Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
@@ -49,7 +46,6 @@ class NsipMeetingCuratedProcess(CurationProcess):
                 meetingId,
                 meetingDate,
                 meetingType,
-                estimatedPrelimMeetingDate,
                 IsActive
             FROM {self.HARMONISED_TABLE}
             WHERE IsActive = 'Y'
@@ -83,7 +79,6 @@ class NsipMeetingCuratedProcess(CurationProcess):
                 "meetingId",
                 "meetingDate",
                 "meetingType",
-                "estimatedPrelimMeetingDate",
                 "IsActive",
             )
         )
@@ -93,14 +88,14 @@ class NsipMeetingCuratedProcess(CurationProcess):
 
         end_exec_time = datetime.now()
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_curated_db.{self.OUTPUT_TABLE}": {
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "nsip_meeting",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "nsip_meeting",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
@@ -110,7 +105,7 @@ class NsipMeetingCuratedProcess(CurationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_curated_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,

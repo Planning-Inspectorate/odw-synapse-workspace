@@ -1,4 +1,5 @@
 from odw.core.etl.etl_process import ETLProcess
+from odw.core.etl.fake.fake_etl_process import SuccessfulETLProcess, FailedETLProcess
 from odw.core.exceptions import DuplicateETLProcessNameException, ETLProcessNameNotFoundException
 from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
 from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
@@ -13,6 +14,7 @@ from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_proces
 from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
 from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
 from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
+from odw.core.etl.transformation.standardised.entraid_standardisation_process import EntraIdStandardisationProcess
 from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
 from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
 from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
@@ -20,12 +22,23 @@ from odw.core.etl.transformation.curated.nsip_representation_curated_process imp
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
 from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import AppealEventEstimateCuratedMipinsProcess
+from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
+from odw.core.etl.transformation.harmonised.horizon_pins_inspector_harmonisation_process import HorizonPinsInspectorHarmonisationProcess
+from odw.core.etl.transformation.curated.pins_inspector_curated_process import PinsInspectorCuratedProcess
+from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
+from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
 from typing import Dict, List, Set, Type
 import json
 
 
 class ETLProcessFactory:
     ETL_PROCESSES: Set[Type[ETLProcess]] = {
+        SuccessfulETLProcess,  # For testing purposes
+        FailedETLProcess,  # For testing purposes
         StandardisationProcess,
         ServiceBusStandardisationProcess,
         HorizonStandardisationProcess,
@@ -38,6 +51,7 @@ class ETLProcessFactory:
         AppealDocumentHarmonisationProcess,
         AieDocumentHarmonisationProcess,
         EntraIdHarmonisationProcess,
+        EntraIdStandardisationProcess,
         ListedBuildingHarmonisationProcess,
         NsipDocumentCuratedProcess,
         NsipSubscriptionCuratedProcess,
@@ -46,6 +60,15 @@ class ETLProcessFactory:
         NsipS51AdviceCuratedProcess,
         NsipMeetingCuratedProcess,
         AppealDocumentCuratedProcess,
+        AppealEventEstimateCuratedProcess,
+        AppealEventEstimateCuratedMipinsProcess,
+        PinsInspectorHarmonisationProcess,
+        HorizonPinsInspectorHarmonisationProcess,
+        PinsInspectorCuratedProcess,
+        NsipProjectHarmonisationProcess,
+        NsipInvoiceHarmonisationProcess,
+        NsipInvoiceCuratedProcess,
+        NsipProjectCuratedProcess,
     }
 
     @classmethod
@@ -60,7 +83,7 @@ class ETLProcessFactory:
         invalid_types = {k: v for k, v in name_map.items() if len(v) > 1}
         if invalid_types:
             raise DuplicateETLProcessNameException(
-                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4)}"
+                f"The following ETLProcess implementation classes had duplicate names: {json.dumps(invalid_types, indent=4, default=str)}"
             )
         return {k: v[0] for k, v in name_map.items()}
 

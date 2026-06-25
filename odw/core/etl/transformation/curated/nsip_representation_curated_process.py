@@ -2,7 +2,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -12,25 +12,22 @@ class NsipRepresentationCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Representation data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-curated",
+        "etl_process_name": "NSIP Representation Curation Process",
         "debug": False
     }
     ```
     """
 
     HARMONISED_TABLE = "odw_harmonised_db.nsip_representation"
-    OUTPUT_TABLE = "odw_curated_db.nsip_representation"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
+    OUTPUT_TABLE = "nsip_representation"
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-curated"
+        return "NSIP Representation Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         """
@@ -126,14 +123,14 @@ class NsipRepresentationCuratedProcess(CurationProcess):
 
         end_exec_time = datetime.now()
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_curated_db.{self.OUTPUT_TABLE}": {
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "nsip_representation",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "nsip_representation",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
@@ -143,7 +140,7 @@ class NsipRepresentationCuratedProcess(CurationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_curated_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,

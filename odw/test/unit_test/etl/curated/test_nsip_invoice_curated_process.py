@@ -1,5 +1,3 @@
-import mock
-import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     IntegerType,
@@ -13,8 +11,6 @@ from pyspark.sql.types import (
 from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -94,7 +90,7 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = NsipInvoiceCuratedProcess(spark)
 
-        assert inst.get_name() == "nsip_invoice_curated_process"
+        assert inst.get_name() == "NSIP Invoice Curation Process"
 
     def test__nsip_invoice_curated_process__process__keeps_only_active_rows(
         self,
@@ -111,9 +107,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -136,12 +131,12 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, _ = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
+        print("actual cols")
+        print(df.columns)
         assert df.columns == [
             "caseId",
             "caseReference",
@@ -153,6 +148,7 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "paymentDate",
             "refundCreditNoteNumber",
             "refundAmount",
+            "refundIssueDate",
             "IsActive",
         ]
 
@@ -187,9 +183,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -220,9 +215,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -259,9 +253,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -289,9 +282,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -314,9 +306,8 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "target_exists": False,
         }
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil"):
-            inst = NsipInvoiceCuratedProcess(spark)
-            data_to_write, result = inst.process(source_data=source_data)
+        inst = NsipInvoiceCuratedProcess(spark)
+        data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 

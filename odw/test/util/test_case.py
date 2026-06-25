@@ -1,5 +1,6 @@
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.core.util.logging_util import LoggingUtil
+from odw.core.util.util import Util
 import gc
 from pyspark.sql import SparkSession, DataFrame
 from odw.test.util.util import format_to_adls_path
@@ -62,6 +63,7 @@ class SparkTestCase(TestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
+            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
         ):
             yield
 
@@ -75,13 +77,14 @@ class SparkTestCase(TestCase):
         blob_path: str,
         mode: str,
         options: Dict[str, Any] = dict(),
+        format: str = "delta",
     ):
         logging.info(f"Creating table '{database_name}.{table_name}'")
         spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
         table_path = f"{database_name}.{table_name}"
         data_path = format_to_adls_path(None, container, blob_path)
         write_opts = options | {"path": data_path}
-        writer = data.write.format("delta").mode(mode)
+        writer = data.write.format(format).mode(mode)
         for option, value in write_opts.items():
             writer = writer.option(option, value)
         writer.saveAsTable(table_path)

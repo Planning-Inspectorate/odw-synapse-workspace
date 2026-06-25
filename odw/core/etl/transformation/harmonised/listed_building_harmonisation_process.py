@@ -1,19 +1,16 @@
-from typing import Any
 from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
+from typing import Any, Dict
+from pyspark.sql import DataFrame
 
 
 class ListedBuildingHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "listed_building"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
-
     @classmethod
     def get_name(cls) -> str:
-        return "Listed Building Harmonisation"
+        return "Listed Building Harmonisation Process"
 
-    def load_data(self) -> dict[str, Any]:
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         raise NotImplementedError("ListedBuildingHarmonisationProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):

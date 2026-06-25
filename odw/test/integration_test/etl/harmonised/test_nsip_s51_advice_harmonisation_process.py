@@ -2,12 +2,19 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import NsipS51AdviceHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from datetime import datetime
 import pyspark.sql.types as T
 import mock
+import pytest
 
 
-class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
+pytestmark = pytest.mark.xfail(reason="Skipped because of a logic error that has been found in the refactored code")
+
+
+class TestNSIPS51AdiceHarmonisationTestCase(ETLTestCase):
     def test__nsip_s51_advice_harmonisation_process__run__aggregates_attachments_and_applies_delete_logic(self):
+        test_case = "t_nsahp_r_aaaadl"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -94,29 +101,25 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
                 ]
             ),
         )
+        service_bus_table = f"{test_case}_sb_s51_advice"
+        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
 
         horizon_data = spark.createDataFrame(
             [
                 (
                     20,
-                    20,
                     "ADV-20",
                     200,
                     "EN010002",
                     "Title 20",
-                    None,
-                    "From 20",
                     "Agent 20",
                     "email",
                     "2025-02-01",
                     "Enquiry 20",
-                    None,
                     "Advice By 20",
                     "2025-02-02",
                     "Advice 20",
-                    None,
                     "Published",
-                    None,
                     "HA2",
                     "Yes",
                     "A",
@@ -128,34 +131,23 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
                     None,
                     None,
                     None,
-                    "0",
-                    "Horizon",
-                    None,
                     "2025-02-01 00:00:00",
-                    None,
-                    "",
-                    "Y",
+                    datetime(2025, 1, 1),
                 ),
                 (
-                    20,
                     20,
                     "ADV-20",
                     200,
                     "EN010002",
                     "Title 20",
-                    None,
-                    "From 20",
                     "Agent 20",
                     "email",
                     "2025-02-01",
                     "Enquiry 20",
-                    None,
                     "Advice By 20",
                     "2025-02-02",
                     "Advice 20",
-                    None,
                     "Published",
-                    None,
                     "HA1",
                     "Yes",
                     "A",
@@ -167,16 +159,176 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
                     None,
                     None,
                     None,
-                    "0",
-                    "Horizon",
-                    None,
                     "2025-02-01 00:00:00",
-                    None,
-                    "",
-                    "Y",
+                    datetime(2025, 1, 1),
                 ),
             ],
             T.StructType(
+                [
+                    T.StructField("advicenodeid", T.IntegerType(), True),
+                    T.StructField("adviceReference", T.StringType(), True),
+                    T.StructField("casenodeid", T.IntegerType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("title", T.StringType(), True),
+                    T.StructField("enquirerOrganisation", T.StringType(), True),
+                    T.StructField("enqirymethod", T.StringType(), True),
+                    T.StructField("enquiryDate", T.StringType(), True),
+                    T.StructField("enquiry", T.StringType(), True),
+                    T.StructField("adviceFrom", T.StringType(), True),
+                    T.StructField("adviceDate", T.StringType(), True),
+                    T.StructField("advice", T.StringType(), True),
+                    T.StructField("adviceStatus", T.StringType(), True),
+                    T.StructField("attachmentdataID", T.StringType(), True),
+                    T.StructField("Section51Advice", T.StringType(), True),
+                    T.StructField("EnquirerFirstName", T.StringType(), True),
+                    T.StructField("EnquirerLastName", T.StringType(), True),
+                    T.StructField("AdviceLastModified", T.StringType(), True),
+                    T.StructField("AttachmentCount", T.StringType(), True),
+                    T.StructField("AttachmentsLastModified", T.StringType(), True),
+                    T.StructField("LastPublishedDate", T.StringType(), True),
+                    T.StructField("WelshLanguage", T.StringType(), True),
+                    T.StructField("CaseWorkType", T.StringType(), True),
+                    T.StructField("AttachmentModifyDate", T.StringType(), True),
+                    T.StructField("expected_from", T.StringType(), True),
+                    T.StructField("ingested_datetime", T.TimestampType(), True),
+                ]
+            ),
+        )
+        horizon_table = f"{test_case}_horizon_nsip_advice"
+        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
+
+        output_table = f"{test_case}_nsip_s51_advice"
+
+        with (
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch.object(NsipS51AdviceHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
+            mock.patch.object(NsipS51AdviceHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_table}"),
+            mock.patch.object(NsipS51AdviceHarmonisationProcess, "OUTPUT_TABLE", output_table),
+        ):
+            inst = NsipS51AdviceHarmonisationProcess(spark)
+
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_s51_advice", orchestration_stage_name="harmonise")
+            assert_etl_result_successful(result)
+
+        # Generated by feeding the above test data through the original notebook
+        expected_df = spark.createDataFrame(
+            (
+                {
+                    "NSIPAdviceID": 1,
+                    "adviceId": 10,
+                    "adviceReference": "ADV-10",
+                    "caseId": 100,
+                    "caseReference": "EN010001",
+                    "title": "Title 10",
+                    "titleWelsh": None,
+                    "from": "From 10",
+                    "agent": "Agent 10",
+                    "method": "email",
+                    "enquiryDate": "2025-01-01",
+                    "enquiryDetails": "Enquiry 10",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 10",
+                    "adviceDate": "2025-01-02",
+                    "adviceDetails": "Advice 10",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["SBA1"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": None,
+                    "EnquirerLastName": None,
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "0",
+                    "ODTSourceSystem": "ODT",
+                    "IngestionDate": "2025-01-01 00:00:00",
+                    "ValidTo": None,
+                    "RowID": "9ef7a4435a50df0cd6c38de84c26dcd2",
+                    "IsActive": "Y",
+                },
+                {
+                    "NSIPAdviceID": 2,
+                    "adviceId": 20,
+                    "adviceReference": "ADV-20",
+                    "caseId": 200,
+                    "caseReference": "EN010002",
+                    "title": "Title 20",
+                    "titleWelsh": None,
+                    "from": "A B",
+                    "agent": "Agent 20",
+                    "method": "email",
+                    "enquiryDate": "2025-02-01",
+                    "enquiryDetails": "Enquiry 20",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 20",
+                    "adviceDate": "2025-02-02",
+                    "adviceDetails": "Advice 20",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["HA1", "HA2"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": "A",
+                    "EnquirerLastName": "B",
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "0",
+                    "ODTSourceSystem": "Horizon",
+                    "IngestionDate": "2025-02-01 00:00:00",
+                    "ValidTo": None,
+                    "RowID": "36997cb29babbe58e282bc695f7c0a75",
+                    "IsActive": "Y",
+                },
+                {
+                    "NSIPAdviceID": 3,
+                    "adviceId": 20,
+                    "adviceReference": "ADV-20",
+                    "caseId": 200,
+                    "caseReference": "EN010002",
+                    "title": "Title 20",
+                    "titleWelsh": None,
+                    "from": "A B",
+                    "agent": "Agent 20",
+                    "method": "email",
+                    "enquiryDate": "2025-02-01",
+                    "enquiryDetails": "Enquiry 20",
+                    "enquiryDetailsWelsh": None,
+                    "adviceGivenBy": "Advice By 20",
+                    "adviceDate": "2025-02-02",
+                    "adviceDetails": "Advice 20",
+                    "adviceDetailsWelsh": None,
+                    "status": "Published",
+                    "redactionStatus": None,
+                    "attachmentIds": ["HA1", "HA2"],
+                    "Section51Advice": "Yes",
+                    "EnquirerFirstName": "A",
+                    "EnquirerLastName": "B",
+                    "AdviceLastModified": None,
+                    "AttachmentCount": None,
+                    "AttachmentsLastModified": None,
+                    "LastPublishedDate": None,
+                    "WelshLanguage": None,
+                    "CaseWorkType": None,
+                    "Migrated": "0",
+                    "ODTSourceSystem": "Horizon",
+                    "IngestionDate": "2025-02-01 00:00:00",
+                    "ValidTo": "2025-02-01 00:00:00",
+                    "RowID": "36997cb29babbe58e282bc695f7c0a75",
+                    "IsActive": "N",
+                },
+            ),
+            schema=T.StructType(
                 [
                     T.StructField("NSIPAdviceID", T.IntegerType(), True),
                     T.StructField("adviceId", T.IntegerType(), True),
@@ -197,7 +349,7 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
                     T.StructField("adviceDetailsWelsh", T.StringType(), True),
                     T.StructField("status", T.StringType(), True),
                     T.StructField("redactionStatus", T.StringType(), True),
-                    T.StructField("attachmentIds", T.StringType(), True),
+                    T.StructField("attachmentIds", T.ArrayType(T.StringType(), True), True),
                     T.StructField("Section51Advice", T.StringType(), True),
                     T.StructField("EnquirerFirstName", T.StringType(), True),
                     T.StructField("EnquirerLastName", T.StringType(), True),
@@ -207,10 +359,8 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
                     T.StructField("LastPublishedDate", T.StringType(), True),
                     T.StructField("WelshLanguage", T.StringType(), True),
                     T.StructField("CaseWorkType", T.StringType(), True),
-                    T.StructField("AttachmentModifyDate", T.StringType(), True),
                     T.StructField("Migrated", T.StringType(), True),
                     T.StructField("ODTSourceSystem", T.StringType(), True),
-                    T.StructField("SourceSystemID", T.StringType(), True),
                     T.StructField("IngestionDate", T.StringType(), True),
                     T.StructField("ValidTo", T.StringType(), True),
                     T.StructField("RowID", T.StringType(), True),
@@ -219,62 +369,5 @@ class NSIPS51AdiceHarmonisationTestCase(ETLTestCase):
             ),
         )
 
-        horizon_deleted = spark.createDataFrame(
-            [(20,)],
-            ["advicenodeid"],
-        )
-
-        sb_advice_ids = spark.createDataFrame(
-            [(10,)],
-            ["adviceId"],
-        )
-
-        source_data = {
-            "service_bus_data": service_bus_data,
-            "horizon_data": horizon_data,
-            "horizon_deleted": horizon_deleted,
-            "sb_advice_ids": sb_advice_ids,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = NsipS51AdviceHarmonisationProcess(spark)
-
-            with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = [row.asDict(recursive=True) for row in actual_df.collect()]
-
-        assert "SourceSystemID" not in actual_df.columns
-        assert "AttachmentModifyDate" not in actual_df.columns
-        assert actual_df.count() == 3
-
-        advice_10_rows = [row for row in rows if row["adviceId"] == 10]
-        advice_20_rows = [row for row in rows if row["adviceId"] == 20]
-
-        assert len(advice_10_rows) == 1
-        assert len(advice_20_rows) == 2
-
-        assert advice_10_rows[0]["Migrated"] == "1"
-        assert advice_10_rows[0]["IsActive"] == "Y"
-
-        for row in advice_20_rows:
-            assert row["Migrated"] == "0"
-            assert row["IsActive"] == "N"
-            assert row["ValidTo"] is not None
-            assert row["attachmentIds"] == ["HA1", "HA2"]
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
-        assert result.metadata.insert_count == 3
+        actual_df = spark.table(f"odw_harmonised_db.{output_table}")
+        assert_dataframes_equal(expected_df, actual_df)

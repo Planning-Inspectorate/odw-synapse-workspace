@@ -1,0 +1,370 @@
+{
+	"name": "pln_etl_orchestrator",
+	"properties": {
+		"activities": [
+			{
+				"name": "Gather stages to execute",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_orchestrator",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"entity_stages_to_run": {
+							"value": {
+								"value": "@string(pipeline().parameters.stages_to_execute)",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"run_id": {
+							"value": {
+								"value": "@pipeline().parameters.run_id",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"config_file": {
+							"value": {
+								"value": "@pipeline().parameters.override_config_file",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw35",
+						"type": "BigDataPoolReference"
+					},
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Outer loop",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Gather stages to execute",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@json(\n    activity('Gather stages to execute').output.status.Output.result.exitValue\n)",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Execute inner loop",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Filter steps with failed dependencies",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_etl_executor",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"entity_stages": {
+										"value": "@json(\n    activity('Filter steps with failed dependencies').output.status.Output.result.exitValue\n)",
+										"type": "Expression"
+									},
+									"run_id": {
+										"value": "@pipeline().parameters.run_id",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Filter steps with failed dependencies",
+							"description": "Filter out the elements from the current batch that have failed dependencies",
+							"type": "SynapseNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_etl_batch_filter",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"config_batch": {
+										"value": {
+											"value": "@string(item())",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"run_id": {
+										"value": {
+											"value": "@pipeline().parameters.run_id",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"sparkPool": {
+									"referenceName": "pinssynspodw35",
+									"type": "BigDataPoolReference"
+								},
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "Append preprocessing failure",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Filter steps with failed dependencies",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "preprocessingErrors",
+								"value": {
+									"value": "@json(\n    concat(\n        '{',\n        '\"batch\": ',\n        item(),\n        ',',\n        '\"error\": \"',\n        replace(\n            string(activity('Filter steps with failed dependencies').error.message),\n            '\"',\n            ''''\n        ),\n        '\"',\n        '}'\n    )\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append batch successes",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute inner loop",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "batchSuccesses",
+								"value": {
+									"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue.successes\n)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append batch failures",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Execute inner loop",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "batchFailures",
+								"value": {
+									"value": "@string(\n    activity('Execute inner loop').output.pipelineReturnValue.failures\n)",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If failure detected",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Set pipeline return value",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(\n    and(\n        empty(\n            variables('batchFailures')\n        ),\n        empty(\n            variables('preprocessingErrors')\n        )\n    )\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Failure detected",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'Some batches failed with the following errors: ',\n    string(\n        union(\n            variables('batchFailures'),\n            variables('preprocessingErrors')\n        )\n    )\n)",
+									"type": "Expression"
+								},
+								"errorCode": "500"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Postprocess result",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Outer loop",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_etl_result_postprocessor",
+						"type": "NotebookReference"
+					},
+					"parameters": {
+						"successful_results": {
+							"value": {
+								"value": "@string(variables('batchSuccesses'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"failed_results": {
+							"value": {
+								"value": "@string(variables('batchFailures'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"preprocessing_failures": {
+							"value": {
+								"value": "@string(variables('preprocessingErrors'))",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "Set pipeline return value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Postprocess result",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "results",
+							"value": {
+								"type": "Expression",
+								"content": "@activity('Postprocess result').output.status.Output.result.exitValue"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			}
+		],
+		"parameters": {
+			"stages_to_execute": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"run_id": {
+				"type": "string"
+			},
+			"override_config_file": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"batchFailures": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"batchSuccesses": {
+				"type": "Array"
+			},
+			"preprocessingErrors": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "utils"
+		},
+		"annotations": []
+	}
+}

@@ -1,4 +1,3 @@
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_representation_curation_process import AppealRepresentationCurationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
@@ -7,9 +6,6 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from datetime import datetime
 import pyspark.sql.types as T
 import mock
-
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 class TestAppealRepresentationCurationProcess(ETLTestCase):
@@ -56,13 +52,13 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             None,
             "statement",
             datetime(2025, 1, 2, 0, 0, 0, 0).isoformat(),
-            None,
-            None,
             ["bbbbb"],
-            1,
+            "1",
             "ODT",
-            5,
+            "5",
             datetime(2025, 1, 2, 0, 0, 0, 0).isoformat(),
+            None,
+            None,
             "Y",
             "bbbbb",
         ),
@@ -82,13 +78,13 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             None,
             "statement",
             datetime(2025, 1, 4, 0, 0, 0, 0).isoformat(),
-            None,
-            None,
             ["ddddd"],
             1,
             "ODT",
             5,
             datetime(2025, 1, 4, 0, 0, 0, 0).isoformat(),
+            None,
+            None,
             "Y",
             "ddddd",
         ),
@@ -238,22 +234,26 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
 
     def test__appeal_representation_curation_process__run__with_existing_data(self):
         """
-        - Given I a have an existing appeal representation table and some new appeal representation data in the harmonised layer
-        - When I run the appeal representation curation process
-        - Then the new data should be overwritten
+        - Given an existing curated appeal_representation table and new harmonised
+          appeal_representation data
+        - When the curation process runs
+        - Then the curated table should be overwritten with the active harmonised rows
         """
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_harmonised_data = self.generate_harmonised_table()
+
+        # Write the harmonised fixture (read by the class via HARMONISED_TABLE)
         self.write_existing_table(
             spark,
-            existing_harmonised_data,
+            self.generate_harmonised_table(),
             "sb_test_arcp_r_ed",
             "odw_harmonised_db",
             "odw-harmonised",
             "sb_appeal_representation",
             "overwrite",
         )
-        # Existing data should be overwritten
+
+        # Pre-seed the real curated target so we can verify it gets overwritten.
+        # The class writes to OUTPUT_TABLE = "odw_curated_db.appeal_representation".
         existing_curated_data = spark.createDataFrame(
             [
                 (
@@ -293,47 +293,63 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
             ],
             self.generate_curated_data_schema(),
         )
-        # Create curated table
         self.write_existing_table(
             spark,
             existing_curated_data,
-            "test_arcp_r_ed",
+            "appeal_representation",
             "odw_curated_db",
             "odw-curated",
             "appeal_representation",
             "overwrite",
         )
+
         expected_curated_data_after_writing = self.generate_curated_data()
-        with mock.patch.object(AppealRepresentationCurationProcess, "HARMONISED_TABLE", "sb_test_arcp_r_ed"):
-            with mock.patch.object(AppealRepresentationCurationProcess, "CURATED_TABLE", "test_arcp_r_ed"):
-                inst = AppealRepresentationCurationProcess(spark)
-                result = inst.run()
-                assert_etl_result_successful(result)
-                actual_table_data = spark.table("odw_curated_db.test_arcp_r_ed")
-                assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+
+        with mock.patch.object(
+            AppealRepresentationCurationProcess,
+            "HARMONISED_TABLE",
+            "odw_harmonised_db.sb_test_arcp_r_ed",
+        ):
+            inst = AppealRepresentationCurationProcess(spark)
+            result = inst.run(
+                orchestration_run_id="t_arcp_r_wed", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate"
+            )
+            assert_etl_result_successful(result)
+            actual_table_data = spark.table("odw_curated_db.appeal_representation")
+            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
 
     def test__appeal_representation_curation_process__run__with_no_existing_data(self):
         """
-        - Given I have some new appeal representation data in the harmonised layer, and this is the first time the data is being ingested
-        - When I run the appeal representation curation process
-        - Then the the appeal representation table should be created and the data added to it
+        - Given harmonised appeal_representation data and no existing curated table
+        - When the curation process runs for the first time
+        - Then the curated table should be created with the active harmonised rows
         """
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_harmonised_data = self.generate_harmonised_table()
+
+        # Drop any curated table left behind by other tests to simulate first load
+        spark.sql("DROP TABLE IF EXISTS odw_curated_db.appeal_representation")
+
         self.write_existing_table(
             spark,
-            existing_harmonised_data,
+            self.generate_harmonised_table(),
             "sb_test_arcp_r_ned",
             "odw_harmonised_db",
             "odw-harmonised",
             "sb_appeal_representation",
             "overwrite",
         )
+
         expected_curated_data_after_writing = self.generate_curated_data()
-        with mock.patch.object(AppealRepresentationCurationProcess, "HARMONISED_TABLE", "sb_test_arcp_r_ned"):
-            with mock.patch.object(AppealRepresentationCurationProcess, "CURATED_TABLE", "test_arcp_r_ned"):
-                inst = AppealRepresentationCurationProcess(spark)
-                result = inst.run()
-                assert_etl_result_successful(result)
-                actual_table_data = spark.table("odw_curated_db.test_arcp_r_ned")
-                assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+
+        with mock.patch.object(
+            AppealRepresentationCurationProcess,
+            "HARMONISED_TABLE",
+            "odw_harmonised_db.sb_test_arcp_r_ned",
+        ):
+            inst = AppealRepresentationCurationProcess(spark)
+            result = inst.run(
+                orchestration_run_id="t_arcp_r_wned", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate"
+            )
+            assert_etl_result_successful(result)
+            actual_table_data = spark.table("odw_curated_db.appeal_representation")
+            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)

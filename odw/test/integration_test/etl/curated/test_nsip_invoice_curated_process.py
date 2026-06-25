@@ -1,5 +1,4 @@
 import mock
-import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
 from pyspark.sql import DataFrame
@@ -15,8 +14,6 @@ from pyspark.sql.types import (
 from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -59,6 +56,7 @@ def _curated_schema():
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
             StructField("refundAmount", DoubleType(), True),
+            StructField("refundIssueDate", StringType(), True),
             StructField("IsActive", StringType(), True),
         ]
     )
@@ -103,6 +101,7 @@ def _curated_row(**overrides):
         "paymentDate": None,
         "refundCreditNoteNumber": None,
         "refundAmount": None,
+        "refundIssueDate": None,
         "IsActive": "Y",
     }
     row.update(overrides)
@@ -113,32 +112,33 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
     def compare_curated_data(self, expected_df: DataFrame, actual_df: DataFrame):
         assert_dataframes_equal(expected_df, actual_df)
 
-    def write_harmonised_table(self, spark, table_df: DataFrame):
+    def write_harmonised_table(self, spark, table_df: DataFrame, test_case: str):
         self.write_existing_table(
             spark,
             table_df,
-            "sb_nsip_invoice",
+            f"{test_case}_sb_nsip_invoice",
             "odw_harmonised_db",
             "odw-harmonised",
-            "ServiceBus/nsip_invoice",
+            f"{test_case}_sb_nsip_invoice",
             "overwrite",
         )
 
-    def write_empty_curated_table(self, spark):
+    def write_empty_curated_table(self, spark, test_case: str):
         empty_curated_df = spark.createDataFrame([], _curated_schema())
         self.write_existing_table(
             spark,
             empty_curated_df,
-            "nsip_invoice",
+            f"{test_case}_nsip_invoice",
             "odw_curated_db",
             "odw-curated",
-            "ServiceBus/nsip_invoice",
+            f"{test_case}_nsip_invoice",
             "overwrite",
         )
 
     def test__nsip_invoice_curated_process__run__initial_load_matches_legacy(
         self,
     ):
+        test_case = "t_nicp_r_ilml"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_invoice = spark.createDataFrame(
@@ -165,8 +165,8 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
             ],
             _harmonised_schema(),
         )
-        self.write_harmonised_table(spark, harmonised_invoice)
-        self.write_empty_curated_table(spark)
+        self.write_harmonised_table(spark, harmonised_invoice, test_case)
+        self.write_empty_curated_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
             [
@@ -182,26 +182,20 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_invoice_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.nsip_invoice")
+        actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
         self.compare_curated_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_curated_process__run__drops_duplicate_active_rows_using_distinct_like_legacy(
         self,
     ):
+        test_case = "t_nicp_r_ddarudll"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_invoice = spark.createDataFrame(
@@ -225,8 +219,8 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
             ],
             _harmonised_schema(),
         )
-        self.write_harmonised_table(spark, harmonised_invoice)
-        self.write_empty_curated_table(spark)
+        self.write_harmonised_table(spark, harmonised_invoice, test_case)
+        self.write_empty_curated_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
             [
@@ -236,26 +230,20 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_invoice_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.nsip_invoice")
+        actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
         self.compare_curated_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_curated_process__run__keeps_distinct_active_business_rows(
         self,
     ):
+        test_case = "t_nicp_r_kdabr"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_invoice = spark.createDataFrame(
@@ -272,8 +260,8 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
             ],
             _harmonised_schema(),
         )
-        self.write_harmonised_table(spark, harmonised_invoice)
-        self.write_empty_curated_table(spark)
+        self.write_harmonised_table(spark, harmonised_invoice, test_case)
+        self.write_empty_curated_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
             [
@@ -284,26 +272,20 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_invoice_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.nsip_invoice")
+        actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
         self.compare_curated_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_curated_process__run__preserves_null_business_values(
         self,
     ):
+        test_case = "t_nicp_r_pnbv"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_invoice = spark.createDataFrame(
@@ -317,8 +299,8 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
             ],
             _harmonised_schema(),
         )
-        self.write_harmonised_table(spark, harmonised_invoice)
-        self.write_empty_curated_table(spark)
+        self.write_harmonised_table(spark, harmonised_invoice, test_case)
+        self.write_empty_curated_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
             [
@@ -333,48 +315,35 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_invoice_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.nsip_invoice")
+        actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
         self.compare_curated_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_curated_process__run__empty_source_returns_empty_output(
         self,
     ):
+        test_case = "t_nicp_r_esreo"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_invoice = spark.createDataFrame([], _harmonised_schema())
-        self.write_harmonised_table(spark, harmonised_invoice)
-        self.write_empty_curated_table(spark)
+        self.write_harmonised_table(spark, harmonised_invoice, test_case)
+        self.write_empty_curated_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame([], _curated_schema())
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.curated.nsip_invoice_curated_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_invoice_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
         ):
-            mock_etl_logging.return_value = mock.Mock()
-            mock_process_logging.return_value = mock.Mock()
-
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table("odw_curated_db.nsip_invoice")
+        actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
         self.compare_curated_data(expected_table_data, actual_table_data)

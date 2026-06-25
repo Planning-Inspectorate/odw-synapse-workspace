@@ -173,35 +173,51 @@ def _resolve_client_secret() -> str:
     return "AZURE_IDENTITY"
 
 
+def _horizon_filename_to_purview_pattern(file_name: str) -> str:
+    """Convert a literal Horizon filename to its Purview resource set pattern.
+
+    Purview groups files that differ only in numeric sequences into a single resource set,
+    replacing each contiguous run of digits with {N}.
+    E.g. HorizonCases_s78.csv -> HorizonCases_s{N}.csv
+    """
+    base, dot, ext = file_name.rpartition(".")
+    if not base:
+        return re.sub(r"\d+", "{N}", file_name)
+    return re.sub(r"\d+", "{N}", base) + dot + ext
+
+
 def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]) -> str:
     """Build the Purview qualified name for ADLS Gen2 resource sets.
 
     Notes:
     - ServiceBus assets are JSON files with a timestamp in the filename. The pattern must
       include literal Purview placeholders (e.g. {Year}, {Month}, {Day}, {Hour}, {N}).
-    - Horizon assets use a provided file name under a dated folder.
+    - Horizon assets are stored under odw-raw/Horizon/ in ADLS. The filename is
+      converted to a resource set pattern by replacing numeric sequences with {N}.
     - entraid assets are JSON files named after the entity under a dated folder.
     """
     host = (storage_host or "").rstrip("/")
     if source_folder == "ServiceBus":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='ServiceBus'")
-        # Example:
-        # https://<host>/odw-raw/ServiceBus/<entity>/{Year}-{Month}-{Day}/
-        #   <entity>_{Year}-{Month}-{Day}T{Hour}_{Minute}_{Second}.{N}+{N}.json
+        # Purview keeps the entity folder name literal (it never varies across files) but
+        # replaces digit sequences in the filename prefix with {N}. Minute and Second have
+        # no Purview named placeholder, so they become {N} like the rest.
+        entity_pattern = re.sub(r"\d+", "{N}", entity_name)
         return (
             f"https://{host}/odw-raw/{source_folder}/{entity_name}/"
             f"{{Year}}-{{Month}}-{{Day}}/"
-            f"{entity_name}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}_{{Minute}}_{{Second}}.{{N}}+{{N}}.json"
+            f"{entity_pattern}_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}.json"
         )
     if source_folder == "Horizon":
         if not file_name:
             raise ValueError("file_name is required for source_folder='Horizon'")
-        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{file_name}"
+        pattern_name = _horizon_filename_to_purview_pattern(file_name)
+        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{pattern_name}"
     if source_folder == "entraid":
         if not entity_name:
             raise ValueError("entity_name is required for source_folder='entraid'")
-        return f"https://{host}/odw-raw/{source_folder}/{entity_name}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
+        return f"https://{host}/odw-raw/{source_folder}/{{Year}}-{{Month}}-{{Day}}/{entity_name}.json"
     raise ValueError("source_folder must be one of 'ServiceBus', 'Horizon', 'entraid'")
 
 
@@ -212,8 +228,14 @@ def _purview_base_url(purview_name: str) -> str:
     return f"https://{purview_name}.catalog.purview.azure.com/api/atlas/v2"
 
 
+class PurviewEntityNotFoundError(Exception):
+    pass
+
+
 def _http_get(url: str, headers: Dict[str, str], timeout: int = 60) -> dict:
     r = requests.get(url, headers=headers, timeout=timeout)
+    if r.status_code == 404:
+        raise PurviewEntityNotFoundError(f"HTTP 404 – {r.text[:800]}")
     if not r.ok:
         raise Exception(f"HTTP {r.status_code} – {r.text[:800]}")
     return r.json()
@@ -293,11 +315,40 @@ def _extract_classified_columns(
     Falls back to scanning the original entity's referredEntities if necessary.
     """
     rel_attrs = (entity_with_refs.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+
+    # attachedSchema: list form used by most asset types
     attached_schema = rel_attrs.get("attachedSchema", []) or []
     schema_guid = attached_schema[0].get("guid") if attached_schema else None
 
+    # tabSchema: single-dict form used by ADLS Gen2 resource sets
+    if not schema_guid:
+        tab_schema = rel_attrs.get("tabSchema") or {}
+        if isinstance(tab_schema, dict):
+            schema_guid = tab_schema.get("guid")
+
+    _log_event(
+        "purview.extract_columns_debug",
+        rel_keys=sorted(rel_attrs.keys()),
+        schema_guid_found=bool(schema_guid),
+        referred_entity_count=len((entity_with_refs.get("referredEntities", {}) or {})),
+    )
+
     def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
         cols = source.get("referredEntities", {}) or {}
+        _log_event(
+            "purview.referred_entities_debug",
+            total=len(cols),
+            entities=[
+                {
+                    "guid": g,
+                    "typeName": (v or {}).get("typeName"),
+                    "name": ((v or {}).get("attributes", {}) or {}).get("name"),
+                    "has_classifications": bool((v or {}).get("classifications")),
+                    "rel_keys": sorted(((v or {}).get("relationshipAttributes", {}) or {}).keys()),
+                }
+                for g, v in list(cols.items())[:10]  # cap at 10 to avoid log flood
+            ],
+        )
         out: List[dict] = []
         for guid, col in cols.items():
             if only_guids is not None and guid not in only_guids:
@@ -343,12 +394,94 @@ def _extract_classified_columns(
                 if gid:
                     guids.add(gid)
 
+        _log_event(
+            "purview.schema_entity_debug",
+            schema_entity_fetched=schema_entity is not None,
+            schema_rel_keys=sorted(schema_rel.keys()),
+            column_guids_found=len(guids),
+            referred_in_schema=len((schema_entity or {}).get("referredEntities", {}) or {}) if schema_entity else 0,
+        )
         extracted = _collect_from_referred(source, only_guids=guids if guids else None)
         if extracted:
             return extracted
 
     # Fallback: scan original entity's referredEntities
     return _collect_from_referred(entity_with_refs)
+
+
+def _fetch_classified_columns_deep(
+    purview_name: str,
+    start_guid: str,
+    api_version: str,
+    headers: dict,
+    max_depth: int = 5,
+) -> List[dict]:
+    """BFS traversal of the Purview entity graph starting from start_guid.
+
+    At each hop, follows schema-type relationship attributes (items, properties, columns,
+    schema, fields, schemaElements) AND referredEntities. Returns the first set of
+    classified referredEntities found, or [] if none exist within max_depth hops.
+
+    Required for assets with deeply-nested JSON schemas where classified columns sit
+    several levels below the attachedSchema root — e.g. ADLS Gen2 entraid resource sets
+    where the Purview graph is:
+      attachedSchema → root json_schema → value (json_property) → array json_schema
+        → surname, givenName, ... (classified json_property entities)
+    """
+    _FOLLOW_KEYS = ("items", "properties", "columns", "column", "fields", "schemaElements", "schema")
+    visited: Set[str] = {start_guid}
+    queue: List[str] = [start_guid]
+
+    for depth in range(max_depth):
+        if not queue:
+            break
+        next_queue: List[str] = []
+        for guid in queue:
+            try:
+                ent = _get_entity_with_refs(purview_name, guid, api_version, headers)
+            except Exception:
+                continue
+
+            ref_ents = ent.get("referredEntities", {}) or {}
+
+            # Check for classified columns in this entity's referredEntities
+            classified = [
+                {
+                    "column_guid": g,
+                    "column_name": ((e or {}).get("attributes", {}) or {}).get("name"),
+                    "column_type": (e or {}).get("typeName"),
+                    "classifications": [c.get("typeName") for c in ((e or {}).get("classifications", []) or [])],
+                }
+                for g, e in ref_ents.items()
+                if (e or {}).get("classifications")
+            ]
+            if classified:
+                _log_event("purview.deep_bfs.found", depth=depth, classified_count=len(classified))
+                return classified
+
+            # Enqueue guids from relationship attributes
+            rel_attrs = (ent.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+            for key in _FOLLOW_KEYS:
+                val = rel_attrs.get(key)
+                if not val:
+                    continue
+                children = val if isinstance(val, list) else [val]
+                for child in children:
+                    if isinstance(child, dict):
+                        child_guid = child.get("guid")
+                        if child_guid and child_guid not in visited:
+                            visited.add(child_guid)
+                            next_queue.append(child_guid)
+
+            # Also enqueue all referredEntities (they may have deeper schemas)
+            for ref_guid in ref_ents:
+                if ref_guid not in visited:
+                    visited.add(ref_guid)
+                    next_queue.append(ref_guid)
+
+        queue = next_queue
+
+    return []
 
 
 def fetch_purview_classifications_by_qualified_name(
@@ -367,51 +500,56 @@ def fetch_purview_classifications_by_qualified_name(
     Strategy:
     1) Resolve GUID for (type, qualifiedName) and read entity with refs;
        attempt to extract columns directly (covers most assets).
-    2) Fallback: follow attachedSchema -> fetch schema entity -> iterate its
-       referred entities, fetch each with refs, and try extraction again. This
-       handles cases where the actual column entities are one hop deeper.
+    2) Fallback: BFS traversal from the schema GUID (attachedSchema / tabSchema),
+       following items, properties, schema, columns, fields, schemaElements relationships
+       up to 5 hops deep. Handles assets where classified columns are deeply nested in
+       the json_schema entity graph (e.g. ADLS Gen2 entraid resource sets).
     """
     token = _get_access_token(tenant_id, client_id, client_secret)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+    try:
+        guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+    except PurviewEntityNotFoundError:
+        _log_event(
+            "purview.entity_not_found",
+            asset_type_name=asset_type_name,
+            asset_qualified_name=asset_qualified_name,
+        )
+        return []
     entity = _get_entity_with_refs(purview_name, guid, api_version, headers)
+
+    _log_event(
+        "purview.entity_debug",
+        entity_type=((entity.get("entity", {}) or {}).get("typeName")),
+        relationship_keys=sorted((((entity.get("entity", {}) or {}).get("relationshipAttributes", {})) or {}).keys()),
+        referred_entity_count=len((entity.get("referredEntities", {}) or {})),
+        referred_entity_types=sorted({v.get("typeName") for v in (entity.get("referredEntities", {}) or {}).values() if isinstance(v, dict)}),
+    )
 
     # Primary extraction attempt
     cols = _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
     if cols:
         return cols
 
-    # Fallback: attached schema -> its referred entities -> extract from each
+    # Fallback: BFS from schema GUID for deeply-nested JSON schema entity graphs
     try:
         rel_attrs = (entity.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
         attached_schema = rel_attrs.get("attachedSchema", []) or []
         schema_guid = attached_schema[0].get("guid") if attached_schema else None
+        if not schema_guid:
+            tab_schema = rel_attrs.get("tabSchema") or {}
+            if isinstance(tab_schema, dict):
+                schema_guid = tab_schema.get("guid")
+        _log_event("purview.schema_lookup", attached_schema_count=len(attached_schema), tab_schema_guid=schema_guid)
     except Exception:
         schema_guid = None
 
     if schema_guid:
-        try:
-            schema_ent = _get_entity_with_refs(purview_name, schema_guid, api_version, headers)
-        except Exception:
-            schema_ent = None
+        deep_cols = _fetch_classified_columns_deep(purview_name, schema_guid, api_version, headers)
+        if deep_cols:
+            return deep_cols
 
-        if schema_ent:
-            ref_ents = schema_ent.get("referredEntities", {}) or {}
-            for ref in ref_ents.values():
-                ref_guid = (ref or {}).get("guid")
-                if not ref_guid:
-                    continue
-                try:
-                    deep_ent = _get_entity_with_refs(purview_name, ref_guid, api_version, headers)
-                    deep_cols = _extract_classified_columns(deep_ent, purview_name=purview_name, headers=headers, api_version=api_version)
-                    if deep_cols:
-                        return deep_cols
-                except Exception:
-                    # Ignore and try the next referred entity
-                    continue
-
-    # Nothing found
     return []
 
 
@@ -463,6 +601,11 @@ class AnonymisationEngine:
             col_raw = item.get("column_name")
             col_norm = _norm_col_name(col_raw)
             actual_col = norm_to_actual.get(col_norm)
+            if not actual_col and col_raw and "." in col_raw:
+                # Purview stores nested column names as paths (e.g. "value[].surname").
+                # Fall back to matching on just the leaf segment.
+                leaf_norm = _norm_col_name(col_raw.rsplit(".", 1)[-1])
+                actual_col = norm_to_actual.get(leaf_norm)
             if not actual_col:
                 continue
             classes = set(item.get("classifications") or [])

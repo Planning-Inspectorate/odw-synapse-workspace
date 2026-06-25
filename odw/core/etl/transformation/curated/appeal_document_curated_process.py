@@ -2,7 +2,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -12,11 +12,11 @@ class AppealDocumentCuratedProcess(CurationProcess):
     """
     ETL process for curating Appeal Document data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "appeal_document_curated_process",
+        "etl_process_name": "Appeal Document Curation Process",
         "debug": False
     }
     ```
@@ -25,12 +25,9 @@ class AppealDocumentCuratedProcess(CurationProcess):
     HARMONISED_TABLE = "odw_harmonised_db.appeal_document"
     OUTPUT_TABLE = "odw_curated_db.appeal_document"
 
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
-
     @classmethod
     def get_name(cls) -> str:
-        return "appeal_document_curated_process"
+        return "Appeal Document Curation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here

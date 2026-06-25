@@ -1,6 +1,8 @@
 from odw.core.io.synapse_data_io import SynapseDataIO
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
+from pyspark.sql.utils import AnalysisException
+from pyspark.sql.types import StructType
 from delta.tables import DeltaTable
 
 
@@ -82,6 +84,7 @@ class SynapseDeltaIO(SynapseDataIO):
         :param str blob_path: The path to the blob (in the container) to write
         :param str merge_keys: A list of primary keys in the data
         :param str update_key_col: The column used to determine if a row is updated, created or deleted
+        :param list[str] columns_to_update: A subset of columns to update. If set to None, then update all columns. Default None
         """
         spark: SparkSession = kwargs.get("spark", None)
         spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", "true")
@@ -93,6 +96,8 @@ class SynapseDeltaIO(SynapseDataIO):
         table_name = kwargs.get("table_name", None)
         merge_keys = kwargs.get("merge_keys", None)
         update_key_col = kwargs.get("update_key_col", None)
+        columns_to_update = kwargs.get("columns_to_update", [])
+        partition_by_cols = kwargs.get("partition_by_cols", [])
         if not spark:
             raise ValueError("SynapseDeltaIO.read requires spark to be provided, but was missing")
         if not (storage_name or storage_endpoint):
@@ -113,7 +118,19 @@ class SynapseDeltaIO(SynapseDataIO):
             data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
         else:
             data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
-        target_delta_table = DeltaTable.forPath(spark, data_path)
+        try:
+            target_delta_table = DeltaTable.forPath(spark, data_path)
+        except AnalysisException:
+            delta_builder = (
+                DeltaTable.createIfNotExists(spark)
+                .tableName(f"{database_name}.{table_name}")
+                .addColumns(StructType([field for field in data.schema.fields if field.name != update_key_col]))
+                .location(data_path)
+            )
+            if partition_by_cols:
+                delta_builder.partitionedBy(partition_by_cols)
+            target_delta_table = delta_builder.execute()
+
         delta_table_schema = target_delta_table.toDF().schema
         delta_table_cols = set(delta_table_schema.names)
         new_data_cols = set(data.schema.names)
@@ -142,7 +159,11 @@ class SynapseDeltaIO(SynapseDataIO):
             data.alias("s"), " AND ".join(f"t.{key} = s.{key}" for key in merge_keys)
         ).whenMatchedUpdate(  # Update existing records
             condition=f"s.{update_key_col} IN {update_strings}",
-            set={col_name: F.expr(f"s.{col_name}") for col_name in data.schema.names if col_name != update_key_col},
+            set={
+                col_name: F.expr(f"s.{col_name}")
+                for col_name in data.schema.names
+                if col_name != update_key_col and (not columns_to_update or col_name in columns_to_update)
+            },
         ).whenMatchedDelete(  # Delete records
             condition=f"s.{update_key_col} IN {delete_strings}"
         ).whenNotMatchedInsert(  # Insert new records

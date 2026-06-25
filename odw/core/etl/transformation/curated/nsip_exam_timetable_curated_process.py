@@ -2,7 +2,7 @@ from odw.core.etl.transformation.curated.curation_process import CurationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from datetime import datetime
 from typing import Dict, Tuple
@@ -12,11 +12,11 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
     """
     ETL process for curating NSIP Exam Timetable data from the harmonised layer.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-exam-timetable-curated",
+        "etl_process_name": "NSIP Exam Timetable Curation Process",
         "debug": False
     }
     ```
@@ -24,26 +24,26 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
     HARMONISED_TABLE = "odw_harmonised_db.nsip_exam_timetable"
     CURATED_PROJECT_TABLE = "odw_curated_db.nsip_project"
-    OUTPUT_TABLE = "odw_curated_db.nsip_exam_timetable"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
+    OUTPUT_TABLE = "nsip_exam_timetable"
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-exam-timetable-curated"
+        return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        """
-        Load source data, selecting only the columns needed downstream.
-        No joins or transformations are applied here – only reads.
-        """
         LoggingUtil().log_info(f"Loading harmonised NSIP Exam Timetable data from {self.HARMONISED_TABLE}")
         harmonised_exam_timetable = self.spark.sql(f"""
             SELECT
                 caseReference,
                 published,
-                events,
+                eventId,
+                type,
+                eventTitle,
+                eventTitleWelsh,
+                description,
+                descriptionWelsh,
+                eventDate,
+                eventDeadlineStartDate,
                 IngestionDate,
                 ODTSourceSystem
             FROM {self.HARMONISED_TABLE}
@@ -97,7 +97,14 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             .select(
                 latest_horizon_exam_timetable["caseReference"],
                 latest_horizon_exam_timetable["published"],
-                latest_horizon_exam_timetable["events"],
+                latest_horizon_exam_timetable["eventId"],
+                latest_horizon_exam_timetable["type"],
+                latest_horizon_exam_timetable["eventTitle"],
+                latest_horizon_exam_timetable["eventTitleWelsh"],
+                latest_horizon_exam_timetable["description"],
+                latest_horizon_exam_timetable["descriptionWelsh"],
+                latest_horizon_exam_timetable["eventDate"],
+                latest_horizon_exam_timetable["eventDeadlineStartDate"],
             )
             .distinct()
         )
@@ -107,14 +114,14 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
 
         end_exec_time = datetime.now()
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_curated_db.{self.OUTPUT_TABLE}": {
                 "data": df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_curated_db",
-                "table_name": "nsip_exam_timetable",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-curated",
-                "blob_path": "nsip_exam_timetable",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "parquet",
                 "write_mode": "overwrite",
                 "write_options": {},
@@ -124,7 +131,7 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_curated_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,

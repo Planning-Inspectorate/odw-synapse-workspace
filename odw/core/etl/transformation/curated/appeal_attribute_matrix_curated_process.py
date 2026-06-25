@@ -1,18 +1,18 @@
 from odw.core.etl.transformation.curated.curation_process import CurationProcess
-from typing import Any
+from pyspark.sql import DataFrame
+from typing import Any, Dict
 
 
 class AppealAttributeMatrixCuratedProcess(CurationProcess):
+    STANDARDISED_TABLE = "appeal_attribute_matrix"
+    HARMONISED_TABLE = "ref_appeal_attribute_matrix"
     OUTPUT_TABLE = "ref_appeal_attribute_matrix"
 
-    def __init__(self, spark):
-        super().__init__(spark)
-        self.spark = spark
+    @classmethod
+    def get_name(cls) -> str:
+        return "Appeal Attribute Matrix Curation Process"
 
-    def get_name(self) -> str:
-        return "appeal_attribute_matrix_curated_process"
-
-    def load_data(self) -> dict[str, Any]:
+    def load_data(self, **kwargs) -> Dict[str, DataFrame]:
         raise NotImplementedError("AppealAttributeMatrixCuratedProcess.load_data() has not been implemented yet.")
 
     def process(self, source_data: dict[str, Any]):

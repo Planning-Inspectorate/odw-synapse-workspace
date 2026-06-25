@@ -1,0 +1,148 @@
+{
+	"name": "nb_sb_create_watermarks",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "a6ab44a9-b4c0-4882-99a8-bad64ae673f9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Create Service Bus watermarks table\n",
+					"\n",
+					"Post-deployment notebook for release 35.0.0.\n",
+					"\n",
+					"1. Ensures `odw_meta_db` exists.\n",
+					"2. Migrates the old-schema table (columns `entity_name`, `number_files`) to the new schema if present, then creates `odw_meta_db.service_bus_watermarks` if it does not already exist.\n",
+					"3. Backfills an initial watermark row for each known Service Bus entity using\n",
+					"   `MAX(message_enqueued_time_utc)` from the corresponding standardised table, so that\n",
+					"   the next pipeline run does not reprocess already-ingested RAW records."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession, Row\n",
+					"import datetime\n",
+					"import uuid"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Setup"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark = SparkSession.builder.getOrCreate()\n\nspark.sql('CREATE DATABASE IF NOT EXISTS odw_meta_db')\n\n# If the table exists with the old schema (entity_name / number_files columns)\n# drop it so CREATE TABLE below recreates it with the correct schema.\n# The backfill step will repopulate all rows from the standardised tables.\ntry:\n    existing_cols = {f.name for f in spark.table('odw_meta_db.service_bus_watermarks').schema}\n    if 'entity_name' in existing_cols or 'number_files' in existing_cols:\n        print('Old schema detected \u2014 dropping table for recreation with new schema')\n        spark.sql('DROP TABLE odw_meta_db.service_bus_watermarks')\n        print('Old table dropped')\n    else:\n        print('Table exists with current schema \u2014 no migration needed')\nexcept Exception:\n    pass  # Table does not exist yet\n\n# Migration: repartition (entity, ingest_date) -> (entity, source, ingest_date)\n# Required so the MERGE ON key (entity, source, ingest_date) matches partition boundaries,\n# preventing ConcurrentAppendException when concurrent writers hit the same date partition.\ntry:\n    detail = spark.sql('DESCRIBE DETAIL odw_meta_db.service_bus_watermarks').collect()[0]\n    partition_cols = set(detail.partitionColumns)\n    expected = {'entity', 'source', 'ingest_date'}\n    if partition_cols != expected:\n        print(f'Repartitioning {sorted(partition_cols)} -> {sorted(expected)}')\n        saved = spark.table('odw_meta_db.service_bus_watermarks').cache()\n        saved.count()  # force materialisation before the table is dropped\n        spark.sql('DROP TABLE odw_meta_db.service_bus_watermarks')\n        (saved.write\n             .format('delta')\n             .partitionBy('entity', 'source', 'ingest_date')\n             .saveAsTable('odw_meta_db.service_bus_watermarks'))\n        saved.unpersist()\n        print('Repartition complete')\n    else:\n        print('Partition scheme already correct')\nexcept Exception as e:\n    print(f'Repartition check skipped (table may not exist yet): {e}')\n\nspark.sql(\"\"\"\nCREATE TABLE IF NOT EXISTS odw_meta_db.service_bus_watermarks (\n  entity            STRING,\n  source            STRING,\n  last_ingest_time  TIMESTAMP,\n  ingest_date       STRING,\n  run_id            STRING,\n  records_ingested  BIGINT,\n  status            STRING,\n  updated_at        TIMESTAMP\n)\nUSING DELTA\nPARTITIONED BY (entity, source, ingest_date)\n\"\"\")\n\nprint('odw_meta_db.service_bus_watermarks table ensured')\n\n# Drop manifest_path column if it exists (cleanup from old schema)\ntry:\n    existing = {f.name for f in spark.table('odw_meta_db.service_bus_watermarks').schema}\n    if 'manifest_path' in existing:\n        spark.sql('ALTER TABLE odw_meta_db.service_bus_watermarks DROP COLUMN manifest_path')\n        print('Dropped manifest_path column')\nexcept Exception:\n    pass\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Deduplicate existing rows\n",
+					"\n",
+					"Collapses any duplicate rows (one per run date) down to a single row per\n",
+					"`(entity, source)`, keeping the entry with the latest `last_ingest_time`.\n",
+					"\n",
+					"Safe to re-run: a no-op when the table is already clean."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"\n",
+					"try:\n",
+					"    wm = spark.table('odw_meta_db.service_bus_watermarks')\n",
+					"    total = wm.count()\n",
+					"    w = Window.partitionBy('entity', 'source', 'ingest_date').orderBy(\n",
+					"        F.col('last_ingest_time').desc_nulls_last(),\n",
+					"        F.col('updated_at').desc_nulls_last()\n",
+					"    )\n",
+					"    deduped = wm.withColumn('_rn', F.row_number().over(w)).filter(F.col('_rn') == 1).drop('_rn')\n",
+					"    removed = total - deduped.count()\n",
+					"    if removed > 0:\n",
+					"        print(f'Deduplicating: {total} rows \u2192 {total - removed} rows ({removed} duplicate(s) removed)')\n",
+					"        deduped.write.format('delta').mode('overwrite').option('overwriteSchema', 'false').saveAsTable('odw_meta_db.service_bus_watermarks')\n",
+					"        print('Dedup complete')\n",
+					"    else:\n",
+					"        print(f'No duplicates found ({total} row(s))')\n",
+					"except Exception as e:\n",
+					"    print(f'Dedup skipped (table may not exist yet): {e}')\n"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"#### Backfill initial watermarks from standardised tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"SB_ENTITIES = [\n    ('appeal-document',       'sb_appeal_document'),\n    ('appeal-event',          'sb_appeal_event'),\n    ('appeal-event-estimate', 'sb_appeal_event_estimate'),\n    ('appeal-has',            'sb_appeal_has'),\n    ('appeal-representation', 'sb_appeal_representation'),\n    ('appeal-s78',            'sb_appeal_s78'),\n    ('folder',               'sb_folder'),\n    ('nsip-document',         'sb_nsip_document'),\n    ('nsip-exam-timetable',   'sb_nsip_exam_timetable'),\n    ('nsip-project',          'sb_nsip_project'),\n    ('nsip-project-update',   'sb_nsip_project_update'),\n    ('nsip-representation',   'sb_nsip_representation'),\n    ('nsip-subscription',     'sb_nsip_subscription'),\n    ('s51-advice',            'sb_s51_advice'),\n    ('service-user',          'sb_service_user'),\n]\n\nSOURCE = 'service-bus'\nRUN_ID = 'initial-backfill'\nNOW = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')\n\nrows = []\nfor entity_name, std_table in SB_ENTITIES:\n    try:\n        result = spark.sql(\n            f'SELECT MAX(message_enqueued_time_utc) AS max_ts FROM odw_standardised_db.{std_table}'\n        ).collect()\n        max_ts = result[0][0] if result and result[0][0] else None\n    except Exception as e:\n        print(f'Skipping {entity_name}: table not found or empty ({str(e)[:100]})')\n        max_ts = None\n\n    if max_ts is None:\n        print(f'{entity_name}: no existing data \u2014 skipping backfill')\n        continue\n\n    ingest_date = str(max_ts)[:10]\n    rows.append(Row(\n        entity=entity_name,\n        source=SOURCE,\n        last_ingest_time=str(max_ts),\n        ingest_date=ingest_date,\n        run_id=RUN_ID,\n        records_ingested=0,\n        status='Succeeded',\n        updated_at=NOW,\n    ))\n    print(f'{entity_name}: backfill last_ingest_time={max_ts}')\n\nif rows:\n    wm_df = spark.createDataFrame(rows).selectExpr(\n        'entity',\n        'source',\n        'to_timestamp(last_ingest_time) as last_ingest_time',\n        'ingest_date',\n        'run_id',\n        'cast(records_ingested as bigint) as records_ingested',\n        'status',\n        'to_timestamp(updated_at) as updated_at',\n    )\n    wm_df.createOrReplaceTempView('wm_backfill')\n\n    spark.sql(\"\"\"\n    MERGE INTO odw_meta_db.service_bus_watermarks AS tgt\n    USING wm_backfill AS src\n    ON  tgt.entity = src.entity\n    AND tgt.source = src.source\n    AND tgt.ingest_date = src.ingest_date\n    WHEN MATCHED THEN UPDATE SET\n      tgt.last_ingest_time = src.last_ingest_time,\n      tgt.run_id           = src.run_id,\n      tgt.records_ingested = src.records_ingested,\n      tgt.status           = src.status,\n      tgt.updated_at       = src.updated_at\n    WHEN NOT MATCHED THEN INSERT *\n    \"\"\")\n    print(f'Backfilled {len(rows)} watermark row(s)')\nelse:\n    print('No existing standardised data found \u2014 watermarks table left empty')\n"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

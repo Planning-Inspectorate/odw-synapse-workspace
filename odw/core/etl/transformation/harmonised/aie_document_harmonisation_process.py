@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonisation_process import Harmoni
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -59,26 +59,23 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
     Implements the Load → Transform → Write pattern, replacing the ad-hoc cell logic
     previously contained in py_horizon_harmonised_aie_document.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "AIE Harmonisation",
+        "etl_process_name": "AIE Harmonisation",
         "debug": False
     }
     ```
     """
 
     HORIZON_TABLE = "odw_standardised_db.aie_document_data"
-    OUTPUT_TABLE = "odw_harmonised_db.aie_document_data"
+    OUTPUT_TABLE = "aie_document_data"
     PRIMARY_KEY = "TEMP_PK"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
 
     @classmethod
     def get_name(cls) -> str:
-        return "AIE Harmonisation"
+        return "AIE Document Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here, no joins or transformations
@@ -243,14 +240,14 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         insert_count = final_df.count()
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "aie_document_data",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "aie_document_data",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -263,7 +260,7 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,

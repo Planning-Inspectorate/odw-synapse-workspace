@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonisation_process import Harmoni
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -18,7 +18,6 @@ _CHANGE_TRACKING_COLS = [
     "planningInspectorateRole",
     "meetingType",
     "meetingDate",
-    "estimatedPrelimMeetingDate",
 ]
 
 
@@ -43,25 +42,22 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Meeting data using SCD Type 2 logic.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-meeting-harmonised",
+        "etl_process_name": "NSIP Meeting Harmonisation Process",
         "debug": False
     }
     ```
     """
 
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_nsip_project"
-    OUTPUT_TABLE = "odw_harmonised_db.sb_nsip_meeting"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
+    OUTPUT_TABLE = "sb_nsip_meeting"
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-meeting-harmonised"
+        return "NSIP Meeting Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
@@ -87,9 +83,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
         """)
 
         # Ensure target table exists and read it
-        LoggingUtil().log_info(f"Loading target table {self.OUTPUT_TABLE}")
-        if self.spark.catalog.tableExists(self.OUTPUT_TABLE):
-            target_df = self.spark.table(self.OUTPUT_TABLE)
+        LoggingUtil().log_info(f"Loading target table odw_harmonised_db.{self.OUTPUT_TABLE}")
+        if self.spark.catalog.tableExists(f"odw_harmonised_db.{self.OUTPUT_TABLE}"):
+            target_df = self.spark.table(f"odw_harmonised_db.{self.OUTPUT_TABLE}")
         else:
             target_df = None
 
@@ -132,7 +128,6 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             F.col("meeting.planningInspectorateRole").alias("planningInspectorateRole"),
             F.col("meeting.meetingDate").alias("meetingDate"),
             F.col("meeting.meetingType").alias("meetingType"),
-            F.col("meeting.estimatedPrelimMeetingDate").alias("estimatedPrelimMeetingDate"),
             "Migrated",
             "ODTSourceSystem",
             "SourceSystemID",
@@ -285,14 +280,14 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                 write_mode = "append"
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "sb_nsip_meeting",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "sb_nsip_meeting",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": write_mode,
                 "write_options": {"overwriteSchema": "true"} if write_mode == "overwrite" else {},
@@ -304,7 +299,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=update_count,
                 delete_count=0,

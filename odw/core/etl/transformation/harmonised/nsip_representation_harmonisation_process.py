@@ -2,7 +2,7 @@ from odw.core.etl.transformation.harmonised.harmonisation_process import Harmoni
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from datetime import datetime
@@ -12,7 +12,7 @@ from typing import Dict, Tuple
 # Columns used to build the MD5 RowID hash, matching the IFNULL(CAST(... AS String), '.') list
 # in the original notebook's final SELECT DISTINCT
 _REPRESENTATION_ROW_ID_COLUMNS = [
-    "NSIPRepresentaionID",
+    "NSIPRepresentationID",
     "representationId",
     "referenceId",
     "examinationLibraryRef",
@@ -73,11 +73,11 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
     """
     ETL process for harmonising NSIP Representation data from service bus and Horizon sources.
 
-    # Example usage via py_etl_orchestrator
+    # Example usage via py_etl_executor
 
     ```
     input_arguments = {
-        "entity_stage_name": "nsip-representation-harmonised",
+        "etl_process_name": "NSIP Representation Harmonisation Process",
         "debug": False
     }
     ```
@@ -86,14 +86,11 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
     SERVICE_BUS_TABLE = "odw_harmonised_db.sb_nsip_representation"
     HORIZON_TABLE = "odw_standardised_db.horizon_nsip_relevant_representation"
     SOURCE_SYSTEM_TABLE = "odw_harmonised_db.main_sourcesystem_fact"
-    OUTPUT_TABLE = "odw_harmonised_db.nsip_representation"
-
-    def __init__(self, spark: SparkSession, debug: bool = False):
-        super().__init__(spark, debug)
+    OUTPUT_TABLE = "nsip_representation"
 
     @classmethod
     def get_name(cls) -> str:
-        return "nsip-representation-harmonised"
+        return "NSIP Representation Harmonisation Process"
 
     # ------------------------------------------------------------------
     # load_data – all reads happen here
@@ -131,7 +128,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         """
         return self.spark.sql(f"""
             SELECT DISTINCT
-                NSIPRepresentaionID
+                NSIPRepresentationID
                 ,representationId
                 ,referenceId
                 ,examinationLibraryRef
@@ -253,9 +250,6 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
                 ,other
                 ,descriptionifother
                 ,preferredcontactmethod
-                ,IngestionDate
-                ,ValidTo
-                ,IsActive
             FROM
                 {self.HORIZON_TABLE}
             WHERE
@@ -270,7 +264,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         This is joined to Horizon data in process().
         """
         return self.spark.sql(f"""
-            SELECT SourceSystemID
+            SELECT SourceSystemID, IngestionDate, ValidTo, IsActive
             FROM {self.SOURCE_SYSTEM_TABLE}
             WHERE Description = 'Casework'
                 AND IsActive = 'Y'
@@ -287,7 +281,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         """)
 
     # ------------------------------------------------------------------
-    # process – pure transformation, no reads or writes
+    # process - pure transformation, no reads or writes
     # ------------------------------------------------------------------
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
@@ -307,9 +301,9 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Joining Horizon with source system data and aligning to SB schema")
         horizon_joined = (
             horizon_data.alias("Horizon")
-            .crossJoin(source_system_data.alias("source"))
+            .join(source_system_data.alias("source"), how="inner")
             .select(
-                F.lit(None).cast("long").alias("NSIPRepresentaionID"),
+                F.lit(None).cast("long").alias("NSIPRepresentationID"),
                 F.col("Horizon.relevantrepid").cast("integer").alias("representationId"),
                 F.concat(
                     F.coalesce(F.col("Horizon.casereference"), F.lit("")),
@@ -371,10 +365,10 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
                 F.lit(0).alias("Migrated"),
                 F.lit("Horizon").alias("ODTSourceSystem"),
                 F.col("source.SourceSystemID"),
-                F.col("Horizon.IngestionDate"),
-                F.col("Horizon.ValidTo"),
+                F.col("source.IngestionDate"),
+                F.col("source.ValidTo"),
                 F.lit("").alias("RowID"),
-                F.col("Horizon.IsActive"),
+                F.col("source.IsActive"),
             )
             .distinct()
         )
@@ -386,7 +380,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         horizon_joined = horizon_joined.drop("attachmentIds").join(horizon_attachment_ids, on="representationId", how="inner")
 
         # Step 3: Align Horizon columns to SB and union
-        LoggingUtil().log_info(f"Combining data for {self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
         horizon_joined = horizon_joined.select(service_bus_data.columns)
         combined = service_bus_data.union(horizon_joined)
 
@@ -396,7 +390,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
         combined = (
             combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_per_rep_desc))
-            .withColumn("NSIPRepresentaionID", F.row_number().over(win_global_asc))
+            .withColumn("NSIPRepresentationID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",
                 F.when(F.row_number().over(win_per_rep_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
@@ -413,7 +407,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
             & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
             "left_outer",
         ).select(
-            F.col("CurrentRow.NSIPRepresentaionID").alias("NSIPRepresentaionID"),
+            F.col("CurrentRow.NSIPRepresentationID").alias("NSIPRepresentationID"),
             F.col("CurrentRow.representationId").alias("representationId"),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
@@ -438,12 +432,12 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         all_columns = [c for c in combined.columns if c != "ReverseOrderProcessed"]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
-        base = base.drop("NSIPRepresentaionID", "ValidTo", "Migrated", "IsActive")
+        base = base.drop("NSIPRepresentationID", "ValidTo", "Migrated", "IsActive")
 
         calcs_renamed = calcs.select(
             F.col("representationId").alias("calc_representationId"),
             F.col("IngestionDate").alias("calc_IngestionDate"),
-            F.col("NSIPRepresentaionID"),
+            F.col("NSIPRepresentationID"),
             F.col("ValidTo"),
             F.col("Migrated"),
             F.col("IsActive"),
@@ -461,14 +455,14 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         insert_count = final_df.count()
 
         data_to_write = {
-            self.OUTPUT_TABLE: {
+            f"odw_harmonised_db.{self.OUTPUT_TABLE}": {
                 "data": final_df,
                 "storage_kind": "ADLSG2-Table",
                 "database_name": "odw_harmonised_db",
-                "table_name": "nsip_representation",
+                "table_name": self.OUTPUT_TABLE,
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
-                "blob_path": "nsip_representation",
+                "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {"overwriteSchema": "true"},
@@ -481,7 +475,7 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=self.OUTPUT_TABLE,
+                table_name=f"odw_harmonised_db.{self.OUTPUT_TABLE}",
                 insert_count=insert_count,
                 update_count=0,
                 delete_count=0,

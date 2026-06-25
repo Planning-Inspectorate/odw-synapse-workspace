@@ -159,7 +159,7 @@ class TestListedBuildingStandardisationProcess(ETLTestCase):
         )
         with mock.patch.object(ListedBuildingStandardisationProcess, "OUTPUT_TABLE", listed_building_table_name):
             inst = ListedBuildingStandardisationProcess(spark)
-            result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="standardise")
             assert_etl_result_successful(result)
             actual_standardised_listed_building = spark.table(f"odw_standardised_db.{listed_building_table_name}")
             assert_dataframes_equal(expected_standardised_listed_bulding, actual_standardised_listed_building)

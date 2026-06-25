@@ -11,9 +11,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
 
         harmonised_meeting = spark.createDataFrame(
             [
-                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a", "2025-01-10", "Y"),
-                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a", "2025-01-12", "Y"),
-                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b", "2025-02-11", "Y"),
+                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a", "Y"),
+                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a", "Y"),
+                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b", "Y"),
             ],
             T.StructType(
                 [
@@ -24,7 +24,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     T.StructField("meetingId", T.StringType(), True),
                     T.StructField("meetingDate", T.StringType(), True),
                     T.StructField("meetingType", T.StringType(), True),
-                    T.StructField("estimatedPrelimMeetingDate", T.StringType(), True),
                     T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
@@ -43,8 +42,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     "harmonised_meeting": harmonised_meeting,
                 }
             )
+        expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = data_to_write[expected_data_entry]["data"]
         rows = {row["meetingId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -52,6 +52,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
         assert rows["M-1"]["meetingDate"] == "2025-01-05"
         assert rows["M-2"]["meetingAgenda"] == "agenda-2"
 
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_meeting"
+        assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
+        assert data_to_write[expected_data_entry]["table_name"] == "nsip_meeting"
         assert result.metadata.insert_count == 2

@@ -3,14 +3,23 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from pyspark.sql.types import StructType, StructField, StringType, TimestampType
+from pyspark.sql import DataFrame
+from datetime import datetime
 import mock
-from pyspark.sql import functions as F
 
 pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
-    def test__appeal_attribute_matrix_harmonisation_process__run__end_to_end_matches_legacy(self):
+    def compare_data(self, expected: DataFrame, actual: DataFrame):
+        uncomparable_cols = {"IngestionDate"}
+        expected = expected.drop(*uncomparable_cols)
+        actual = actual.drop(*uncomparable_cols)
+        assert_dataframes_equal(expected, actual)
+
+    def assert_harmonisation(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -20,188 +29,77 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
             ],
             ["attribute", "appealReference", "s78"],
         )
+        std_table = f"{test_case}_appeal_attribute_matrix"
+        self.write_existing_table(spark, std_data, std_table, "odw_standardised_db", "odw-standardised", std_table, "overwrite")
+        output_table = f"{test_case}_ref_appeal_attribute_matrix"
 
-        source_data = {
-            "standardised_data": std_data,
-        }
-
-        expected_hash = (
-            spark.createDataFrame([("housing need",)], ["attribute"])
-            .select(F.sha2(F.to_json(F.struct(F.col("attribute"))), 256).alias("TEMP_PK"))
-            .collect()[0]["TEMP_PK"]
+        expected_data = spark.createDataFrame(
+            (
+                (
+                    {
+                        "attribute": "housing need",
+                        "appealReference": "APP-001",
+                        "s78": "1",
+                        "TEMP_PK": "73f762918174260bb36e8bdc3d59e1c81c54a0ca8b5f41d1b3a053175bfef966",
+                        "ODTSourceSystem": "AppealAttributeMatrix",
+                        "IngestionDate": datetime(2026, 5, 13, 14, 19, 44, 976783),
+                        "IsActive": "Y",
+                    },
+                    {
+                        "attribute": "green belt",
+                        "appealReference": "APP-002",
+                        "s78": "0",
+                        "TEMP_PK": "6ae990670184ea65724eba363b9438f56b0e2845d2f75eddb5d65181a63f1252",
+                        "ODTSourceSystem": "AppealAttributeMatrix",
+                        "IngestionDate": datetime(2026, 5, 13, 14, 19, 44, 976783),
+                        "IsActive": "Y",
+                    },
+                )
+            ),
+            schema=StructType(
+                [
+                    StructField("attribute", StringType(), True),
+                    StructField("appealReference", StringType(), True),
+                    StructField("s78", StringType(), True),
+                    StructField("TEMP_PK", StringType(), True),
+                    StructField("ODTSourceSystem", StringType(), False),
+                    StructField("IngestionDate", TimestampType(), False),
+                    StructField("IsActive", StringType(), False),
+                ]
+            ),
         )
 
         with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch.object(AppealAttributeMatrixHarmonisationProcess, "STANDARDISED_TABLE", std_table),
+            mock.patch.object(AppealAttributeMatrixHarmonisationProcess, "OUTPUT_TABLE", output_table),
         ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
 
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
+            result = inst.run(
+                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attribute_matrix", orchestration_stage_name="harmonise"
+            )
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_data = spark.table(f"odw_harmonised_db.{output_table}")
+        self.compare_data(expected_data, actual_data)
 
-        rows = {row["attribute"]: row.asDict(recursive=True) for row in df.collect()}
+    def test__appeal_attribute_matrix_harmonisation_process__run__with_no_existing_data(self):
+        self.assert_harmonisation("t_aamhp_r_wned")
 
-        assert df.count() == 2
-        assert rows["housing need"]["attribute"] == "housing need"
-        assert rows["housing need"]["appealReference"] == "APP-001"
-        assert rows["housing need"]["s78"] == "1"
-        assert rows["housing need"]["TEMP_PK"] == expected_hash
-        assert rows["housing need"]["ODTSourceSystem"] == "AppealAttributeMatrix"
-        assert rows["housing need"]["IsActive"] == "Y"
-        assert dict(df.dtypes)["s78"] == "string"
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
-
-    def test__appeal_attribute_matrix_harmonisation_process__run__handles_missing_optional_columns(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__with_existing_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-
-        std_data = spark.createDataFrame(
-            [
-                ("housing need",),
-            ],
-            ["attribute"],
-        )
-
-        source_data = {
-            "standardised_data": std_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
+        test_case = "t_aamhp_r_wed"
+        existing_data = spark.createDataFrame(
+            (
+                ("a",),
+                ("b",),
             ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        row = df.collect()[0]
-
-        assert row["ODTSourceSystem"] == "AppealAttributeMatrix"
-        assert row["IsActive"] == "Y"
-        assert row["IngestionDate"] is not None
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
-
-    def test__appeal_attribute_matrix_harmonisation_process__run__preserves_existing_odt_source_system_isactive_and_casts_existing_ingestion_date(
-        self,
-    ):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        std_data = spark.createDataFrame(
-            [
-                (" Housing Need ", " LegacySource ", " N ", "2025-01-01", 1),
-            ],
-            ["attribute", "ODTSourceSystem", "IsActive", "IngestionDate", "s78"],
-        )
-
-        source_data = {
-            "standardised_data": std_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
+            schema=StructType(
+                [
+                    StructField("attribute", StringType(), True),
+                ]
             ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        row = df.collect()[0]
-
-        assert row["attribute"] == "housing need"
-        assert row["ODTSourceSystem"] == "LegacySource"
-        assert row["IsActive"] == "N"
-        assert row["s78"] == "1"
-        assert dict(df.dtypes)["IngestionDate"] == "timestamp"
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
-
-    def test__appeal_attribute_matrix_harmonisation_process__run__preserves_duplicates_and_column_order_like_legacy(self):
-        spark = PytestSparkSessionUtil().get_spark_session()
-
-        std_data = spark.createDataFrame(
-            [
-                ("housing need", "APP-001"),
-                ("housing need", "APP-001"),
-            ],
-            ["attribute", "appealReference"],
         )
-
-        source_data = {
-            "standardised_data": std_data,
-        }
-
-        with (
-            mock.patch(
-                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.Util.get_storage_account",
-                return_value="test_storage",
-            ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
-        ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
-            inst = AppealAttributeMatrixHarmonisationProcess(spark)
-
-            with (
-                mock.patch.object(inst, "load_data", return_value=source_data),
-                mock.patch.object(inst, "write_data") as mock_write,
-            ):
-                result = inst.run()
-
-        data_to_write = mock_write.call_args[0][0]
-        df = data_to_write[inst.OUTPUT_TABLE]["data"]
-
-        assert df.count() == 2
-        assert df.columns == [
-            "attribute",
-            "appealReference",
-            "TEMP_PK",
-            "ODTSourceSystem",
-            "IngestionDate",
-            "IsActive",
-        ]
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 2
+        output_table = f"{test_case}_ref_appeal_attribute_matrix"
+        self.write_existing_table(spark, existing_data, output_table, "odw_harmonised_db", "odw-harmonised", output_table, "overwrite")
+        self.assert_harmonisation(test_case)

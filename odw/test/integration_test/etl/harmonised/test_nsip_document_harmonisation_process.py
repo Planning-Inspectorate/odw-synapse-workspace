@@ -2,12 +2,14 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_etl_result_successful
 import pyspark.sql.types as T
 import mock
 
 
-class NSIPDocumentHarmonisationTestCase(ETLTestCase):
+class TestNSIPDocumentHarmonisation(ETLTestCase):
     def test__nsip_document_harmonisation_process__run__combines_service_bus_and_horizon_and_sets_migrated_flags(self):
+        test_case = "t_ndhp_r_csbahasmf"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -112,6 +114,8 @@ class NSIPDocumentHarmonisationTestCase(ETLTestCase):
                 ]
             ),
         )
+        service_bus_table = f"{test_case}_sb_nsip_document"
+        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
 
         horizon_data = spark.createDataFrame(
             [
@@ -175,6 +179,8 @@ class NSIPDocumentHarmonisationTestCase(ETLTestCase):
                 "expected_from",
             ],
         )
+        horizon_table = f"{test_case}_document_meta_data"
+        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
 
         aie_data = spark.createDataFrame(
             [
@@ -194,37 +200,28 @@ class NSIPDocumentHarmonisationTestCase(ETLTestCase):
                 "owner",
             ],
         )
+        aie_table = f"{test_case}_aie_document_data"
+        self.write_existing_table(spark, aie_data, aie_table, "odw_harmonised_db", "odw-harmonised", aie_table, "overwrite")
 
-        sb_primary_keys = spark.createDataFrame(
-            [("pk1",)],
-            T.StructType([T.StructField("TEMP_PK", T.StringType(), True)]),
-        )
-
-        source_data = {
-            "service_bus_data": service_bus_data,
-            "horizon_data": horizon_data,
-            "aie_data": aie_data,
-            "sb_primary_keys": sb_primary_keys,
-        }
+        output_table = f"{test_case}_nsip_document"
 
         with (
             mock.patch(
                 "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch.object(NsipDocumentHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
+            mock.patch.object(NsipDocumentHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_table}"),
+            mock.patch.object(NsipDocumentHarmonisationProcess, "AIE_EXTRACTS_TABLE", f"odw_harmonised_db.{aie_table}"),
+            mock.patch.object(NsipDocumentHarmonisationProcess, "OUTPUT_TABLE", output_table),
         ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
             inst = NsipDocumentHarmonisationProcess(spark)
 
-            with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
-                result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_document", orchestration_stage_name="harmonise")
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = spark.table(f"odw_harmonised_db.{output_table}")
+
         rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -235,7 +232,3 @@ class NSIPDocumentHarmonisationTestCase(ETLTestCase):
         assert "SourceSystemID" not in actual_df.columns
         assert "SourceSystemID" not in rows[10]
         assert "SourceSystemID" not in rows[20]
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["partition_by"] == ["IsActive"]
-        assert result.metadata.insert_count == 2

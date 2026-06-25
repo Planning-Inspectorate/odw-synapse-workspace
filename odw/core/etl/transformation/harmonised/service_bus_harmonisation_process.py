@@ -19,7 +19,7 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
 
         ```
         params = {
-        "entity_stage_name": "Service Bus Harmonisation",
+        "etl_process_name": "Service Bus Harmonisation Process",
         "entity_name": "appeal-has"
     }
         HorizonStandardisationProcess(spark).run(**params)
@@ -32,8 +32,8 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         self.hrm_db: str = "odw_harmonised_db"
 
     @classmethod
-    def get_name(cls):
-        return "Service Bus Harmonisation"
+    def get_name(cls) -> str:
+        return "Service Bus Harmonisation Process"
 
     def load_data(self, **kwargs):
         entity_name = self.load_parameter("entity_name", kwargs)

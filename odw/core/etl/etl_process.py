@@ -5,6 +5,7 @@ from pyspark.sql import DataFrame, SparkSession
 from odw.core.etl.etl_result import ETLResult, ETLFailResult
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.util.util import Util
+from odw.core.etl.metadata_manager import MetadataManager
 from typing import List, Dict, Any, Tuple
 from notebookutils import mssparkutils
 import traceback
@@ -142,6 +143,10 @@ class ETLProcess(ABC):
 
         """
         etl_start_time = datetime.now()
+        run_id = kwargs.pop("orchestration_run_id", None)
+        entity_name = kwargs.pop("orchestration_entity_name", None)
+        stage_name = kwargs.pop("orchestration_stage_name", None)
+        metadata_manager = MetadataManager(self.spark, run_id, entity_name, stage_name, kwargs)
 
         def generate_failure_result(start_time: datetime, exception: str, exception_trace=None, table_name=None):
             end_time = datetime.now()
@@ -160,6 +165,8 @@ class ETLProcess(ABC):
                 )
             )
 
+        metadata_manager.create()
+
         try:
             source_data_map = self.load_data(**kwargs)
             LoggingUtil().log_info(f"The following tables were loaded: {json.dumps(list(source_data_map), indent=4)}")
@@ -167,16 +174,20 @@ class ETLProcess(ABC):
         except Exception as e:
             failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc())
             LoggingUtil().log_error(failure_result)
+            metadata_manager.update(failure_result)
             return failure_result
         if isinstance(etl_result, ETLFailResult):
             LoggingUtil().log_error(etl_result)
+            metadata_manager.update(etl_result)
             return etl_result
         self._log_data_to_write(data_to_write)
         try:
             self.write_data(data_to_write)
             LoggingUtil().log_info(etl_result)
-            return etl_result
         except Exception as e:
             failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
             LoggingUtil().log_error(failure_result)
+            metadata_manager.update(failure_result)
             return failure_result
+        metadata_manager.update(etl_result)
+        return etl_result

@@ -2,12 +2,14 @@ import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_etl_result_successful
 import pyspark.sql.types as T
 import mock
 
 
-class NSIPS51AdviceCuratedTestCase(ETLTestCase):
+class TestNSIPS51AdviceCurated(ETLTestCase):
     def test__nsip_s51_advice_curated_process__run__applies_expected_mappings(self):
+        test_case = "t_ns51acp_r_aem"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_s51_advice = spark.createDataFrame(
@@ -32,6 +34,7 @@ class NSIPS51AdviceCuratedTestCase(ETLTestCase):
                     "Not Checked",
                     "None",
                     ["a1"],
+                    "Y",
                 ),
                 (
                     2,
@@ -53,6 +56,7 @@ class NSIPS51AdviceCuratedTestCase(ETLTestCase):
                     "Do Not Publish",
                     "Redacted",
                     ["a2", "a3"],
+                    "Y",
                 ),
             ],
             T.StructType(
@@ -76,32 +80,32 @@ class NSIPS51AdviceCuratedTestCase(ETLTestCase):
                     T.StructField("status", T.StringType(), True),
                     T.StructField("redactionStatus", T.StringType(), True),
                     T.StructField("attachmentIds", T.ArrayType(T.StringType()), True),
+                    T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
         )
+        harmonised_s51_advice_table = f"{test_case}_nsip_s51_advice"
+        self.write_existing_table(
+            spark, harmonised_s51_advice, harmonised_s51_advice_table, "odw_harmonised_db", "odw-harmonised", harmonised_s51_advice_table, "overwrite"
+        )
 
-        source_data = {
-            "harmonised_s51_advice": harmonised_s51_advice,
-        }
+        s51_advice_table = f"{test_case}_s51_advice"
 
         with (
             mock.patch(
                 "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch.object(NsipS51AdviceCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_s51_advice_table}"),
+            mock.patch.object(NsipS51AdviceCuratedProcess, "OUTPUT_TABLE", s51_advice_table),
         ):
-            MockEtlLogging.return_value = mock.Mock()
-            MockProcessLogging.return_value = mock.Mock()
-
             inst = NsipS51AdviceCuratedProcess(spark)
 
-            with mock.patch.object(inst, "load_data", return_value=source_data), mock.patch.object(inst, "write_data") as mock_write:
-                result = inst.run()
+            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_s51_advice", orchestration_stage_name="curate")
+            assert_etl_result_successful(result)
 
-        data_to_write = mock_write.call_args[0][0]
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"]
+        actual_df = spark.table(f"odw_curated_db.{s51_advice_table}")
+
         rows = {row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()}
 
         assert actual_df.count() == 2
@@ -115,7 +119,3 @@ class NSIPS51AdviceCuratedTestCase(ETLTestCase):
         assert rows[2]["agent"] == "Agent Ltd"
         assert rows[2]["method"] is None
         assert rows[2]["status"] == "donotpublish"
-
-        assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "s51_advice"
-        assert result.metadata.insert_count == 2
