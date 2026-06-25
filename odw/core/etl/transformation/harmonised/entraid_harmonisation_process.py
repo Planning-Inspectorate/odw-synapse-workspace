@@ -1,4 +1,3 @@
-from typing import Any
 from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
