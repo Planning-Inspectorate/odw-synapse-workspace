@@ -1,8 +1,10 @@
 from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
+from odw.test.util.assertion import assert_dataframes_equal
 from pyspark.sql import Row
 import pyspark.sql.types as T
+import hashlib
 import mock
 
 
@@ -206,3 +208,108 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
         assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 1
+
+    def test__nsip_meeting_harmonisation_process__process__nsip_project_info_reallocation_does_not_create_new_version(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        matching_row_hash = hashlib.sha256("100~M-1~same~role~type-a~2025-01-01".encode("utf-8")).hexdigest()
+
+        service_bus_data = spark.createDataFrame(
+            [
+                (
+                    999,  # reallocated upstream
+                    100,
+                    "EN010001",
+                    [
+                        Row(
+                            meetingId="M-1",
+                            meetingAgenda="same",
+                            planningInspectorateRole="role",
+                            meetingDate="2025-01-01",
+                            meetingType="type-a",
+                        )
+                    ],
+                    "1",
+                    "ODT",
+                    "SRC1",
+                    "2025-01-03 00:00:00",
+                ),
+            ],
+            [
+                "NSIPProjectInfoInternalID",
+                "caseId",
+                "caseReference",
+                "meetings",
+                "Migrated",
+                "ODTSourceSystem",
+                "SourceSystemID",
+                "IngestionDate",
+            ],
+        )
+
+        target_df = spark.createDataFrame(
+            [
+                (
+                    1,
+                    1,
+                    100,
+                    "EN010001",
+                    "M-1",
+                    "same",
+                    "role",
+                    "2025-01-01",
+                    "type-a",
+                    "1",
+                    "ODT",
+                    "SRC1",
+                    "2025-01-01 00:00:00",
+                    matching_row_hash,
+                    None,
+                    "Y",
+                ),
+            ],
+            T.StructType(
+                [
+                    T.StructField("NSIPMeetingId", T.IntegerType(), True),
+                    T.StructField("NSIPProjectInfoInternalID", T.IntegerType(), True),
+                    T.StructField("caseId", T.IntegerType(), True),
+                    T.StructField("caseReference", T.StringType(), True),
+                    T.StructField("meetingId", T.StringType(), True),
+                    T.StructField("meetingAgenda", T.StringType(), True),
+                    T.StructField("planningInspectorateRole", T.StringType(), True),
+                    T.StructField("meetingDate", T.StringType(), True),
+                    T.StructField("meetingType", T.StringType(), True),
+                    T.StructField("Migrated", T.StringType(), True),
+                    T.StructField("ODTSourceSystem", T.StringType(), True),
+                    T.StructField("SourceSystemID", T.StringType(), True),
+                    T.StructField("IngestionDate", T.StringType(), True),
+                    T.StructField("row_hash", T.StringType(), True),
+                    T.StructField("ValidTo", T.TimestampType(), True),
+                    T.StructField("IsActive", T.StringType(), True),
+                ]
+            ),
+        )
+
+        with (
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
+                return_value="test_storage",
+            ),
+            mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
+        ):
+            inst = NsipMeetingHarmonisationProcess(spark)
+            data_to_write, result = inst.process(
+                source_data={
+                    "service_bus_data": service_bus_data,
+                    "target_df": target_df,
+                }
+            )
+
+        expected_data_entry = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
+        actual_df = data_to_write[expected_data_entry]["data"]
+        expected_df = spark.createDataFrame([], actual_df.schema)
+
+        # No insert/update should occur because business key excludes NSIPProjectInfoInternalID.
+        assert_dataframes_equal(expected_df, actual_df)
+        assert data_to_write[expected_data_entry]["write_mode"] == "append"
+        assert result.metadata.insert_count == 0
+        assert result.metadata.update_count == 0

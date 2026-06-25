@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Dict, Tuple
 
 
-# Business key columns for SCD2
-_BUSINESS_KEY_COLS = ["NSIPProjectInfoInternalID", "caseId", "meetingId"]
+# Business key columns for SCD2.
+_BUSINESS_KEY_COLS = ["caseId", "meetingId"]
 
 # Change tracking columns (combined with business key for row_hash)
 _CHANGE_TRACKING_COLS = [
@@ -19,6 +19,10 @@ _CHANGE_TRACKING_COLS = [
     "meetingType",
     "meetingDate",
 ]
+
+
+def _null_safe_concat_expr(columns) -> F.Column:
+    return F.concat_ws("~", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in columns])
 
 
 def _align_source_to_target_schema(source_df: DataFrame, target_df: DataFrame) -> DataFrame:
@@ -140,8 +144,8 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
         # Step 4: Create business key and row hash
         all_hash_cols = _BUSINESS_KEY_COLS + _CHANGE_TRACKING_COLS
-        source_df = service_bus_exploded.withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256)).withColumn(
-            "row_hash", F.sha2(F.concat_ws("~", *all_hash_cols), 256)
+        source_df = service_bus_exploded.withColumn("business_key", F.sha2(_null_safe_concat_expr(_BUSINESS_KEY_COLS), 256)).withColumn(
+            "row_hash", F.sha2(_null_safe_concat_expr(all_hash_cols), 256)
         )
 
         # Step 5: Deduplicate source - keep latest per business_key by IngestionDate desc
@@ -176,7 +180,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             # Read current active harmonised records
             current_harmonised_active = (
                 target_df.filter("IsActive = 'Y'")
-                .withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256))
+                .withColumn("business_key", F.sha2(_null_safe_concat_expr(_BUSINESS_KEY_COLS), 256))
                 .select("business_key", "row_hash", "NSIPMeetingId")
             )
 
@@ -200,7 +204,10 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
             # Expire old records if changes detected
             if update_count > 0:
-                all_harmonised = target_df.withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256))
+                all_harmonised = target_df.withColumn("business_key", F.sha2(_null_safe_concat_expr(_BUSINESS_KEY_COLS), 256))
+
+                # Avoid duplicate IsActive/ValidTo columns by projecting target columns explicitly.
+                target_cols_to_keep = [c for c in all_harmonised.columns if c not in ("IsActive", "ValidTo", "business_key")]
 
                 expired_df = (
                     all_harmonised.alias("target")
@@ -210,16 +217,11 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                         & (F.col("target.business_key") == F.col("expire.business_key")),
                         "left",
                     )
-                    .withColumn(
-                        "IsActive",
-                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.lit("N")).otherwise(F.col("target.IsActive")),
+                    .select(
+                        *[F.col(f"target.{c}") for c in target_cols_to_keep],
+                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.lit("N")).otherwise(F.col("target.IsActive")).alias("IsActive"),
+                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.current_timestamp()).otherwise(F.col("target.ValidTo")).alias("ValidTo"),
                     )
-                    .withColumn(
-                        "ValidTo",
-                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.current_timestamp()).otherwise(F.col("target.ValidTo")),
-                    )
-                    .select("target.*", "IsActive", "ValidTo")
-                    .drop("business_key")
                 )
 
                 # This expired_df must be written as overwrite to replace the target
