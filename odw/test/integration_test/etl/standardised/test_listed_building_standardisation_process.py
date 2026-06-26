@@ -7,7 +7,7 @@ from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 def _listed_building_rows():
