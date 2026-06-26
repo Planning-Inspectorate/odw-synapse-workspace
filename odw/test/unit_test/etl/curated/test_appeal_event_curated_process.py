@@ -9,7 +9,6 @@ from odw.test.util.test_case import SparkTestCase
 
 
 pytestmark = pytest.mark.skip(
-    raises=NotImplementedError,
     reason="Curated logic not implemented yet",
 )
 

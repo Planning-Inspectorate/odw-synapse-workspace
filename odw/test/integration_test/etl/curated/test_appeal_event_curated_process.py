@@ -10,7 +10,6 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 
 
 pytestmark = pytest.mark.skip(
-    raises=NotImplementedError,
     reason="Curated logic not implemented yet",
 )
 
