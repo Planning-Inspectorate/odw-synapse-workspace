@@ -5,7 +5,14 @@
 			{
 				"name": "Set variable Start Time",
 				"type": "SetVariable",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Record start appeal event",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -525,6 +532,36 @@
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "Record start appeal event",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Pipeline Load Started",
+						"PipelineName": "@pipeline().Pipeline",
+						"PipelineRunID": "@pipeline().RunId",
+						"StartTime": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
+						"ErrorMessage": "``",
+						"StatusMessage": "Starting pipeline execution",
+						"PipelineTriggerID": "@pipeline().TriggerId",
+						"PipelineTriggerName": "@pipeline().TriggerName",
+						"PipelineTriggerType": "@pipeline().TriggerType",
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
+						"StatusCode": "200",
+						"AppInsIKey": "@pipeline().parameters.apps_insights_ikey"
+					}
 				}
 			}
 		],
