@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b1d76621-8619-461f-9d6d-3300b641f1cc"
+				"spark.autotune.trackingId": "6b7906c4-94c6-4a9c-a2db-fa054f3786b1"
 			}
 		},
 		"metadata": {
@@ -70,7 +70,7 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"table_name: str = \"odw_curated_db.appeal_has_curated_mipins\"\n",
+					"table_name: str = \"odw_curated_db.appeals_has_curated_mipins\"\n",
 					"start_exec_time = datetime.now()\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
@@ -274,27 +274,27 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"try:\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
 					"\n",
-					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\n",
-					"    table_path = (\n",
-					"        df_table_path\n",
-					"        .where(\"col_name == 'Location'\")\n",
-					"        .select(\"data_type\")\n",
-					"        .collect()[0][0]\n",
-					"    )\n",
+					"        final_view_df.write \\\n",
+					"            .format(\"parquet\") \\\n",
+					"            .mode(\"overwrite\") \\\n",
+					"            .option(\"path\", table_path) \\\n",
+					"            .saveAsTable(table_name)\n",
+					"        end_exec_time=datetime.now()    \n",
 					"\n",
-					"    final_view_df.write \\\n",
-					"        .format(\"parquet\") \\\n",
-					"        .mode(\"overwrite\") \\\n",
-					"        .option(\"path\", table_path) \\\n",
-					"        .saveAsTable(table_name)\n",
-					"    end_exec_time=datetime.now()    \n",
-					"\n",
-					"except Exceptionas as e:\n",
-					"    error_message = f\"Error writing table {table_name}: {str(e)[:800]}\"\n",
-					"    end_exec_time=datetime.now()\n",
-					"    print(error_message)\n",
+					"    except Exceptionas as e:\n",
+					"        error_message = f\"Error writing table {table_name}: {str(e)[:800]}\"\n",
+					"        end_exec_time=datetime.now()\n",
+					"        print(error_message)\n",
 					""
 				],
 				"execution_count": null
