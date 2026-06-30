@@ -262,6 +262,18 @@ class TestMetadataManager(SparkTestCase):
         result = inst.get_for_run_id()
         assert_dataframes_equal(expected_result, result)
 
+    def test__metadata_manager__get_for_run_id__with_missing_table(self):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        run_id = "tu_mm_gfri"
+        expected_result = spark.createDataFrame(
+            [],
+            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+        )
+        with mock.patch.object(MetadataManager, "METADATA_TABLE", "test__metadata_manager__get_for_run_id__with_missing_table"):
+            inst = MetadataManager(spark, run_id)
+            result = inst.get_for_run_id()
+            assert_dataframes_equal(expected_result, result)
+
     def test__metadata_manager__get_for_entity(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         run_id = "tu_mm_gfe"
