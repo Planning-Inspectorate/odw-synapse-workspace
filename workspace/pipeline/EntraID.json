@@ -313,7 +313,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Record horizon EntraID data')?.Error?.message,\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Success',\n    'Failed'\n\n)",
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                activity('Src to Raw')?.Error?.message,\n                activity('Raw to Std')?.Error?.message,\n                activity('Std to Hrm')?.Error?.message\n            )\n        ),\n        ''\n    ),    \n    'Success',\n    'Failed'\n)",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -324,16 +324,20 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
+						"StartTime": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
 						"EndTime": {
 							"value": "@utcnow()",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@replace(\n    concat(\n        coalesce(activity('Record horizon EntraID data')?.Error?.message, ''), '|',\n        coalesce(activity('Src to Raw')?.Error?.message, ''), '|',\n        coalesce(activity('Raw to Std')?.Error?.message, ''), '|',\n        coalesce(activity('Std to Hrm')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)\n",
+							"value": "@replace(\n    concat(\n        coalesce(activity('Src to Raw')?.Error?.message, ''), '|',\n        coalesce(activity('Raw to Std')?.Error?.message, ''), '|',\n        coalesce(activity('Std to Hrm')?.Error?.message, ''), '|'\n    ),\n    '|',\n    ''\n)\n",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Record horizon EntraID data')?.Error?.message, ''),\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'horizon EntraID data load Successfully Completed',\n    'horizon EntraID data Failed'\n   \n)",
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),\n    'horizon EntraID data load Successfully Completed',\n    'horizon EntraID data Failed'\n)",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -356,7 +360,13 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
+						"PipelineExecutionTimeInSec": "@div(\n    sub(\n        ticks(utcnow()),\n        ticks(variables('start_time'))\n    ),\n    10000000\n)",
 						"ActivityType": "Pipeline",
+						"DurationSeconds": "@div(\n    sub(\n        ticks(utcnow()),\n        ticks(variables('start_time'))\n    ),\n    10000000\n)\n",
+						"StatusCode": {
+							"value": "@if(\n    equals(\n        trim(\n            concat(\n                coalesce(activity('Src to Raw')?.Error?.message, ''),\n                coalesce(activity('Raw to Std')?.Error?.message, ''),\n                coalesce(activity('Std to Hrm')?.Error?.message, '')\n            )\n        ),\n        ''\n    ),    \n    200,\n    500\n)",
+							"type": "Expression"
+						},
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
