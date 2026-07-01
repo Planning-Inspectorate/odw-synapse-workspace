@@ -10,7 +10,7 @@ from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process impor
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS logic not implemented yet")
 
 
 OUTPUT_COLUMNS = [

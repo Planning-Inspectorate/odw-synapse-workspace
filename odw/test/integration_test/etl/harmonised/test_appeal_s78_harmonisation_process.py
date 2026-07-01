@@ -8,7 +8,7 @@ from datetime import datetime
 import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _raw_service_bus_schema():

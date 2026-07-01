@@ -15,7 +15,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from datetime import datetime
 
-# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 MOCK_TIMESTAMP = datetime(2025, 1, 1)
 

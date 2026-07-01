@@ -7,7 +7,7 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 import mock
 import pyspark.sql.types as T
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):

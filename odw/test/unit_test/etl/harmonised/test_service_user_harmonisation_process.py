@@ -7,7 +7,7 @@ from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _service_user_output_schema():

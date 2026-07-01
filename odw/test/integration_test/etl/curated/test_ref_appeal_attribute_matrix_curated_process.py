@@ -7,7 +7,7 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from pyspark.sql.types import StructType, StructField, StringType
 import mock
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):

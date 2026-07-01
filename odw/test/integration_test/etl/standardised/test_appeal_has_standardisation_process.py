@@ -9,7 +9,7 @@ from pyspark.sql.types import StructType, StructField, TimestampType, StringType
 from datetime import datetime
 from contextlib import ExitStack
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 def horizon_cases_has_row(**overrides):

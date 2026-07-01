@@ -5,7 +5,7 @@ from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):

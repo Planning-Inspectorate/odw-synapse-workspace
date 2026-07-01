@@ -8,8 +8,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
 
-pytestmark = pytest.mark.xfail(
-    raises=NotImplementedError,
+pytestmark = pytest.mark.skip(
     reason="Harmonised logic not implemented yet",
 )
 

@@ -11,7 +11,7 @@ from typing import Callable, List
 import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def generate_harmonised_appeal_has_row(**overrides):

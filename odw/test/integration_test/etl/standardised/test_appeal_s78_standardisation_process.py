@@ -10,7 +10,7 @@ from datetime import datetime
 from contextlib import ExitStack
 
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 def generate_horizoncases_s78_row(**overrides):

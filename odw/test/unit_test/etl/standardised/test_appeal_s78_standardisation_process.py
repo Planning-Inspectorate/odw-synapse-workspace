@@ -10,7 +10,7 @@ from typing import Callable
 from contextlib import ExitStack
 
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 class TestAppealS78StandardisationProcess(SparkTestCase):

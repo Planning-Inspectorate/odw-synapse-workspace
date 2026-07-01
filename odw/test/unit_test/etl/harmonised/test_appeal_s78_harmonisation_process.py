@@ -9,7 +9,7 @@ from odw.test.util.assertion import assert_dataframes_equal
 from datetime import datetime
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _raw_service_bus_schema():

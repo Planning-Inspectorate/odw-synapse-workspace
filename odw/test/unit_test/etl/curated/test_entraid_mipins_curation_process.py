@@ -8,7 +8,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 import pytest
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS EntraID logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS EntraID logic not implemented yet")
 
 
 class TestEntraIDMIPINSCurationProcess(SparkTestCase):

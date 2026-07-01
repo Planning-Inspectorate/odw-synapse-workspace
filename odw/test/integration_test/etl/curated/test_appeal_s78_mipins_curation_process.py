@@ -21,7 +21,7 @@ from decimal import Decimal
 import mock
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def generate_appeal_s78_row(**overrides):

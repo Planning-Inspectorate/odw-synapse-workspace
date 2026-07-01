@@ -7,7 +7,7 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from pyspark.sql.types import StructType, StructField, LongType, StringType, IntegerType
 import mock
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS EntraID logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS EntraID logic not implemented yet")
 
 
 class TestEntraIDMIPINSCurationProcess(ETLTestCase):

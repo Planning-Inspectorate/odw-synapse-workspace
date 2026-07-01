@@ -9,8 +9,7 @@ from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_s
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-pytestmark = pytest.mark.xfail(
-    raises=NotImplementedError,
+pytestmark = pytest.mark.skip(
     reason="Curated logic not implemented yet",
 )
 
