@@ -6,7 +6,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):

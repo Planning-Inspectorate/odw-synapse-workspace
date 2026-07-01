@@ -20,7 +20,7 @@ from datetime import datetime
 
 MOCK_TIMESTAMP = datetime(2025, 1, 1)
 
-# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _invoice_struct():
