@@ -33,6 +33,7 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
             .config("spark.sql.warehouse.dir", self.get_spark_warehouse_name())
             .config("spark.ui.enabled", False)
+            .config("spark.ui.showConsoleProgress", False)
             .config("spark.driver.memory", "1g")
             .config("spark.sql.shuffle.partitions", "4")
             .config("spark.default.parallelism", "2")
