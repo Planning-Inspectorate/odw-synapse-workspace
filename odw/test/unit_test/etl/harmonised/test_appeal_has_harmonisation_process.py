@@ -205,7 +205,7 @@ def _empty_df(spark, schema):
 
 def _process_under_test(spark):
     with mock.patch(
-        "odw.core.etl.transformation.harmonised.harmonsation_process.HarmonisationProcess.__init__",
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
         return_value=None,
     ):
         inst = AppealHasHarmonisationProcess(spark)

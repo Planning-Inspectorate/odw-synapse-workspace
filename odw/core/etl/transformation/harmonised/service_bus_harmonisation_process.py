@@ -1,4 +1,4 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult

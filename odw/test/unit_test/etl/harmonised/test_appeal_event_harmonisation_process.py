@@ -208,7 +208,7 @@ def _source_data(service_bus_data, horizon_data):
 
 def _process_under_test(spark):
     with mock.patch(
-        "odw.core.etl.transformation.harmonised.harmonsation_process.HarmonisationProcess.__init__",
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
         return_value=None,
     ):
         inst = AppealEventHarmonisationProcess(spark)
