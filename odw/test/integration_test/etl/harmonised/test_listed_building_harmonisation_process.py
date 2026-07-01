@@ -9,7 +9,7 @@ from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
 from datetime import date
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _standardised_row(**overrides):

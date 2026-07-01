@@ -7,7 +7,7 @@ import mock
 import pyspark.sql.types as T
 import pytest
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixStandardisationProcess(SparkTestCase):

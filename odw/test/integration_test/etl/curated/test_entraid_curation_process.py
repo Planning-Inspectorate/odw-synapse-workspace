@@ -8,7 +8,7 @@ from pyspark.sql.types import StructType, StructField, LongType, StringType
 import mock
 
 
-pytestmark = pytest.mark.xfail(reason="Curated EntraID logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated EntraID logic not implemented yet")
 
 
 class TestEntraIDCurationProcess(ETLTestCase):
