@@ -1,4 +1,4 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
 from pyspark.sql import DataFrame
 
 
