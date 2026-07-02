@@ -14,7 +14,7 @@ class DependencyResolver:
         # Validate the config to ensure it does not have any missing or unexpected properties
         self.config = config
         OrchestrationConfig.model_validate(self.config)
-        self._preprocess_config()
+        self._preprocess_config(self.config)
 
     def _preprocess_entity_stages(self, entity_stages: List[str]):
         delimiter = "."
@@ -49,18 +49,20 @@ class DependencyResolver:
             raise ValueError(f"The following entity_stages could not be found in the config: {json.dumps(missing_entity_stages, indent=4)}")
         return entries
 
-    def _preprocess_config(self):
+    @classmethod
+    def _preprocess_config(cls, config: Dict[str, Any]):
         """
         Mutably add a `orchestration_entity_stage_name` key to each entity stage in the config
         """
-        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
+        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = config.get("entities", dict())
         for entity_name, entity in entities.items():
             for stage_name, stage in entity.items():
                 stage["orchestration_entity_stage_name"] = f"{entity_name}.{stage_name}"
                 stage["orchestration_entity_name"] = entity_name
                 stage["orchestration_stage_name"] = stage_name
 
-    def _topological_sort(self):
+    @classmethod
+    def _topological_sort(cls, config: Dict[str, Any]):
         """
         Calculate a group topological order based on the loaded config. Stages in the config that could be run in parallel are grouped together
 
@@ -72,7 +74,7 @@ class DependencyResolver:
         >> [[D], [C, E], [B], [A, F]]
         ```
         """
-        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = self.config.get("entities", dict())
+        entities: Dict[str, Dict[str, Dict[str, Union[Any, List[Any]]]]] = config.get("entities", dict())
         entity_stages = {f"{entity_name}.{stage_name}": stage for entity_name, entity in entities.items() for stage_name, stage in entity.items()}
         dependency_map = {
             orchestration_entity_stage_name: tuple(entity["depends_on"]) for orchestration_entity_stage_name, entity in entity_stages.items()
@@ -151,5 +153,12 @@ class DependencyResolver:
         """
         cleaned_entity_stages = self._preprocess_entity_stages(entity_stages)
         self._filter_irrelevant_dependencies_from_config(cleaned_entity_stages)
-        groups = self._topological_sort()
+        groups = self._topological_sort(self.config)
         return self.filter_already_executed_entity_stages(groups, execution_details)
+
+    @classmethod
+    def validate_config(cls, config: Dict[str, Any]):
+        """ """
+        OrchestrationConfig.model_validate(config)
+        cls._preprocess_config(config)
+        cls._topological_sort(config)
