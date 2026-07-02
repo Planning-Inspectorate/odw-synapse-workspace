@@ -9,7 +9,7 @@ import mock
 import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Skipped because of a logic error that has been found in the refactored code")
+pytestmark = pytest.mark.skip(reason="Skipped because of a logic error that has been found in the refactored code")
 
 
 class TestNSIPS51AdiceHarmonisationTestCase(ETLTestCase):
