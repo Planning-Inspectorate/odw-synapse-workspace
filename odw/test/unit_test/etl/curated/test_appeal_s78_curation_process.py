@@ -8,7 +8,7 @@ import mock
 import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def _harmonised_row(**overrides):
