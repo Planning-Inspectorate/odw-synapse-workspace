@@ -85,7 +85,7 @@ def _source_data(spark, live_dim_rows, entraid_rows=None, specialisms_rows=None,
 
 def _inst(spark):
     with mock.patch(
-        "odw.core.etl.transformation.harmonised.harmonsation_process.HarmonisationProcess.__init__",
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
         return_value=None,
     ):
         inst = PinsInspectorHarmonisationProcess(spark)

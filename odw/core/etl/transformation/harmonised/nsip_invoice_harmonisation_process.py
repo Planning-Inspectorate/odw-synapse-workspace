@@ -1,5 +1,5 @@
+from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
 from typing import Dict
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
