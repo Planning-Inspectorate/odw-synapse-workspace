@@ -1,5 +1,6 @@
 from odw.core.orchestration.dependency_resolver import DependencyResolver
 from odw.core.orchestration.orchestration_config import OrchestrationConfig
+from pydantic import ValidationError
 from graphlib import CycleError
 import pytest
 import mock
@@ -139,7 +140,7 @@ def test__dependency_resolver__topological_sort():
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config)._topological_sort()
+        actual_output = DependencyResolver(example_config)._topological_sort(example_config)
         assert actual_output == expected_output
 
 
@@ -207,7 +208,7 @@ def test__dependency_resolver__topological_sort__complex_example():
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config)._topological_sort()
+        actual_output = DependencyResolver(example_config)._topological_sort(example_config)
         assert actual_output == expected_output
 
 
@@ -231,7 +232,7 @@ def test__dependency_resolver__topological_sort__with_cycle():
     }
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
         with pytest.raises(CycleError):
-            DependencyResolver(example_config)._topological_sort()
+            DependencyResolver(example_config)._topological_sort(example_config)
 
 
 def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
@@ -645,7 +646,7 @@ def test__dependency_resolver__generate_stages_to_run():
         result = dr.generate_stages_to_run(entity_stages, execution_details)
         DependencyResolver._preprocess_entity_stages.assert_called_once_with(entity_stages)
         DependencyResolver._filter_irrelevant_dependencies_from_config.assert_called_once_with("D")
-        DependencyResolver._topological_sort.assert_called_once_with()
+        DependencyResolver._topological_sort.assert_called_once_with("X")
         DependencyResolver.filter_already_executed_entity_stages.assert_called_once_with("B", execution_details)
         assert result == DependencyResolver.filter_already_executed_entity_stages.return_value
 
@@ -930,3 +931,63 @@ def test__dependency_resolver__preprocess_entity_stages__missing_entity_stage():
             inst._preprocess_entity_stages(entity_stages)
             assert "entity-x.curated" in e.value.message
             assert "entity-c.y" in e.value.message
+
+
+def test__dependency_resolver__validate():
+    example_config = {
+        "entities": {
+            "entity-a": {
+                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A", "etl_process_name": "AS"}, "depends_on": []},
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "AH"},
+                    "depends_on": ["entity-a.standardised"],
+                },
+            },
+            "entity-b": {
+                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B", "etl_process_name": "BS"}, "depends_on": []},
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "BC"}, "depends_on": ["entity-a.harmonised"]},
+            },
+            "entity-c": {
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "CC"}, "depends_on": ["entity-b.curated"]}
+            },
+        }
+    }
+    try:
+        DependencyResolver.validate_config(example_config)
+    except Exception as e:
+        pytest.fail(f"Expected DependencyResolver.validate_config to not raise an error, but raised {e}")
+
+
+def test__dependency_resolver__validate__with_invalid_structure():
+    example_config = {"a": "b"}
+    with pytest.raises(ValidationError):
+        DependencyResolver.validate_config(example_config)
+
+
+def test__dependency_resolver__validate__with_cycle():
+    example_config = {
+        "entities": {
+            "entity-a": {
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "AS"},
+                    "depends_on": ["entity-c.curated"],
+                },  # Cycle starts here
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "AH"},
+                    "depends_on": ["entity-a.standardised"],
+                },
+            },
+            "entity-b": {
+                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B", "etl_process_name": "BS"}, "depends_on": []},
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "BC"}, "depends_on": ["entity-a.harmonised"]},
+            },
+            "entity-c": {
+                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "CC"}, "depends_on": ["entity-b.curated"]}
+            },
+        }
+    }
+    with pytest.raises(CycleError):
+        DependencyResolver.validate_config(example_config)
