@@ -63,7 +63,7 @@ Orchestration and lineage
   - workspace/notebook/py_sb_harmonised_nsip_meeting.json
     - Reads: odw_harmonised_db.sb_nsip_project (explodes nested meetings array, applies SCD Type 2)
     - Writes: odw_harmonised_db.sb_nsip_meeting
-    - ⚠️ Not referenced in any operational pipeline
+    - Not referenced in any operational pipeline
   - workspace/notebook/nsip_meeting.json
     - Reads: odw_harmonised_db.sb_nsip_meeting
     - Writes: odw_curated_db.nsip_meeting

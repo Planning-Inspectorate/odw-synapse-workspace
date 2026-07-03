@@ -158,13 +158,13 @@ Orchestration and lineage
   - workspace/pipeline/pln_document_metadata_main.json (master orchestration)
     - Runs pln_service_bus_nsip_document, pln_horizon_document_metadata, pln_aie_document_data in parallel
     - Then: Harmonised to Curated (nsip_document notebook) → odw_curated_db.nsip_document
-    - ⚠️ GAP: py_sb_horizon_harmonised_nsip_document (merges all sources into odw_harmonised_db.nsip_document) is not called from this pipeline
+    - GAP: py_sb_horizon_harmonised_nsip_document (merges all sources into odw_harmonised_db.nsip_document) is not called from this pipeline
   - workspace/pipeline/pln_curated.json (also writes curated nsip_document independently)
 - Notebooks
   - workspace/notebook/py_sb_horizon_harmonised_nsip_document.json
     - Reads: odw_harmonised_db.sb_nsip_document + odw_standardised_db.document_meta_data + odw_harmonised_db.aie_document_data
     - Writes: odw_harmonised_db.nsip_document
-    - ⚠️ NOT currently referenced by any pipeline
+    - NOT currently referenced by any pipeline
   - workspace/notebook/nsip_document.json
     - Reads: odw_harmonised_db.nsip_document + odw_curated_db.nsip_project
     - Writes: odw_curated_db.nsip_document

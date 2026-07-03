@@ -125,12 +125,12 @@ Orchestration and lineage
   - workspace/pipeline/pln_nsip_exam_timetable_main.json (master orchestration)
     - Runs pln_service_bus_nsip_exam_timetable and pln_horizon_nsip_exam_timetable in parallel
     - Then: Harmonised to Curated (examination_timetable notebook) → odw_curated_db.nsip_exam_timetable
-    - ⚠️ GAP: py_sb_horizon_harmonised_nsip_exam_timetable (merges sources into odw_harmonised_db.nsip_exam_timetable) is not called from this pipeline
+    - GAP: py_sb_horizon_harmonised_nsip_exam_timetable (merges sources into odw_harmonised_db.nsip_exam_timetable) is not called from this pipeline
 - Notebooks
   - workspace/notebook/py_sb_horizon_harmonised_nsip_exam_timetable.json
     - Reads: odw_harmonised_db.sb_nsip_exam_timetable + odw_standardised_db.horizon_examination_timetable + odw_harmonised_db.nsip_project
     - Writes: odw_harmonised_db.nsip_exam_timetable
-    - ⚠️ Only referenced in release pipelines (rel_1309_nsip_exam, rel_35_0_0_watermark)
+    - Only referenced in release pipelines (rel_1309_nsip_exam, rel_35_0_0_watermark)
   - workspace/notebook/examination_timetable.json
     - Reads: odw_harmonised_db.nsip_exam_timetable + odw_curated_db.nsip_project
     - Writes: odw_curated_db.nsip_exam_timetable

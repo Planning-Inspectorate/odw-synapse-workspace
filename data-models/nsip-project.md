@@ -128,12 +128,12 @@ Orchestration and lineage
   - workspace/pipeline/pln_nsip_project_main.json (master orchestration)
     - Runs pln_service_bus_nsip_project and pln_horizon_nsip_project in parallel
     - Then: Harmonised to Curated (nsip_data notebook) → odw_curated_db.nsip_project
-    - ⚠️ GAP: py_sb_horizon_harmonised_nsip_project (merges sources into odw_harmonised_db.nsip_project) is not called from this pipeline
+    - GAP: py_sb_horizon_harmonised_nsip_project (merges sources into odw_harmonised_db.nsip_project) is not called from this pipeline
 - Notebooks
   - workspace/notebook/py_sb_horizon_harmonised_nsip_project.json
     - Reads: odw_harmonised_db.sb_nsip_project + odw_standardised_db.horizon_nsip_data
     - Writes: odw_harmonised_db.nsip_project
-    - ⚠️ Only referenced in release pipeline (rel_1272_nsip_data)
+    - Only referenced in release pipeline (rel_1272_nsip_data)
   - workspace/notebook/nsip_data.json
     - Reads: odw_harmonised_db.nsip_project
     - Writes: odw_curated_db.nsip_project

@@ -116,12 +116,12 @@ Orchestration and lineage
   - workspace/pipeline/pln_nsip_s51_advice_main.json (master orchestration)
     - Runs pln_horizon_nsip_s51_advice and pln_service_bus_nsip_s51_advice in parallel
     - Then: Harmonised to Curated (nsip_s51_advice notebook) → odw_curated_db.s51_advice
-    - ⚠️ GAP: py_sb_horizon_harmonised_nsip_s51_advice (merges sources into odw_harmonised_db.nsip_s51_advice) is not called from this pipeline
+    - GAP: py_sb_horizon_harmonised_nsip_s51_advice (merges sources into odw_harmonised_db.nsip_s51_advice) is not called from this pipeline
 - Notebooks
   - workspace/notebook/py_sb_horizon_harmonised_nsip_s51_advice.json
     - Reads: odw_harmonised_db.sb_s51_advice + odw_standardised_db.horizon_nsip_advice
     - Writes: odw_harmonised_db.nsip_s51_advice
-    - ⚠️ Only referenced in release pipeline (rel_1273_s51)
+    - Only referenced in release pipeline (rel_1273_s51)
   - workspace/notebook/nsip_s51_advice.json
     - Reads: odw_harmonised_db.nsip_s51_advice
     - Writes: odw_curated_db.s51_advice

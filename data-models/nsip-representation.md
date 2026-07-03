@@ -116,12 +116,12 @@ Orchestration and lineage
   - workspace/pipeline/pln_nsip_relevant_reps_main.json (master orchestration)
     - Runs pln_horizon_nsip_representation_main and pln_service_bus_nsip_representation in parallel
     - Then: Curated NSIP Representation (nsip_representation notebook) → odw_curated_db.nsip_representation
-    - ⚠️ GAP: py_sb_horizon_harmonised_nsip_representation (merges sources into odw_harmonised_db.nsip_representation) is not called from this pipeline
+    - GAP: py_sb_horizon_harmonised_nsip_representation (merges sources into odw_harmonised_db.nsip_representation) is not called from this pipeline
 - Notebooks
   - workspace/notebook/py_sb_horizon_harmonised_nsip_representation.json
     - Reads: odw_harmonised_db.sb_nsip_representation + odw_standardised_db.horizon_nsip_relevant_representation
     - Writes: odw_harmonised_db.nsip_representation
-    - ⚠️ Only referenced in release pipelines (rel_1298, rel_1347, rel_2_0_11)
+    - Only referenced in release pipelines (rel_1298, rel_1347, rel_2_0_11)
   - workspace/notebook/nsip_representation.json
     - Reads: odw_harmonised_db.nsip_representation
     - Writes: odw_curated_db.nsip_representation

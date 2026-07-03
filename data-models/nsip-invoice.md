@@ -63,7 +63,7 @@ Orchestration and lineage
   - workspace/notebook/py_sb_harmonised_nsip_invoice.json
     - Reads: odw_harmonised_db.sb_nsip_project (explodes nested invoice array)
     - Writes: odw_harmonised_db.sb_nsip_invoice
-    - ⚠️ Not referenced in any operational pipeline
+    - Not referenced in any operational pipeline
   - workspace/notebook/nsip_invoice.json
     - Reads: odw_harmonised_db.sb_nsip_invoice
     - Writes: odw_curated_db.nsip_invoice
