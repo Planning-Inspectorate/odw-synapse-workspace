@@ -61,7 +61,14 @@
 			{
 				"name": "Lookup-LogStart",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set variable Start Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -114,77 +121,13 @@
 				}
 			},
 			{
-				"name": "Record_Count",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Copy NSIP Project",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "RowCount_NSIP Project",
-					"value": {
-						"value": "@activity('Copy NSIP Project').output.rowscopied",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "SP_update dim_source_system",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "Record_Count",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Live].[upd_dim_source_system]",
-					"storedProcedureParameters": {
-						"refresh_date": {
-							"value": {
-								"value": "@utcNow('yyyy-MM-ddTHH:mm:ss.fff')",
-								"type": "Expression"
-							},
-							"type": "DateTime"
-						},
-						"source_system": {
-							"value": "NSIP Project",
-							"type": "String"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
-				}
-			},
-			{
 				"name": "Sp_log_success",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "SP_update dim_source_system",
+						"activity": "Copy NSIP Project",
 						"dependencyConditions": [
-							"Succeeded"
+							"Completed"
 						]
 					}
 				],
@@ -204,7 +147,10 @@
 							"type": "String"
 						},
 						"ErrorMessage": {
-							"value": null,
+							"value": {
+								"value": "@if(\n    empty(concat(\n        coalesce(activity('Lookup-LogStart').Error?.message, ''),\n        coalesce(activity('Copy NSIP Project').Error?.message, '')\n    )),\n    null,\n    concat(\n        coalesce(activity('Lookup-LogStart').Error?.message, ''),\n        coalesce(activity('Copy NSIP Project').Error?.message, '')\n    )\n)",
+								"type": "Expression"
+							},
 							"type": "String"
 						},
 						"LogType": {
@@ -217,14 +163,14 @@
 						},
 						"RowCount": {
 							"value": {
-								"value": "@variables('RowCount_NSIP Project')",
+								"value": "@if(\n    and(\n        not(equals(activity('Copy NSIP Project')?.Error?.Message, '')),\n        not(equals(activity('Copy NSIP Project')?.Error?.Message, null))\n    ),\n    0,\n    activity('Copy NSIP Project').output.rowsCopied\n)",
 								"type": "Expression"
 							},
 							"type": "Int32"
 						},
 						"RunId": {
 							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
 								"type": "Expression"
 							},
 							"type": "Int32"
@@ -241,98 +187,170 @@
 				}
 			},
 			{
-				"name": "Error_NSIP Project",
-				"type": "SetVariable",
+				"name": "Record completed",
+				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "SP_update dim_source_system",
+						"activity": "Sp_log_success",
 						"dependencyConditions": [
-							"Failed"
+							"Skipped",
+							"Completed"
 						]
 					}
 				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('Copy NSIP Project')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed',\n    'Success'\n)",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('StartTime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@if(\n    or(\n        equals(activity('Copy NSIP Project')?.Error?.Message, ''),\n        equals(activity('Copy NSIP Project')?.Error?.Message, null)\n    ),\n    activity('Copy NSIP Project').output.rowsCopied,\n    0\n)\n",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@concat(\n    coalesce(activity('Lookup-LogStart')?.Error?.message, ''),\n    coalesce(activity('Copy NSIP Project')?.Error?.message, ''),\n    coalesce(activity('Sp_log_success')?.Error?.message, '')\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('Copy NSIP Project')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed copying data from ODW to mipins',\n    'Successfully copied data from ODW to mipins'\n)\n",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "Copy NSIP Project Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    or(\n        equals(activity('Copy NSIP Project')?.Error?.Message, ''),\n        equals(activity('Copy NSIP Project')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Error_NSIP",
+					"variableName": "StartTime",
 					"value": {
-						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',activity('Copy NSIP Project').Error?.message,'|',activity('SP_update dim_source_system').Error?.message),'|','')",
+						"value": "@utcNow()",
 						"type": "Expression"
 					}
 				}
-			},
-			{
-				"name": "Sp_log_failed",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "Error_NSIP Project",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Audit].[usp_addETLLog]",
-					"storedProcedureParameters": {
-						"Description": {
-							"value": "NSIP_curated_mipins_pipeline_failed",
-							"type": "String"
-						},
-						"ErrorMessage": {
-							"value": {
-								"value": "@variables('Error_NSIP')",
-								"type": "Expression"
-							},
-							"type": "String"
-						},
-						"LogType": {
-							"value": "2",
-							"type": "String"
-						},
-						"Param1Value": {
-							"value": null,
-							"type": "String"
-						},
-						"RowCount": {
-							"value": null,
-							"type": "Int32"
-						},
-						"RunId": {
-							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.Runid",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"Source": {
-							"value": "NSIP Project",
-							"type": "String"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
-				}
 			}
 		],
-		"variables": {
-			"RowCount_NSIP Project": {
-				"type": "Integer"
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
 			},
-			"Error_NSIP": {
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"completed_colour": {
+				"type": "string"
+			},
+			"completed_image": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"StartTime": {
 				"type": "String"
 			}
 		},
