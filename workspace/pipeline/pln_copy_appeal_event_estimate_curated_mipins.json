@@ -5,14 +5,7 @@
 			{
 				"name": "Set variable Start Time",
 				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Record start appeal event",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
 					"secureOutput": false,
 					"secureInput": false
@@ -342,7 +335,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully',\n    'Failed'\n)",
+							"value": "@if(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)),'Success','Failed')",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -358,19 +351,19 @@
 							"type": "Expression"
 						},
 						"EndTime": {
-							"value": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
+							"value": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm:ssZ')",
 							"type": "Expression"
 						},
 						"Inserts": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)\n    ),\n    activity('Copy_appeals_event_estimate_curated_mipins').output.rowsCopied,\n    ''\n)",
+							"value": "@if(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)),activity('Copy_appeals_event_estimate_curated_mipins').output.rowsCopied,'')",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)\n    ),\n    '',\n    activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message\n)",
+							"value": "@if(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)),'',activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)\n    ),\n    'Successfully copied data from ODW appeal event estimate mipins event',\n    'Failed copying data from ODW appeal event estimate mipins event'\n)",
+							"value": "@if(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)),'Success copying data from ODW appeal event estimate mipins event','Failed copying data from ODW appeal event estimate mipins event')",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -402,7 +395,7 @@
 							"type": "Expression"
 						},
 						"StatusCode": {
-							"value": "@if(\n    or(\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),\n        equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
+							"value": "@if(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)),'200','500')",
 							"type": "Expression"
 						},
 						"AppInsIKey": {
@@ -480,7 +473,7 @@
 						},
 						"activityMessage": "Copy appeal_event_estimate to curated mipins data failed",
 						"activityDuration": {
-							"value": "@concat(string(div(div(sub(ticks(utcNow()),ticks(variables('StartTime'))),600000000),60)),'H:',string(mod(div(sub(ticks(utcNow()),ticks(variables('StartTime'))),600000000),60)),'M:00s')",
+							"value": "@concat(string(div(div(sub(ticks(utcNow()),ticks(variables('StartTime'))),10000000),3600)),'H:',string(mod(div(div(sub(ticks(utcNow()),ticks(variables('StartTime'))),10000000),60),60)),'M:00s')",
 							"type": "Expression"
 						},
 						"activityStatus": "Failed",
@@ -495,95 +488,6 @@
 						"Message_title": "Copy Data to appeal_event_estimate_curated_mipins Failed",
 						"Message_subtitle": {
 							"value": "@concat('Data copy to appeal_event_estimate_curated_mipins failed with the following error: ',variables('errorMessage'))",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "If pipeline failed",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Record completed appeal event estimate curated mipins",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"expression": {
-						"value": "@not(or(equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message, null)))",
-						"type": "Expression"
-					},
-					"ifTrueActivities": [
-						{
-							"name": "Fail pipeline",
-							"type": "Fail",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"message": {
-									"value": "@if(equals(variables('errorMessage'),''),activity('Copy_appeals_event_estimate_curated_mipins')?.Error?.Message,variables('errorMessage'))",
-									"type": "Expression"
-								},
-								"errorCode": "PLN_COPY_APPEAL_EVENT_ESTIMATE_CURATED_MIPINS_FAILED"
-							}
-						}
-					]
-				}
-			},
-			{
-				"name": "Record start appeal event",
-				"type": "ExecutePipeline",
-				"dependsOn": [],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Pipeline Load Started",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StartTime": {
-							"value": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@formatDateTime(utcnow(),'yyyy-MM-ddTHH:mm:ssZ')",
-							"type": "Expression"
-						},
-						"ErrorMessage": "``",
-						"StatusMessage": "Starting pipeline execution",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
-						"StatusCode": "200",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
 					}
