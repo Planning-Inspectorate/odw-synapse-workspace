@@ -1,9 +1,14 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_s78_mipins_curation_process import AppealS78MIPINSCurationProcess
+from odw.core.etl.transformation.curated.appeal_s78_mipins_curation_process import (
+    AppealS78MIPINSCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql.types import (
     StructType,
     StructField,
@@ -47,7 +52,10 @@ def generate_appeal_s78_row(**overrides):
         "caseValidationDate": "2025-01-05T00:00:00.000Z",
         "caseValidationOutcome": "caseValidationOutcomeValue",
         "caseValidationInvalidDetails": [],
-        "caseValidationIncompleteDetails": ["caseValidationIncompleteDetailsA", "caseValidationIncompleteDetailsB"],
+        "caseValidationIncompleteDetails": [
+            "caseValidationIncompleteDetailsA",
+            "caseValidationIncompleteDetailsB",
+        ],
         "caseExtensionDate": "2025-01-06T00:00:00.000Z",
         "caseStartedDate": "2025-01-07T00:00:00.000Z",
         "casePublishedDate": "2025-01-08T00:00:00.000Z",
@@ -59,7 +67,10 @@ def generate_appeal_s78_row(**overrides):
         "lpaQuestionnairePublishedDate": "2025-01-12T00:00:00.000Z",
         "lpaQuestionnaireValidationOutcome": "lpaQuestionnaireValidationOutcomeValue",
         "lpaQuestionnaireValidationOutcomeDate": "2025-01-13T00:00:00.000Z",
-        "lpaQuestionnaireValidationDetails": ["lpaQuestionnaireValidationDetailsA", "lpaQuestionnaireValidationDetailsB"],
+        "lpaQuestionnaireValidationDetails": [
+            "lpaQuestionnaireValidationDetailsA",
+            "lpaQuestionnaireValidationDetailsB",
+        ],
         "lpaStatement": "lpaStatementValue",
         "caseWithdrawnDate": "2025-01-14T00:00:00.000Z",
         "caseTransferredDate": "2025-01-15T00:00:00.000Z",
@@ -120,8 +131,14 @@ def generate_appeal_s78_row(**overrides):
             },
         ],
         "reasonForNeighbourVisits": "reasonForNeighbourVisitsValue",
-        "affectedListedBuildingNumbers": ["affectedListedBuildingNumbersA", "affectedListedBuildingNumbersB"],
-        "changedListedBuildingNumbers": ["changedListedBuildingNumbersA", "changedListedBuildingNumbersB"],
+        "affectedListedBuildingNumbers": [
+            "affectedListedBuildingNumbersA",
+            "affectedListedBuildingNumbersB",
+        ],
+        "changedListedBuildingNumbers": [
+            "changedListedBuildingNumbersA",
+            "changedListedBuildingNumbersB",
+        ],
         "preserveGrantLoan": True,
         "consultHistoricEngland": True,
         "appellantCostsAppliedFor": True,
@@ -278,8 +295,12 @@ def generate_appeal_s78_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -291,7 +312,9 @@ def generate_appeal_s78_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -336,13 +359,27 @@ def generate_appeal_s78_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -350,8 +387,12 @@ def generate_appeal_s78_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -419,8 +460,12 @@ def generate_appeal_s78_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -471,12 +516,16 @@ def generate_appeal_s78_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -511,12 +560,28 @@ def generate_appeal_s78_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -749,7 +814,9 @@ def generate_curated_appeal_s78_schema():
             StructField("caseValidDate", TimestampType(), True),
             StructField("caseValidationDate", TimestampType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseValidationIncompleteDetails", StringType(), True),
             StructField("caseExtensionDate", TimestampType(), True),
             StructField("caseStartedDate", TimestampType(), True),
@@ -783,7 +850,9 @@ def generate_curated_appeal_s78_schema():
             StructField("siteAddressPostcode", StringType(), True),
             StructField("siteAccessDetails", StringType(), True),
             StructField("siteSafetyDetails", StringType(), True),
-            StructField("siteAreaSquareMetres", DecimalType(10, 0), True),  # This is boolean in the original notebook, which is wrong
+            StructField(
+                "siteAreaSquareMetres", DecimalType(10, 0), True
+            ),  # This is boolean in the original notebook, which is wrong
             StructField("floorSpaceSquareMetres", DecimalType(10, 0), True),
             StructField("isCorrectAppealType", BooleanType(), True),
             StructField("isGreenBelt", BooleanType(), True),
@@ -870,8 +939,12 @@ def generate_curated_appeal_s78_schema():
             StructField("planningObligationDueDate", StringType(), True),
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -904,12 +977,16 @@ def generate_curated_appeal_s78_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -958,13 +1035,29 @@ def generate_curated_appeal_s78_schema():
             StructField("reasonForAppealAppellant", StringType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("listOfDocumentsBeforeDecision", StringType(), True),
@@ -983,16 +1076,39 @@ class TestAppealS78MIPinsCurationProcess(ETLTestCase):
             schema=generate_appeal_s78_schema(),
         )
         appeal_s78_table = f"{test_case}_appeal_s78"
-        self.write_existing_table(spark, appeal_s78, appeal_s78_table, "odw_curated_db", "odw-curated-db", appeal_s78_table, "overwrite")
-        expected_curated_data_after_writing = spark.createDataFrame((generate_curated_appeal_s78_row(),), schema=generate_curated_appeal_s78_schema())
+        self.write_existing_table(
+            spark,
+            appeal_s78,
+            appeal_s78_table,
+            "odw_curated_db",
+            "odw-curated-db",
+            appeal_s78_table,
+            "overwrite",
+        )
+        expected_curated_data_after_writing = spark.createDataFrame(
+            (generate_curated_appeal_s78_row(),),
+            schema=generate_curated_appeal_s78_schema(),
+        )
         expected_output_table = f"{test_case}_appeals_s78_curated_mipins"
-        with mock.patch.object(AppealS78MIPINSCurationProcess, "APPEALS_S78_TABLE", appeal_s78_table):
-            with mock.patch.object(AppealS78MIPINSCurationProcess, "OUTPUT_TABLE", expected_output_table):
+        with mock.patch.object(
+            AppealS78MIPINSCurationProcess, "APPEALS_S78_TABLE", appeal_s78_table
+        ):
+            with mock.patch.object(
+                AppealS78MIPINSCurationProcess, "OUTPUT_TABLE", expected_output_table
+            ):
                 inst = AppealS78MIPINSCurationProcess(spark)
-                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_s78_mipins", orchestration_stage_name="curate")
+                result = inst.run(
+                    orchestration_run_id=test_case,
+                    orchestration_entity_name="appeal_s78_mipins",
+                    orchestration_stage_name="curate",
+                )
                 assert_etl_result_successful(result)
-                actual_table_data = spark.table(f"odw_curated_db.{expected_output_table}")
-                assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+                actual_table_data = spark.table(
+                    f"odw_curated_db.{expected_output_table}"
+                )
+                assert_dataframes_equal(
+                    expected_curated_data_after_writing, actual_table_data
+                )
 
     def test__appeal_s78_mipins_curation_process__run__with_no_existing_data(self):
         """
@@ -1011,7 +1127,18 @@ class TestAppealS78MIPinsCurationProcess(ETLTestCase):
         """
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_as78mcp_r_wed"
-        existing_data = spark.createDataFrame((generate_curated_appeal_s78_row(),), schema=generate_curated_appeal_s78_schema())
+        existing_data = spark.createDataFrame(
+            (generate_curated_appeal_s78_row(),),
+            schema=generate_curated_appeal_s78_schema(),
+        )
         existing_table_name = f"{test_case}_appeals_s78_curated_mipins"
-        self.write_existing_table(spark, existing_data, existing_table_name, "odw_curated_db", "odw-curated-db", existing_table_name, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            existing_table_name,
+            "odw_curated_db",
+            "odw-curated-db",
+            existing_table_name,
+            "overwrite",
+        )
         self.assert_successful_run(test_case)

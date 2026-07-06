@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -39,7 +41,9 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         return "NSIP Project Harmonisation Process"
 
     def _load_service_bus_data(self):
-        LoggingUtil().log_info("Extracting service bus NSIP project data from the harmonised layer")
+        LoggingUtil().log_info(
+            "Extracting service bus NSIP project data from the harmonised layer"
+        )
         return self.spark.sql(f"""
             SELECT 
                 NSIPProjectInfoInternalID,
@@ -217,7 +221,9 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         )
 
     def _load_horizon_data(self):
-        LoggingUtil().log_info("Extracting horizon NSIP project data from the standardised layer")
+        LoggingUtil().log_info(
+            "Extracting horizon NSIP project data from the standardised layer"
+        )
         return self.spark.sql(f"""
             SELECT
                 CAST(NULL AS Long) AS NSIPProjectInfoInternalID
@@ -452,13 +458,22 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         service_bus_data = self._load_service_bus_data()
         first_seen_service_bus_data = self._load_first_seen_service_bus_record()
         horizon_data = self._load_horizon_data()
-        return {"service_bus_data": service_bus_data, "horizon_data": horizon_data, "first_seen_service_bus_data": first_seen_service_bus_data}
+        return {
+            "service_bus_data": service_bus_data,
+            "horizon_data": horizon_data,
+            "first_seen_service_bus_data": first_seen_service_bus_data,
+        }
 
     def _parse_col_into_json(self, data: DataFrame, col_name: str, schema: T.DataType):
         """
         Convert a string column into JSON using the provided schema
         """
-        return data.withColumn(col_name, F.from_json(F.regexp_replace(F.col(col_name).cast("string"), "'", '"'), schema))
+        return data.withColumn(
+            col_name,
+            F.from_json(
+                F.regexp_replace(F.col(col_name).cast("string"), "'", '"'), schema
+            ),
+        )
 
     def _clean_json_cols(self, data: DataFrame):
         """
@@ -490,15 +505,23 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 ]
             )
         )
-        return self._parse_col_into_json(self._parse_col_into_json(data, "invoices", invoices_schema), "meetings", meetings_schema)
+        return self._parse_col_into_json(
+            self._parse_col_into_json(data, "invoices", invoices_schema),
+            "meetings",
+            meetings_schema,
+        )
 
     def _clean_data(self, service_bus_data: DataFrame, combined_data: DataFrame):
         """
         Need to work out what this is actually doing
         """
         # Need to read the original table
-        w_reverse_per_case = Window.partitionBy("caseid").orderBy(F.col("IngestionDate").desc())
-        w_internal_id = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseid").asc())
+        w_reverse_per_case = Window.partitionBy("caseid").orderBy(
+            F.col("IngestionDate").desc()
+        )
+        w_internal_id = Window.orderBy(
+            F.col("IngestionDate").asc(), F.col("caseid").asc()
+        )
 
         out_df = combined_data.select(
             F.row_number().over(w_reverse_per_case).alias("ReverseOrderProcessed"),
@@ -507,24 +530,38 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
             F.col("IngestionDate"),
             F.col("ValidTo"),
             F.lit("0").alias("migrated"),
-        ).withColumn("IsActive", F.when(F.col("ReverseOrderProcessed") == 1, F.lit("Y")).otherwise("N"))
+        ).withColumn(
+            "IsActive",
+            F.when(F.col("ReverseOrderProcessed") == 1, F.lit("Y")).otherwise("N"),
+        )
         df_calcs = (
             out_df.alias("current")
             .join(
                 out_df.alias("next"),
                 on=(
                     (F.col("current.caseid") == F.col("next.caseid"))
-                    & (F.col("current.ReverseOrderProcessed") - 1 == F.col("next.ReverseOrderProcessed"))
+                    & (
+                        F.col("current.ReverseOrderProcessed") - 1
+                        == F.col("next.ReverseOrderProcessed")
+                    )
                 ),
                 how="left",
             )
-            .join(service_bus_data.select(F.col("caseid")).distinct().alias("raw"), on=F.col("current.caseid") == F.col("raw.caseid"), how="left")
+            .join(
+                service_bus_data.select(F.col("caseid")).distinct().alias("raw"),
+                on=F.col("current.caseid") == F.col("raw.caseid"),
+                how="left",
+            )
             .select(
                 F.col("current.NSIPProjectInfoInternalID"),
                 F.col("current.caseid").alias("temp_caseid"),
                 F.col("current.IngestionDate").alias("temp_IngestionDate"),
-                F.coalesce(F.col("current.ValidTo"), F.col("next.IngestionDate")).alias("ValidTo"),
-                F.when(F.col("raw.caseid").isNotNull(), F.lit("1")).otherwise(F.lit("0")).alias("migrated"),
+                F.coalesce(F.col("current.ValidTo"), F.col("next.IngestionDate")).alias(
+                    "ValidTo"
+                ),
+                F.when(F.col("raw.caseid").isNotNull(), F.lit("1"))
+                .otherwise(F.lit("0"))
+                .alias("migrated"),
                 F.col("current.IsActive"),
             )
         )
@@ -684,154 +721,550 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
                 F.md5(
                     F.coalesce(
                         F.ifnull(F.col("caseid").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caseReference").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("caseReference").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("projectName").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectNameWelsh").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectDescription").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("projectNameWelsh").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("projectDescription").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("summary").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectDescriptionWelsh").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caseCreatedDate").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("projectDescriptionWelsh").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("caseCreatedDate").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("decision").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("publishStatus").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("publishStatus").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("sector").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("projectType").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("sourceSystem").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("sourceSystem").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("stage").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectLocation").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectLocationWelsh").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("projectEmailAddress").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("projectLocation").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("projectLocationWelsh").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("projectEmailAddress").cast(T.StringType()),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("regions").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("transboundary").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("transboundary").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("easting").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("northing").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("welshLanguage").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("mapZoomLevel").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("secretaryOfState").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("datePINSFirstNotifiedOfProject").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateProjectAppearsOnWebsite").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("anticipatedSubmissionDateNonSpecific").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("anticipatedDateOfSubmission").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("screeningOpinionSought").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("screeningOpinionIssued").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("scopingOpinionSought").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("scopingOpinionIssued").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("section46Notification").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfDCOSubmission").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("deadlineForAcceptanceDecision").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfDCOAcceptance").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfNonAcceptance").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfRepresentationPeriodOpen").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfRelevantRepresentationClose").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("extensionToDateRelevantRepresentationsClose").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateRRepAppearOnWebsite").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("welshLanguage").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("mapZoomLevel").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("secretaryOfState").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("datePINSFirstNotifiedOfProject").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateProjectAppearsOnWebsite").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("anticipatedSubmissionDateNonSpecific").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("anticipatedDateOfSubmission").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("screeningOpinionSought").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("screeningOpinionIssued").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("scopingOpinionSought").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("scopingOpinionIssued").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("section46Notification").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfDCOSubmission").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("deadlineForAcceptanceDecision").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfDCOAcceptance").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfNonAcceptance").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfRepresentationPeriodOpen").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfRelevantRepresentationClose").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("extensionToDateRelevantRepresentationsClose").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateRRepAppearOnWebsite").cast(T.StringType()),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("dateIAPIDue").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("rule6LetterPublishDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("preliminaryMeetingStartDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("notificationDateForPMAndEventsDirectlyFollowingPM").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("notificationDateForEventsDeveloper").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateSection58NoticeReceived").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("confirmedStartOfExamination").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("rule8LetterPublishDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("deadlineForCloseOfExamination").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateTimeExaminationEnds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("stage4ExtensionToExamCloseDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("deadlineForSubmissionOfRecommendation").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfRecommendations").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("stage5ExtensionToRecommendationDeadline").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("deadlineForDecision").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("confirmedDateOfDecision").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("stage5ExtensionToDecisionDeadline").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("jRPeriodEndDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateProjectWithdrawn").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("operationsLeadIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("operationsManagerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caseManagerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("nsipOfficerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("nsipAdministrationOfficerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("leadInspectorId").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("inspectorIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("environmentalServicesOfficerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("legalOfficerId").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("rule6LetterPublishDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("preliminaryMeetingStartDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col(
+                                "notificationDateForPMAndEventsDirectlyFollowingPM"
+                            ).cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("notificationDateForEventsDeveloper").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateSection58NoticeReceived").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("confirmedStartOfExamination").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("rule8LetterPublishDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("deadlineForCloseOfExamination").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateTimeExaminationEnds").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("stage4ExtensionToExamCloseDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("deadlineForSubmissionOfRecommendation").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfRecommendations").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("stage5ExtensionToRecommendationDeadline").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("deadlineForDecision").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("confirmedDateOfDecision").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("stage5ExtensionToDecisionDeadline").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("jRPeriodEndDate").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("dateProjectWithdrawn").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("operationsLeadIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("operationsManagerIds").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("caseManagerIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("nsipOfficerIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("nsipAdministrationOfficerIds").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("leadInspectorId").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("inspectorIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("environmentalServicesOfficerIds").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("legalOfficerId").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("applicantId").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("migrationStatus").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfReOpenRelevantRepresentationStart").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("dateOfReOpenRelevantRepresentationClose").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("migrationStatus").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("dateOfReOpenRelevantRepresentationStart").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("dateOfReOpenRelevantRepresentationClose").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("migrated").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("ODTSourceSystem").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("SourceSystemID").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("IngestionDate").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("ODTSourceSystem").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("SourceSystemID").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("IngestionDate").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("ValidTo").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("IsActive").cast(T.StringType()), F.lit(".")),
                         # Start Horizon only fields
-                        F.ifnull(F.col("examTimetablePublishStatus").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("twitteraccountname").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("examTimetablePublishStatus").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("twitteraccountname").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("exasize").cast(T.StringType()), F.lit(".")),
                         F.ifnull(F.col("tene").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("promotername").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantfirstname").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantlastname").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("addressLine1").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("addressLine2").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("promotername").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("applicantfirstname").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("applicantlastname").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("addressLine1").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("addressLine2").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("addressTown").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("addressCounty").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("addressCounty").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("Postcode").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantemailaddress").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantwebaddress").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantphonenumber").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("applicantdescriptionofproject").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("HorizonCaseNumber").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("isMaterialChange").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("inceptionMeetingDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("draftDocumentSubmissionDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("programmeDocumentSubmissionDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("estimatedScopingSubmissionDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("consultationMilestoneAdequacyDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("principalAreaDisagreementSummaryStmtSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("policyComplianceDocumentSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("designApproachDocumentSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caAndTpEvidenceSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caseTeamIssuedCommentsDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("fastTrackAdmissionDocumentSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("matureOutlineControlDocumentSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("memLastUpdated").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("multipartyApplicationCheckDocumentSubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("programmeDocumentReviewedByEstDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("publicSectorEqualityDutySubmittedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("statutoryConsultationPeriodEndDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("submissionOfDraftDocumentsDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("updatedProgrammeDocumentReceivedDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("courtDecisionDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("decisionChallengeSubmissionDate").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("courtDecisionOutcomeText").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("recommendation").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("additionalComments").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caAndTpEvidence").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("fastTrackAdmissionDocument").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("applicantemailaddress").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("applicantwebaddress").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("applicantphonenumber").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("applicantdescriptionofproject").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("HorizonCaseNumber").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("isMaterialChange").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("inceptionMeetingDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("draftDocumentSubmissionDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("programmeDocumentSubmissionDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("estimatedScopingSubmissionDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("consultationMilestoneAdequacyDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col(
+                                "principalAreaDisagreementSummaryStmtSubmittedDate"
+                            ).cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("policyComplianceDocumentSubmittedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("designApproachDocumentSubmittedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("caAndTpEvidenceSubmittedDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("caseTeamIssuedCommentsDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("fastTrackAdmissionDocumentSubmittedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("matureOutlineControlDocumentSubmittedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("memLastUpdated").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col(
+                                "multipartyApplicationCheckDocumentSubmittedDate"
+                            ).cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("programmeDocumentReviewedByEstDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("publicSectorEqualityDutySubmittedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("statutoryConsultationPeriodEndDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("submissionOfDraftDocumentsDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("updatedProgrammeDocumentReceivedDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("courtDecisionDate").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("decisionChallengeSubmissionDate").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("courtDecisionOutcomeText").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("recommendation").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("additionalComments").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("caAndTpEvidence").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("fastTrackAdmissionDocument").cast(T.StringType()),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("meetings").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("multipartyApplicationCheckDocument").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("multipartyApplicationCheckDocument").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("newMaturity").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("numberBand2Inspectors").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("numberBand3Inspectors").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("programmeDocumentURI").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("publicSectorEqualityDuty").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("subProjectType").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("numberBand2Inspectors").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("numberBand3Inspectors").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("programmeDocumentURI").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("publicSectorEqualityDuty").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("subProjectType").cast(T.StringType()), F.lit(".")
+                        ),
                         F.ifnull(F.col("tier").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("s61SummaryURI").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("planProcessEvidence").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("issuesTracker").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("essentialFastTrackComponents").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("principalAreaDisagreementSummaryStmt").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("policyComplianceDocument").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("designApproachDocument").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("matureOutlineControlDocument").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("s61SummaryURI").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("planProcessEvidence").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("issuesTracker").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("essentialFastTrackComponents").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("principalAreaDisagreementSummaryStmt").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("policyComplianceDocument").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("designApproachDocument").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("matureOutlineControlDocument").cast(T.StringType()),
+                            F.lit("."),
+                        ),
                         F.ifnull(F.col("invoices").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("operationsLeadIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("operationsManagerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("caseManagerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("leadInspectorIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("environmentalServicesOfficerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("legalOfficerIds").cast(T.StringType()), F.lit(".")),
-                        F.ifnull(F.col("estimatedPrelimMeetingDate").cast(T.StringType()), F.lit(".")),
+                        F.ifnull(
+                            F.col("operationsLeadIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("operationsManagerIds").cast(T.StringType()),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("caseManagerIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("leadInspectorIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("environmentalServicesOfficerIds").cast(
+                                T.StringType()
+                            ),
+                            F.lit("."),
+                        ),
+                        F.ifnull(
+                            F.col("legalOfficerIds").cast(T.StringType()), F.lit(".")
+                        ),
+                        F.ifnull(
+                            F.col("estimatedPrelimMeetingDate").cast(T.StringType()),
+                            F.lit("."),
+                        ),
                     )
                 ).alias("RowID"),
                 F.col("isMaterialChange"),
@@ -840,29 +1273,45 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         )
 
         columns = cleaned_data.columns
-        cleaned_data = cleaned_data.drop("NSIPProjectInfoInternalID", "ValidTo", "migrated", "IsActive")
+        cleaned_data = cleaned_data.drop(
+            "NSIPProjectInfoInternalID", "ValidTo", "migrated", "IsActive"
+        )
         final_df = cleaned_data.join(
-            df_calcs, (df_calcs["temp_caseid"] == cleaned_data["caseid"]) & (df_calcs["temp_IngestionDate"] == cleaned_data["IngestionDate"])
+            df_calcs,
+            (df_calcs["temp_caseid"] == cleaned_data["caseid"])
+            & (df_calcs["temp_IngestionDate"] == cleaned_data["IngestionDate"]),
         ).select(columns)
         return final_df.drop_duplicates()
 
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
-        first_seen_service_bus_data: DataFrame = self.load_parameter("first_seen_service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
+        first_seen_service_bus_data: DataFrame = self.load_parameter(
+            "first_seen_service_bus_data", source_data
+        )
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         # Join horizon and service bus data
         horizon_data = (
             horizon_data.join(
                 first_seen_service_bus_data,
                 on=(
-                    (horizon_data["HorizonCaseNumber"] == first_seen_service_bus_data["caseId"])
-                    & (horizon_data["IngestionDate"] >= first_seen_service_bus_data["ingested"])
+                    (
+                        horizon_data["HorizonCaseNumber"]
+                        == first_seen_service_bus_data["caseId"]
+                    )
+                    & (
+                        horizon_data["IngestionDate"]
+                        >= first_seen_service_bus_data["ingested"]
+                    )
                 ),
                 how="left",
             )
-            .filter(first_seen_service_bus_data["caseId"].isNull())  # Need to drop cases that have been migrated, but keep the history from Horizon
+            .filter(
+                first_seen_service_bus_data["caseId"].isNull()
+            )  # Need to drop cases that have been migrated, but keep the history from Horizon
             .drop(first_seen_service_bus_data["caseid"])
         )
 
@@ -881,7 +1330,12 @@ class NsipProjectHarmonisationProcess(HarmonisationProcess):
         grouping_cols_map = {"region": "regions"} | {x: x for x in grouping_cols}
         # This deviates from the original notebook, which has performance issues
         w = Window.partitionBy(horizon_data["caseid"], "IngestionDate")
-        horizon_data = horizon_data.withColumns({alias: F.collect_list(col).over(w) for col, alias in grouping_cols_map.items()})
+        horizon_data = horizon_data.withColumns(
+            {
+                alias: F.collect_list(col).over(w)
+                for col, alias in grouping_cols_map.items()
+            }
+        )
         # Sort columns into same order as service bus
         horizon_data = horizon_data.select(service_bus_data.columns)
 

@@ -1,6 +1,9 @@
 import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     ArrayType,
@@ -12,7 +15,9 @@ from pyspark.sql.types import (
     DoubleType,
 )
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import (
+    NsipInvoiceHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from datetime import datetime
@@ -191,7 +196,9 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 invoices=None,
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
         self.write_empty_target_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
@@ -227,15 +234,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__empty_invoice_array_produces_zero_rows_like_legacy(
@@ -247,21 +270,39 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         source_rows = [
             _source_row(invoices=[]),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
         self.write_empty_target_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame([], _harmonised_schema())
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__preserves_duplicate_invoice_rows_like_legacy(
@@ -278,7 +319,9 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 ]
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
         self.write_empty_target_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame(
@@ -313,15 +356,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__starts_surrogate_key_from_existing_max_id_plus_one(
@@ -347,8 +406,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         existing_rows = [
             _harmonised_row(NSIPInvoiceID=10, invoiceNumber="INV-001"),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -380,15 +443,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__deactivates_older_row_when_newer_project_record_arrives(
@@ -417,8 +496,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 ValidTo=None,
             )
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -449,15 +532,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__same_case_different_invoice_number_keeps_both_active(
@@ -483,8 +582,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 IngestionDate="2025-01-18T10:00:00.000000+0000",
             )
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -511,15 +614,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__active_row_is_chosen_by_project_info_id_not_ingestion_date(
@@ -546,8 +665,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 IngestionDate="2025-01-20T10:00:00.000000+0000",
             )
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -575,15 +698,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__filters_out_rows_not_newer_than_existing_max_ingestion_date(
@@ -611,8 +750,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 IngestionDate="2025-01-16T12:00:00.000000+0000",
             )
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -636,15 +779,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__unrelated_existing_groups_remain_untouched(
@@ -679,8 +838,12 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
                 IngestionDate="2025-01-18T10:00:00.000000+0000",
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case)
-        self.write_target_table(spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _standardised_schema()), test_case
+        )
+        self.write_target_table(
+            spark, spark.createDataFrame(existing_rows, _harmonised_schema()), test_case
+        )
 
         expected_table_data = spark.createDataFrame(
             [
@@ -718,15 +881,31 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)
 
     def test__nsip_invoice_harmonisation_process__run__empty_source_returns_empty_output(
@@ -735,19 +914,37 @@ class TestNsipInvoiceHarmonisationProcess(ETLTestCase):
         test_case = "t_nihp_r_esreo"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        self.write_source_table(spark, spark.createDataFrame([], _standardised_schema()), test_case)
+        self.write_source_table(
+            spark, spark.createDataFrame([], _standardised_schema()), test_case
+        )
         self.write_empty_target_table(spark, test_case)
 
         expected_table_data = spark.createDataFrame([], _harmonised_schema())
 
         with (
-            mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "SERVICE_BUS_TABLE", f"{test_case}_sb_nsip_project"),
-            mock.patch.object(NsipInvoiceHarmonisationProcess, "OUTPUT_TABLE", f"{test_case}_sb_nsip_invoice"),
+            mock.patch.object(
+                F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"{test_case}_sb_nsip_project",
+            ),
+            mock.patch.object(
+                NsipInvoiceHarmonisationProcess,
+                "OUTPUT_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
         ):
             inst = NsipInvoiceHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="harmonise",
+            )
 
         assert_etl_result_successful(result)
-        actual_table_data = spark.table(f"odw_harmonised_db.{test_case}_sb_nsip_invoice")
+        actual_table_data = spark.table(
+            f"odw_harmonised_db.{test_case}_sb_nsip_invoice"
+        )
         self.compare_harmonised_data(expected_table_data, actual_table_data)

@@ -1,5 +1,7 @@
 import mock
-from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
+from odw.core.etl.transformation.curated.nsip_project_curated_process import (
+    NsipProjectCuratedProcess,
+)
 from odw.core.util.util import Util
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -56,12 +58,16 @@ def _harmonised_schema():
             StructField("dateOfNonAcceptance", StringType(), True),
             StructField("dateOfRepresentationPeriodOpen", StringType(), True),
             StructField("dateOfRelevantRepresentationClose", StringType(), True),
-            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField(
+                "extensionToDateRelevantRepresentationsClose", StringType(), True
+            ),
             StructField("dateRRepAppearOnWebsite", StringType(), True),
             StructField("dateIAPIDue", StringType(), True),
             StructField("rule6LetterPublishDate", StringType(), True),
             StructField("preliminaryMeetingStartDate", StringType(), True),
-            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField(
+                "notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True
+            ),
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
@@ -190,39 +196,70 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
-            [_harmonised_row(caseId=2002, caseReference="EN020002", publishStatus="PUBlic", ODTSourceSystem="Horizon")],
+            [
+                _harmonised_row(
+                    caseId=2002,
+                    caseReference="EN020002",
+                    publishStatus="PUBlic",
+                    ODTSourceSystem="Horizon",
+                )
+            ],
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("publishStatus").collect()[0]
 
         assert row["publishStatus"] == "public"
 
-    def test__nsip_project_curated_process__process__leaves_other_project_types_unchanged(self):
+    def test__nsip_project_curated_process__process__leaves_other_project_types_unchanged(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
-            [_harmonised_row(caseId=2002, caseReference="EN020002", projectType="Normal Type")],
+            [
+                _harmonised_row(
+                    caseId=2002, caseReference="EN020002", projectType="Normal Type"
+                )
+            ],
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("projectType").collect()[0]
 
         assert row["projectType"] == "Normal Type"
 
-    def test__nsip_project_curated_process__process__maps_odt_source_system_to_back_office_applications(self):
+    def test__nsip_project_curated_process__process__maps_odt_source_system_to_back_office_applications(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
@@ -230,57 +267,98 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("sourceSystem").collect()[0]
 
         assert row["sourceSystem"] == "back-office-applications"
 
-    def test__nsip_project_curated_process__process__lowercases_non_odt_source_system_values(self):
+    def test__nsip_project_curated_process__process__lowercases_non_odt_source_system_values(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
-            [_harmonised_row(caseId=2002, caseReference="EN020002", ODTSourceSystem="Custom-System")],
+            [
+                _harmonised_row(
+                    caseId=2002,
+                    caseReference="EN020002",
+                    ODTSourceSystem="Custom-System",
+                )
+            ],
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.select("sourceSystem").collect()[0]
 
         assert row["sourceSystem"] == "custom-system"
 
-    def test__nsip_project_curated_process__process__normalises_stage_with_lowercase_spaces_and_hyphens_replaced(self):
+    def test__nsip_project_curated_process__process__normalises_stage_with_lowercase_spaces_and_hyphens_replaced(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
             [
                 _harmonised_row(caseId=1001, stage="Pre-Application Stage"),
-                _harmonised_row(caseId=2002, caseReference="EN020002", stage="Decision - Stage"),
+                _harmonised_row(
+                    caseId=2002, caseReference="EN020002", stage="Decision - Stage"
+                ),
             ],
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = {row["caseId"]: row["stage"] for row in df.select("caseId", "stage").collect()}
+        rows = {
+            row["caseId"]: row["stage"]
+            for row in df.select("caseId", "stage").collect()
+        }
 
         assert rows[1001] == "pre_application_stage"
         assert rows[2002] == "decision___stage"
 
-    def test__nsip_project_curated_process__process__casts_easting_and_northing_to_int(self):
+    def test__nsip_project_curated_process__process__casts_easting_and_northing_to_int(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
@@ -288,10 +366,18 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         dtypes = dict(df.dtypes)
@@ -299,7 +385,9 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
         assert dtypes["easting"] == "int"
         assert dtypes["northing"] == "int"
 
-    def test__nsip_project_curated_process__process__uses_latest_horizon_even_if_later_non_horizon_exists(self):
+    def test__nsip_project_curated_process__process__uses_latest_horizon_even_if_later_non_horizon_exists(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
@@ -322,17 +410,27 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
 
         assert row["projectName"] == "Latest Horizon Wins"
 
-    def test__nsip_project_curated_process__process__duplicate_latest_horizon_rows_are_preserved_like_legacy_sql_join(self):
+    def test__nsip_project_curated_process__process__duplicate_latest_horizon_rows_are_preserved_like_legacy_sql_join(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_df = spark.createDataFrame(
@@ -353,25 +451,48 @@ class TestNsipProjectCuratedProcess(SparkTestCase):
             schema=_harmonised_schema(),
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, _ = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, _ = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.where(F.col("caseId") == 7007).count() == 2
 
-    def test__nsip_project_curated_process__process__uses_overwrite_write_mode_and_expected_table_name(self):
+    def test__nsip_project_curated_process__process__uses_overwrite_write_mode_and_expected_table_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        harmonised_df = spark.createDataFrame([_harmonised_row()], schema=_harmonised_schema())
+        harmonised_df = spark.createDataFrame(
+            [_harmonised_row()], schema=_harmonised_schema()
+        )
 
-        with mock.patch("odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.nsip_project_curated_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectCuratedProcess(spark)
-                data_to_write, result = inst.process(source_data={"harmonised_data": harmonised_df})
+                data_to_write, result = inst.process(
+                    source_data={"harmonised_data": harmonised_df}
+                )
 
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert data_to_write[inst.OUTPUT_TABLE]["table_name"] == "nsip_project"
-        assert result.metadata.insert_count == data_to_write[inst.OUTPUT_TABLE]["data"].count()
+        assert (
+            result.metadata.insert_count
+            == data_to_write[inst.OUTPUT_TABLE]["data"].count()
+        )

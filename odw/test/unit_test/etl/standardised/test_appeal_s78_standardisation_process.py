@@ -1,7 +1,17 @@
 import mock
 import pytest
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType, BooleanType
-from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import AppealS78StandardisationProcess
+from pyspark.sql.types import (
+    ArrayType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+    IntegerType,
+    BooleanType,
+)
+from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import (
+    AppealS78StandardisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.assertion import assert_dataframes_equal
@@ -14,7 +24,9 @@ pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet"
 
 
 class TestAppealS78StandardisationProcess(SparkTestCase):
-    def assert_data_load_query(self, override_property: str, test_name: str, target_function: Callable):
+    def assert_data_load_query(
+        self, override_property: str, test_name: str, target_function: Callable
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         def generate_row(**overrides):
@@ -32,36 +44,93 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
         raw_data = spark.createDataFrame(
             (
-                generate_row(expected_from=datetime(2020, 1, 1), colA=1, colB=2, colC=3),
-                generate_row(expected_from=datetime(2020, 1, 1), colA=2, colB=4, colC=6),
-                generate_row(expected_from=datetime(2020, 1, 1), colA=3, colB=6, colC=9),
-                generate_row(expected_from=datetime(2021, 1, 1), colA=4, colB=8, colC=12),
-                generate_row(expected_from=datetime(2021, 1, 1), colA=5, colB=10, colC=15),
-                generate_row(expected_from=datetime(2022, 1, 1), colA=6, colB=12, colC=18),
-                generate_row(expected_from=datetime(2023, 1, 1), colA=7, colB=14, colC=21),
-                generate_row(expected_from=datetime(2024, 1, 1), colA=8, colB=16, colC=24),
-                generate_row(expected_from=datetime(2025, 1, 1), colA=9, colB=18, colC=27),
-                generate_row(expected_from=datetime(2026, 1, 1), colA=10, colB=20, colC=30),
-                generate_row(expected_from=datetime(2027, 1, 1), colA=11, colB=22, colC=33),
-                generate_row(expected_from=datetime(2028, 1, 1), colA=12, colB=24, colC=36),
-                generate_row(expected_from=datetime(2029, 1, 1), colA=13, colB=26, colC=39),
-                generate_row(expected_from=datetime(2029, 1, 1), colA=14, colB=28, colC=42),
-                generate_row(expected_from=datetime(2029, 1, 1), colA=15, colB=30, colC=45),
+                generate_row(
+                    expected_from=datetime(2020, 1, 1), colA=1, colB=2, colC=3
+                ),
+                generate_row(
+                    expected_from=datetime(2020, 1, 1), colA=2, colB=4, colC=6
+                ),
+                generate_row(
+                    expected_from=datetime(2020, 1, 1), colA=3, colB=6, colC=9
+                ),
+                generate_row(
+                    expected_from=datetime(2021, 1, 1), colA=4, colB=8, colC=12
+                ),
+                generate_row(
+                    expected_from=datetime(2021, 1, 1), colA=5, colB=10, colC=15
+                ),
+                generate_row(
+                    expected_from=datetime(2022, 1, 1), colA=6, colB=12, colC=18
+                ),
+                generate_row(
+                    expected_from=datetime(2023, 1, 1), colA=7, colB=14, colC=21
+                ),
+                generate_row(
+                    expected_from=datetime(2024, 1, 1), colA=8, colB=16, colC=24
+                ),
+                generate_row(
+                    expected_from=datetime(2025, 1, 1), colA=9, colB=18, colC=27
+                ),
+                generate_row(
+                    expected_from=datetime(2026, 1, 1), colA=10, colB=20, colC=30
+                ),
+                generate_row(
+                    expected_from=datetime(2027, 1, 1), colA=11, colB=22, colC=33
+                ),
+                generate_row(
+                    expected_from=datetime(2028, 1, 1), colA=12, colB=24, colC=36
+                ),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1), colA=13, colB=26, colC=39
+                ),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1), colA=14, colB=28, colC=42
+                ),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1), colA=15, colB=30, colC=45
+                ),
             ),
             schema=schema,
         )
-        self.write_existing_table(spark, raw_data, test_name, "odw_standardised_db", "odw-standardised", test_name, "overwrite")
+        self.write_existing_table(
+            spark,
+            raw_data,
+            test_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            test_name,
+            "overwrite",
+        )
         expected_data = spark.createDataFrame(
             (
-                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="13", colB="26", colC="39"),
-                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="14", colB="28", colC="42"),
-                generate_row(expected_from=datetime(2029, 1, 1, 0, 0), colA="15", colB="30", colC="45"),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1, 0, 0),
+                    colA="13",
+                    colB="26",
+                    colC="39",
+                ),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1, 0, 0),
+                    colA="14",
+                    colB="28",
+                    colC="42",
+                ),
+                generate_row(
+                    expected_from=datetime(2029, 1, 1, 0, 0),
+                    colA="15",
+                    colB="30",
+                    colC="45",
+                ),
             ),
             schema=schema,
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, override_property, test_name),
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+            mock.patch.object(
+                AppealS78StandardisationProcess, override_property, test_name
+            ),
+            mock.patch.object(
+                AppealS78StandardisationProcess, "__init__", return_value=None
+            ),
         ):
             inst = AppealS78StandardisationProcess()
             actual_data = target_function(inst)
@@ -69,16 +138,24 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
     def test__appeal_s78_standardisation_process__load_horizoncases_s78(self):
         self.assert_data_load_query(
-            "STANDARDISED_HORIZON_CASES_S78", "t_as78sp_lhcs78", AppealS78StandardisationProcess._load_standardised_horizoncases_s78
+            "STANDARDISED_HORIZON_CASES_S78",
+            "t_as78sp_lhcs78",
+            AppealS78StandardisationProcess._load_standardised_horizoncases_s78,
         )
 
     def test__appeal_s78_standardisation_process__load_cases_specialisms(self):
         self.assert_data_load_query(
-            "STANDARDISED_CASES_SPECIALISMS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_cases_specialisms
+            "STANDARDISED_CASES_SPECIALISMS",
+            "t_as78sp_lcs",
+            AppealS78StandardisationProcess._load_standardised_cases_specialisms,
         )
 
     def test__appeal_s78_standardisation_process__load_vw_case_dates(self):
-        self.assert_data_load_query("STANDARDISED_VW_CASE_DATES", "t_as78sp_lvwcd", AppealS78StandardisationProcess._load_standardised_vw_case_dates)
+        self.assert_data_load_query(
+            "STANDARDISED_VW_CASE_DATES",
+            "t_as78sp_lvwcd",
+            AppealS78StandardisationProcess._load_standardised_vw_case_dates,
+        )
 
     def test__appeal_s78_standardisation_process__load_casedocumentdatesdates(self):
         self.assert_data_load_query(
@@ -89,11 +166,17 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
     def test__appeal_s78_standardisation_process__load_casesitestrings(self):
         self.assert_data_load_query(
-            "STANDARDISED_CASE_SITE_STRINGS", "t_as78sp_lcss", AppealS78StandardisationProcess._load_standardised_casesitestrings
+            "STANDARDISED_CASE_SITE_STRINGS",
+            "t_as78sp_lcss",
+            AppealS78StandardisationProcess._load_standardised_casesitestrings,
         )
 
     def test__appeal_s78_standardisation_process__load_type_of_procedure(self):
-        self.assert_data_load_query("STANDARDISED_TYPE_OF_PROCEDURE", "t_as78sp_ltop", AppealS78StandardisationProcess._load_type_of_procedure)
+        self.assert_data_load_query(
+            "STANDARDISED_TYPE_OF_PROCEDURE",
+            "t_as78sp_ltop",
+            AppealS78StandardisationProcess._load_type_of_procedure,
+        )
 
     def test__appeal_s78_standardisation_process__load_vw_addadditionaldata(self):
         self.assert_data_load_query(
@@ -104,7 +187,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
     def test__appeal_s78_standardisation_process__load_vw_additionalfields(self):
         self.assert_data_load_query(
-            "STANDARDISED_ADDITIONAL_FIELDS", "t_as78sp_lvwaf", AppealS78StandardisationProcess._load_standardised_vw_additionalfields
+            "STANDARDISED_ADDITIONAL_FIELDS",
+            "t_as78sp_lvwaf",
+            AppealS78StandardisationProcess._load_standardised_vw_additionalfields,
         )
 
     def test__appeal_s78_standardisation_process__load_horizon_advert_attributes(self):
@@ -116,10 +201,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
     def test__appeal_s78_standardisation_process__load_current_type_of_level(self):
         self.assert_data_load_query(
-            "STANDARDISED_TYPE_OF_LEVEL", "t_as78sp_lctol", AppealS78StandardisationProcess._load_standardised_current_type_of_level
+            "STANDARDISED_TYPE_OF_LEVEL",
+            "t_as78sp_lctol",
+            AppealS78StandardisationProcess._load_standardised_current_type_of_level,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(self):
+    def test__appeal_s78_standardisation_process__load_horizon_specialist_case_dates(
+        self,
+    ):
         self.assert_data_load_query(
             "STANDARDISED_HORIZON_SPECIALIST_CASE_DATES",
             "t_as78sp_lhscd",
@@ -134,17 +223,31 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
 
     def test__appeal_s78_standardisation_process__load_planning_app_dates(self):
-        self.assert_data_load_query("STANDARDISED_PLANNING_APP_DATES", "t_as78sp_lpad", AppealS78StandardisationProcess._load_planning_app_dates)
+        self.assert_data_load_query(
+            "STANDARDISED_PLANNING_APP_DATES",
+            "t_as78sp_lpad",
+            AppealS78StandardisationProcess._load_planning_app_dates,
+        )
 
     def test__appeal_s78_standardisation_process__load_standardised_bis_lead_case(self):
-        self.assert_data_load_query("STANDARDISED_LEAD_CASE", "t_as78sp_lblc", AppealS78StandardisationProcess._load_standardised_bis_lead_case)
+        self.assert_data_load_query(
+            "STANDARDISED_LEAD_CASE",
+            "t_as78sp_lblc",
+            AppealS78StandardisationProcess._load_standardised_bis_lead_case,
+        )
 
     def test__appeal_s78_standardisation_process__load_standardised_case_strings(self):
-        self.assert_data_load_query("STANDARDISED_CASE_STRINGS", "t_as78sp_lcs", AppealS78StandardisationProcess._load_standardised_case_strings)
+        self.assert_data_load_query(
+            "STANDARDISED_CASE_STRINGS",
+            "t_as78sp_lcs",
+            AppealS78StandardisationProcess._load_standardised_case_strings,
+        )
 
     def test__appeal_s78_standardisation_process__load_horizon_case_info(self):
         self.assert_data_load_query(
-            "STANDARDISED_HORIZON_CASE_INFO", "t_as78sp_lhci", AppealS78StandardisationProcess._load_standardised_horizon_case_info
+            "STANDARDISED_HORIZON_CASE_INFO",
+            "t_as78sp_lhci",
+            AppealS78StandardisationProcess._load_standardised_horizon_case_info,
         )
 
     def test__appeal_s78_standardisation_process__load_horizon_case_dates(self):
@@ -154,7 +257,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._load_standardised_horizon_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_appeals_additional_data(self):
+    def test__appeal_s78_standardisation_process__load_horizon_appeals_additional_data(
+        self,
+    ):
         self.assert_data_load_query(
             "STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA",
             "t_as78sp_lhaad",
@@ -163,7 +268,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
     def test__appeal_s78_standardisation_process__load_horizon_appeal_grounds(self):
         self.assert_data_load_query(
-            "STANDARDISED_HORIZON_APPEAL_GROUNDS", "t_as78sp_phag", AppealS78StandardisationProcess._load_standardised_horizon_appeal_grounds
+            "STANDARDISED_HORIZON_APPEAL_GROUNDS",
+            "t_as78sp_phag",
+            AppealS78StandardisationProcess._load_standardised_horizon_appeal_grounds,
         )
 
     def test__appeal_s78_standardisation_process__load_horizon_notice_dates(self):
@@ -173,14 +280,18 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._load_standardised_horizon_notice_dates,
         )
 
-    def test__appeal_s78_standardisation_process__load_horizon_application_made_under_section(self):
+    def test__appeal_s78_standardisation_process__load_horizon_application_made_under_section(
+        self,
+    ):
         self.assert_data_load_query(
             "STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION",
             "t_as78sp_lhamus",
             AppealS78StandardisationProcess._load_standardised_horizon_application_made_under_section,
         )
 
-    def _assert_row_count_aggregation_query(self, target_col_name: str, target_function: Callable):
+    def _assert_row_count_aggregation_query(
+        self, target_col_name: str, target_function: Callable
+    ):
         """
         Tests for the data loaders that execute a query with the below structure
 
@@ -210,7 +321,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             return base | overrides
 
         def generate_expected_row(**overrides):
-            base = {"ingested_datetime": None, "expected_from": None, "modified_datetime": None, "file_id": None, target_col_name: None, "rn": 1}
+            base = {
+                "ingested_datetime": None,
+                "expected_from": None,
+                "modified_datetime": None,
+                "file_id": None,
+                target_col_name: None,
+                "rn": 1,
+            }
             return base | overrides
 
         expected_from_base = datetime(2025, 1, 1)
@@ -353,8 +471,18 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     modified_datetime=modified_datetime_inc,
                     rn=1,
                 ),
-                generate_expected_row(**{target_col_name: "2"}, ingested_datetime=None, expected_from=None, modified_datetime=None),
-                generate_expected_row(**{target_col_name: "3"}, ingested_datetime=None, expected_from=None, modified_datetime=None),
+                generate_expected_row(
+                    **{target_col_name: "2"},
+                    ingested_datetime=None,
+                    expected_from=None,
+                    modified_datetime=None,
+                ),
+                generate_expected_row(
+                    **{target_col_name: "3"},
+                    ingested_datetime=None,
+                    expected_from=None,
+                    modified_datetime=None,
+                ),
             ),
             schema=StructType(
                 [
@@ -368,17 +496,26 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+            mock.patch.object(
+                AppealS78StandardisationProcess, "__init__", return_value=None
+            ),
         ):
             inst = AppealS78StandardisationProcess()
             actual_data = target_function(inst, raw_data)
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizoncases_s78(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizoncases_s78(
+        self,
+    ):
         # h_1row
-        self._assert_row_count_aggregation_query("caseuniqueid", AppealS78StandardisationProcess._generate_aggregate_horizoncases_s78)
+        self._assert_row_count_aggregation_query(
+            "caseuniqueid",
+            AppealS78StandardisationProcess._generate_aggregate_horizoncases_s78,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_cases_specialisms(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_cases_specialisms(
+        self,
+    ):
         # cs_agg
         def generate_case_specialisms_row(**overrides):
             base = {
@@ -401,10 +538,20 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         raw_data = spark.createDataFrame(
             (
                 generate_case_specialisms_row(file_id="1", casereference="refA"),
-                generate_case_specialisms_row(file_id="2", casereference="refB", casespecialism=""),
-                generate_case_specialisms_row(file_id="2", casereference="refC", casespecialism="Some Specialism"),
-                generate_case_specialisms_row(file_id="3", casereference="refD", casespecialism="Some Specialism"),
-                generate_case_specialisms_row(file_id="4", casereference="refE", casespecialism="Another Specialism"),
+                generate_case_specialisms_row(
+                    file_id="2", casereference="refB", casespecialism=""
+                ),
+                generate_case_specialisms_row(
+                    file_id="2", casereference="refC", casespecialism="Some Specialism"
+                ),
+                generate_case_specialisms_row(
+                    file_id="3", casereference="refD", casespecialism="Some Specialism"
+                ),
+                generate_case_specialisms_row(
+                    file_id="4",
+                    casereference="refE",
+                    casespecialism="Another Specialism",
+                ),
             ),
             schema=StructType(
                 [
@@ -430,51 +577,87 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 {"casereference": "refD", "casespecialism": "Some Specialism"},
                 {"casereference": "refE", "casespecialism": "Another Specialism"},
             ),
-            schema=StructType([StructField("casereference", StringType(), True), StructField("casespecialism", StringType(), False)]),
+            schema=StructType(
+                [
+                    StructField("casereference", StringType(), True),
+                    StructField("casespecialism", StringType(), False),
+                ]
+            ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+            mock.patch.object(
+                AppealS78StandardisationProcess, "__init__", return_value=None
+            ),
         ):
-            actual_data = AppealS78StandardisationProcess()._generate_aggregate_cases_specialisms(raw_data)
+            actual_data = (
+                AppealS78StandardisationProcess()._generate_aggregate_cases_specialisms(
+                    raw_data
+                )
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_vw_case_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_case_dates(
+        self,
+    ):
         # cd_1row
-        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_vw_case_dates)
+        self._assert_row_count_aggregation_query(
+            "casenodeid",
+            AppealS78StandardisationProcess._generate_aggregate_vw_case_dates,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_casedocumentdatesdates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_casedocumentdatesdates(
+        self,
+    ):
         # cdd_1row
         self._assert_row_count_aggregation_query(
             "casenodeid",
             AppealS78StandardisationProcess._generate_aggregate_casedocumentdatesdates,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_casesitestrings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_casesitestrings(
+        self,
+    ):
         # css_1row
-        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_casesitestrings)
+        self._assert_row_count_aggregation_query(
+            "casenodeid",
+            AppealS78StandardisationProcess._generate_aggregate_casesitestrings,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_vw_addadditionaldata(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_addadditionaldata(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "appealrefnumber",
             AppealS78StandardisationProcess._generate_aggregate_vw_addadditionaldata,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_vw_additionalfields(self):
-        self._assert_row_count_aggregation_query("appealrefnumber", AppealS78StandardisationProcess._generate_aggregate_vw_additionalfields)
+    def test__appeal_s78_standardisation_process__generate_aggregate_vw_additionalfields(
+        self,
+    ):
+        self._assert_row_count_aggregation_query(
+            "appealrefnumber",
+            AppealS78StandardisationProcess._generate_aggregate_vw_additionalfields,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_advert_attributes(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_advert_attributes(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "caseuniqueid",
             AppealS78StandardisationProcess._generate_aggregate_horizon_advert_attributes,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_specialist_case_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_specialist_case_dates(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "appealrefnumber",
             AppealS78StandardisationProcess._generate_aggregate_horizon_specialist_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_strings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_strings(
+        self,
+    ):
         # pas_1row
         # For odw_standardised_db.PlanningAppStrings
         self._assert_row_count_aggregation_query(
@@ -482,42 +665,77 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             AppealS78StandardisationProcess._generate_aggregate_planning_app_strings,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_planning_app_dates(
+        self,
+    ):
         # For odw_standardised_db.PlanningAppDates
-        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_planning_app_dates)
+        self._assert_row_count_aggregation_query(
+            "casenodeid",
+            AppealS78StandardisationProcess._generate_aggregate_planning_app_dates,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_bis_lead_case(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_bis_lead_case(
+        self,
+    ):
         # For odw_standardised_db.BIS_LeadCase
-        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_bis_lead_case)
+        self._assert_row_count_aggregation_query(
+            "casenodeid",
+            AppealS78StandardisationProcess._generate_aggregate_bis_lead_case,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_case_strings(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_standardised_case_strings(
+        self,
+    ):
         # For odw_standardised_db.CaseStrings
-        self._assert_row_count_aggregation_query("casenodeid", AppealS78StandardisationProcess._generate_aggregate_case_strings)
+        self._assert_row_count_aggregation_query(
+            "casenodeid",
+            AppealS78StandardisationProcess._generate_aggregate_case_strings,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_info(self):
-        self._assert_row_count_aggregation_query("appealrefnumber", AppealS78StandardisationProcess._generate_aggregate_horizon_case_info)
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_info(
+        self,
+    ):
+        self._assert_row_count_aggregation_query(
+            "appealrefnumber",
+            AppealS78StandardisationProcess._generate_aggregate_horizon_case_info,
+        )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_case_dates(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "appealrefnumber",
             AppealS78StandardisationProcess._generate_aggregate_horizon_case_dates,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeals_additional_data(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeals_additional_data(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "appealrefnumber",
             AppealS78StandardisationProcess._generate_aggregate_horizon_appeals_additional_data,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeal_grounds(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_appeal_grounds(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         def generate_row(**overrides):
-            base = {"casenodeid": None, "appealgroundletter": None, "groundforappealstartdate": None}
+            base = {
+                "casenodeid": None,
+                "appealgroundletter": None,
+                "groundforappealstartdate": None,
+            }
             return base | overrides
 
         def generate_expected_row(**overrides):
-            base = {"casenodeid": None, "enforcementAppealGroundsDetails": [{"appealGroundLetter": "", "groundForAppealStartDate": ""}]}
+            base = {
+                "casenodeid": None,
+                "enforcementAppealGroundsDetails": [
+                    {"appealGroundLetter": "", "groundForAppealStartDate": ""}
+                ],
+            }
             return base | overrides
 
         base_date = datetime(2025, 1, 1)
@@ -574,18 +792,39 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 generate_expected_row(
                     casenodeid=1,
                     enforcementAppealGroundsDetails=[
-                        {"appealGroundLetter": "a", "groundForAppealStartDate": base_date},
-                        {"appealGroundLetter": "a", "groundForAppealStartDate": next_date},
-                        {"appealGroundLetter": "b", "groundForAppealStartDate": base_date},
+                        {
+                            "appealGroundLetter": "a",
+                            "groundForAppealStartDate": base_date,
+                        },
+                        {
+                            "appealGroundLetter": "a",
+                            "groundForAppealStartDate": next_date,
+                        },
+                        {
+                            "appealGroundLetter": "b",
+                            "groundForAppealStartDate": base_date,
+                        },
                     ],
                 ),
                 generate_expected_row(
                     casenodeid=2,
                     enforcementAppealGroundsDetails=[
-                        {"appealGroundLetter": "a", "groundForAppealStartDate": base_date},
-                        {"appealGroundLetter": "a", "groundForAppealStartDate": next_date},
-                        {"appealGroundLetter": "b", "groundForAppealStartDate": base_date},
-                        {"appealGroundLetter": "b", "groundForAppealStartDate": next_date},
+                        {
+                            "appealGroundLetter": "a",
+                            "groundForAppealStartDate": base_date,
+                        },
+                        {
+                            "appealGroundLetter": "a",
+                            "groundForAppealStartDate": next_date,
+                        },
+                        {
+                            "appealGroundLetter": "b",
+                            "groundForAppealStartDate": base_date,
+                        },
+                        {
+                            "appealGroundLetter": "b",
+                            "groundForAppealStartDate": next_date,
+                        },
                     ],
                 ),
             ),
@@ -597,8 +836,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                         ArrayType(
                             StructType(
                                 [
-                                    StructField("appealGroundLetter", StringType(), True),
-                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                    StructField(
+                                        "appealGroundLetter", StringType(), True
+                                    ),
+                                    StructField(
+                                        "groundForAppealStartDate",
+                                        TimestampType(),
+                                        True,
+                                    ),
                                 ]
                             ),
                             False,
@@ -609,25 +854,35 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             ),
         )
         with (
-            mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None),
+            mock.patch.object(
+                AppealS78StandardisationProcess, "__init__", return_value=None
+            ),
         ):
-            actual_data = AppealS78StandardisationProcess()._generate_aggregate_horizon_appeal_grounds(raw_data)
+            actual_data = AppealS78StandardisationProcess()._generate_aggregate_horizon_appeal_grounds(
+                raw_data
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_notice_dates(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_notice_dates(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "casenodeid",
             AppealS78StandardisationProcess._generate_aggregate_horizon_notice_dates,
         )
 
-    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_application_made_under_section(self):
+    def test__appeal_s78_standardisation_process__generate_aggregate_horizon_application_made_under_section(
+        self,
+    ):
         self._assert_row_count_aggregation_query(
             "casenodeid",
             AppealS78StandardisationProcess._generate_aggregate_horizon_application_made_under_section,
         )
 
     def test__appeal_s78_standardisation_process__load_data(self):
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78StandardisationProcess()
             loader_function_map = {
                 "odw_standardised_db.horizoncases_s78": inst._load_standardised_horizoncases_s78,
@@ -652,14 +907,23 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 "odw_standardised_db.horizon_notice_dates": inst._load_standardised_horizon_notice_dates,
                 "odw_standardised_db.horizon_application_made_under_section": inst._load_standardised_horizon_application_made_under_section,
             }
-            expected_result = {table_name: i for i, table_name in enumerate(loader_function_map.keys())}
+            expected_result = {
+                table_name: i for i, table_name in enumerate(loader_function_map.keys())
+            }
             with ExitStack() as stack:
                 for table_name, return_value in expected_result.items():
                     method = loader_function_map[table_name].__name__
-                    stack.enter_context(mock.patch.object(inst, method, return_value=return_value))
+                    stack.enter_context(
+                        mock.patch.object(inst, method, return_value=return_value)
+                    )
                 actual_result = inst.load_data()
-                called_functions_map = {x.__name__: getattr(inst, x.__name__).called for x in loader_function_map.values()}
-                uncalled_functions = [k for k, v in called_functions_map.items() if not v]
+                called_functions_map = {
+                    x.__name__: getattr(inst, x.__name__).called
+                    for x in loader_function_map.values()
+                }
+                uncalled_functions = [
+                    k for k, v in called_functions_map.items() if not v
+                ]
                 assert not uncalled_functions, (
                     f"The following methods of AppealS78StandardisationProcess were not called by load_data() but were expected {uncalled_functions}"
                 )
@@ -730,7 +994,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         # cs_agg
         case_specialisms = spark.createDataFrame(
             ({"casereference": "refA", "casespecialism": "Some Specialism"},),
-            schema=StructType([StructField("casereference", StringType(), True), StructField("casespecialism", StringType(), False)]),
+            schema=StructType(
+                [
+                    StructField("casereference", StringType(), True),
+                    StructField("casespecialism", StringType(), False),
+                ]
+            ),
         )
 
         # cd_1row
@@ -814,7 +1083,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     StructField("datedecisionreportreceivedinpins", StringType(), True),
                     StructField("datesenttoreader", StringType(), True),
                     StructField("datereturnedfromreader", StringType(), True),
-                    StructField("datepublicationprocedurecompleted", StringType(), True),
+                    StructField(
+                        "datepublicationprocedurecompleted", StringType(), True
+                    ),
                     StructField("datecostsreportdespatched", StringType(), True),
                     StructField("orderrejectedorreturned", StringType(), True),
                     StructField("input_file", StringType(), True),
@@ -948,7 +1219,11 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             return base | overrides
 
         case_site_strings = spark.createDataFrame(
-            (generate_case_site_strings_row(casenodeid="4", siteviewablefromroad="Kelpian"),),
+            (
+                generate_case_site_strings_row(
+                    casenodeid="4", siteviewablefromroad="Kelpian"
+                ),
+            ),
             schema=StructType(
                 [
                     StructField("ingested_datetime", TimestampType(), True),
@@ -1041,7 +1316,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     StructField("proceduredetermineddate", StringType(), True),
                     StructField("targetdate", StringType(), True),
                     StructField("agriculturalholding", StringType(), True),
-                    StructField("developmentaffectsettingoflistedbuilding", StringType(), True),
+                    StructField(
+                        "developmentaffectsettingoflistedbuilding", StringType(), True
+                    ),
                     StructField("floorspaceinsquaremetres", StringType(), True),
                     StructField("sitegridreferenceeasting", StringType(), True),
                     StructField("sitegridreferencenorthing", StringType(), True),
@@ -1081,7 +1358,11 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             return base | overrides
 
         additional_fields = spark.createDataFrame(
-            (generate_additional_fields_row(appealrefnumber="refC", importantinformation="Makarov knows Yuri"),),
+            (
+                generate_additional_fields_row(
+                    appealrefnumber="refC", importantinformation="Makarov knows Yuri"
+                ),
+            ),
             schema=StructType(
                 [
                     StructField("ingested_datetime", TimestampType(), True),
@@ -1122,7 +1403,13 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             return base | overrides
 
         horizon_notice_dates = spark.createDataFrame(
-            (generate_notice_dates_row(caseNodeId=5, issueDate=datetime(2033, 1, 1), effectiveDate=datetime(2034, 1, 1)),),
+            (
+                generate_notice_dates_row(
+                    caseNodeId=5,
+                    issueDate=datetime(2033, 1, 1),
+                    effectiveDate=datetime(2034, 1, 1),
+                ),
+            ),
             schema=StructType(
                 [
                     StructField("ingested_datetime", TimestampType(), True),
@@ -1151,7 +1438,10 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         horizon_appeal_grounds = spark.createDataFrame(
             (
                 generate_appeal_grounds_row(
-                    casenodeid=6, enforcementAppealGroundsDetails=[{"appealGroundLetter": "A", "groundForAppealStartDate": None}]
+                    casenodeid=6,
+                    enforcementAppealGroundsDetails=[
+                        {"appealGroundLetter": "A", "groundForAppealStartDate": None}
+                    ],
                 ),
             ),
             schema=StructType(
@@ -1162,8 +1452,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                         ArrayType(
                             StructType(
                                 [
-                                    StructField("appealGroundLetter", StringType(), True),
-                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                    StructField(
+                                        "appealGroundLetter", StringType(), True
+                                    ),
+                                    StructField(
+                                        "groundForAppealStartDate",
+                                        TimestampType(),
+                                        True,
+                                    ),
                                 ]
                             ),
                             False,
@@ -1229,7 +1525,11 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
         expected_data = spark.createDataFrame(
             (
-                generate_expected_data_row(casenodeid="1", caseuniqueid="refA", casespecialism="Some Specialism"),
+                generate_expected_data_row(
+                    casenodeid="1",
+                    caseuniqueid="refA",
+                    casespecialism="Some Specialism",
+                ),
                 generate_expected_data_row(
                     casenodeid="2",
                     caseuniqueid="refB",
@@ -1261,7 +1561,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     proofsdue="Vulcan",
                     importantinformation="Makarov knows Yuri",
                 ),
-                generate_expected_data_row(casenodeid="4", caseuniqueid="refD", siteviewablefromroad="Kelpian"),
+                generate_expected_data_row(
+                    casenodeid="4", caseuniqueid="refD", siteviewablefromroad="Kelpian"
+                ),
                 generate_expected_data_row(
                     casenodeid="5",
                     caseuniqueid="refE",
@@ -1271,7 +1573,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 generate_expected_data_row(
                     casenodeid="6",
                     caseuniqueid="refF",
-                    enforcementAppealGroundsDetails=[{"appealGroundLetter": "A", "groundForAppealStartDate": None}],
+                    enforcementAppealGroundsDetails=[
+                        {"appealGroundLetter": "A", "groundForAppealStartDate": None}
+                    ],
                 ),
                 generate_expected_data_row(casenodeid="7", caseuniqueid="refG"),
             ),
@@ -1322,14 +1626,22 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     StructField("importantinformation", StringType(), True),
                     StructField("level_code", StringType(), True),
                     StructField("issueDateOfEnforcementNotice", TimestampType(), True),
-                    StructField("effectiveDateOfEnforcementNotice", TimestampType(), True),
+                    StructField(
+                        "effectiveDateOfEnforcementNotice", TimestampType(), True
+                    ),
                     StructField(
                         "enforcementAppealGroundsDetails",
                         ArrayType(
                             StructType(
                                 [
-                                    StructField("appealGroundLetter", StringType(), True),
-                                    StructField("groundForAppealStartDate", TimestampType(), True),
+                                    StructField(
+                                        "appealGroundLetter", StringType(), True
+                                    ),
+                                    StructField(
+                                        "groundForAppealStartDate",
+                                        TimestampType(),
+                                        True,
+                                    ),
                                 ]
                             ),
                             False,
@@ -1339,7 +1651,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
             actual_data = AppealS78StandardisationProcess().generate_base_table(
                 horizon_cases,
                 case_specialisms,
@@ -1381,9 +1695,27 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
 
         type_of_level_data = spark.createDataFrame(
             (
-                {"colD": "1", "colE": "2", "colF": "3", "name": "codeA", "band": "band1"},
-                {"colD": "4", "colE": "5", "colF": "6", "name": "codeB", "band": "band2"},
-                {"colD": "7", "colE": "8", "colF": "9", "name": "codeC", "band": "band3"},
+                {
+                    "colD": "1",
+                    "colE": "2",
+                    "colF": "3",
+                    "name": "codeA",
+                    "band": "band1",
+                },
+                {
+                    "colD": "4",
+                    "colE": "5",
+                    "colF": "6",
+                    "name": "codeB",
+                    "band": "band2",
+                },
+                {
+                    "colD": "7",
+                    "colE": "8",
+                    "colF": "9",
+                    "name": "codeC",
+                    "band": "band3",
+                },
             ),
             schema=StructType(
                 [
@@ -1397,9 +1729,30 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
         expected_data = spark.createDataFrame(
             (
-                {"colA": "a", "colB": "b", "colC": "c", "level_code": "codeA", "allocationLevel": "codeA", "allocationBand": "band1"},
-                {"colA": "d", "colB": "e", "colC": "f", "level_code": "codeB", "allocationLevel": "codeB", "allocationBand": "band2"},
-                {"colA": "g", "colB": "h", "colC": "i", "level_code": "codeC", "allocationLevel": "codeC", "allocationBand": "band3"},
+                {
+                    "colA": "a",
+                    "colB": "b",
+                    "colC": "c",
+                    "level_code": "codeA",
+                    "allocationLevel": "codeA",
+                    "allocationBand": "band1",
+                },
+                {
+                    "colA": "d",
+                    "colB": "e",
+                    "colC": "f",
+                    "level_code": "codeB",
+                    "allocationLevel": "codeB",
+                    "allocationBand": "band2",
+                },
+                {
+                    "colA": "g",
+                    "colB": "h",
+                    "colC": "i",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                },
             ),
             schema=StructType(
                 [
@@ -1412,8 +1765,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_type_of_level_table(base_table, type_of_level_data)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = (
+                AppealS78StandardisationProcess().generate_type_of_level_table(
+                    base_table, type_of_level_data
+                )
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_add_planning(self):
@@ -1440,9 +1799,30 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         aad_type_of_level_data = spark.createDataFrame(
             (
-                {"colA": "a", "colB": "b", "casenodeid": "1", "level_code": "codeA", "allocationLevel": "codeA", "allocationBand": "band1"},
-                {"colA": "d", "colB": "e", "casenodeid": "2", "level_code": "codeB", "allocationLevel": "codeB", "allocationBand": "band2"},
-                {"colA": "g", "colB": "h", "casenodeid": "3", "level_code": "codeC", "allocationLevel": "codeC", "allocationBand": "band3"},
+                {
+                    "colA": "a",
+                    "colB": "b",
+                    "casenodeid": "1",
+                    "level_code": "codeA",
+                    "allocationLevel": "codeA",
+                    "allocationBand": "band1",
+                },
+                {
+                    "colA": "d",
+                    "colB": "e",
+                    "casenodeid": "2",
+                    "level_code": "codeB",
+                    "allocationLevel": "codeB",
+                    "allocationBand": "band2",
+                },
+                {
+                    "colA": "g",
+                    "colB": "h",
+                    "casenodeid": "3",
+                    "level_code": "codeC",
+                    "allocationLevel": "codeC",
+                    "allocationBand": "band3",
+                },
                 {
                     "colA": "i",
                     "colB": "j",
@@ -1465,9 +1845,24 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
         planning_app_strings = spark.createDataFrame(
             (
-                {"pasColA": 1, "casenodeid": "1", "lpaapplicationreference": "Obi-wan", "planningapplicationtype": "typeA"},
-                {"pasColA": 2, "casenodeid": "2", "lpaapplicationreference": "Anakin", "planningapplicationtype": "typeB"},
-                {"pasColA": 3, "casenodeid": "3", "lpaapplicationreference": "Ahsoka", "planningapplicationtype": "typeC"},
+                {
+                    "pasColA": 1,
+                    "casenodeid": "1",
+                    "lpaapplicationreference": "Obi-wan",
+                    "planningapplicationtype": "typeA",
+                },
+                {
+                    "pasColA": 2,
+                    "casenodeid": "2",
+                    "lpaapplicationreference": "Anakin",
+                    "planningapplicationtype": "typeB",
+                },
+                {
+                    "pasColA": 3,
+                    "casenodeid": "3",
+                    "lpaapplicationreference": "Ahsoka",
+                    "planningapplicationtype": "typeC",
+                },
             ),
             schema=StructType(
                 [
@@ -1480,9 +1875,24 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
         planning_app_dates = spark.createDataFrame(
             (
-                {"padColA": 1, "casenodeid": "1", "dateofapplication": datetime(2020, 1, 1), "dateoflpadecision": datetime(2021, 1, 1)},
-                {"padColA": 2, "casenodeid": "2", "dateofapplication": datetime(2022, 1, 1), "dateoflpadecision": datetime(2023, 1, 1)},
-                {"padColA": 3, "casenodeid": "3", "dateofapplication": datetime(2024, 1, 1), "dateoflpadecision": datetime(2025, 1, 1)},
+                {
+                    "padColA": 1,
+                    "casenodeid": "1",
+                    "dateofapplication": datetime(2020, 1, 1),
+                    "dateoflpadecision": datetime(2021, 1, 1),
+                },
+                {
+                    "padColA": 2,
+                    "casenodeid": "2",
+                    "dateofapplication": datetime(2022, 1, 1),
+                    "dateoflpadecision": datetime(2023, 1, 1),
+                },
+                {
+                    "padColA": 3,
+                    "casenodeid": "3",
+                    "dateofapplication": datetime(2024, 1, 1),
+                    "dateoflpadecision": datetime(2025, 1, 1),
+                },
             ),
             schema=StructType(
                 [
@@ -1498,7 +1908,11 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 {"hmuColA": 1, "casenodeid": "1", "applicationMadeUnderSection": "191"},
                 {"hmuColA": 2, "casenodeid": "2", "applicationMadeUnderSection": "192"},
                 {"hmuColA": 3, "casenodeid": "3", "applicationMadeUnderSection": "26H"},
-                {"hmuColA": 3, "casenodeid": "3", "applicationMadeUnderSection": "Unmatched"},
+                {
+                    "hmuColA": 3,
+                    "casenodeid": "3",
+                    "applicationMadeUnderSection": "Unmatched",
+                },
             ),
             schema=StructType(
                 [
@@ -1592,9 +2006,14 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
             actual_data = AppealS78StandardisationProcess().generate_add_planning(
-                aad_type_of_level_data, planning_app_strings, planning_app_dates, made_under_section_data
+                aad_type_of_level_data,
+                planning_app_strings,
+                planning_app_dates,
+                made_under_section_data,
             )
             assert_dataframes_equal(expected_data, actual_data)
 
@@ -1705,8 +2124,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_add_adverts(add_planning, advert_attributes)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_add_adverts(
+                add_planning, advert_attributes
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_add_case_refs(self):
@@ -1844,8 +2267,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_add_case_refs(add_adverts, bis_lead_case, bis_case_strings, horizon_case_info)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_add_case_refs(
+                add_adverts, bis_lead_case, bis_case_strings, horizon_case_info
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_add_dates(self):
@@ -1883,7 +2310,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
         )
         # scd_1row
         specialist_case_dates = spark.createDataFrame(
-            ({"appealrefnumber": "a", "datecostsreportdespatched": datetime(2026, 1, 1)},),
+            (
+                {
+                    "appealrefnumber": "a",
+                    "datecostsreportdespatched": datetime(2026, 1, 1),
+                },
+            ),
             schema=StructType(
                 [
                     StructField("appealrefnumber", StringType(), True),
@@ -1899,7 +2331,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     "caseValidationDate": datetime(2025, 1, 1, 0, 0),
                     "dateCostsReportDespatched": datetime(2026, 1, 1, 0, 0),
                 },
-                {"colA": 2, "caseuniqueid": "b", "caseValidationDate": None, "dateCostsReportDespatched": None},
+                {
+                    "colA": 2,
+                    "caseuniqueid": "b",
+                    "caseValidationDate": None,
+                    "dateCostsReportDespatched": None,
+                },
             ),
             schema=StructType(
                 [
@@ -1910,8 +2347,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_add_dates(add_case_refs, horizon_case_dates, specialist_case_dates)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_add_dates(
+                add_case_refs, horizon_case_dates, specialist_case_dates
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_add_aad(self):
@@ -2021,8 +2462,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_add_aad(add_dates, appeals_additional_data)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_add_aad(
+                add_dates, appeals_additional_data
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_add_procedure(self):
@@ -2056,7 +2501,10 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             ),
         )
         expected_data = spark.createDataFrame(
-            ({"colA": "a", "procedureType": "typeA", "caseProcedure": "1"}, {"colA": "b", "procedureType": "typeB", "caseProcedure": None}),
+            (
+                {"colA": "a", "procedureType": "typeA", "caseProcedure": "1"},
+                {"colA": "b", "procedureType": "typeB", "caseProcedure": None},
+            ),
             schema=StructType(
                 [
                     StructField("colA", StringType(), True),
@@ -2065,8 +2513,12 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_add_procedure(add_aad, type_of_procedure)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_add_procedure(
+                add_aad, type_of_procedure
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__generate_final_table(self):
@@ -2185,7 +2637,9 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     StructField("modified_datetime", TimestampType(), True),
                     StructField("ingested_datetime", TimestampType(), True),
                     StructField("file_id", StringType(), True),
-                    StructField("level_code", StringType(), True),  # This column should be dropped
+                    StructField(
+                        "level_code", StringType(), True
+                    ),  # This column should be dropped
                 ]
             ),
         )
@@ -2219,17 +2673,27 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
                     StructField("ingested_datetime", TimestampType(), True),
                     StructField("file_id", StringType(), True),
                     StructField("rn_final", IntegerType(), False),
-                    StructField("preserveGrantLoan", BooleanType(), True),  # Should be added but be empty
-                    StructField("consultHistoricEngland", BooleanType(), True),  # Should be added but be empty
+                    StructField(
+                        "preserveGrantLoan", BooleanType(), True
+                    ),  # Should be added but be empty
+                    StructField(
+                        "consultHistoricEngland", BooleanType(), True
+                    ),  # Should be added but be empty
                 ]
             ),
         )
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
-            actual_data = AppealS78StandardisationProcess().generate_final_table(add_procedure)
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
+            actual_data = AppealS78StandardisationProcess().generate_final_table(
+                add_procedure
+            )
             assert_dataframes_equal(expected_data, actual_data)
 
     def test__appeal_s78_standardisation_process__process(self):
-        with mock.patch.object(AppealS78StandardisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78StandardisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78StandardisationProcess()
             functions_to_patch = (
                 inst._generate_aggregate_horizoncases_s78,
@@ -2265,11 +2729,18 @@ class TestAppealS78StandardisationProcess(SparkTestCase):
             with ExitStack() as stack:
                 for return_value, function in enumerate(functions_to_patch):
                     method = function.__name__
-                    stack.enter_context(mock.patch.object(inst, method, return_value=return_value))
+                    stack.enter_context(
+                        mock.patch.object(inst, method, return_value=return_value)
+                    )
                 expected_result = getattr(inst, "generate_final_table").return_value
                 actual_result = inst.process()
-                called_functions_map = {x.__name__: getattr(inst, x.__name__).called for x in functions_to_patch}
-                uncalled_functions = [k for k, v in called_functions_map.items() if not v]
+                called_functions_map = {
+                    x.__name__: getattr(inst, x.__name__).called
+                    for x in functions_to_patch
+                }
+                uncalled_functions = [
+                    k for k, v in called_functions_map.items() if not v
+                ]
                 assert not uncalled_functions, (
                     f"The following methods of AppealS78StandardisationProcess were not called by process() but were expected {uncalled_functions}"
                 )

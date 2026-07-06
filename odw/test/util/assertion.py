@@ -25,13 +25,21 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     if expected is None and actual is None:
         # Both are none, so the data matches
         return
-    assert isinstance(expected, DataFrame), f"Expected expected to be a dataframe, but was of type {type(expected)}"
-    assert isinstance(actual, DataFrame), f"Expected actual to be a dataframe, but was of type {type(actual)}"
+    assert isinstance(expected, DataFrame), (
+        f"Expected expected to be a dataframe, but was of type {type(expected)}"
+    )
+    assert isinstance(actual, DataFrame), (
+        f"Expected actual to be a dataframe, but was of type {type(actual)}"
+    )
     save_local_data = TEST_CONFIG.get("DUMP_ASSERTION_DATA", False)
     caller = _get_test_function_caller()
     if save_local_data:
-        expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_expected"))
-        actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_actual"))
+        expected.coalesce(1).write.mode("overwrite").json(
+            os.path.join("testOutput", f"{caller}_expected")
+        )
+        actual.coalesce(1).write.mode("overwrite").json(
+            os.path.join("testOutput", f"{caller}_actual")
+        )
     schema_mismatch = set(expected.schema).symmetric_difference(set(actual.schema))
     exception_message = ""
     if schema_mismatch:
@@ -60,11 +68,18 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
         in_expected_but_not_actual = expected_ordered.exceptAll(actual_ordered)
         in_actual_but_not_expected = actual_ordered.exceptAll(expected_ordered)
 
-        data_mismatch = not (in_expected_but_not_actual.isEmpty() and in_actual_but_not_expected.isEmpty())
+        data_mismatch = not (
+            in_expected_but_not_actual.isEmpty()
+            and in_actual_but_not_expected.isEmpty()
+        )
 
         if data_mismatch:
-            missing_data_sample = in_expected_but_not_actual._jdf.showString(rows_to_show, 20, False)
-            unexpected_data_sample = in_actual_but_not_expected._jdf.showString(rows_to_show, 20, False)
+            missing_data_sample = in_expected_but_not_actual._jdf.showString(
+                rows_to_show, 20, False
+            )
+            unexpected_data_sample = in_actual_but_not_expected._jdf.showString(
+                rows_to_show, 20, False
+            )
             exception_message = (
                 "Data mismatch between expected and actual dataframe\n"
                 "In expected dataframe but not the actual dataframe\n"
@@ -79,8 +94,12 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
 
         assert not data_mismatch, exception_message
         if save_local_data:
-            in_expected_but_not_actual.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_in_expected_but_not_actual"))
-            in_actual_but_not_expected.coalesce(1).write.mode("overwrite").json(os.path.join("testOutput", f"{caller}_in_actual_but_not_expected"))
+            in_expected_but_not_actual.coalesce(1).write.mode("overwrite").json(
+                os.path.join("testOutput", f"{caller}_in_expected_but_not_actual")
+            )
+            in_actual_but_not_expected.coalesce(1).write.mode("overwrite").json(
+                os.path.join("testOutput", f"{caller}_in_actual_but_not_expected")
+            )
     finally:
         expected_cached.unpersist(blocking=True)
         actual_cached.unpersist(blocking=True)
@@ -88,8 +107,12 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
 
 def assert_etl_result_successful(etl_result: ETLResult):
     if etl_result is None:
-        assert False, "ETL result is expected to be an instance of ETLResult but was None"
+        assert False, (
+            "ETL result is expected to be an instance of ETLResult but was None"
+        )
     if isinstance(etl_result, ETLSuccessResult):
         return
     exception_trace = etl_result.metadata.exception_trace
-    assert False, f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception_trace}"
+    assert False, (
+        f"ETL result was not ETLSuccessResult. The below exception was raised\n{exception_trace}"
+    )

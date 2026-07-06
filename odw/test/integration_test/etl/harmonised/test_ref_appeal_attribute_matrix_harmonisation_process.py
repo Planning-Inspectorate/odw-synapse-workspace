@@ -1,9 +1,14 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import (
+    AppealAttributeMatrixHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 from pyspark.sql import DataFrame
 from datetime import datetime
@@ -30,7 +35,15 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
             ["attribute", "appealReference", "s78"],
         )
         std_table = f"{test_case}_appeal_attribute_matrix"
-        self.write_existing_table(spark, std_data, std_table, "odw_standardised_db", "odw-standardised", std_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            std_data,
+            std_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            std_table,
+            "overwrite",
+        )
         output_table = f"{test_case}_ref_appeal_attribute_matrix"
 
         expected_data = spark.createDataFrame(
@@ -70,23 +83,35 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(AppealAttributeMatrixHarmonisationProcess, "STANDARDISED_TABLE", std_table),
-            mock.patch.object(AppealAttributeMatrixHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                AppealAttributeMatrixHarmonisationProcess,
+                "STANDARDISED_TABLE",
+                std_table,
+            ),
+            mock.patch.object(
+                AppealAttributeMatrixHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
 
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attribute_matrix", orchestration_stage_name="harmonise"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="ref_appeal_attribute_matrix",
+                orchestration_stage_name="harmonise",
             )
             assert_etl_result_successful(result)
 
         actual_data = spark.table(f"odw_harmonised_db.{output_table}")
         self.compare_data(expected_data, actual_data)
 
-    def test__appeal_attribute_matrix_harmonisation_process__run__with_no_existing_data(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__with_no_existing_data(
+        self,
+    ):
         self.assert_harmonisation("t_aamhp_r_wned")
 
-    def test__appeal_attribute_matrix_harmonisation_process__run__with_existing_data(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__with_existing_data(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_aamhp_r_wed"
         existing_data = spark.createDataFrame(
@@ -101,5 +126,13 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(ETLTestCase):
             ),
         )
         output_table = f"{test_case}_ref_appeal_attribute_matrix"
-        self.write_existing_table(spark, existing_data, output_table, "odw_harmonised_db", "odw-harmonised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            output_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            output_table,
+            "overwrite",
+        )
         self.assert_harmonisation(test_case)

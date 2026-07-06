@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from pyspark.sql import DataFrame
 
 
@@ -21,7 +23,9 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     STANDARDISED_HORIZON_CASE_DATES = "horizon_case_dates"
     STANDARDISED_HORIZON_APPEALS_ADDITIONAL_DATA = "horizon_appeals_additional_data"
     STANDARDISED_HORIZON_NOTICE_DATES = "horizon_notice_dates"
-    STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION = "horizon_application_made_under_section"
+    STANDARDISED_HORIZON_APPLICATION_MADE_UNDER_SECTION = (
+        "horizon_application_made_under_section"
+    )
     STANDARDISED_ADD_ADDITIONAL_DATA = "vw_addadditionaldata"
     STANDARDISED_HORIZON_APPEAL_GROUNDS = "horizon_appeal_grounds"
     STANDARDISED_TYPE_OF_PROCEDURE = "typeofprocedure"
@@ -95,7 +99,9 @@ class AppealS78StandardisationProcess(StandardisationProcess):
         pass
 
     def load_data(self, **kwargs):
-        raise NotImplementedError("AppealS78StandardisationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealS78StandardisationProcess.load_data() has not been implemented yet."
+        )
 
     def _generate_aggregate_horizoncases_s78(self, raw_data: DataFrame):
         pass
@@ -151,7 +157,9 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     def _generate_aggregate_horizon_notice_dates(self, raw_data: DataFrame):
         pass
 
-    def _generate_aggregate_horizon_application_made_under_section(self, raw_data: DataFrame):
+    def _generate_aggregate_horizon_application_made_under_section(
+        self, raw_data: DataFrame
+    ):
         pass
 
     def generate_base_table(
@@ -168,33 +176,56 @@ class AppealS78StandardisationProcess(StandardisationProcess):
     ) -> DataFrame:
         pass
 
-    def generate_type_of_level_table(self, base_table: DataFrame, type_of_level: DataFrame) -> DataFrame:
+    def generate_type_of_level_table(
+        self, base_table: DataFrame, type_of_level: DataFrame
+    ) -> DataFrame:
         pass
 
     def generate_add_planning(
-        self, aad_type_of_level_data: DataFrame, planning_app_strings: DataFrame, planning_app_dates: DataFrame, made_under_section_data: DataFrame
+        self,
+        aad_type_of_level_data: DataFrame,
+        planning_app_strings: DataFrame,
+        planning_app_dates: DataFrame,
+        made_under_section_data: DataFrame,
     ) -> DataFrame:
         pass
 
-    def generate_add_adverts(self, add_planning: DataFrame, advert_attributes: DataFrame) -> DataFrame:
+    def generate_add_adverts(
+        self, add_planning: DataFrame, advert_attributes: DataFrame
+    ) -> DataFrame:
         pass
 
     def generate_add_case_refs(
-        self, add_adverts: DataFrame, bis_lead_case: DataFrame, bis_case_strings: DataFrame, horizon_case_info: DataFrame
+        self,
+        add_adverts: DataFrame,
+        bis_lead_case: DataFrame,
+        bis_case_strings: DataFrame,
+        horizon_case_info: DataFrame,
     ) -> DataFrame:
         pass
 
-    def generate_add_dates(self, add_case_refs: DataFrame, horizon_case_dates: DataFrame, specialist_case_dates: DataFrame) -> DataFrame:
+    def generate_add_dates(
+        self,
+        add_case_refs: DataFrame,
+        horizon_case_dates: DataFrame,
+        specialist_case_dates: DataFrame,
+    ) -> DataFrame:
         pass
 
-    def generate_add_aad(self, add_dates: DataFrame, appeals_additional_data) -> DataFrame:
+    def generate_add_aad(
+        self, add_dates: DataFrame, appeals_additional_data
+    ) -> DataFrame:
         pass
 
-    def generate_add_procedure(self, add_aad: DataFrame, type_of_procedure: DataFrame) -> DataFrame:
+    def generate_add_procedure(
+        self, add_aad: DataFrame, type_of_procedure: DataFrame
+    ) -> DataFrame:
         pass
 
     def generate_final_table(self, add_procedure: DataFrame) -> DataFrame:
         pass
 
     def process(self, **kwargs):
-        raise NotImplementedError("AppealS78StandardisationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealS78StandardisationProcess.process() has not been implemented yet."
+        )

@@ -56,6 +56,10 @@ for submodule in submodules:
             setattr(notebookutils, module, types.ModuleType(current_module_name))
         current_module = getattr(current_module, module)
     if not getattr(current_module, leaf_module_name, False):
-        setattr(current_module, leaf_module_name, Mock(name=".".join([current_module_name, leaf_module_name])))
+        setattr(
+            current_module,
+            leaf_module_name,
+            Mock(name=".".join([current_module_name, leaf_module_name])),
+        )
 
 notebookutils.mssparkutils.handlers.notebookHandler.NotebookExit = NotebookExit
