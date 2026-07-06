@@ -1,6 +1,7 @@
 parameters:
   agentPool: ''
   env: ''
+  coverageThreshold: 1 #60  # This needs to be increased, this is set to the current integration test coverage percentage
 
 ##
 # Run ODW Package integration tests
@@ -18,6 +19,15 @@ jobs:
     displayName: 'install requirements'
   - script: |
       set -e
+      cd $(System.DefaultWorkingDirectory)
       export PATH="$PATH:/home/AzDevOps/.local/bin/"
-      python3 -m pytest $(Build.SourcesDirectory)/odw/test/integration_test -vv -n 4 --durations=0
+      echo "Current directory"
+      pwd
+      python3 -m pytest $(Build.SourcesDirectory)/odw/test/integration_test -vv -n 4 --durations=0 --junitxml=junit/integration_test_results.xml --cov="odw/core" --cov-report=
+      python3 -m coverage report --fail-under=${{ parameters.coverageThreshold }} --show-missing
+      mv .coverage .coverage.integration
     displayName: 'pytest'
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload integration test coverage report'
+    inputs:
+      targetPath: '.coverage.integration'
