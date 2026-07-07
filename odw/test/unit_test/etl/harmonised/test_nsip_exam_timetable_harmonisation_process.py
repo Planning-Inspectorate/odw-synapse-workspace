@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process import NsipExamTimetableHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process import (
+    NsipExamTimetableHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from pyspark.sql import Row
@@ -7,7 +9,9 @@ import mock
 
 
 class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
-    def test__nsip_exam_timetable_harmonisation_process__process__explodes_events_and_sets_published(self):
+    def test__nsip_exam_timetable_harmonisation_process__process__explodes_events_and_sets_published(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -50,11 +54,17 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                                     T.StructField("eventId", T.IntegerType(), True),
                                     T.StructField("type", T.StringType(), True),
                                     T.StructField("eventTitle", T.StringType(), True),
-                                    T.StructField("eventTitleWelsh", T.StringType(), True),
+                                    T.StructField(
+                                        "eventTitleWelsh", T.StringType(), True
+                                    ),
                                     T.StructField("description", T.StringType(), True),
-                                    T.StructField("descriptionWelsh", T.StringType(), True),
+                                    T.StructField(
+                                        "descriptionWelsh", T.StringType(), True
+                                    ),
                                     T.StructField("date", T.StringType(), True),
-                                    T.StructField("eventDeadlineStartDate", T.StringType(), True),
+                                    T.StructField(
+                                        "eventDeadlineStartDate", T.StringType(), True
+                                    ),
                                 ]
                             )
                         ),
@@ -127,7 +137,9 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_exam_timetable_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipExamTimetableHarmonisationProcess(spark)
             data_to_write, result = inst.process(
@@ -153,7 +165,9 @@ class TestNSIPExamTimetableHarmonisationProcess(SparkTestCase):
         assert len(rows_en010001) == 1
         assert rows_en010001[0]["Migrated"] == "1"
         assert rows_en010001[0]["eventId"] == 100
-        assert rows_en010001[0]["eventTitleWelsh"] is None  # empty string converted to null
+        assert (
+            rows_en010001[0]["eventTitleWelsh"] is None
+        )  # empty string converted to null
 
         assert len(rows_en010002) == 2
         assert all(r["Migrated"] == "0" for r in rows_en010002)

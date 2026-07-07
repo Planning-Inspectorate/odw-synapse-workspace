@@ -3,9 +3,14 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import Row
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import AppealHasHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import (
+    AppealHasHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
@@ -46,7 +51,9 @@ def _appeal_has_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.StringType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.StringType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.StringType(), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.StringType(), True
+            ),
             T.StructField("lpaQuestionnaireValidationDetails", T.StringType(), True),
             T.StructField("lpaStatement", T.StringType(), True),
             T.StructField("caseWithdrawnDate", T.StringType(), True),
@@ -97,7 +104,9 @@ def _appeal_has_schema():
             T.StructField("dateNotRecoveredOrDerecovered", T.StringType(), True),
             T.StructField("dateRecovered", T.StringType(), True),
             T.StructField("designatedSitesNames", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("hasInfrastructureLevy", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
             T.StructField("hasProtectedSpecies", T.StringType(), True),
@@ -117,7 +126,9 @@ def _appeal_has_schema():
             T.StructField("siteGridReferenceEasting", T.StringType(), True),
             T.StructField("siteGridReferenceNorthing", T.StringType(), True),
             T.StructField("targetDate", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
             T.StructField("padsSapId", T.StringType(), True),
             T.StructField("migrated", T.StringType(), True),
             T.StructField("ODTSourceSystem", T.StringType(), True),
@@ -288,7 +299,9 @@ def _harmonised_appeal_has_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.StringType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.StringType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.StringType(), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.StringType(), True
+            ),
             T.StructField("lpaQuestionnaireValidationDetails", T.StringType(), True),
             T.StructField("lpaStatement", T.StringType(), True),
             T.StructField("caseWithdrawnDate", T.StringType(), True),
@@ -339,7 +352,9 @@ def _harmonised_appeal_has_schema():
             T.StructField("dateNotRecoveredOrDerecovered", T.StringType(), True),
             T.StructField("dateRecovered", T.StringType(), True),
             T.StructField("designatedSitesNames", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("hasInfrastructureLevy", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
             T.StructField("hasProtectedSpecies", T.StringType(), True),
@@ -359,7 +374,9 @@ def _harmonised_appeal_has_schema():
             T.StructField("siteGridReferenceEasting", T.StringType(), True),
             T.StructField("siteGridReferenceNorthing", T.StringType(), True),
             T.StructField("targetDate", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
             T.StructField("padsSapId", T.StringType(), True),
             T.StructField("migrated", T.StringType(), True),
             T.StructField("ODTSourceSystem", T.StringType(), True),
@@ -502,7 +519,11 @@ def _resolver_schema():
 
 
 def _resolver_row(**overrides):
-    base = {"caseReference": "HAS-001", "currentGroup": "A", "asOfTimestamp": datetime(2025, 2, 1, 0, 0)}
+    base = {
+        "caseReference": "HAS-001",
+        "currentGroup": "A",
+        "asOfTimestamp": datetime(2025, 2, 1, 0, 0),
+    }
     return base | overrides
 
 
@@ -534,7 +555,15 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             ],
         )
         service_bus_table = f"{test_case}_sb_appeal_has"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         horizon_data = _horizon_df(
             spark,
@@ -594,7 +623,15 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             ],
         )
         horizon_table = f"{test_case}_horizon_appeal_has"
-        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_table,
+            "overwrite",
+        )
 
         appeal_s78_data = _s78_df(
             spark,
@@ -603,12 +640,25 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             ],
         )
         appeal_s78_table = f"{test_case}_appeal_s78"
-        self.write_existing_table(spark, appeal_s78_data, appeal_s78_table, "odw_harmonised_db", "odw-harmonised", appeal_s78_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            appeal_s78_data,
+            appeal_s78_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            appeal_s78_table,
+            "overwrite",
+        )
         expected_appeal_has_data = spark.createDataFrame(
             (
                 _harmonised_appeal_has_row(),
                 _harmonised_appeal_has_row(
-                    AppealsHasID=2, caseStatus="valid", IngestionDate=datetime(2025, 2, 1, 0, 0), message_id="msg-002", ValidTo=None, IsActive="Y"
+                    AppealsHasID=2,
+                    caseStatus="valid",
+                    IngestionDate=datetime(2025, 2, 1, 0, 0),
+                    message_id="msg-002",
+                    ValidTo=None,
+                    IsActive="Y",
                 ),
                 _harmonised_appeal_has_row(
                     caseReference="HAS-002",
@@ -667,7 +717,9 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             ),
             schema=_harmonised_appeal_has_schema(),
         )
-        expected_group_resolver_data = spark.createDataFrame((_resolver_row(),), schema=_resolver_schema())
+        expected_group_resolver_data = spark.createDataFrame(
+            (_resolver_row(),), schema=_resolver_schema()
+        )
         group_resolver_table = f"{test_case}_GroupResolver"
         expected_s78_data_after = _s78_df(
             spark,
@@ -676,19 +728,39 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
             ],
         )
         with (
-            mock.patch.object(AppealHasHarmonisationProcess, "OUTPUT_TABLE", appeal_has_table),
-            mock.patch.object(AppealHasHarmonisationProcess, "SERVICE_BUS_TABLE", service_bus_table),
-            mock.patch.object(AppealHasHarmonisationProcess, "HORIZON_TABLE", horizon_table),
-            mock.patch.object(AppealHasHarmonisationProcess, "GROUP_RESOLVER_TABLE", group_resolver_table),
-            mock.patch.object(AppealHasHarmonisationProcess, "S78_TABLE", appeal_s78_table),
+            mock.patch.object(
+                AppealHasHarmonisationProcess, "OUTPUT_TABLE", appeal_has_table
+            ),
+            mock.patch.object(
+                AppealHasHarmonisationProcess, "SERVICE_BUS_TABLE", service_bus_table
+            ),
+            mock.patch.object(
+                AppealHasHarmonisationProcess, "HORIZON_TABLE", horizon_table
+            ),
+            mock.patch.object(
+                AppealHasHarmonisationProcess,
+                "GROUP_RESOLVER_TABLE",
+                group_resolver_table,
+            ),
+            mock.patch.object(
+                AppealHasHarmonisationProcess, "S78_TABLE", appeal_s78_table
+            ),
         ):
             inst = AppealHasHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_has", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="ref_appeal_has",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
             actual_has_data = spark.table(appeal_has_table)
             assert_dataframes_equal(expected_appeal_has_data, actual_has_data)
-            actual_group_resolver_data = spark.table(f"odw_harmonised_db.{group_resolver_table}")
-            assert_dataframes_equal(expected_group_resolver_data, actual_group_resolver_data)
+            actual_group_resolver_data = spark.table(
+                f"odw_harmonised_db.{group_resolver_table}"
+            )
+            assert_dataframes_equal(
+                expected_group_resolver_data, actual_group_resolver_data
+            )
             actual_s78_data = spark.table(f"odw_harmonised_db.{appeal_s78_table}")
             assert_dataframes_equal(expected_s78_data_after, actual_s78_data)
 
@@ -709,8 +781,17 @@ class TestRefAppealHasHarmonisationProcess(ETLTestCase):
         test_case = "t_ahhp_r_wed"
         spark = PytestSparkSessionUtil().get_spark_session()
         existing_appeal_has = spark.createDataFrame(
-            (_harmonised_appeal_has_row(caseReference="some old ref to be deleted"),), schema=_harmonised_appeal_has_schema()
+            (_harmonised_appeal_has_row(caseReference="some old ref to be deleted"),),
+            schema=_harmonised_appeal_has_schema(),
         )
         appeal_has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, existing_appeal_has, appeal_has_table, "odw_harmonised_db", "odw-harmonised", appeal_has_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_appeal_has,
+            appeal_has_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            appeal_has_table,
+            "overwrite",
+        )
         self.assert_successful_harmonisation("t_ahhp_r_wned")

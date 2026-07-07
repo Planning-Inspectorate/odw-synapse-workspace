@@ -1,6 +1,8 @@
 import mock
 from pyspark.sql.types import StringType, StructField, StructType, LongType, IntegerType
-from odw.core.etl.transformation.curated.entraid_mipins_curation_process import EntraIDMIPINSCurationProcess
+from odw.core.etl.transformation.curated.entraid_mipins_curation_process import (
+    EntraIDMIPINSCurationProcess,
+)
 from odw.core.etl.etl_result import ETLSuccessResult
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.assertion import assert_dataframes_equal
@@ -67,16 +69,30 @@ class TestEntraIDMIPINSCurationProcess(SparkTestCase):
             ),
         )
         entraid_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, entraid_data, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            entraid_data,
+            entraid_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            entraid_table,
+            "overwrite",
+        )
         expected_read_data = entraid_data
         with (
-            mock.patch.object(EntraIDMIPINSCurationProcess, "__init__", return_value=None),
-            mock.patch.object(EntraIDMIPINSCurationProcess, "HARMONISED_TABLE", entraid_table),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "__init__", return_value=None
+            ),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "HARMONISED_TABLE", entraid_table
+            ),
         ):
             inst = EntraIDMIPINSCurationProcess()
             read_data = inst.load_data()
             assert isinstance(read_data, dict) and "horizon_entraid" in read_data
-            assert assert_dataframes_equal(expected_read_data, read_data.get("horizon_entraid", None))
+            assert assert_dataframes_equal(
+                expected_read_data, read_data.get("horizon_entraid", None)
+            )
 
     def test__entraid_mipins_curation_process__clean_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -258,7 +274,9 @@ class TestEntraIDMIPINSCurationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(EntraIDMIPINSCurationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            EntraIDMIPINSCurationProcess, "__init__", return_value=None
+        ):
             inst = EntraIDMIPINSCurationProcess()
             actual_clean_data = inst._clean_data(entraid_data)
             assert_dataframes_equal(expected_clean_data, actual_clean_data)
@@ -318,23 +336,37 @@ class TestEntraIDMIPINSCurationProcess(SparkTestCase):
         )
         expected_write_info = {}
         with (
-            mock.patch.object(EntraIDMIPINSCurationProcess, "__init__", return_value=None),
-            mock.patch.object(EntraIDMIPINSCurationProcess, "_clean_data", return_value="1"),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "__init__", return_value=None
+            ),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "_clean_data", return_value="1"
+            ),
         ):
             inst = EntraIDMIPINSCurationProcess()
             actual_output = inst.process(source_data={"horizon_entraid": entraid_data})
-            assert isinstance(actual_output, tuple) and len(actual_output) == 2, "Expected process to return a tuple containing two elements"
+            assert isinstance(actual_output, tuple) and len(actual_output) == 2, (
+                "Expected process to return a tuple containing two elements"
+            )
             actual_write_info, actual_etl_result = actual_output
             assert isinstance(actual_etl_result, ETLSuccessResult)
             assert expected_write_info == actual_write_info
 
     def test__entraid_curation_process__run(self):
-        with mock.patch.object(EntraIDMIPINSCurationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            EntraIDMIPINSCurationProcess, "__init__", return_value=None
+        ):
             inst = EntraIDMIPINSCurationProcess()
             with (
-                mock.patch.object(EntraIDMIPINSCurationProcess, "load_data", return_value=None),
-                mock.patch.object(EntraIDMIPINSCurationProcess, "process", return_value=None),
-                mock.patch.object(EntraIDMIPINSCurationProcess, "write_data", return_value=None),
+                mock.patch.object(
+                    EntraIDMIPINSCurationProcess, "load_data", return_value=None
+                ),
+                mock.patch.object(
+                    EntraIDMIPINSCurationProcess, "process", return_value=None
+                ),
+                mock.patch.object(
+                    EntraIDMIPINSCurationProcess, "write_data", return_value=None
+                ),
                 mock.patch.object(MetadataManager, "__init__", return_value=None),
                 mock.patch.object(MetadataManager, "create", return_value=None),
                 mock.patch.object(MetadataManager, "update", return_value=None),

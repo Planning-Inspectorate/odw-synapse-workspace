@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
+from odw.core.etl.transformation.curated.nsip_subscription_curated_process import (
+    NsipSubscriptionCuratedProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,14 +8,24 @@ import mock
 
 
 class TestNSIPSubscriptionCurationProcess(SparkTestCase):
-    def test__nsip_subscription_curated_process__process__selects_and_deduplicates_rows(self):
+    def test__nsip_subscription_curated_process__process__selects_and_deduplicates_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_subscriptions = spark.createDataFrame(
             [
                 (1, "EN010001", "a@test.com", "all", "2025-01-01", None, "en"),
                 (1, "EN010001", "a@test.com", "all", "2025-01-01", None, "en"),
-                (2, "EN010002", "b@test.com", "documents", "2025-02-01", "2025-03-01", "cy"),
+                (
+                    2,
+                    "EN010002",
+                    "b@test.com",
+                    "documents",
+                    "2025-02-01",
+                    "2025-03-01",
+                    "cy",
+                ),
             ],
             T.StructType(
                 [
@@ -33,7 +45,9 @@ class TestNSIPSubscriptionCurationProcess(SparkTestCase):
                 "odw.core.etl.transformation.curated.nsip_subscription_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_subscription_curated_process.LoggingUtil"
+            ),
         ):
             inst = NsipSubscriptionCuratedProcess(spark)
             data_to_write, result = inst.process(

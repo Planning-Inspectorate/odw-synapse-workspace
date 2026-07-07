@@ -1,7 +1,9 @@
 from unittest import mock
 import json
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
+from odw.core.etl.transformation.standardised.horizon_standardisation_process import (
+    HorizonStandardisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
@@ -40,19 +42,64 @@ def _build_schema_dict():
     return {
         "type": "struct",
         "fields": [
-            {"name": "staff_number", "type": "string", "nullable": True, "metadata": {}},
+            {
+                "name": "staff_number",
+                "type": "string",
+                "nullable": True,
+                "metadata": {},
+            },
             {"name": "first_name", "type": "string", "nullable": True, "metadata": {}},
             {"name": "last_name", "type": "string", "nullable": True, "metadata": {}},
-            {"name": "email_address", "type": "string", "nullable": True, "metadata": {}},
+            {
+                "name": "email_address",
+                "type": "string",
+                "nullable": True,
+                "metadata": {},
+            },
             {"name": "birth_date", "type": "string", "nullable": True, "metadata": {}},
-            {"name": "annual_salary", "type": "string", "nullable": True, "metadata": {}},
-            {"name": "ingested_datetime", "type": "timestamp", "nullable": True, "metadata": {}},
-            {"name": "ingested_by_process_name", "type": "string", "nullable": True, "metadata": {}},
-            {"name": "expected_from", "type": "timestamp", "nullable": True, "metadata": {}},
-            {"name": "expected_to", "type": "timestamp", "nullable": True, "metadata": {}},
+            {
+                "name": "annual_salary",
+                "type": "string",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "ingested_datetime",
+                "type": "timestamp",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "ingested_by_process_name",
+                "type": "string",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "expected_from",
+                "type": "timestamp",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "expected_to",
+                "type": "timestamp",
+                "nullable": True,
+                "metadata": {},
+            },
             {"name": "input_file", "type": "string", "nullable": True, "metadata": {}},
-            {"name": "modified_datetime", "type": "timestamp", "nullable": True, "metadata": {}},
-            {"name": "modified_by_process_name", "type": "string", "nullable": True, "metadata": {}},
+            {
+                "name": "modified_datetime",
+                "type": "timestamp",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "modified_by_process_name",
+                "type": "string",
+                "nullable": True,
+                "metadata": {},
+            },
             {"name": "entity_name", "type": "string", "nullable": True, "metadata": {}},
             {"name": "file_id", "type": "string", "nullable": True, "metadata": {}},
         ],
@@ -73,19 +120,25 @@ def _build_anonymised_df(spark):
     df = spark.createDataFrame(data)
     return (
         df.withColumn("ingested_datetime", F.current_timestamp())
-        .withColumn("ingested_by_process_name", F.lit("horizon_standardisation_process"))
+        .withColumn(
+            "ingested_by_process_name", F.lit("horizon_standardisation_process")
+        )
         .withColumn("expected_from", F.current_timestamp())
         .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 5 DAY"))
         .withColumn("input_file", F.lit("test_file.csv"))
         .withColumn("modified_datetime", F.current_timestamp())
-        .withColumn("modified_by_process_name", F.lit("horizon_standardisation_process"))
+        .withColumn(
+            "modified_by_process_name", F.lit("horizon_standardisation_process")
+        )
         .withColumn("entity_name", F.lit("test_file"))
         .withColumn("file_id", F.lit("dummy-file-id"))
     )
 
 
 class TestHorizonStandardisationAnonymisation(SparkTestCase):
-    def test__horizon_standardisation__process_applies_anonymisation_in_non_production(self):
+    def test__horizon_standardisation__process_applies_anonymisation_in_non_production(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         raw_df = _build_horizon_file_df(spark)
@@ -104,7 +157,11 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
@@ -125,11 +182,18 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
         assert kwargs["source_folder"] == "Horizon"
 
         written_df = data_to_write["odw_standardised_db.test_table"]["data"]
-        row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+        row = (
+            written_df.select("first_name", "last_name", "email_address")
+            .collect()[0]
+            .asDict()
+        )
 
         assert row["first_name"] == "REDACTED"
         assert row["last_name"] == "REDACTED"
-        assert row["email_address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            row["email_address"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
         assert etl_result.metadata.table_name == "test_table"
 
     def test__horizon_standardisation__process_skips_anonymisation_in_production(self):
@@ -149,8 +213,14 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
         }
 
         with (
-            mock.patch.object(Util, "is_non_production_environment", return_value=False),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util, "is_non_production_environment", return_value=False
+            ),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
@@ -167,7 +237,11 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
         mock_apply.assert_not_called()
 
         written_df = data_to_write["odw_standardised_db.test_table"]["data"]
-        row = written_df.select("first_name", "last_name", "email_address").collect()[0].asDict()
+        row = (
+            written_df.select("first_name", "last_name", "email_address")
+            .collect()[0]
+            .asDict()
+        )
 
         assert row["first_name"] == "John"
         assert row["last_name"] == "Doe"
@@ -193,7 +267,11 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
@@ -238,7 +316,11 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),

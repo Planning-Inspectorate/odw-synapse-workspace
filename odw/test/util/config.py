@@ -10,5 +10,12 @@ load_dotenv(verbose=True, override=True)
 
 TEST_CONFIG = {
     k: os.environ.get(k, None)
-    for k in ["ENV", "DATA_LAKE_STORAGE", "SUBSCRIPTION_ID", "APP_INSIGHTS_CONNECTION_STRING", "PURVIEW_ID", "DUMP_ASSERTION_DATA"]
+    for k in [
+        "ENV",
+        "DATA_LAKE_STORAGE",
+        "SUBSCRIPTION_ID",
+        "APP_INSIGHTS_CONNECTION_STRING",
+        "PURVIEW_ID",
+        "DUMP_ASSERTION_DATA",
+    ]
 }

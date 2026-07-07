@@ -3,9 +3,14 @@ import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_event_curated_process import AppealEventCuratedProcess
+from odw.core.etl.transformation.curated.appeal_event_curated_process import (
+    AppealEventCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
@@ -282,7 +287,9 @@ class TestAppealEventCuratedProcess(ETLTestCase):
 
         assert_dataframes_equal(actual_selected_df, expected_df)
 
-    def test__appeal_event_curated_process__run__creates_output_table_when_missing_like_legacy(self):
+    def test__appeal_event_curated_process__run__creates_output_table_when_missing_like_legacy(
+        self,
+    ):
         test_case = "t_aecp_r_cotwm"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -290,7 +297,9 @@ class TestAppealEventCuratedProcess(ETLTestCase):
 
         self._assert_curation(spark, actual_df, result)
 
-    def test__appeal_event_curated_process__run__overwrites_existing_output_table_like_legacy(self):
+    def test__appeal_event_curated_process__run__overwrites_existing_output_table_like_legacy(
+        self,
+    ):
         test_case = "t_aecp_r_oeot"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -311,11 +320,15 @@ class TestAppealEventCuratedProcess(ETLTestCase):
         assert actual_df.where("eventId = 'OLD-EVENT'").count() == 0
         self._assert_curation(spark, actual_df, result)
 
-    def test__appeal_event_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+    def test__appeal_event_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(
+        self,
+    ):
         test_case = "t_aecp_r_ehs"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        actual_df, result = self._run_process(spark, test_case, _empty_harmonised_df(spark))
+        actual_df, result = self._run_process(
+            spark, test_case, _empty_harmonised_df(spark)
+        )
 
         assert actual_df.count() == 0
         self._assert_output_shape(actual_df)

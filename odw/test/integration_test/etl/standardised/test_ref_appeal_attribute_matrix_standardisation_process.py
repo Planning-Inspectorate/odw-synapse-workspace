@@ -1,9 +1,14 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import AppealAttributeMatrixStandardisationProcess
+from odw.core.etl.transformation.standardised.appeal_attribute_matrix_standardisation_process import (
+    AppealAttributeMatrixStandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 import mock
 import pyspark.sql.types as T
 
@@ -24,18 +29,29 @@ class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
             ("Green Belt", "APP-004", 0, "ignore", "drop-blank"),
             (None, "APP-005", 1, "ignore", "drop-blank"),
         )
-        self.write_csv(raw_csv_data, ["odw-raw", data_folder, date_folder, "appeal-attribute-matrix.csv"])
+        self.write_csv(
+            raw_csv_data,
+            ["odw-raw", data_folder, date_folder, "appeal-attribute-matrix.csv"],
+        )
 
         output_table = f"{test_case}_appeal_attribute_matrix"
 
         with (
-            mock.patch.object(AppealAttributeMatrixStandardisationProcess, "CSV_FOLDER", output_table),
-            mock.patch.object(AppealAttributeMatrixStandardisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                AppealAttributeMatrixStandardisationProcess, "CSV_FOLDER", output_table
+            ),
+            mock.patch.object(
+                AppealAttributeMatrixStandardisationProcess,
+                "OUTPUT_TABLE",
+                output_table,
+            ),
         ):
             inst = AppealAttributeMatrixStandardisationProcess(spark)
 
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attrbute_matrix", orchestration_stage_name="standardise"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="ref_appeal_attrbute_matrix",
+                orchestration_stage_name="standardise",
             )
             assert_etl_result_successful(result)
 
@@ -55,10 +71,14 @@ class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
         actual_data = spark.table(f"odw_standardised_db.{output_table}")
         assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_attribute_matrix_standardisation_process__run__with_no_existing_data(self):
+    def test__appeal_attribute_matrix_standardisation_process__run__with_no_existing_data(
+        self,
+    ):
         self.assert_standardisation("t_aamsp_r_wned")
 
-    def test__appeal_attribute_matrix_standardisation_process__run__with_existing_data(self):
+    def test__appeal_attribute_matrix_standardisation_process__run__with_existing_data(
+        self,
+    ):
         test_case = "t_aamsp_r_wned"
         spark = PytestSparkSessionUtil().get_spark_session()
         existing_data = spark.createDataFrame(
@@ -72,5 +92,13 @@ class TestRefAppealAttributeMatrixStandardisationProcess(ETLTestCase):
             ),
         )
         output_table = f"{test_case}_appeal_attribute_matrix"
-        self.write_existing_table(spark, existing_data, output_table, "odw_standardised_db", "odw-standardised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            output_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            output_table,
+            "overwrite",
+        )
         self.assert_standardisation("t_aamsp_r_wed")

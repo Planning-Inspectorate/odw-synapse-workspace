@@ -1,10 +1,15 @@
 from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
-from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
+from odw.core.etl.transformation.standardised.horizon_standardisation_process import (
+    HorizonStandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.util import add_orchestration_entry
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from datetime import datetime
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
@@ -65,7 +70,13 @@ class TestHorizonStandardisationProcess(ETLTestCase):
         )
 
     def compare_standardised_data(self, expected_df: DataFrame, actual_data: DataFrame):
-        cols_to_ignore = ("ingested_datetime", "expected_from", "expected_to", "modified_datetime", "file_id")
+        cols_to_ignore = (
+            "ingested_datetime",
+            "expected_from",
+            "expected_to",
+            "modified_datetime",
+            "file_id",
+        )
         expected_df_cleaned = expected_df
         actual_data_cleaned = actual_data
         for col in cols_to_ignore:
@@ -80,8 +91,16 @@ class TestHorizonStandardisationProcess(ETLTestCase):
         mock_current_datetime = datetime(2027, 1, 1)
         date_folder = "2027-02-01"
         # Create mock "new" data to add to the table
-        raw_csv_data = (("col_a", "col_b", "col_c"), ("a", "b", "c"), ("d", "e", "f"), ("g", "h", "i"))
-        self.write_csv(raw_csv_data, ["odw-raw", data_folder, date_folder, "test_hzn_std_pc_exst_data.csv"])
+        raw_csv_data = (
+            ("col_a", "col_b", "col_c"),
+            ("a", "b", "c"),
+            ("d", "e", "f"),
+            ("g", "h", "i"),
+        )
+        self.write_csv(
+            raw_csv_data,
+            ["odw-raw", data_folder, date_folder, "test_hzn_std_pc_exst_data.csv"],
+        )
         # Create mock "existing" data which is already in the table
         existing_data = spark.createDataFrame(
             (
@@ -128,7 +147,13 @@ class TestHorizonStandardisationProcess(ETLTestCase):
         # Create the standardised table definitions, which outlines column casting during processing
         standardised_table_definition = self.generate_standardised_table_definitions()
         self.write_json(
-            standardised_table_definition, ["odw-config", "standardised_table_definitions", data_folder, "test_hzn_std_pc_exst_data.json"]
+            standardised_table_definition,
+            [
+                "odw-config",
+                "standardised_table_definitions",
+                data_folder,
+                "test_hzn_std_pc_exst_data.json",
+            ],
         )
 
         # The expected final output after appending the new data to the existing data
@@ -208,9 +233,19 @@ class TestHorizonStandardisationProcess(ETLTestCase):
             self.generate_output_table_schema(),
         )
         # Run the full etl process
-        with mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=date_folder):
-            with mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_exst_data.csv"]):
-                with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+        with mock.patch.object(
+            HorizonStandardisationProcess,
+            "get_last_modified_folder",
+            return_value=date_folder,
+        ):
+            with mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_file_names_in_directory",
+                return_value=["test_hzn_std_pc_exst_data.csv"],
+            ):
+                with mock.patch.object(
+                    F, "input_file_name", return_value=F.lit("some_input_file")
+                ):
                     inst = HorizonStandardisationProcess(spark)
                     result = inst.run(
                         orchestration_run_id="t_hsp_r_wed",
@@ -219,9 +254,16 @@ class TestHorizonStandardisationProcess(ETLTestCase):
                         source_folder=data_folder,
                     )
                     assert_etl_result_successful(result)
-                    actual_table_data = spark.table("odw_standardised_db.test_hzn_std_pc_exst_data")
-                    print("final table nullable: ", actual_table_data.schema["col_a"].nullable)
-                    self.compare_standardised_data(expected_table_data, actual_table_data)
+                    actual_table_data = spark.table(
+                        "odw_standardised_db.test_hzn_std_pc_exst_data"
+                    )
+                    print(
+                        "final table nullable: ",
+                        actual_table_data.schema["col_a"].nullable,
+                    )
+                    self.compare_standardised_data(
+                        expected_table_data, actual_table_data
+                    )
 
     def test__horizon_standardisation_process__run__with_no_existing_data(self):
         data_folder = "test_hzn_std_pc_no_exst_data"
@@ -230,15 +272,31 @@ class TestHorizonStandardisationProcess(ETLTestCase):
         mock_current_datetime = datetime(2027, 1, 1)
         date_folder = "2027-02-01"
         # Create mock "new" data to add to the table
-        raw_csv_data = (("col_a", "col_b", "col_c"), ("a", "b", "c"), ("d", "e", "f"), ("g", "h", "i"))
-        self.write_csv(raw_csv_data, ["odw-raw", data_folder, date_folder, "test_hzn_std_pc_no_exst_data.csv"])
+        raw_csv_data = (
+            ("col_a", "col_b", "col_c"),
+            ("a", "b", "c"),
+            ("d", "e", "f"),
+            ("g", "h", "i"),
+        )
+        self.write_csv(
+            raw_csv_data,
+            ["odw-raw", data_folder, date_folder, "test_hzn_std_pc_no_exst_data.csv"],
+        )
         # Create the standardised table definitions, which outlines column casting during processing
         standardised_table_definition = self.generate_standardised_table_definitions()
         self.write_json(
-            standardised_table_definition, ["odw-config", "standardised_table_definitions", data_folder, "test_hzn_std_pc_no_exst_data.json"]
+            standardised_table_definition,
+            [
+                "odw-config",
+                "standardised_table_definitions",
+                data_folder,
+                "test_hzn_std_pc_no_exst_data.json",
+            ],
         )
 
-        spark.sql("DROP TABLE IF EXISTS odw_standardised_db.test_hzn_std_pc_no_exst_data")
+        spark.sql(
+            "DROP TABLE IF EXISTS odw_standardised_db.test_hzn_std_pc_no_exst_data"
+        )
 
         # The expected final output after appending the new data to the existing data
         common_elements = (
@@ -260,9 +318,19 @@ class TestHorizonStandardisationProcess(ETLTestCase):
             self.generate_output_table_schema(),
         )
         # Run the full etl process
-        with mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=date_folder):
-            with mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=["test_hzn_std_pc_no_exst_data.csv"]):
-                with mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")):
+        with mock.patch.object(
+            HorizonStandardisationProcess,
+            "get_last_modified_folder",
+            return_value=date_folder,
+        ):
+            with mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_file_names_in_directory",
+                return_value=["test_hzn_std_pc_no_exst_data.csv"],
+            ):
+                with mock.patch.object(
+                    F, "input_file_name", return_value=F.lit("some_input_file")
+                ):
                     inst = HorizonStandardisationProcess(spark)
                     result = inst.run(
                         orchestration_run_id="t_hsp_r_wned",
@@ -272,6 +340,12 @@ class TestHorizonStandardisationProcess(ETLTestCase):
                     )
                     assert_etl_result_successful(result)
                     msg = "Expected table 'odw_standardised_db.test_hzn_std_pc_no_exst_data' to exist but it was missing"
-                    assert spark.catalog.tableExists("odw_standardised_db.test_hzn_std_pc_no_exst_data"), msg
-                    actual_table_data = spark.table("odw_standardised_db.test_hzn_std_pc_no_exst_data")
-                    self.compare_standardised_data(expected_table_data, actual_table_data)
+                    assert spark.catalog.tableExists(
+                        "odw_standardised_db.test_hzn_std_pc_no_exst_data"
+                    ), msg
+                    actual_table_data = spark.table(
+                        "odw_standardised_db.test_hzn_std_pc_no_exst_data"
+                    )
+                    self.compare_standardised_data(
+                        expected_table_data, actual_table_data
+                    )

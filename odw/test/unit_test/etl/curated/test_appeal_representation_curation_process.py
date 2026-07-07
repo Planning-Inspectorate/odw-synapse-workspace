@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.appeal_representation_curation_process import AppealRepresentationCurationProcess
+from odw.core.etl.transformation.curated.appeal_representation_curation_process import (
+    AppealRepresentationCurationProcess,
+)
 from odw.core.util.util import Util
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -81,14 +83,26 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     T.StructField("redacted", T.BooleanType(), True),
                     T.StructField("redactedRepresentation", T.StringType(), True),
                     T.StructField("redactedBy", T.StringType(), True),
-                    T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "invalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
+                    T.StructField(
+                        "otherInvalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
                     T.StructField("source", T.StringType(), True),
                     T.StructField("serviceUserId", T.StringType(), True),
                     T.StructField("representationType", T.StringType(), True),
                     T.StructField("dateReceived", T.StringType(), True),
-                    T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("extraCol", T.StringType(), True),  # Extra col to prove only specific columns are selected
+                    T.StructField(
+                        "documentIds", T.ArrayType(T.StringType(), True), True
+                    ),
+                    T.StructField(
+                        "extraCol", T.StringType(), True
+                    ),  # Extra col to prove only specific columns are selected
                     T.StructField("IsActive", T.StringType(), True),
                 ]
             ),
@@ -149,13 +163,23 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     T.StructField("redacted", T.BooleanType(), True),
                     T.StructField("redactedRepresentation", T.StringType(), True),
                     T.StructField("redactedBy", T.StringType(), True),
-                    T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "invalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
+                    T.StructField(
+                        "otherInvalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
                     T.StructField("source", T.StringType(), True),
                     T.StructField("serviceUserId", T.StringType(), True),
                     T.StructField("representationType", T.StringType(), True),
                     T.StructField("dateReceived", T.StringType(), True),
-                    T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "documentIds", T.ArrayType(T.StringType(), True), True
+                    ),
                 ]
             ),
         )
@@ -171,7 +195,9 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
             assert expected_output_keys == actual_keys, (
                 f"Expected a dictionary with keys {expected_output_keys} to be returned by load_data(), but received the keys {actual_keys} instead"
             )
-            assert_dataframes_equal(expected_fetched_harmonised_data, actual_output["harmonised_data"])
+            assert_dataframes_equal(
+                expected_fetched_harmonised_data, actual_output["harmonised_data"]
+            )
 
     def test__appeal_representation__process(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -223,18 +249,32 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                         T.StructField("redacted", T.BooleanType(), True),
                         T.StructField("redactedRepresentation", T.StringType(), True),
                         T.StructField("redactedBy", T.StringType(), True),
-                        T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                        T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                        T.StructField(
+                            "invalidOrIncompleteDetails",
+                            T.ArrayType(T.StringType(), True),
+                            True,
+                        ),
+                        T.StructField(
+                            "otherInvalidOrIncompleteDetails",
+                            T.ArrayType(T.StringType(), True),
+                            True,
+                        ),
                         T.StructField("source", T.StringType(), True),
                         T.StructField("serviceUserId", T.StringType(), True),
                         T.StructField("representationType", T.StringType(), True),
                         T.StructField("dateReceived", T.StringType(), True),
-                        T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
+                        T.StructField(
+                            "documentIds", T.ArrayType(T.StringType(), True), True
+                        ),
                     ]
                 ),
             ),
         }
-        with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util,
+            "get_storage_account",
+            return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+        ):
             expected_data_to_write = {
                 "odw_curated_db.appeal_representation": {
                     "data": mock_data["harmonised_data"],
@@ -249,13 +289,28 @@ class TestAppealRepresentationCurationProcess(SparkTestCase):
                     "write_options": {},
                 }
             }
-            with mock.patch.object(AppealRepresentationCurationProcess, "__init__", return_value=None):
+            with mock.patch.object(
+                AppealRepresentationCurationProcess, "__init__", return_value=None
+            ):
                 inst = AppealRepresentationCurationProcess()
                 actual_data_to_write, _ = inst.process(mock_data)
-                expected_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in expected_data_to_write.items()}
-                actual_data_to_write_without_data = {k: {sk: sv for sk, sv in v.items() if sk != "data"} for k, v in actual_data_to_write.items()}
-                assert expected_data_to_write_without_data == actual_data_to_write_without_data
+                expected_data_to_write_without_data = {
+                    k: {sk: sv for sk, sv in v.items() if sk != "data"}
+                    for k, v in expected_data_to_write.items()
+                }
+                actual_data_to_write_without_data = {
+                    k: {sk: sv for sk, sv in v.items() if sk != "data"}
+                    for k, v in actual_data_to_write.items()
+                }
+                assert (
+                    expected_data_to_write_without_data
+                    == actual_data_to_write_without_data
+                )
                 assert_dataframes_equal(
-                    expected_data_to_write["odw_curated_db.appeal_representation"]["data"],
-                    actual_data_to_write["odw_curated_db.appeal_representation"]["data"],
+                    expected_data_to_write["odw_curated_db.appeal_representation"][
+                        "data"
+                    ],
+                    actual_data_to_write["odw_curated_db.appeal_representation"][
+                        "data"
+                    ],
                 )

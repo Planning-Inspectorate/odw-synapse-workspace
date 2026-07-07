@@ -26,8 +26,12 @@ def test_save_pipeline_logs__success_path_logs_single_formatted_message():
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response) as mock_post:
-        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ) as mock_post:
+        with mock.patch.object(
+            logging_util, "log_info", return_value=None
+        ) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={"table_name": "sb_service_user", "insert_count": 10},
                 event_name="Master_Pipeline_Logs_v2",
@@ -47,7 +51,9 @@ def test_save_pipeline_logs__success_path_does_not_raise_with_real_log_info():
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response):
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ):
         logging_util.save_pipeline_logs(
             payload={
                 "table_name": "sb_service_user",
@@ -92,7 +98,9 @@ def test_save_pipeline_logs__dataframe_payload_is_sanitised_before_requests_post
         raise TypeError("Synthetic telemetry failure after payload preparation")
 
     with mock.patch("odw.core.util.logging_util.requests.post", side_effect=fake_post):
-        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
+        with mock.patch.object(
+            logging_util, "log_info", return_value=None
+        ) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={
                     "table_name": "sb_service_user",
@@ -138,7 +146,9 @@ def test_save_pipeline_logs__requests_post_receives_expected_telemetry_shape_for
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response) as mock_post:
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ) as mock_post:
         with mock.patch.object(logging_util, "log_info", return_value=None):
             logging_util.save_pipeline_logs(
                 payload={
@@ -158,5 +168,8 @@ def test_save_pipeline_logs__requests_post_receives_expected_telemetry_shape_for
     assert sent_payload["iKey"] == "test-instrumentation-key"
     assert sent_payload["data"]["baseType"] == "EventData"
     assert sent_payload["data"]["baseData"]["name"] == "Master_Pipeline_Logs_v2"
-    assert sent_payload["data"]["baseData"]["properties"]["table_name"] == "sb_service_user"
+    assert (
+        sent_payload["data"]["baseData"]["properties"]["table_name"]
+        == "sb_service_user"
+    )
     assert sent_payload["data"]["baseData"]["properties"]["insert_count"] == 10

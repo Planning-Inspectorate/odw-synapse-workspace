@@ -1,9 +1,14 @@
 import uuid
 import mock
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql import DataFrame
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+from odw.core.etl.transformation.curated.appeal_document_curated_process import (
+    AppealDocumentCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
@@ -225,7 +230,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
                 IsActive="Y",
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -248,7 +255,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -278,7 +287,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
             _harmonised_row(documentId="doc-active", IsActive="Y"),
             _harmonised_row(documentId="doc-inactive", IsActive="N"),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -290,7 +301,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -324,7 +337,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
                 IsActive="Y",
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -340,7 +355,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -373,7 +390,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
                 IsActive="Y",
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -388,7 +407,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -417,7 +438,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
         duplicate_row = _harmonised_row(documentId="doc-dup", IsActive="Y")
         source_rows = [duplicate_row, duplicate_row]
 
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -429,7 +452,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -462,7 +487,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
                 IsActive="Y",
             ),
         ]
-        self.write_source_table(spark, spark.createDataFrame(source_rows, _harmonised_schema()))
+        self.write_source_table(
+            spark, spark.createDataFrame(source_rows, _harmonised_schema())
+        )
         self.write_empty_target_table(spark)
 
         expected_table_data = spark.createDataFrame(
@@ -477,7 +504,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()
@@ -510,7 +539,9 @@ class TestAppealDocumentCuratedProcess(ETLTestCase):
 
         with (
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as mock_etl_logging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil") as mock_process_logging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ) as mock_process_logging,
         ):
             mock_etl_logging.return_value = mock.Mock()
             mock_process_logging.return_value = mock.Mock()

@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -73,7 +75,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
             read_options={"multiline": "true"},
         )
         file_map["orchestration_data"] = orchestration_data
-        definition: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
+        definition: List[Dict[str, Any]] = json.loads(
+            orchestration_data.toJSON().first()
+        )["definitions"]
 
         # Load new raw data files to add to the existing data
         horizon_files = self.get_file_names_in_directory(source_path)
@@ -107,7 +111,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 },
             )
             if "corrupted_records" in data.columns:
-                raise RuntimeError(f"Failed to load file '{file}': The file had corrupt records after being read")
+                raise RuntimeError(
+                    f"Failed to load file '{file}': The file had corrupt records after being read"
+                )
             file_map[file] = data
 
         for file in horizon_files:
@@ -115,7 +121,10 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 (
                     d
                     for d in definition
-                    if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
+                    if (
+                        entity_name == ""
+                        or d.get("Source_Filename_Start", None) == entity_name
+                    )
                     and file.startswith(d.get("Source_Filename_Start", None))
                     and d.get("Load_Enable_status", False) == "True"
                 ),
@@ -124,22 +133,37 @@ class HorizonStandardisationProcess(StandardisationProcess):
             if definition:
                 table_name = definition.get("Standardised_Table_Name", None)
                 if not table_name:
-                    raise ValueError(f"Orchestration entry for '{file}' does not have a 'Standardised_Table_Name' property")
+                    raise ValueError(
+                        f"Orchestration entry for '{file}' does not have a 'Standardised_Table_Name' property"
+                    )
                 new_entry_name = f"odw_standardised_db.{table_name}"
                 try:
                     data = SynapseTableDataIO().read(
-                        spark=self.spark, database_name="odw_standardised_db", table_name=table_name, file_format="delta"
+                        spark=self.spark,
+                        database_name="odw_standardised_db",
+                        table_name=table_name,
+                        file_format="delta",
                     )
                     file_map[new_entry_name] = data
                 except AnalysisException:
                     file_map[new_entry_name] = None
                 # Load standardised table schema
                 if "Standardised_Table_Definition" in definition:
-                    standardised_table_loc = Util.get_path_to_file(f"odw-config/{definition['Standardised_Table_Definition']}")
-                    standardised_table_schema = json.loads(self.spark.read.text(standardised_table_loc, wholetext=True).first().value)
+                    standardised_table_loc = Util.get_path_to_file(
+                        f"odw-config/{definition['Standardised_Table_Definition']}"
+                    )
+                    standardised_table_schema = json.loads(
+                        self.spark.read.text(standardised_table_loc, wholetext=True)
+                        .first()
+                        .value
+                    )
                 else:
-                    standardised_table_schema = SchemaUtil(db_name="odw_standardised_db").get_schema_for_entity(definition["Source_Frequency_Folder"])
-                file_map[f"{table_name}_standardised_table_schema"] = standardised_table_schema
+                    standardised_table_schema = SchemaUtil(
+                        db_name="odw_standardised_db"
+                    ).get_schema_for_entity(definition["Source_Frequency_Folder"])
+                file_map[f"{table_name}_standardised_table_schema"] = (
+                    standardised_table_schema
+                )
         return file_map
 
     def process(self, **kwargs) -> ETLResult:
@@ -152,9 +176,17 @@ class HorizonStandardisationProcess(StandardisationProcess):
         else:
             date_folder = datetime.strptime(date_folder_input, "%Y-%m-%d")
         # Only process the csv files
-        files_to_process = {k: v for k, v in source_data.items() if k != "orchestration_data" and k.endswith(".csv")}
-        orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data)
-        definitions: List[Dict[str, Any]] = json.loads(orchestration_data.toJSON().first())["definitions"]
+        files_to_process = {
+            k: v
+            for k, v in source_data.items()
+            if k != "orchestration_data" and k.endswith(".csv")
+        }
+        orchestration_data: DataFrame = self.load_parameter(
+            "orchestration_data", source_data
+        )
+        definitions: List[Dict[str, Any]] = json.loads(
+            orchestration_data.toJSON().first()
+        )["definitions"]
 
         processed_tables = []
         new_row_count = 0
@@ -165,7 +197,10 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 (
                     d
                     for d in definitions
-                    if (entity_name == "" or d.get("Source_Filename_Start", None) == entity_name)
+                    if (
+                        entity_name == ""
+                        or d.get("Source_Filename_Start", None) == entity_name
+                    )
                     and file.startswith(d.get("Source_Filename_Start", None))
                     and d.get("Load_Enable_status", False) == "True"
                 ),
@@ -179,7 +214,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 schema = source_data.get(f"{table_name}_standardised_table_schema")
                 expected_from = date_folder - timedelta(days=1)
                 expected_from = datetime.combine(expected_from, datetime.min.time())
-                expected_to = expected_from + timedelta(days=definition["Expected_Within_Weekdays"])
+                expected_to = expected_from + timedelta(
+                    days=definition["Expected_Within_Weekdays"]
+                )
                 process_name = "horizon_standardisation_process"
                 data = files_to_process[file]
                 col_value_map = {
@@ -191,7 +228,13 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     "modified_datetime": F.current_timestamp(),
                     "modified_by_process_name": F.lit(process_name),
                     "entity_name": F.lit(definition["Source_Filename_Start"]),
-                    "file_ID": F.sha2(F.concat(F.lit(F.input_file_name()), F.current_timestamp().cast("string")), 256),
+                    "file_ID": F.sha2(
+                        F.concat(
+                            F.lit(F.input_file_name()),
+                            F.current_timestamp().cast("string"),
+                        ),
+                        256,
+                    ),
                 }
                 for col_name, col_value in col_value_map.items():
                     data = data.withColumn(col_name, col_value)
@@ -200,7 +243,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 for field in standardised_table_schema["fields"]:
                     if field["type"] == "array":
                         field["type"] = "string"
-                standardised_table_schema = StructType.fromJson(standardised_table_schema)
+                standardised_table_schema = StructType.fromJson(
+                    standardised_table_schema
+                )
 
                 cols_orig = data.schema.names
                 cols = [re.sub("[^0-9a-zA-Z]+", "_", i).lower() for i in cols_orig]
@@ -214,36 +259,71 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
                 ### Cast any column in df with type mismatch
                 for field in data.schema:
-                    table_field = next((f for f in standardised_table_schema if f.name.lower() == field.name.lower()), None)
-                    if table_field is not None and field.dataType != table_field.dataType:
-                        data = data.withColumn(field.name, F.col(field.name).cast(table_field.dataType))
+                    table_field = next(
+                        (
+                            f
+                            for f in standardised_table_schema
+                            if f.name.lower() == field.name.lower()
+                        ),
+                        None,
+                    )
+                    if (
+                        table_field is not None
+                        and field.dataType != table_field.dataType
+                    ):
+                        data = data.withColumn(
+                            field.name, F.col(field.name).cast(table_field.dataType)
+                        )
 
                 _anon_enabled = Util.is_non_production_environment()
-                LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}")
+                LoggingUtil().log_info(
+                    f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}"
+                )
                 # Apply anonymisation only in DEV/TEST environments
                 if _anon_enabled:
                     try:
                         anon_config = AnonymisationConfig()
                         try:
-                            policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
-                            policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+                            policy_path = Util.get_path_to_file(
+                                "odw-config/anonymisation/policy.yaml"
+                            )
+                            policy_text = (
+                                self.spark.read.text(policy_path, wholetext=True)
+                                .first()
+                                .value
+                            )
                             anon_config = load_config(text=policy_text)
                         except Exception as config_err:
-                            LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
-                        entity_name_for_seed = definition.get("Source_Filename_Start", "")
+                            LoggingUtil().log_info(
+                                f"Could not load anonymisation policy, using defaults: {config_err}"
+                            )
+                        entity_name_for_seed = definition.get(
+                            "Source_Filename_Start", ""
+                        )
                         engine = AnonymisationEngine(
                             config=AnonymisationConfig(
                                 classification_allowlist=anon_config.classification_allowlist,
-                                seed_column=anon_config.get_seed_column(entity_name_for_seed),
+                                seed_column=anon_config.get_seed_column(
+                                    entity_name_for_seed
+                                ),
                             )
                         )
-                        LoggingUtil().log_info(f"Applying anonymisation to Horizon file: {file}")
-                        data = engine.apply_from_purview(data, file_name=file, source_folder="Horizon")
+                        LoggingUtil().log_info(
+                            f"Applying anonymisation to Horizon file: {file}"
+                        )
+                        data = engine.apply_from_purview(
+                            data, file_name=file, source_folder="Horizon"
+                        )
                     except Exception as e:
-                        LoggingUtil().log_error(f"Anonymisation failed for {file}: {str(e)}")
+                        LoggingUtil().log_error(
+                            f"Anonymisation failed for {file}: {str(e)}"
+                        )
                         raise
 
-                table_exists = source_data.get(f"odw_standardised_db.{table_name}", None) is not None
+                table_exists = (
+                    source_data.get(f"odw_standardised_db.{table_name}", None)
+                    is not None
+                )
                 write_mode = "append" if table_exists else "overwrite"
                 write_opts = {"mergeSchema": "true"} if table_exists else dict()
 

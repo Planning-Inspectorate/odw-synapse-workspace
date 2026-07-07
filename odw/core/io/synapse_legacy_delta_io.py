@@ -56,25 +56,45 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
         write_options = kwargs.get("write_options", dict())
         partition_cols = kwargs.get("partition_cols", [])
         if not spark:
-            raise ValueError("SynapseLegacyDeltaIO.write requires spark to be provided, but was missing")
+            raise ValueError(
+                "SynapseLegacyDeltaIO.write requires spark to be provided, but was missing"
+            )
         if not (storage_name or storage_endpoint):
-            raise ValueError("SynapseLegacyDeltaIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError(
+                "SynapseLegacyDeltaIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided"
+            )
         if storage_name and storage_endpoint:
-            raise ValueError("SynapseLegacyDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError(
+                "SynapseLegacyDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both"
+            )
         if not container_name:
-            raise ValueError("SynapseLegacyDeltaIO.write requires a container_name to be provided, but was missing")
+            raise ValueError(
+                "SynapseLegacyDeltaIO.write requires a container_name to be provided, but was missing"
+            )
         if not blob_path:
-            raise ValueError("SynapseFileDataIO.write requires a blob_path to be provided, but was missing")
+            raise ValueError(
+                "SynapseFileDataIO.write requires a blob_path to be provided, but was missing"
+            )
         if bool(database_name) ^ bool(table_name):
-            raise ValueError("SynapseLegacyDeltaIO.write requires both database_name and table_name to be provided, or neither")
+            raise ValueError(
+                "SynapseLegacyDeltaIO.write requires both database_name and table_name to be provided, or neither"
+            )
         if not isinstance(write_options, dict):
-            raise ValueError(f"SynapseLegacyDeltaIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}")
+            raise ValueError(
+                f"SynapseLegacyDeltaIO.write requires the write_options to be a dictionary of strings, but was a {type(write_options)}"
+            )
         if not isinstance(partition_cols, list):
-            raise ValueError(f"SynapseLegacyDeltaIO.write requires the partition_cols to be a list of strings, but was a {type(partition_cols)}")
+            raise ValueError(
+                f"SynapseLegacyDeltaIO.write requires the partition_cols to be a list of strings, but was a {type(partition_cols)}"
+            )
         if storage_name:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_name=storage_name
+            )
         else:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_endpoint=storage_endpoint
+            )
         write_options = write_options | {"path": data_path}
         temp_table_name = f"{table_name}_tmp"
         TableUtil().delete_table_contents(spark, database_name, temp_table_name)
@@ -85,4 +105,6 @@ class SynapseLegacyDeltaIO(SynapseDeltaIO):
             writer.partitionBy(partition_cols)
         writer.saveAsTable(f"{database_name}.{temp_table_name}")
         TableUtil().delete_table_contents(spark, database_name, table_name)
-        spark.sql(f"ALTER TABLE {database_name}.{temp_table_name} RENAME TO {database_name}.{table_name}")
+        spark.sql(
+            f"ALTER TABLE {database_name}.{temp_table_name} RENAME TO {database_name}.{table_name}"
+        )

@@ -1,6 +1,8 @@
 from unittest import mock
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
+from odw.core.etl.transformation.standardised.service_bus_standardisation_process import (
+    ServiceBusStandardisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
@@ -77,7 +79,9 @@ def _build_anonymised_df(spark):
 
 
 class TestServiceBusStandardisationAnonymisation(SparkTestCase):
-    def test__service_bus_standardisation__process_applies_anonymisation_in_non_production(self):
+    def test__service_bus_standardisation__process_applies_anonymisation_in_non_production(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         table_df = _build_existing_table_df(spark)
@@ -93,7 +97,11 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
@@ -111,15 +119,26 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         assert kwargs["source_folder"] == "ServiceBus"
 
         written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-        rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
+        rows = {
+            (row["full_name"], row["emailAddress"])
+            for row in written_df.select("full_name", "emailAddress").collect()
+        }
 
         assert rows == {
-            ("REDACTED", "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"),
-            ("REDACTED", "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"),
+            (
+                "REDACTED",
+                "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f",
+            ),
+            (
+                "REDACTED",
+                "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859",
+            ),
         }
         assert etl_result.metadata.table_name == "sb_service_user"
 
-    def test__service_bus_standardisation__process_skips_anonymisation_in_production(self):
+    def test__service_bus_standardisation__process_skips_anonymisation_in_production(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         table_df = _build_existing_table_df(spark)
@@ -133,8 +152,14 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         }
 
         with (
-            mock.patch.object(Util, "is_non_production_environment", return_value=False),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util, "is_non_production_environment", return_value=False
+            ),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"
@@ -148,7 +173,10 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         mock_apply.assert_not_called()
 
         written_df = data_to_write["odw_standardised_db.sb_service_user"]["data"]
-        rows = {(row["full_name"], row["emailAddress"]) for row in written_df.select("full_name", "emailAddress").collect()}
+        rows = {
+            (row["full_name"], row["emailAddress"])
+            for row in written_df.select("full_name", "emailAddress").collect()
+        }
 
         assert rows == {
             ("John Doe", "john.doe@example.com"),
@@ -156,7 +184,9 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         }
         assert etl_result.metadata.table_name == "sb_service_user"
 
-    def test__service_bus_standardisation__process_preserves_standard_write_contract(self):
+    def test__service_bus_standardisation__process_preserves_standard_write_contract(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         table_df = _build_existing_table_df(spark)
@@ -172,7 +202,11 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
@@ -196,7 +230,9 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
         assert payload["write_mode"] == "append"
         assert payload["write_options"] == {"mergeSchema": "true"}
 
-    def test__service_bus_standardisation__process_raises_when_anonymisation_fails(self):
+    def test__service_bus_standardisation__process_raises_when_anonymisation_fails(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         table_df = _build_existing_table_df(spark)
@@ -211,7 +247,11 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview",
@@ -227,7 +267,9 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
             except RuntimeError as ex:
                 assert str(ex) == "Purview anonymisation failed"
 
-    def test__service_bus_standardisation__process_skips_anonymisation_when_no_new_rows(self):
+    def test__service_bus_standardisation__process_skips_anonymisation_when_no_new_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         table_df = _build_existing_table_df(spark)
@@ -242,7 +284,11 @@ class TestServiceBusStandardisationAnonymisation(SparkTestCase):
 
         with (
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
-            mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch(
                 "odw.core.etl.transformation.standardised.service_bus_standardisation_process.AnonymisationEngine.apply_from_purview"

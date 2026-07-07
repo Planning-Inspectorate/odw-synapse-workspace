@@ -7,7 +7,16 @@ from pyspark.sql import Catalog, SparkSession
 import pytest
 import mock
 from datetime import datetime
-from pyspark.sql.types import StructType, StructField, IntegerType, LongType, StringType, TimestampType, ArrayType, MapType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    IntegerType,
+    LongType,
+    StringType,
+    TimestampType,
+    ArrayType,
+    MapType,
+)
 from typing import List, Dict
 
 
@@ -35,7 +44,9 @@ class TestTableUtil(SparkTestCase):
         ]
     )
 
-    def get_sample_table_dataframe(self, table_details: List[Dict[str, str]], table_kind: str):
+    def get_sample_table_dataframe(
+        self, table_details: List[Dict[str, str]], table_kind: str
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         datetime_format = "%Y-%m-%d %H:%M:%S.%f"
         return spark.createDataFrame(
@@ -68,17 +79,39 @@ class TestTableUtil(SparkTestCase):
         storage_name = "somestorageaccount"
         table_location = f"abfss://{db_name.replace('_', '-')}@{storage_name}.dfs.core.windows.net/some/table_name"
         with mock.patch.object(Catalog, "tableExists", return_value=True):
-            mock_df = self.get_sample_table_dataframe([{"db_name": db_name, "table_name": table_name, "table_location": table_location}], "parquet")
+            mock_df = self.get_sample_table_dataframe(
+                [
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": table_location,
+                    }
+                ],
+                "parquet",
+            )
             with mock.patch.object(SparkSession, "sql", return_value=mock_df):
                 with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                            with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_exception", return_value=None
+                        ):
+                            with mock.patch.object(
+                                notebookutils.mssparkutils.fs, "rm", return_value=None
+                            ):
                                 TableUtil.delete_table(spark, db_name, table_name)
                                 SparkSession.sql.assert_has_calls(
-                                    [mock.call(f"DESCRIBE DETAIL {db_name}.{table_name}"), mock.call(f"DROP TABLE IF EXISTS {db_name}.{table_name}")]
+                                    [
+                                        mock.call(
+                                            f"DESCRIBE DETAIL {db_name}.{table_name}"
+                                        ),
+                                        mock.call(
+                                            f"DROP TABLE IF EXISTS {db_name}.{table_name}"
+                                        ),
+                                    ]
                                 )
-                                notebookutils.mssparkutils.fs.rm.assert_called_once_with(table_location, True)
+                                notebookutils.mssparkutils.fs.rm.assert_called_once_with(
+                                    table_location, True
+                                )
 
     def test_delete_table__table_does_not_exist(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -88,10 +121,14 @@ class TestTableUtil(SparkTestCase):
             with mock.patch.object(SparkSession, "sql", return_value=None):
                 with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                        with mock.patch.object(
+                            notebookutils.mssparkutils.fs, "rm", return_value=None
+                        ):
                             TableUtil.delete_table(spark, db_name, table_name)
                             assert not SparkSession.sql.called
-                            LoggingUtil.log_info.assert_has_calls([mock.call("Table does not exist")], any_order=True)
+                            LoggingUtil.log_info.assert_has_calls(
+                                [mock.call("Table does not exist")], any_order=True
+                            )
                             assert not notebookutils.mssparkutils.fs.rm.called
 
     def test_delete_table__multiple_occurrences(self):
@@ -103,19 +140,33 @@ class TestTableUtil(SparkTestCase):
         with mock.patch.object(Catalog, "tableExists", return_value=True):
             mock_df = self.get_sample_table_dataframe(
                 [
-                    {"db_name": db_name, "table_name": table_name, "table_location": table_location},
-                    {"db_name": db_name, "table_name": table_name, "table_location": "some_other_location"},
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": table_location,
+                    },
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": "some_other_location",
+                    },
                 ],
                 "parquet",
             )
             with mock.patch.object(SparkSession, "sql", return_value=mock_df):
                 with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                            with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_exception", return_value=None
+                        ):
+                            with mock.patch.object(
+                                notebookutils.mssparkutils.fs, "rm", return_value=None
+                            ):
                                 with pytest.raises(RuntimeError):
                                     TableUtil.delete_table(spark, db_name, table_name)
-                                    SparkSession.sql.assert_called_once_with(f"DESCRIBE DETAIL {db_name}.{table_name}")
+                                    SparkSession.sql.assert_called_once_with(
+                                        f"DESCRIBE DETAIL {db_name}.{table_name}"
+                                    )
                                     assert not notebookutils.mssparkutils.fs.rm.called
 
     def test_delete_table_contents__successful(self):
@@ -125,14 +176,31 @@ class TestTableUtil(SparkTestCase):
         storage_name = "somestorageaccount"
         table_location = f"abfss://{db_name.replace('_', '-')}@{storage_name}.dfs.core.windows.net/some/table_name"
         with mock.patch.object(Catalog, "tableExists", return_value=True):
-            mock_df = self.get_sample_table_dataframe([{"db_name": db_name, "table_name": table_name, "table_location": table_location}], "delta")
+            mock_df = self.get_sample_table_dataframe(
+                [
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": table_location,
+                    }
+                ],
+                "delta",
+            )
             with mock.patch.object(SparkSession, "sql", return_value=mock_df):
                 with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                            with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-                                TableUtil.delete_table_contents(spark, db_name, table_name)
-                                SparkSession.sql.assert_called_once_with(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
+                        with mock.patch.object(
+                            LoggingUtil, "log_exception", return_value=None
+                        ):
+                            with mock.patch.object(
+                                notebookutils.mssparkutils.fs, "rm", return_value=None
+                            ):
+                                TableUtil.delete_table_contents(
+                                    spark, db_name, table_name
+                                )
+                                SparkSession.sql.assert_called_once_with(
+                                    f"DROP TABLE IF EXISTS {db_name}.{table_name}"
+                                )
                                 # Should not delete the underlying file system
                                 assert not notebookutils.mssparkutils.fs.rm.called
 
@@ -146,7 +214,10 @@ class TestTableUtil(SparkTestCase):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                         TableUtil.delete_table_contents(spark, db_name, table_name)
                         assert not SparkSession.sql.called
-                        LoggingUtil.log_info.assert_has_calls([mock.call(f"Table {db_name}.{table_name} does not exist")], any_order=True)
+                        LoggingUtil.log_info.assert_has_calls(
+                            [mock.call(f"Table {db_name}.{table_name} does not exist")],
+                            any_order=True,
+                        )
 
     def test_delete_table_contents__multiple_occurrences(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -157,16 +228,32 @@ class TestTableUtil(SparkTestCase):
         with mock.patch.object(Catalog, "tableExists", return_value=True):
             mock_df = self.get_sample_table_dataframe(
                 [
-                    {"db_name": db_name, "table_name": table_name, "table_location": table_location},
-                    {"db_name": db_name, "table_name": table_name, "table_location": "some_other_location"},
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": table_location,
+                    },
+                    {
+                        "db_name": db_name,
+                        "table_name": table_name,
+                        "table_location": "some_other_location",
+                    },
                 ],
                 "delta",
             )
             with mock.patch.object(SparkSession, "sql", return_value=mock_df):
                 with mock.patch.object(LoggingUtil, "_initialise", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_exception", return_value=None):
-                            with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-                                TableUtil.delete_table_contents(spark, db_name, table_name)
-                                SparkSession.sql.assert_called_once_with(f"DROP TABLE IF EXISTS {db_name}.{table_name}")
+                        with mock.patch.object(
+                            LoggingUtil, "log_exception", return_value=None
+                        ):
+                            with mock.patch.object(
+                                notebookutils.mssparkutils.fs, "rm", return_value=None
+                            ):
+                                TableUtil.delete_table_contents(
+                                    spark, db_name, table_name
+                                )
+                                SparkSession.sql.assert_called_once_with(
+                                    f"DROP TABLE IF EXISTS {db_name}.{table_name}"
+                                )
                                 assert not notebookutils.mssparkutils.fs.rm.called

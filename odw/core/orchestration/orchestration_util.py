@@ -21,7 +21,9 @@ class OrchestrationUtil:
     @classmethod
     def _validate_results(cls, results: ResultType):
         if not isinstance(results, list):
-            raise ValueError(f"results should be a list, but was of type {type(results)}")
+            raise ValueError(
+                f"results should be a list, but was of type {type(results)}"
+            )
         results_json = [json.loads(x) for x in results]
         invalid_entries = []
         for result_list in results_json:
@@ -33,13 +35,19 @@ class OrchestrationUtil:
                     invalid_entries.append((result, e))
 
         if invalid_entries:
-            raise ValueError(f"The following results are not valid: {json.dumps(invalid_entries, indent=4, default=str)}")
+            raise ValueError(
+                f"The following results are not valid: {json.dumps(invalid_entries, indent=4, default=str)}"
+            )
         return results_json
 
     @classmethod
-    def _validate_preprocessing_failures(cls, preprocessing_failures: List[Dict[str, Any]]):
+    def _validate_preprocessing_failures(
+        cls, preprocessing_failures: List[Dict[str, Any]]
+    ):
         if not isinstance(preprocessing_failures, list):
-            raise ValueError(f"Preprocessing errors should be a list, but was of type {type(preprocessing_failures)}")
+            raise ValueError(
+                f"Preprocessing errors should be a list, but was of type {type(preprocessing_failures)}"
+            )
         invalid_entries = []
         for error_list in preprocessing_failures:
             try:
@@ -47,7 +55,9 @@ class OrchestrationUtil:
             except ValidationError as e:
                 invalid_entries.append((error_list, e))
         if invalid_entries:
-            raise ValueError(f"The following preprocessing errors are not valid: {json.dumps(invalid_entries, indent=4, default=str)}")
+            raise ValueError(
+                f"The following preprocessing errors are not valid: {json.dumps(invalid_entries, indent=4, default=str)}"
+            )
         return preprocessing_failures
 
     @classmethod
@@ -57,7 +67,9 @@ class OrchestrationUtil:
                 "entity": result["input_parameters"]["orchestration_entity_name"],
                 "stage": result["input_parameters"]["orchestration_stage_name"],
                 "successful": "error" not in result,  # For machine-readability
-                "status": "Success" if "error" not in result else "Fail",  # For human-readability
+                "status": "Success"
+                if "error" not in result
+                else "Fail",  # For human-readability
                 "error": result.get("error", None),
             }
             for batch in results
@@ -65,7 +77,9 @@ class OrchestrationUtil:
         ]
 
     @classmethod
-    def _clean_preprocessing_failures(cls, preprocessing_failures: List[Dict[str, Any]]):
+    def _clean_preprocessing_failures(
+        cls, preprocessing_failures: List[Dict[str, Any]]
+    ):
         return [
             {
                 "entity": entity_stage["orchestration_entity_name"],
@@ -80,14 +94,29 @@ class OrchestrationUtil:
 
     @classmethod
     def postprocess_orchestration_results(
-        cls, successful_results: ResultType, failed_results: ResultType, preprocessing_failures: List[Dict[str, Any]]
+        cls,
+        successful_results: ResultType,
+        failed_results: ResultType,
+        preprocessing_failures: List[Dict[str, Any]],
     ):
         successful_results_json = cls._validate_results(successful_results)
         failed_results_json = cls._validate_results(failed_results)
-        preprocessing_failures_json = cls._validate_preprocessing_failures(preprocessing_failures)
+        preprocessing_failures_json = cls._validate_preprocessing_failures(
+            preprocessing_failures
+        )
 
         clean_successful_results = cls._clean_results(successful_results_json)
         clean_failed_results = cls._clean_results(failed_results_json)
-        clean_preprocessing_failures = cls._clean_preprocessing_failures(preprocessing_failures_json)
-        results = clean_successful_results + clean_failed_results + clean_preprocessing_failures
-        return {"hasFailure": bool(clean_failed_results) or bool(clean_preprocessing_failures), "results": results}
+        clean_preprocessing_failures = cls._clean_preprocessing_failures(
+            preprocessing_failures_json
+        )
+        results = (
+            clean_successful_results
+            + clean_failed_results
+            + clean_preprocessing_failures
+        )
+        return {
+            "hasFailure": bool(clean_failed_results)
+            or bool(clean_preprocessing_failures),
+            "results": results,
+        }

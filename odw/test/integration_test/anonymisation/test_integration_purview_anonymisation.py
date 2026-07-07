@@ -3,7 +3,10 @@ import re
 import pytest
 import pyspark.sql.functions as F
 
-from odw.core.anonymisation import AnonymisationEngine, fetch_purview_classifications_by_qualified_name
+from odw.core.anonymisation import (
+    AnonymisationEngine,
+    fetch_purview_classifications_by_qualified_name,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -38,20 +41,27 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
     def service_bus_test_asset_config(self):
         storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST")
         if not storage_host:
-            storage_host = os.getenv("DATA_LAKE_STORAGE_HOST", "pinsstodwdevuks9h80mb.dfs.core.windows.net")
+            storage_host = os.getenv(
+                "DATA_LAKE_STORAGE_HOST", "pinsstodwdevuks9h80mb.dfs.core.windows.net"
+            )
 
         if not storage_host.endswith(".dfs.core.windows.net"):
             storage_host = f"{storage_host}.dfs.core.windows.net"
 
         asset_qn = os.getenv("PURVIEW_TEST_ASSET_QUALIFIED_NAME")
-        if not asset_qn or "storage.dfs.core.windows.net/container/path/file.csv" in asset_qn:
+        if (
+            not asset_qn
+            or "storage.dfs.core.windows.net/container/path/file.csv" in asset_qn
+        ):
             asset_qn = (
                 f"https://{storage_host}/odw-raw/ServiceBus/service-user/"
                 f"{{Year}}-{{Month}}-{{Day}}/"
                 f"service-user_{{Year}}-{{Month}}-{{Day}}T{{Hour}}:{{N}}:{{N}}.{{N}}+{{N}}:{{N}}.json"
             )
 
-        asset_type = os.getenv("PURVIEW_TEST_ASSET_TYPE", "azure_datalake_gen2_resource_set")
+        asset_type = os.getenv(
+            "PURVIEW_TEST_ASSET_TYPE", "azure_datalake_gen2_resource_set"
+        )
 
         return {
             "asset_qualified_name": asset_qn,
@@ -59,7 +69,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
             "storage_host": storage_host,
         }
 
-    def _fetch_live_classifications(self, purview_credentials, service_bus_test_asset_config):
+    def _fetch_live_classifications(
+        self, purview_credentials, service_bus_test_asset_config
+    ):
         return fetch_purview_classifications_by_qualified_name(
             purview_name=purview_credentials["purview_name"],
             tenant_id=purview_credentials["tenant_id"],
@@ -142,7 +154,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
         purview_credentials,
         service_bus_test_asset_config,
     ):
-        cols = self._fetch_live_classifications(purview_credentials, service_bus_test_asset_config)
+        cols = self._fetch_live_classifications(
+            purview_credentials, service_bus_test_asset_config
+        )
 
         assert isinstance(cols, list)
 
@@ -181,7 +195,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
         service_bus_test_asset_config,
     ):
         df = self._build_test_df(spark)
-        live_cols = self._fetch_live_classifications(purview_credentials, service_bus_test_asset_config)
+        live_cols = self._fetch_live_classifications(
+            purview_credentials, service_bus_test_asset_config
+        )
         live_mapping = self._map_live_columns_to_df_columns(df, live_cols)
 
         engine = AnonymisationEngine(run_id="integration-live-contract")
@@ -201,10 +217,16 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
         for original, result in zip(original_rows, result_rows):
             for col_name in df.columns:
                 classifications = live_mapping.get(col_name, set())
-                should_change = original[col_name] is not None and len(classifications) > 0 and self._is_supported_by_strategy(classifications)
+                should_change = (
+                    original[col_name] is not None
+                    and len(classifications) > 0
+                    and self._is_supported_by_strategy(classifications)
+                )
 
                 if should_change:
-                    assert original[col_name] != result[col_name], f"Expected '{col_name}' to change. Classifications: {sorted(classifications)}"
+                    assert original[col_name] != result[col_name], (
+                        f"Expected '{col_name}' to change. Classifications: {sorted(classifications)}"
+                    )
                 else:
                     assert original[col_name] == result[col_name], (
                         f"Expected '{col_name}' to stay unchanged. Classifications: {sorted(classifications)}"
@@ -229,7 +251,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
             asset_qualified_name=service_bus_test_asset_config["asset_qualified_name"],
         )
 
-        null_row = result_df.filter(F.col("EmployeeID") == "EMP003").collect()[0].asDict()
+        null_row = (
+            result_df.filter(F.col("EmployeeID") == "EMP003").collect()[0].asDict()
+        )
 
         assert null_row["emailAddress"] is None
         assert null_row["full_name"] is None
@@ -245,7 +269,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
         service_bus_test_asset_config,
     ):
         df = self._build_test_df(spark)
-        live_cols = self._fetch_live_classifications(purview_credentials, service_bus_test_asset_config)
+        live_cols = self._fetch_live_classifications(
+            purview_credentials, service_bus_test_asset_config
+        )
         live_mapping = self._map_live_columns_to_df_columns(df, live_cols)
 
         engine = AnonymisationEngine(run_id="integration-live-allowlist")
@@ -285,7 +311,9 @@ class TestPurviewAnonymisationIntegration(SparkTestCase):
         os.environ["ODW_TENANT_ID"] = purview_credentials["tenant_id"]
         os.environ["ODW_CLIENT_ID"] = purview_credentials["client_id"]
         os.environ["ODW_CLIENT_SECRET"] = purview_credentials["client_secret"]
-        os.environ["ODW_STORAGE_ACCOUNT_DFS_HOST"] = service_bus_test_asset_config["storage_host"]
+        os.environ["ODW_STORAGE_ACCOUNT_DFS_HOST"] = service_bus_test_asset_config[
+            "storage_host"
+        ]
 
         try:
             engine = AnonymisationEngine(run_id="integration-live-simplified")

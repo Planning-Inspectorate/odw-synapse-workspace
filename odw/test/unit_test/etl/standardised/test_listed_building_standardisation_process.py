@@ -1,7 +1,9 @@
 import mock
 import pytest
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
-from odw.core.etl.transformation.standardised.listed_building_standardisation_process import ListedBuildingStandardisationProcess
+from odw.core.etl.transformation.standardised.listed_building_standardisation_process import (
+    ListedBuildingStandardisationProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -390,7 +392,9 @@ def _duplicate_listed_building_raw_df(spark):
 
 
 class TestListedBuildingStandardisationProcess(SparkTestCase):
-    def test__listed_building_standardisation_process__get_name__returns_expected_name(self):
+    def test__listed_building_standardisation_process__get_name__returns_expected_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ListedBuildingStandardisationProcess(spark)
 
@@ -536,9 +540,15 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
-        lb_row = listed_building_df.where("entity = '1002'").select("end-date", "geometry", "point", "documentation-url").collect()[0]
+        lb_row = (
+            listed_building_df.where("entity = '1002'")
+            .select("end-date", "geometry", "point", "documentation-url")
+            .collect()[0]
+        )
         lbo_row = (
             listed_building_outline_df.where("entity = '2002'")
             .select(
@@ -580,7 +590,10 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         data_to_write, _ = inst.process(source_data=source_data)
 
         assert data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert (
+            data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"]
+            == "overwrite"
+        )
 
     def test__listed_building_standardisation_process__process__keeps_expected_column_set_for_each_output(
         self,
@@ -596,7 +609,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.columns == [
             "dataset",
@@ -643,14 +658,18 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_multirow_raw_df(spark),
-            "listed_building_outline_data": _listed_building_outline_multirow_raw_df(spark),
+            "listed_building_outline_data": _listed_building_outline_multirow_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 3
         assert listed_building_outline_df.count() == 3
@@ -662,14 +681,18 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_empty_entities_raw_df(spark),
-            "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(spark),
+            "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 0
         assert listed_building_outline_df.count() == 0
@@ -681,14 +704,18 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _empty_listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 0
         assert listed_building_outline_df.count() == 0
@@ -700,14 +727,18 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
         data_to_write, _ = inst.process(source_data=source_data)
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 2
         assert listed_building_outline_df.count() == 0
@@ -719,7 +750,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _duplicate_listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -737,7 +770,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -757,13 +792,18 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         assert LISTED_BUILDING_OUTLINE_OUTPUT_TABLE in data_to_write
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 2
         assert listed_building_outline_df.count() == 2
 
         assert data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert (
+            data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"]
+            == "overwrite"
+        )
 
         assert listed_building_df.columns == [
             "dataset",
@@ -810,7 +850,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -827,7 +869,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
         data_to_write = mock_write.call_args[0][0]
 
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         lb_row = (
             listed_building_df.where("entity = '1001'")
@@ -840,7 +884,11 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
             )
             .collect()[0]
         )
-        lb_null_row = listed_building_df.where("entity = '1002'").select("geometry", "point", "documentation-url").collect()[0]
+        lb_null_row = (
+            listed_building_df.where("entity = '1002'")
+            .select("geometry", "point", "documentation-url")
+            .collect()[0]
+        )
         lbo_row = (
             listed_building_outline_df.where("entity = '2001'")
             .select("address", "listed-building", "reference", "document-url", "notes")
@@ -891,7 +939,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_multirow_raw_df(spark),
-            "listed_building_outline_data": _listed_building_outline_multirow_raw_df(spark),
+            "listed_building_outline_data": _listed_building_outline_multirow_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -907,13 +957,20 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 3
         assert listed_building_outline_df.count() == 3
 
-        listed_building_entities = {row["entity"] for row in listed_building_df.select("entity").collect()}
-        listed_building_outline_entities = {row["entity"] for row in listed_building_outline_df.select("entity").collect()}
+        listed_building_entities = {
+            row["entity"] for row in listed_building_df.select("entity").collect()
+        }
+        listed_building_outline_entities = {
+            row["entity"]
+            for row in listed_building_outline_df.select("entity").collect()
+        }
 
         assert listed_building_entities == {"1001", "1002", "1003"}
         assert listed_building_outline_entities == {"2001", "2002", "2003"}
@@ -925,7 +982,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _listed_building_empty_entities_raw_df(spark),
-            "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(spark),
+            "listed_building_outline_data": _listed_building_outline_empty_entities_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -941,7 +1000,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 0
         assert listed_building_outline_df.count() == 0
@@ -953,7 +1014,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _empty_listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -969,12 +1032,17 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 0
         assert listed_building_outline_df.count() == 0
         assert data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["write_mode"] == "overwrite"
-        assert data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert (
+            data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["write_mode"]
+            == "overwrite"
+        )
 
     def test__listed_building_standardisation_process__run__one_source_empty_still_writes_the_other_output(
         self,
@@ -983,7 +1051,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _empty_listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)
@@ -999,7 +1069,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         data_to_write = mock_write.call_args[0][0]
         listed_building_df = data_to_write[LISTED_BUILDING_OUTPUT_TABLE]["data"]
-        listed_building_outline_df = data_to_write[LISTED_BUILDING_OUTLINE_OUTPUT_TABLE]["data"]
+        listed_building_outline_df = data_to_write[
+            LISTED_BUILDING_OUTLINE_OUTPUT_TABLE
+        ]["data"]
 
         assert listed_building_df.count() == 2
         assert listed_building_outline_df.count() == 0
@@ -1011,7 +1083,9 @@ class TestListedBuildingStandardisationProcess(SparkTestCase):
 
         source_data = {
             "listed_building_data": _duplicate_listed_building_raw_df(spark),
-            "listed_building_outline_data": _empty_listed_building_outline_raw_df(spark),
+            "listed_building_outline_data": _empty_listed_building_outline_raw_df(
+                spark
+            ),
         }
 
         inst = ListedBuildingStandardisationProcess(spark)

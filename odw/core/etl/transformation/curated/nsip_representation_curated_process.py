@@ -35,7 +35,9 @@ class NsipRepresentationCuratedProcess(CurationProcess):
         Filters are applied here for performance (IsActive, caseRef IS NOT NULL).
         No joins or transformations are applied here – only reads.
         """
-        LoggingUtil().log_info(f"Loading harmonised NSIP Representation data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP Representation data from {self.HARMONISED_TABLE}"
+        )
         harmonised_representations = self.spark.sql(f"""
             SELECT
                 representationId,
@@ -74,7 +76,9 @@ class NsipRepresentationCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_representations: DataFrame = self.load_parameter("harmonised_representations", source_data)
+        harmonised_representations: DataFrame = self.load_parameter(
+            "harmonised_representations", source_data
+        )
 
         # Apply curated column transformations and SELECT DISTINCT
         df = harmonised_representations.select(
@@ -84,34 +88,58 @@ class NsipRepresentationCuratedProcess(CurationProcess):
             F.col("caseRef"),
             F.col("caseId"),
             # status mapping
-            F.when((F.col("status") == "New") | (F.col("status") == "In Progress"), F.lit("awaiting_review"))
+            F.when(
+                (F.col("status") == "New") | (F.col("status") == "In Progress"),
+                F.lit("awaiting_review"),
+            )
             .when(F.col("status") == "Complete", F.lit("valid"))
             .when(F.col("status") == "Do Not Publish", F.lit("invalid"))
             .otherwise(F.lower(F.col("status")))
             .alias("status"),
-            F.coalesce(F.col("originalRepresentation"), F.lit("")).alias("originalRepresentation"),
+            F.coalesce(F.col("originalRepresentation"), F.lit("")).alias(
+                "originalRepresentation"
+            ),
             F.col("redacted"),
             F.col("redactedRepresentation"),
             F.col("redactedBy"),
             F.col("redactedNotes"),
             # representationFrom mapping
-            F.when(F.col("representationFrom") == "An Organisation", F.lit("ORGANISATION"))
-            .when(F.col("representationFrom") == "Members of the Public/Businesses", F.lit("PERSON"))
-            .when(F.col("representationFrom") == "Another Individual or Organisation", F.lit("PERSON"))
+            F.when(
+                F.col("representationFrom") == "An Organisation", F.lit("ORGANISATION")
+            )
+            .when(
+                F.col("representationFrom") == "Members of the Public/Businesses",
+                F.lit("PERSON"),
+            )
+            .when(
+                F.col("representationFrom") == "Another Individual or Organisation",
+                F.lit("PERSON"),
+            )
             .when(F.col("representationFrom") == "Myself", F.lit("PERSON"))
             .otherwise(F.col("representationFrom"))
             .alias("representationFrom"),
             F.col("representedId"),
             F.col("representativeId"),
             # registerFor mapping (same as representationFrom but fallback to registerFor)
-            F.when(F.col("representationFrom") == "An Organisation", F.lit("ORGANISATION"))
-            .when(F.col("representationFrom") == "Members of the Public/Businesses", F.lit("PERSON"))
-            .when(F.col("representationFrom") == "Another Individual or Organisation", F.lit("PERSON"))
+            F.when(
+                F.col("representationFrom") == "An Organisation", F.lit("ORGANISATION")
+            )
+            .when(
+                F.col("representationFrom") == "Members of the Public/Businesses",
+                F.lit("PERSON"),
+            )
+            .when(
+                F.col("representationFrom") == "Another Individual or Organisation",
+                F.lit("PERSON"),
+            )
             .when(F.col("representationFrom") == "Myself", F.lit("PERSON"))
             .otherwise(F.col("registerFor"))
             .alias("registerFor"),
             # representationType mapping
-            F.when(F.col("representationType") == "Other Statutory Consultees", F.lit("Statutory Consultees"))
+            F.when(
+                F.col("representationType") == "Other Statutory Consultees",
+                F.lit("Statutory Consultees"),
+            )
             .otherwise(F.col("representationType"))
             .alias("representationType"),
             F.col("dateReceived"),

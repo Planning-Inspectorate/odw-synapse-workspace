@@ -1,11 +1,24 @@
 import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType, IntegerType, BooleanType
-from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import AppealS78StandardisationProcess
+from pyspark.sql.types import (
+    ArrayType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+    IntegerType,
+    BooleanType,
+)
+from odw.core.etl.transformation.standardised.appeal_s78_standardisation_process import (
+    AppealS78StandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from datetime import datetime
 from contextlib import ExitStack
 
@@ -1350,7 +1363,12 @@ def generate_expected_schema():
                 "enforcementAppealGroundsDetails",
                 ArrayType(
                     StructType(
-                        [StructField("appealGroundLetter", StringType(), True), StructField("groundForAppealStartDate", TimestampType(), True)]
+                        [
+                            StructField("appealGroundLetter", StringType(), True),
+                            StructField(
+                                "groundForAppealStartDate", TimestampType(), True
+                            ),
+                        ]
                     ),
                     False,
                 ),
@@ -1493,16 +1511,36 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # cs
         cases_specialisms = spark.createDataFrame(
             (
-                generate_cases_specialisms_row(casereference="1", casespecialism="Specialism A"),
-                generate_cases_specialisms_row(casereference="2", casespecialism="Specialism B"),
-                generate_cases_specialisms_row(casereference="3", casespecialism="Specialism C"),
-                generate_cases_specialisms_row(casereference="4", casespecialism="Specialism D"),
-                generate_cases_specialisms_row(casereference="5", casespecialism="Specialism E"),
-                generate_cases_specialisms_row(casereference="6", casespecialism="Specialism F"),
-                generate_cases_specialisms_row(casereference="7", casespecialism="Specialism G"),
-                generate_cases_specialisms_row(casereference="8", casespecialism="Specialism H"),
-                generate_cases_specialisms_row(casereference="9", casespecialism="Specialism I"),
-                generate_cases_specialisms_row(casereference="10", casespecialism="Specialism J"),
+                generate_cases_specialisms_row(
+                    casereference="1", casespecialism="Specialism A"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="2", casespecialism="Specialism B"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="3", casespecialism="Specialism C"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="4", casespecialism="Specialism D"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="5", casespecialism="Specialism E"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="6", casespecialism="Specialism F"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="7", casespecialism="Specialism G"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="8", casespecialism="Specialism H"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="9", casespecialism="Specialism I"
+                ),
+                generate_cases_specialisms_row(
+                    casereference="10", casespecialism="Specialism J"
+                ),
             ),
             schema=generate_cases_specialisms_schema(),
         )
@@ -1545,16 +1583,36 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # cdd
         casedocumentdatesdates = spark.createDataFrame(
             (
-                generate_casedocumentdatesdates_row(casenodeid="1", appealrefnumber="1"),
-                generate_casedocumentdatesdates_row(casenodeid="2", appealrefnumber="2"),
-                generate_casedocumentdatesdates_row(casenodeid="3", appealrefnumber="3"),
-                generate_casedocumentdatesdates_row(casenodeid="4", appealrefnumber="4"),
-                generate_casedocumentdatesdates_row(casenodeid="5", appealrefnumber="5"),
-                generate_casedocumentdatesdates_row(casenodeid="6", appealrefnumber="6"),
-                generate_casedocumentdatesdates_row(casenodeid="7", appealrefnumber="7"),
-                generate_casedocumentdatesdates_row(casenodeid="8", appealrefnumber="8"),
-                generate_casedocumentdatesdates_row(casenodeid="9", appealrefnumber="9"),
-                generate_casedocumentdatesdates_row(casenodeid="10", appealrefnumber="10"),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="1", appealrefnumber="1"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="2", appealrefnumber="2"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="3", appealrefnumber="3"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="4", appealrefnumber="4"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="5", appealrefnumber="5"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="6", appealrefnumber="6"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="7", appealrefnumber="7"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="8", appealrefnumber="8"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="9", appealrefnumber="9"
+                ),
+                generate_casedocumentdatesdates_row(
+                    casenodeid="10", appealrefnumber="10"
+                ),
             ),
             schema=generate_casedocumentdatesdates_schema(),
         )
@@ -1775,16 +1833,36 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # haa
         horizon_advert_attributes = spark.createDataFrame(
             (
-                generate_horizon_advert_attributes_row(caseNodeId=1, caseUniqueId=1, advertType="adTypeA"),
-                generate_horizon_advert_attributes_row(caseNodeId=2, caseUniqueId=2, advertType="adTypeB"),
-                generate_horizon_advert_attributes_row(caseNodeId=3, caseUniqueId=3, advertType="adTypeC"),
-                generate_horizon_advert_attributes_row(caseNodeId=4, caseUniqueId=4, advertType="adTypeD"),
-                generate_horizon_advert_attributes_row(caseNodeId=5, caseUniqueId=5, advertType="adTypeE"),
-                generate_horizon_advert_attributes_row(caseNodeId=6, caseUniqueId=6, advertType="adTypeF"),
-                generate_horizon_advert_attributes_row(caseNodeId=7, caseUniqueId=7, advertType="adTypeG"),
-                generate_horizon_advert_attributes_row(caseNodeId=8, caseUniqueId=8, advertType="adTypeH"),
-                generate_horizon_advert_attributes_row(caseNodeId=9, caseUniqueId=9, advertType="adTypeI"),
-                generate_horizon_advert_attributes_row(caseNodeId=10, caseUniqueId=10, advertType="adTypeJ"),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=1, caseUniqueId=1, advertType="adTypeA"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=2, caseUniqueId=2, advertType="adTypeB"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=3, caseUniqueId=3, advertType="adTypeC"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=4, caseUniqueId=4, advertType="adTypeD"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=5, caseUniqueId=5, advertType="adTypeE"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=6, caseUniqueId=6, advertType="adTypeF"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=7, caseUniqueId=7, advertType="adTypeG"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=8, caseUniqueId=8, advertType="adTypeH"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=9, caseUniqueId=9, advertType="adTypeI"
+                ),
+                generate_horizon_advert_attributes_row(
+                    caseNodeId=10, caseUniqueId=10, advertType="adTypeJ"
+                ),
             ),
             schema=generate_horizon_advert_attributes_schema(),
         )
@@ -1840,7 +1918,9 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
             ),
             schema=generate_horizon_specialist_case_dates_schema(),
         )
-        horizon_specialist_case_dates_table = f"{test_prefix}_horizon_specialist_case_dates"
+        horizon_specialist_case_dates_table = (
+            f"{test_prefix}_horizon_specialist_case_dates"
+        )
         self.write_existing_table(
             spark,
             horizon_specialist_case_dates,
@@ -1853,16 +1933,36 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # pas
         planningappstrings = spark.createDataFrame(
             (
-                generate_planningappstrings_row(casenodeid="1", planningapplicationtype="appTypeA"),
-                generate_planningappstrings_row(casenodeid="2", planningapplicationtype="appTypeB"),
-                generate_planningappstrings_row(casenodeid="3", planningapplicationtype="appTypeC"),
-                generate_planningappstrings_row(casenodeid="4", planningapplicationtype="appTypeD"),
-                generate_planningappstrings_row(casenodeid="5", planningapplicationtype="appTypeE"),
-                generate_planningappstrings_row(casenodeid="6", planningapplicationtype="appTypeF"),
-                generate_planningappstrings_row(casenodeid="7", planningapplicationtype="appTypeG"),
-                generate_planningappstrings_row(casenodeid="8", planningapplicationtype="appTypeH"),
-                generate_planningappstrings_row(casenodeid="9", planningapplicationtype="appTypeI"),
-                generate_planningappstrings_row(casenodeid="10", planningapplicationtype="appTypeJ"),
+                generate_planningappstrings_row(
+                    casenodeid="1", planningapplicationtype="appTypeA"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="2", planningapplicationtype="appTypeB"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="3", planningapplicationtype="appTypeC"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="4", planningapplicationtype="appTypeD"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="5", planningapplicationtype="appTypeE"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="6", planningapplicationtype="appTypeF"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="7", planningapplicationtype="appTypeG"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="8", planningapplicationtype="appTypeH"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="9", planningapplicationtype="appTypeI"
+                ),
+                generate_planningappstrings_row(
+                    casenodeid="10", planningapplicationtype="appTypeJ"
+                ),
             ),
             schema=generate_planningappstrings_schema(),
         )
@@ -2009,20 +2109,42 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # aad
         horizon_appeals_additional_data = spark.createDataFrame(
             (
-                generate_horizon_appeals_additional_data_row(appealrefnumber="1", processingstate="Complete", appellant="Alice"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="2", processingstate="Complete", appellant="Bob"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="3", processingstate="Complete", appellant="Charlie"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="4", processingstate="Complete", appellant="Dave"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="5", processingstate="Complete", appellant="Emily"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="6", processingstate="Complete", appellant="Frank"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="7", processingstate="Complete", appellant="Garry"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="8", processingstate="Complete", appellant="Harry"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="9", processingstate="Complete", appellant="Ivy"),
-                generate_horizon_appeals_additional_data_row(appealrefnumber="10", processingstate="Complete", appellant="Jim"),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="1", processingstate="Complete", appellant="Alice"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="2", processingstate="Complete", appellant="Bob"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="3", processingstate="Complete", appellant="Charlie"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="4", processingstate="Complete", appellant="Dave"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="5", processingstate="Complete", appellant="Emily"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="6", processingstate="Complete", appellant="Frank"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="7", processingstate="Complete", appellant="Garry"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="8", processingstate="Complete", appellant="Harry"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="9", processingstate="Complete", appellant="Ivy"
+                ),
+                generate_horizon_appeals_additional_data_row(
+                    appealrefnumber="10", processingstate="Complete", appellant="Jim"
+                ),
             ),
             schema=generate_horizon_appeals_additional_data_schema(),
         )
-        horizon_appeals_additional_data_table = f"{test_prefix}_horizon_appeals_additional_data"
+        horizon_appeals_additional_data_table = (
+            f"{test_prefix}_horizon_appeals_additional_data"
+        )
         self.write_existing_table(
             spark,
             horizon_appeals_additional_data,
@@ -2035,16 +2157,36 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # hag
         horizon_appeal_grounds = spark.createDataFrame(
             (
-                generate_horizon_appeal_grounds_row(caseNodeId=1, appealGroundLetter="(a)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=2, appealGroundLetter="(b)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=3, appealGroundLetter="(c)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=4, appealGroundLetter="(d)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=5, appealGroundLetter="(e)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=6, appealGroundLetter="(f)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=7, appealGroundLetter="(g)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=8, appealGroundLetter="(h)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=9, appealGroundLetter="(i)"),
-                generate_horizon_appeal_grounds_row(caseNodeId=10, appealGroundLetter="(j)"),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=1, appealGroundLetter="(a)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=2, appealGroundLetter="(b)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=3, appealGroundLetter="(c)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=4, appealGroundLetter="(d)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=5, appealGroundLetter="(e)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=6, appealGroundLetter="(f)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=7, appealGroundLetter="(g)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=8, appealGroundLetter="(h)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=9, appealGroundLetter="(i)"
+                ),
+                generate_horizon_appeal_grounds_row(
+                    caseNodeId=10, appealGroundLetter="(j)"
+                ),
             ),
             schema=generate_horizon_appeal_grounds_schema(),
         )
@@ -2087,20 +2229,42 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         # hmu
         horizon_application_made_under_section = spark.createDataFrame(
             (
-                generate_horizon_application_made_under_section_row(caseUniqueId=1, caseNodeId=1, applicationMadeUnderSection=1),
-                generate_horizon_application_made_under_section_row(caseUniqueId=2, caseNodeId=2, applicationMadeUnderSection=2),
-                generate_horizon_application_made_under_section_row(caseUniqueId=3, caseNodeId=3, applicationMadeUnderSection=3),
-                generate_horizon_application_made_under_section_row(caseUniqueId=4, caseNodeId=4, applicationMadeUnderSection=4),
-                generate_horizon_application_made_under_section_row(caseUniqueId=5, caseNodeId=5, applicationMadeUnderSection=5),
-                generate_horizon_application_made_under_section_row(caseUniqueId=6, caseNodeId=6, applicationMadeUnderSection=6),
-                generate_horizon_application_made_under_section_row(caseUniqueId=7, caseNodeId=7, applicationMadeUnderSection=7),
-                generate_horizon_application_made_under_section_row(caseUniqueId=8, caseNodeId=8, applicationMadeUnderSection=8),
-                generate_horizon_application_made_under_section_row(caseUniqueId=9, caseNodeId=9, applicationMadeUnderSection=9),
-                generate_horizon_application_made_under_section_row(caseUniqueId=10, caseNodeId=10, applicationMadeUnderSection=10),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=1, caseNodeId=1, applicationMadeUnderSection=1
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=2, caseNodeId=2, applicationMadeUnderSection=2
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=3, caseNodeId=3, applicationMadeUnderSection=3
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=4, caseNodeId=4, applicationMadeUnderSection=4
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=5, caseNodeId=5, applicationMadeUnderSection=5
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=6, caseNodeId=6, applicationMadeUnderSection=6
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=7, caseNodeId=7, applicationMadeUnderSection=7
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=8, caseNodeId=8, applicationMadeUnderSection=8
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=9, caseNodeId=9, applicationMadeUnderSection=9
+                ),
+                generate_horizon_application_made_under_section_row(
+                    caseUniqueId=10, caseNodeId=10, applicationMadeUnderSection=10
+                ),
             ),
             schema=generate_horizon_application_made_under_section_schema(),
         )
-        horizon_application_made_under_section_table = f"{test_prefix}_horizon_application_made_under_section"
+        horizon_application_made_under_section_table = (
+            f"{test_prefix}_horizon_application_made_under_section"
+        )
         self.write_existing_table(
             spark,
             horizon_application_made_under_section,
@@ -2122,7 +2286,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="1",
                         casespecialism="Specialism A",
                         importantinformation="infoA",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="A",
                         allocationBand="bandA",
                         typeOfPlanningApplication="appTypeA",
@@ -2137,7 +2306,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="10",
                         casespecialism="Specialism J",
                         importantinformation="infoJ",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="J",
                         allocationBand="bandJ",
                         typeOfPlanningApplication="appTypeJ",
@@ -2152,7 +2326,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="2",
                         casespecialism="Specialism B",
                         importantinformation="infoB",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="B",
                         allocationBand="bandB",
                         typeOfPlanningApplication="appTypeB",
@@ -2167,7 +2346,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="3",
                         casespecialism="Specialism C",
                         importantinformation="infoC",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="C",
                         allocationBand="bandC",
                         typeOfPlanningApplication="appTypeC",
@@ -2182,7 +2366,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="4",
                         casespecialism="Specialism D",
                         importantinformation="infoD",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="D",
                         allocationBand="bandD",
                         typeOfPlanningApplication="appTypeD",
@@ -2197,7 +2386,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="5",
                         casespecialism="Specialism E",
                         importantinformation="infoE",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="E",
                         allocationBand="bandE",
                         typeOfPlanningApplication="appTypeE",
@@ -2212,7 +2406,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="6",
                         casespecialism="Specialism F",
                         importantinformation="infoF",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="F",
                         allocationBand="bandF",
                         typeOfPlanningApplication="appTypeF",
@@ -2227,7 +2426,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="7",
                         casespecialism="Specialism G",
                         importantinformation="infoG",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="G",
                         allocationBand="bandG",
                         typeOfPlanningApplication="appTypeG",
@@ -2242,7 +2446,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="8",
                         casespecialism="Specialism H",
                         importantinformation="infoH",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="H",
                         allocationBand="bandH",
                         typeOfPlanningApplication="appTypeH",
@@ -2257,7 +2466,12 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
                         caseuniqueid="9",
                         casespecialism="Specialism I",
                         importantinformation="infoI",
-                        enforcementAppealGroundsDetails=[{"appealGroundLetter": "(a)", "groundForAppealStartDate": datetime(2025, 1, 1)}],
+                        enforcementAppealGroundsDetails=[
+                            {
+                                "appealGroundLetter": "(a)",
+                                "groundForAppealStartDate": datetime(2025, 1, 1),
+                            }
+                        ],
                         allocationLevel="I",
                         allocationBand="bandI",
                         typeOfPlanningApplication="appTypeI",
@@ -2296,11 +2510,21 @@ class TestAppealS78StandardisationProcess(ETLTestCase):
         }
         with ExitStack() as stack:
             for s78_property, override_value in property_override_map.items():
-                stack.enter_context(mock.patch.object(AppealS78StandardisationProcess, s78_property, override_value))
+                stack.enter_context(
+                    mock.patch.object(
+                        AppealS78StandardisationProcess, s78_property, override_value
+                    )
+                )
             inst = AppealS78StandardisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_prefix, orchestration_entity_name="appeal_s78", orchestration_stage_name="standardise")
+            result = inst.run(
+                orchestration_run_id=test_prefix,
+                orchestration_entity_name="appeal_s78",
+                orchestration_stage_name="standardise",
+            )
             assert_etl_result_successful(result)
-            actual_table_data = spark.table(f"odw_standardised_db.{expected_output_table}")
+            actual_table_data = spark.table(
+                f"odw_standardised_db.{expected_output_table}"
+            )
             assert_dataframes_equal(expected_data, actual_table_data)
 
     def test__appeal_s78_standardisation_process__run__with_no_existing_data(self):

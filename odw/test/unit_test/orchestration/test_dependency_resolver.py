@@ -10,14 +10,36 @@ def test__dependency_resolver__init():
     example_config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     expected_preprocessed_config = example_config = {
@@ -79,14 +101,36 @@ def test__dependency_resolver__topological_sort():
     example_config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     expected_output = [
@@ -140,7 +184,9 @@ def test__dependency_resolver__topological_sort():
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config)._topological_sort(example_config)
+        actual_output = DependencyResolver(example_config)._topological_sort(
+            example_config
+        )
         assert actual_output == expected_output
 
 
@@ -208,7 +254,9 @@ def test__dependency_resolver__topological_sort__complex_example():
         ],
     ]
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
-        actual_output = DependencyResolver(example_config)._topological_sort(example_config)
+        actual_output = DependencyResolver(example_config)._topological_sort(
+            example_config
+        )
         assert actual_output == expected_output
 
 
@@ -216,7 +264,11 @@ def test__dependency_resolver__topological_sort__with_cycle():
     example_config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
                 "harmonised": {
                     "etl_process": "A-H",
                     "kwargs": {"entity_name": "A"},
@@ -224,10 +276,24 @@ def test__dependency_resolver__topological_sort__with_cycle():
                 },  # cycle
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     with mock.patch.object(OrchestrationConfig, "model_validate", return_value=None):
@@ -239,14 +305,36 @@ def test__dependency_resolver__filter_irrelevant_dependencies_from_config():
     example_config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},  # Should be filtered out
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },  # Should be filtered out
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     required_entity_stages = ["entity-c.curated"]
@@ -317,7 +405,11 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
                 "name": "C",
                 "depends_on": ["D.a"],
             },
-            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
         ],
         [
             {
@@ -416,7 +508,11 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
                 "name": "C",
                 "depends_on": ["D.a"],
             },
-            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
         ],
         [
             {
@@ -438,7 +534,9 @@ def test__dependency_resolver__filter_already_executed_entity_stages():
         ],
     ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
-        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
+        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(
+            topological_order, execution_details
+        )
         assert actual_output == expected_output
 
 
@@ -461,7 +559,11 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_missi
                 "name": "C",
                 "depends_on": ["D.a"],
             },
-            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
         ],
         [
             {
@@ -551,7 +653,11 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_missi
                 "name": "C",
                 "depends_on": ["D.a"],
             },
-            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
         ],
         [
             {
@@ -573,7 +679,9 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_missi
         ],
     ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
-        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
+        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(
+            topological_order, execution_details
+        )
         assert actual_output == expected_output
 
 
@@ -596,7 +704,11 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_empty
                 "name": "C",
                 "depends_on": ["D.a"],
             },
-            {"orchestration_entity_stage_name": "E.a", "name": "E", "depends_on": ["D.a"]},
+            {
+                "orchestration_entity_stage_name": "E.a",
+                "name": "E",
+                "depends_on": ["D.a"],
+            },
         ],
         [
             {
@@ -626,17 +738,29 @@ def test__dependency_resolver__filter_already_executed_entity_stages__with_empty
     ]
     execution_details = []
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
-        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(topological_order, execution_details)
+        actual_output = DependencyResolver(None).filter_already_executed_entity_stages(
+            topological_order, execution_details
+        )
         assert actual_output == topological_order
 
 
 def test__dependency_resolver__generate_stages_to_run():
     with (
         mock.patch.object(DependencyResolver, "__init__", return_value=None),
-        mock.patch.object(DependencyResolver, "_filter_irrelevant_dependencies_from_config", return_value="A"),
+        mock.patch.object(
+            DependencyResolver,
+            "_filter_irrelevant_dependencies_from_config",
+            return_value="A",
+        ),
         mock.patch.object(DependencyResolver, "_topological_sort", return_value="B"),
-        mock.patch.object(DependencyResolver, "filter_already_executed_entity_stages", return_value="C"),
-        mock.patch.object(DependencyResolver, "_preprocess_entity_stages", return_value="D"),
+        mock.patch.object(
+            DependencyResolver,
+            "filter_already_executed_entity_stages",
+            return_value="C",
+        ),
+        mock.patch.object(
+            DependencyResolver, "_preprocess_entity_stages", return_value="D"
+        ),
     ):
         dr = DependencyResolver(None)
         config = "X"
@@ -644,11 +768,20 @@ def test__dependency_resolver__generate_stages_to_run():
         entity_stages = "Y"
         execution_details = "Z"
         result = dr.generate_stages_to_run(entity_stages, execution_details)
-        DependencyResolver._preprocess_entity_stages.assert_called_once_with(entity_stages)
-        DependencyResolver._filter_irrelevant_dependencies_from_config.assert_called_once_with("D")
+        DependencyResolver._preprocess_entity_stages.assert_called_once_with(
+            entity_stages
+        )
+        DependencyResolver._filter_irrelevant_dependencies_from_config.assert_called_once_with(
+            "D"
+        )
         DependencyResolver._topological_sort.assert_called_once_with("X")
-        DependencyResolver.filter_already_executed_entity_stages.assert_called_once_with("B", execution_details)
-        assert result == DependencyResolver.filter_already_executed_entity_stages.return_value
+        DependencyResolver.filter_already_executed_entity_stages.assert_called_once_with(
+            "B", execution_details
+        )
+        assert (
+            result
+            == DependencyResolver.filter_already_executed_entity_stages.return_value
+        )
 
 
 def test__dependency_resolver__filter_entity_stages_with_failed_dependencies():
@@ -740,7 +873,9 @@ def test__dependency_resolver__filter_entity_stages_with_failed_dependencies():
             "depends_on": ["H.a"],
         },
     ]
-    actual_output = DependencyResolver.filter_entity_stages_with_failed_dependencies(group, execution_details)
+    actual_output = DependencyResolver.filter_entity_stages_with_failed_dependencies(
+        group, execution_details
+    )
     assert actual_output == expected_output
 
 
@@ -748,17 +883,44 @@ def test__dependency_resolver__preprocess_entity_stages__valid():
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
-    entity_stages = ["entity-a.standardised", "entity-a.harmonised", "entity-b.curated", "entity-c.curated"]
+    entity_stages = [
+        "entity-a.standardised",
+        "entity-a.harmonised",
+        "entity-b.curated",
+        "entity-c.curated",
+    ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         inst = DependencyResolver()
         inst.config = config
@@ -770,14 +932,36 @@ def test__dependency_resolver__preprocess_entity_stages__with_duplicates():
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     entity_stages = [
@@ -799,17 +983,44 @@ def test__dependency_resolver__preprocess_entity_stages__entry_with_more_than_on
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
-    entity_stages = ["entity-a.standardised", "entity-a.harmonised.somethingbad", "entity-b.curated", "entity-c.curated"]
+    entity_stages = [
+        "entity-a.standardised",
+        "entity-a.harmonised.somethingbad",
+        "entity-b.curated",
+        "entity-c.curated",
+    ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         with pytest.raises(ValueError) as e:
             inst = DependencyResolver()
@@ -822,14 +1033,36 @@ def test__dependency_resolver__preprocess_entity_stages__exploded_entry():
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     entity_stages = [
@@ -856,14 +1089,36 @@ def test__dependency_resolver__preprocess_entity_stages__missing_entity():
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     entity_stages = [
@@ -884,14 +1139,36 @@ def test__dependency_resolver__preprocess_entity_stages__exploded_entry_drops_du
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
     entity_stages = [
@@ -900,7 +1177,12 @@ def test__dependency_resolver__preprocess_entity_stages__exploded_entry_drops_du
         "entity-b.curated",
         "entity-c.curated",
     ]
-    expected_entity_stages = ["entity-a.standardised", "entity-a.harmonised", "entity-b.curated", "entity-c.curated"]
+    expected_entity_stages = [
+        "entity-a.standardised",
+        "entity-a.harmonised",
+        "entity-b.curated",
+        "entity-c.curated",
+    ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         inst = DependencyResolver()
         inst.config = config
@@ -913,17 +1195,44 @@ def test__dependency_resolver__preprocess_entity_stages__missing_entity_stage():
     config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A"}, "depends_on": []},
-                "harmonised": {"etl_process": "A-H", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.standardised"]},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": [],
+                },
+                "harmonised": {
+                    "etl_process": "A-H",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.standardised"],
+                },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
-            "entity-c": {"curated": {"etl_process": "A", "kwargs": {"entity_name": "A"}, "depends_on": ["entity-b.curated"]}},
+            "entity-c": {
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A"},
+                    "depends_on": ["entity-b.curated"],
+                }
+            },
         }
     }
-    entity_stages = ["entity-a.standardised", "entity-a.harmonised", "entity-x.curated", "entity-c.y"]
+    entity_stages = [
+        "entity-a.standardised",
+        "entity-a.harmonised",
+        "entity-x.curated",
+        "entity-c.y",
+    ]
     with mock.patch.object(DependencyResolver, "__init__", return_value=None):
         with pytest.raises(ValueError) as e:
             inst = DependencyResolver()
@@ -937,7 +1246,11 @@ def test__dependency_resolver__validate():
     example_config = {
         "entities": {
             "entity-a": {
-                "standardised": {"etl_process": "A-S", "kwargs": {"entity_name": "A", "etl_process_name": "AS"}, "depends_on": []},
+                "standardised": {
+                    "etl_process": "A-S",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "AS"},
+                    "depends_on": [],
+                },
                 "harmonised": {
                     "etl_process": "A-H",
                     "kwargs": {"entity_name": "A", "etl_process_name": "AH"},
@@ -945,18 +1258,32 @@ def test__dependency_resolver__validate():
                 },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B", "etl_process_name": "BS"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "BC"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B", "etl_process_name": "BS"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "BC"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
             "entity-c": {
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "CC"}, "depends_on": ["entity-b.curated"]}
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "CC"},
+                    "depends_on": ["entity-b.curated"],
+                }
             },
         }
     }
     try:
         DependencyResolver.validate_config(example_config)
     except Exception as e:
-        pytest.fail(f"Expected DependencyResolver.validate_config to not raise an error, but raised {e}")
+        pytest.fail(
+            f"Expected DependencyResolver.validate_config to not raise an error, but raised {e}"
+        )
 
 
 def test__dependency_resolver__validate__with_invalid_structure():
@@ -981,11 +1308,23 @@ def test__dependency_resolver__validate__with_cycle():
                 },
             },
             "entity-b": {
-                "standardised": {"etl_process": "B-S", "kwargs": {"entity_name": "B", "etl_process_name": "BS"}, "depends_on": []},
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "BC"}, "depends_on": ["entity-a.harmonised"]},
+                "standardised": {
+                    "etl_process": "B-S",
+                    "kwargs": {"entity_name": "B", "etl_process_name": "BS"},
+                    "depends_on": [],
+                },
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "BC"},
+                    "depends_on": ["entity-a.harmonised"],
+                },
             },
             "entity-c": {
-                "curated": {"etl_process": "A", "kwargs": {"entity_name": "A", "etl_process_name": "CC"}, "depends_on": ["entity-b.curated"]}
+                "curated": {
+                    "etl_process": "A",
+                    "kwargs": {"entity_name": "A", "etl_process_name": "CC"},
+                    "depends_on": ["entity-b.curated"],
+                }
             },
         }
     }

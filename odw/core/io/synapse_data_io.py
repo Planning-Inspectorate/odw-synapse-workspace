@@ -7,7 +7,13 @@ class SynapseDataIO(DataIO):
     Manages data io to/from a storage location that is linked to Synapse
     """
 
-    def _format_to_adls_path(self, container_name: str, blob_path: str, storage_name: str = None, storage_endpoint: str = None) -> str:
+    def _format_to_adls_path(
+        self,
+        container_name: str,
+        blob_path: str,
+        storage_name: str = None,
+        storage_endpoint: str = None,
+    ) -> str:
         """
         Return a datalake path from the given arguments.
 
@@ -20,9 +26,13 @@ class SynapseDataIO(DataIO):
         :return str: A string with the format `abfss://{container_name}@{storage_name}.dfs.core.windows.net/{blob_path}`
         """
         if not (storage_name or storage_endpoint):
-            raise ValueError("SynapseDataIO._format_to_adls_path expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError(
+                "SynapseDataIO._format_to_adls_path expected one of 'storage_name' or 'storage_endpoint' to be provided"
+            )
         if storage_name and storage_endpoint:
-            raise ValueError("SynapseDataIO._format_to_adls_path expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError(
+                "SynapseDataIO._format_to_adls_path expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both"
+            )
         if storage_name:
             storage_endpoint = f"{storage_name}.dfs.core.windows.net/"
         storage_endpoint_split = storage_endpoint.split(".")

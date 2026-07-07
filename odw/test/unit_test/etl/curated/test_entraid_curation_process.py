@@ -1,6 +1,8 @@
 import mock
 from pyspark.sql.types import StringType, StructField, StructType, LongType
-from odw.core.etl.transformation.curated.entraid_curation_process import EntraIDCurationProcess
+from odw.core.etl.transformation.curated.entraid_curation_process import (
+    EntraIDCurationProcess,
+)
 from odw.core.etl.etl_result import ETLSuccessResult
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.assertion import assert_dataframes_equal
@@ -67,16 +69,28 @@ class TestEntraIDCurationProcess(SparkTestCase):
             ),
         )
         entraid_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, entraid_data, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            entraid_data,
+            entraid_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            entraid_table,
+            "overwrite",
+        )
         expected_read_data = entraid_data
         with (
             mock.patch.object(EntraIDCurationProcess, "__init__", return_value=None),
-            mock.patch.object(EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table),
+            mock.patch.object(
+                EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table
+            ),
         ):
             inst = EntraIDCurationProcess()
             read_data = inst.load_data()
             assert isinstance(read_data, dict) and "horizon_entraid" in read_data
-            assert assert_dataframes_equal(expected_read_data, read_data.get("horizon_entraid", None))
+            assert assert_dataframes_equal(
+                expected_read_data, read_data.get("horizon_entraid", None)
+            )
 
     def test__entraid_curation_process__clean_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -171,7 +185,13 @@ class TestEntraIDCurationProcess(SparkTestCase):
                     "surname": "Palpatine",
                     "userPrincipalName": "anotheremail@example.gov.uk",
                 },
-                {"employeeId": "115935", "id": "someguidC", "givenName": "Frodo", "surname": "Baggins", "userPrincipalName": "email@example.gov.uk"},
+                {
+                    "employeeId": "115935",
+                    "id": "someguidC",
+                    "givenName": "Frodo",
+                    "surname": "Baggins",
+                    "userPrincipalName": "email@example.gov.uk",
+                },
             ),
             schema=StructType(
                 [
@@ -248,7 +268,9 @@ class TestEntraIDCurationProcess(SparkTestCase):
         ):
             inst = EntraIDCurationProcess()
             actual_output = inst.process(source_data={"horizon_entraid": entraid_data})
-            assert isinstance(actual_output, tuple) and len(actual_output) == 2, "Expected process to return a tuple containing two elements"
+            assert isinstance(actual_output, tuple) and len(actual_output) == 2, (
+                "Expected process to return a tuple containing two elements"
+            )
             actual_write_info, actual_etl_result = actual_output
             assert isinstance(actual_etl_result, ETLSuccessResult)
             assert expected_write_info == actual_write_info
@@ -257,9 +279,13 @@ class TestEntraIDCurationProcess(SparkTestCase):
         with mock.patch.object(EntraIDCurationProcess, "__init__", return_value=None):
             inst = EntraIDCurationProcess()
             with (
-                mock.patch.object(EntraIDCurationProcess, "load_data", return_value=None),
+                mock.patch.object(
+                    EntraIDCurationProcess, "load_data", return_value=None
+                ),
                 mock.patch.object(EntraIDCurationProcess, "process", return_value=None),
-                mock.patch.object(EntraIDCurationProcess, "write_data", return_value=None),
+                mock.patch.object(
+                    EntraIDCurationProcess, "write_data", return_value=None
+                ),
                 mock.patch.object(MetadataManager, "__init__", return_value=None),
                 mock.patch.object(MetadataManager, "create", return_value=None),
                 mock.patch.object(MetadataManager, "update", return_value=None),

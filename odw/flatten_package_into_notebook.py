@@ -68,12 +68,20 @@ class JsonPropertyIterator:
         self.last_evaluated_attribute = self.attribute_split.pop(0)
         if isinstance(self.attribute_collection, list):
             if not self.last_evaluated_attribute.isdigit():
-                raise AttributeNotFoundException(f"Trying to access sub property '{self.last_evaluated_attribute}' on a list collection")
+                raise AttributeNotFoundException(
+                    f"Trying to access sub property '{self.last_evaluated_attribute}' on a list collection"
+                )
             self.last_evaluated_attribute = int(self.last_evaluated_attribute)
-            if not (0 <= self.last_evaluated_attribute < len(self.attribute_collection)):
-                raise AttributeNotFoundException(f"List index out of range for subproperty '{self.last_evaluated_attribute}' in list collection")
+            if not (
+                0 <= self.last_evaluated_attribute < len(self.attribute_collection)
+            ):
+                raise AttributeNotFoundException(
+                    f"List index out of range for subproperty '{self.last_evaluated_attribute}' in list collection"
+                )
             self.parent_attribute_collection = self.attribute_collection
-            self.attribute_collection = self.attribute_collection[self.last_evaluated_attribute]
+            self.attribute_collection = self.attribute_collection[
+                self.last_evaluated_attribute
+            ]
         elif isinstance(self.attribute_collection, dict):
             if self.last_evaluated_attribute not in self.attribute_collection:
                 if not self.attribute_split:
@@ -86,10 +94,14 @@ class JsonPropertyIterator:
                     self.last_evaluated_attribute += f".{next_attribute}"
                     if self.last_evaluated_attribute in self.attribute_collection:
                         self.parent_attribute_collection = self.attribute_collection
-                        self.attribute_collection = self.attribute_collection[self.last_evaluated_attribute]
+                        self.attribute_collection = self.attribute_collection[
+                            self.last_evaluated_attribute
+                        ]
             else:
                 self.parent_attribute_collection = self.attribute_collection
-                self.attribute_collection = self.attribute_collection[self.last_evaluated_attribute]
+                self.attribute_collection = self.attribute_collection[
+                    self.last_evaluated_attribute
+                ]
         else:
             if len(self.attribute_split) > 0:
                 raise ValueError(
@@ -97,7 +109,10 @@ class JsonPropertyIterator:
                 )
         # print(f"Last evaluated: '{self.last_evaluated_attribute}'")
         return JsonPropertyIteratorResult(
-            self.parent_attribute_collection, self.last_evaluated_attribute, self.attribute_collection, ".".join(self.attribute_split)
+            self.parent_attribute_collection,
+            self.last_evaluated_attribute,
+            self.attribute_collection,
+            ".".join(self.attribute_split),
         )
 
 
@@ -152,7 +167,9 @@ class AttributeExtractor:
         return set(cls._extract_dict_attributes(artifact_json, current_level="").keys())
 
     @classmethod
-    def _extract_list_attributes(cls, target_list: List[Any], current_level: str) -> Dict[str, None]:
+    def _extract_list_attributes(
+        cls, target_list: List[Any], current_level: str
+    ) -> Dict[str, None]:
         """
         Extract attribute names from the given list in dot-notation
 
@@ -178,15 +195,21 @@ class AttributeExtractor:
         for i, val in enumerate(target_list):
             new_level = f"{current_level_prefix}{i}"
             if isinstance(val, dict):
-                dict_keys = dict(dict_keys, **cls._extract_dict_attributes(val, new_level))
+                dict_keys = dict(
+                    dict_keys, **cls._extract_dict_attributes(val, new_level)
+                )
             elif isinstance(val, list):
-                dict_keys = dict(dict_keys, **cls._extract_list_attributes(val, new_level))
+                dict_keys = dict(
+                    dict_keys, **cls._extract_list_attributes(val, new_level)
+                )
             else:
                 dict_keys[new_level] = None
         return dict_keys
 
     @classmethod
-    def _extract_dict_attributes(cls, target_dict: Dict[str, Any], current_level: str = "") -> Dict[str, None]:
+    def _extract_dict_attributes(
+        cls, target_dict: Dict[str, Any], current_level: str = ""
+    ) -> Dict[str, None]:
         """
         Extract attribute names from the given dictionary
 
@@ -217,9 +240,13 @@ class AttributeExtractor:
         for key, val in target_dict.items():
             new_level = f"{current_level_prefix}{key}"
             if isinstance(val, dict):
-                dict_keys = dict(dict_keys, **cls._extract_dict_attributes(val, new_level))
+                dict_keys = dict(
+                    dict_keys, **cls._extract_dict_attributes(val, new_level)
+                )
             elif isinstance(val, list):
-                dict_keys = dict(dict_keys, **cls._extract_list_attributes(val, new_level))
+                dict_keys = dict(
+                    dict_keys, **cls._extract_list_attributes(val, new_level)
+                )
             else:
                 dict_keys[new_level] = None
         return dict_keys
@@ -232,7 +259,8 @@ def get_all_odw_package_content():
             os.path.join(path, name)
             for path, subdirs, files in os.walk(os.path.join("odw", "core"))
             for name in files
-            if not any(x in os.path.join(path, name) for x in module_content_to_exclude) and name.endswith(".py")
+            if not any(x in os.path.join(path, name) for x in module_content_to_exclude)
+            and name.endswith(".py")
         ]
     )
 
@@ -240,8 +268,13 @@ def get_all_odw_package_content():
         with open(module, "r") as f:
             return f.read()
 
-    python_modules_package_map = {x: x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load}
-    module_content_map = {import_path: get_module_content(module) for module, import_path in python_modules_package_map.items()}
+    python_modules_package_map = {
+        x: x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load
+    }
+    module_content_map = {
+        import_path: get_module_content(module)
+        for module, import_path in python_modules_package_map.items()
+    }
     return module_content_map
 
 
@@ -249,19 +282,31 @@ def extract_imports_from_file(module_content: str):
     try:
         abstract_syntax_tree = ast.parse(module_content)
     except SyntaxError as e:
-        print("Warning: Generated code has syntax errors. Aborting the process. Please review the code that raised the below exception")
+        print(
+            "Warning: Generated code has syntax errors. Aborting the process. Please review the code that raised the below exception"
+        )
         raise e
     abstract_syntax_tree_json = ast2json(abstract_syntax_tree)
     ast_attributes = AttributeExtractor().get_all_attributes(abstract_syntax_tree_json)
     import_attr_types = {"Import", "ImportFrom"}
-    import_type_attributes = {x for x in ast_attributes if AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x) in import_attr_types}
+    import_type_attributes = {
+        x
+        for x in ast_attributes
+        if AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x)
+        in import_attr_types
+    }
     import_from_values = {
-        AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x.replace("_type", "module"))
+        AttributeExtractor.get_by_attribute(
+            abstract_syntax_tree_json, x.replace("_type", "module")
+        )
         for x in import_type_attributes
-        if AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x) == "ImportFrom"
+        if AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x)
+        == "ImportFrom"
     }
     direct_import_values = {
-        AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x.replace("._type", ".names") + ".0.name")
+        AttributeExtractor.get_by_attribute(
+            abstract_syntax_tree_json, x.replace("._type", ".names") + ".0.name"
+        )
         for x in import_type_attributes
         if AttributeExtractor.get_by_attribute(abstract_syntax_tree_json, x) == "Import"
     }
@@ -269,7 +314,9 @@ def extract_imports_from_file(module_content: str):
     return [x for x in all_names_to_import if x.startswith("odw")]
 
 
-def extract_relative_imports_from_file(module_name: str, module_content: str, module_map: Dict[str, str]) -> List[str]:
+def extract_relative_imports_from_file(
+    module_name: str, module_content: str, module_map: Dict[str, str]
+) -> List[str]:
     """Resolve relative imports (e.g. `from .base import X`) to full odw module paths."""
     package = ".".join(module_name.split(".")[:-1])
     matches = re.findall(r"^from\s+\.(\w[\w.]*)\s+import", module_content, re.MULTILINE)
@@ -285,7 +332,8 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
     :param str root: Drop all files not associated to the root. Default includes all files
     """
     dag = {
-        module: extract_imports_from_file(module_content) + extract_relative_imports_from_file(module, module_content, module_map)
+        module: extract_imports_from_file(module_content)
+        + extract_relative_imports_from_file(module, module_content, module_map)
         for module, module_content in module_map.items()
     }
     if root:
@@ -299,7 +347,9 @@ def generate_dag(module_map: Dict[str, str], root: str = None):
         while relations_to_explore:
             next_relation = relations_to_explore.pop()
             seen_dependencies.add(next_relation)
-            new_relation_candidates = [x for x in dag[next_relation] if x not in seen_dependencies]
+            new_relation_candidates = [
+                x for x in dag[next_relation] if x not in seen_dependencies
+            ]
             relations_to_explore += new_relation_candidates
         dag = {k: v for k, v in dag.items() if k in seen_dependencies}
     return dag
@@ -310,8 +360,14 @@ def topological_sort(dag: Dict[str, List[str]]) -> List[str]:
 
 
 def remove_odw_imports(module_content: str):
-    cleaned_module_content = re.sub(r"(from\sodw.[A-Za-z._]*\simport\s[A-Za-z0-9.-]*)", r"#COMMENTOUT \1", module_content)
-    cleaned_module_content = re.sub(r"(import\sodw[A-Za-z0-9._]*?)", r"#COMMENTOUT \1", cleaned_module_content)
+    cleaned_module_content = re.sub(
+        r"(from\sodw.[A-Za-z._]*\simport\s[A-Za-z0-9.-]*)",
+        r"#COMMENTOUT \1",
+        module_content,
+    )
+    cleaned_module_content = re.sub(
+        r"(import\sodw[A-Za-z0-9._]*?)", r"#COMMENTOUT \1", cleaned_module_content
+    )
 
     # Comment out relative imports - multi-line parenthesised form (e.g. from .base import (\n    X,\n))
     def _comment_block(match: re.Match) -> str:
@@ -324,7 +380,12 @@ def remove_odw_imports(module_content: str):
         flags=re.DOTALL | re.MULTILINE,
     )
     # Comment out relative imports - single-line form (e.g. from .config import AnonymisationConfig)
-    cleaned_module_content = re.sub(r"^(from\s+\.[A-Za-z._]*\s+import\s+[^\n]+)", r"#COMMENTOUT \1", cleaned_module_content, flags=re.MULTILINE)
+    cleaned_module_content = re.sub(
+        r"^(from\s+\.[A-Za-z._]*\s+import\s+[^\n]+)",
+        r"#COMMENTOUT \1",
+        cleaned_module_content,
+        flags=re.MULTILINE,
+    )
     return cleaned_module_content
 
 
@@ -342,7 +403,9 @@ def construct_combined_notebook(root: str = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("-r", "--root", help="The root file. Optional", default=None)
     args = parser.parse_args()
     root = args.root

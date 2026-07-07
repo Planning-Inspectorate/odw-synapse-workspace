@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.nsip_document_curated_process import NsipDocumentCuratedProcess
+from odw.core.etl.transformation.curated.nsip_document_curated_process import (
+    NsipDocumentCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -8,7 +10,9 @@ import mock
 
 
 class TestNSIPDocumntCurated(ETLTestCase):
-    def test__nsip_document_curated_process__run__applies_expected_transformations(self):
+    def test__nsip_document_curated_process__run__applies_expected_transformations(
+        self,
+    ):
         test_case = "t_ndcp_r_aet"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -145,10 +149,24 @@ class TestNSIPDocumntCurated(ETLTestCase):
         )
 
         harmonised_table = f"{test_case}_nsip_document"
-        self.write_existing_table(spark, harmonised_docs, harmonised_table, "odw_harmonised_db", "odw-harmonised", harmonised_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            harmonised_docs,
+            harmonised_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_table,
+            "overwrite",
+        )
         curated_projects_table = f"{test_case}_nsip_project"
         self.write_existing_table(
-            spark, curated_projects, curated_projects_table, "odw_curated_db", "odw-curated", curated_projects_table, "overwrite"
+            spark,
+            curated_projects,
+            curated_projects_table,
+            "odw_curated_db",
+            "odw-curated",
+            curated_projects_table,
+            "overwrite",
         )
         curated_nsip_document_table = f"{test_case}_nsip_document"
 
@@ -157,17 +175,33 @@ class TestNSIPDocumntCurated(ETLTestCase):
                 "odw.core.etl.transformation.curated.nsip_document_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipDocumentCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_table}"),
-            mock.patch.object(NsipDocumentCuratedProcess, "CURATED_PROJECT_TABLE", f"odw_curated_db.{curated_projects_table}"),
-            mock.patch.object(NsipDocumentCuratedProcess, "OUTPUT_TABLE", curated_nsip_document_table),
+            mock.patch.object(
+                NsipDocumentCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_table}",
+            ),
+            mock.patch.object(
+                NsipDocumentCuratedProcess,
+                "CURATED_PROJECT_TABLE",
+                f"odw_curated_db.{curated_projects_table}",
+            ),
+            mock.patch.object(
+                NsipDocumentCuratedProcess, "OUTPUT_TABLE", curated_nsip_document_table
+            ),
         ):
             inst = NsipDocumentCuratedProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_document", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_document",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{curated_nsip_document_table}")
-        rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
 

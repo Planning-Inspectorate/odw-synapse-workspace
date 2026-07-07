@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
+from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import (
+    NsipExamTimetableCuratedProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,7 +8,9 @@ import mock
 
 
 class TestNSIPExamTimetableCurationProcess(SparkTestCase):
-    def test__nsip_exam_timetable_curated_process__process__keeps_only_projects_in_curated_project_table(self):
+    def test__nsip_exam_timetable_curated_process__process__keeps_only_projects_in_curated_project_table(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_exam_timetable = spark.createDataFrame(
@@ -96,7 +100,9 @@ class TestNSIPExamTimetableCurationProcess(SparkTestCase):
                 "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.LoggingUtil"
+            ),
         ):
             inst = NsipExamTimetableCuratedProcess(spark)
             data_to_write, result = inst.process(

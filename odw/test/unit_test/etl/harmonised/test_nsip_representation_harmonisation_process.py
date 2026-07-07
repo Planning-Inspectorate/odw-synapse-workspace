@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import NsipRepresentationHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import (
+    NsipRepresentationHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,7 +8,9 @@ import mock
 
 
 class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
-    def test__nsip_representation_harmonisation_process__process__combines_sources_and_derives_reference_and_migrated(self):
+    def test__nsip_representation_harmonisation_process__process__combines_sources_and_derives_reference_and_migrated(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -326,7 +330,9 @@ class TestNSIPRepresentationHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipRepresentationHarmonisationProcess(spark)
             data_to_write, result = inst.process(

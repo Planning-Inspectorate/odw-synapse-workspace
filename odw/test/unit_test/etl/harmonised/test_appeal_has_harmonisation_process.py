@@ -5,7 +5,9 @@ import pyspark.sql.types as T
 from pyspark.sql import Row
 from pyspark.sql import functions as F
 from odw.test.util.assertion import assert_dataframes_equal
-from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import AppealHasHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_has_harmonisation_process import (
+    AppealHasHarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -46,7 +48,9 @@ def _appeal_has_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.StringType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.StringType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.StringType(), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.StringType(), True
+            ),
             T.StructField("lpaQuestionnaireValidationDetails", T.StringType(), True),
             T.StructField("lpaStatement", T.StringType(), True),
             T.StructField("caseWithdrawnDate", T.StringType(), True),
@@ -97,7 +101,9 @@ def _appeal_has_schema():
             T.StructField("dateNotRecoveredOrDerecovered", T.StringType(), True),
             T.StructField("dateRecovered", T.StringType(), True),
             T.StructField("designatedSitesNames", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("hasInfrastructureLevy", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
             T.StructField("hasProtectedSpecies", T.StringType(), True),
@@ -117,7 +123,9 @@ def _appeal_has_schema():
             T.StructField("siteGridReferenceEasting", T.StringType(), True),
             T.StructField("siteGridReferenceNorthing", T.StringType(), True),
             T.StructField("targetDate", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
             T.StructField("padsSapId", T.StringType(), True),
             T.StructField("migrated", T.StringType(), True),
             T.StructField("ODTSourceSystem", T.StringType(), True),
@@ -267,7 +275,9 @@ def _source_data(spark, service_bus_data=None, horizon_data=None, appeal_s78_dat
 
 
 class TestRefAppealHasHarmonisationProcess(SparkTestCase):
-    def test__appeal_has_harmonisation_process__process__unions_service_bus_and_horizon_and_aligns_schema_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__unions_service_bus_and_horizon_and_aligns_schema_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
@@ -341,7 +351,9 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(spark, service_bus_data, horizon_data))
+        data_to_write, result = inst.process(
+            _source_data(spark, service_bus_data, horizon_data)
+        )
 
         df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
         actual_df = df.select(
@@ -356,7 +368,14 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         expected_df = spark.createDataFrame(
             [
                 ("HAS-001", "ODT", ["Advertisements"], "0", "Y", None),
-                ("HAS-002", "HORIZON", ["Listed Building", "Advertisements"], "0", "Y", 1),
+                (
+                    "HAS-002",
+                    "HORIZON",
+                    ["Listed Building", "Advertisements"],
+                    "0",
+                    "Y",
+                    1,
+                ),
             ],
             actual_df.schema,
         )
@@ -365,14 +384,24 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
-    def test__appeal_has_harmonisation_process__process__builds_scd2_history_for_changed_state_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__builds_scd2_history_for_changed_state_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="submitted", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-001", caseStatus="valid", IngestionDate=datetime(2025, 2, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="valid",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
             ],
         )
 
@@ -399,14 +428,24 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert_dataframes_equal(actual_df, expected_df)
         assert result.metadata.insert_count == 2
 
-    def test__appeal_has_harmonisation_process__process__drops_duplicate_unchanged_state_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__drops_duplicate_unchanged_state_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="submitted", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-001", caseStatus="submitted", IngestionDate=datetime(2025, 2, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
             ],
         )
 
@@ -420,14 +459,24 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert df.collect()[0]["IsActive"] == "Y"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_harmonisation_process__process__filters_null_case_reference_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__filters_null_case_reference_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference=None, caseStatus="bad row", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-001", caseStatus="good row", IngestionDate=datetime(2025, 1, 1)),
+                _base_sb_row(
+                    caseReference=None,
+                    caseStatus="bad row",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="good row",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
             ],
         )
 
@@ -440,7 +489,9 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert df.collect()[0]["caseReference"] == "HAS-001"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_harmonisation_process__process__uses_odt_over_horizon_when_timestamp_ties_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__uses_odt_over_horizon_when_timestamp_ties_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
@@ -514,9 +565,13 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, horizon_data))
+        data_to_write, _ = inst.process(
+            _source_data(spark, service_bus_data, horizon_data)
+        )
 
-        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].orderBy("IngestionDate", F.desc("ODTSourceSystem"))
+        df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].orderBy(
+            "IngestionDate", F.desc("ODTSourceSystem")
+        )
         rows = df.collect()
 
         assert df.count() == 2
@@ -526,13 +581,19 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert rows[1]["ODTSourceSystem"] == "HORIZON"
         assert rows[1]["IsActive"] == "Y"
 
-    def test__appeal_has_harmonisation_process__process__later_s78_timestamp_closes_active_has_row_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__later_s78_timestamp_closes_active_has_row_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="has active", IngestionDate=datetime(2025, 1, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="has active",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
             ],
         )
 
@@ -544,21 +605,31 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
+        data_to_write, _ = inst.process(
+            _source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data)
+        )
 
-        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[
+            0
+        ]
 
         assert row["caseReference"] == "HAS-001"
         assert row["ValidTo"] == datetime(2025, 2, 1)
         assert row["IsActive"] == "N"
 
-    def test__appeal_has_harmonisation_process__process__ignores_earlier_s78_timestamp_for_has_valid_to_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__ignores_earlier_s78_timestamp_for_has_valid_to_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="has active", IngestionDate=datetime(2025, 2, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="has active",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
             ],
         )
 
@@ -570,21 +641,31 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, _ = inst.process(_source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data))
+        data_to_write, _ = inst.process(
+            _source_data(spark, service_bus_data, appeal_s78_data=appeal_s78_data)
+        )
 
-        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[
+            0
+        ]
 
         assert row["caseReference"] == "HAS-001"
         assert row["ValidTo"] is None
         assert row["IsActive"] == "Y"
 
-    def test__appeal_has_harmonisation_process__process__keeps_expected_output_column_order_and_write_config(self):
+    def test__appeal_has_harmonisation_process__process__keeps_expected_output_column_order_and_write_config(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="submitted", IngestionDate=datetime(2025, 1, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
             ],
         )
 
@@ -600,7 +681,9 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert write_config["file_format"] == "delta"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_harmonisation_process__process__uses_expected_from_when_horizon_ingested_datetime_is_missing(self):
+    def test__appeal_has_harmonisation_process__process__uses_expected_from_when_horizon_ingested_datetime_is_missing(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         horizon_data = _horizon_df(
@@ -664,13 +747,17 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(_source_data(spark, horizon_data=horizon_data))
 
-        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[
+            0
+        ]
 
         assert row["caseReference"] == "HAS-001"
         assert row["IngestionDate"] == datetime(2025, 1, 5)
         assert row["ODTSourceSystem"] == "HORIZON"
 
-    def test__appeal_has_harmonisation_process__process__drops_exact_duplicate_stage_rows_like_legacy_distinct(self):
+    def test__appeal_has_harmonisation_process__process__drops_exact_duplicate_stage_rows_like_legacy_distinct(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         duplicate_row = _base_sb_row(
@@ -682,14 +769,18 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         service_bus_data = _sb_df(spark, [duplicate_row, duplicate_row])
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        data_to_write, result = inst.process(
+            _source_data(spark, service_bus_data=service_bus_data)
+        )
 
         df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_harmonisation_process__process__collapses_exact_duplicate_state_within_same_key_timestamp_source(self):
+    def test__appeal_has_harmonisation_process__process__collapses_exact_duplicate_state_within_same_key_timestamp_source(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
@@ -711,14 +802,18 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        data_to_write, result = inst.process(
+            _source_data(spark, service_bus_data=service_bus_data)
+        )
 
         df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_harmonisation_process__process__same_timestamp_changed_states_get_microsecond_valid_to_like_legacy(self):
+    def test__appeal_has_harmonisation_process__process__same_timestamp_changed_states_get_microsecond_valid_to_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
@@ -740,9 +835,15 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         )
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        data_to_write, result = inst.process(
+            _source_data(spark, service_bus_data=service_bus_data)
+        )
 
-        rows = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].orderBy("RowID").collect()
+        rows = (
+            data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
+            .orderBy("RowID")
+            .collect()
+        )
 
         assert len(rows) == 2
         assert rows[0]["RowID"] == "a-row"
@@ -753,35 +854,67 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
         assert rows[1]["IsActive"] == "Y"
         assert result.metadata.insert_count == 2
 
-    def test__appeal_has_harmonisation_process__process__keeps_only_one_active_row_per_case_reference(self):
+    def test__appeal_has_harmonisation_process__process__keeps_only_one_active_row_per_case_reference(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="submitted", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-001", caseStatus="valid", IngestionDate=datetime(2025, 2, 1)),
-                _base_sb_row(caseReference="HAS-002", caseStatus="submitted", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-002", caseStatus="complete", IngestionDate=datetime(2025, 3, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="valid",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-002",
+                    caseStatus="submitted",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-002",
+                    caseStatus="complete",
+                    IngestionDate=datetime(2025, 3, 1),
+                ),
             ],
         )
 
         inst = _process_under_test(spark)
-        data_to_write, _ = inst.process(_source_data(spark, service_bus_data=service_bus_data))
+        data_to_write, _ = inst.process(
+            _source_data(spark, service_bus_data=service_bus_data)
+        )
 
         df = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"]
 
-        active_counts = {row["caseReference"]: row["count"] for row in df.where(F.col("IsActive") == "Y").groupBy("caseReference").count().collect()}
+        active_counts = {
+            row["caseReference"]: row["count"]
+            for row in df.where(F.col("IsActive") == "Y")
+            .groupBy("caseReference")
+            .count()
+            .collect()
+        }
 
         assert active_counts == {"HAS-001": 1, "HAS-002": 1}
 
-    def test__appeal_has_harmonisation_process__process__s78_only_closes_has_when_s78_timestamp_is_strictly_after_has_ingestion(self):
+    def test__appeal_has_harmonisation_process__process__s78_only_closes_has_when_s78_timestamp_is_strictly_after_has_ingestion(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="has active", IngestionDate=datetime(2025, 2, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="has active",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
             ],
         )
 
@@ -802,19 +935,31 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             )
         )
 
-        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[0]
+        row = data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()[
+            0
+        ]
 
         assert row["ValidTo"] == datetime(2025, 3, 1)
         assert row["IsActive"] == "N"
 
-    def test__appeal_has_harmonisation_process__process__does_not_close_already_inactive_has_row_again_when_s78_exists(self):
+    def test__appeal_has_harmonisation_process__process__does_not_close_already_inactive_has_row_again_when_s78_exists(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = _sb_df(
             spark,
             [
-                _base_sb_row(caseReference="HAS-001", caseStatus="old has", IngestionDate=datetime(2025, 1, 1)),
-                _base_sb_row(caseReference="HAS-001", caseStatus="new has", IngestionDate=datetime(2025, 2, 1)),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="old has",
+                    IngestionDate=datetime(2025, 1, 1),
+                ),
+                _base_sb_row(
+                    caseReference="HAS-001",
+                    caseStatus="new has",
+                    IngestionDate=datetime(2025, 2, 1),
+                ),
             ],
         )
 
@@ -834,7 +979,12 @@ class TestRefAppealHasHarmonisationProcess(SparkTestCase):
             )
         )
 
-        rows = {row["caseStatus"]: row for row in data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"]["data"].collect()}
+        rows = {
+            row["caseStatus"]: row
+            for row in data_to_write[f"odw_harmonised_db.{inst.OUTPUT_TABLE}"][
+                "data"
+            ].collect()
+        }
 
         assert rows["old has"]["ValidTo"] == datetime(2025, 2, 1)
         assert rows["old has"]["IsActive"] == "N"

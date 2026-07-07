@@ -35,7 +35,9 @@ class NsipDocumentCuratedProcess(CurationProcess):
         Load source data, selecting only the columns needed downstream.
         No joins or transformations are applied here – only reads.
         """
-        LoggingUtil().log_info(f"Loading harmonised NSIP Document data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP Document data from {self.HARMONISED_TABLE}"
+        )
         harmonised_docs = self.spark.sql(f"""
             SELECT
                 documentId,
@@ -79,7 +81,9 @@ class NsipDocumentCuratedProcess(CurationProcess):
             WHERE IsActive = 'Y'
         """)
 
-        LoggingUtil().log_info(f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}"
+        )
         curated_projects = self.spark.sql(f"""
             SELECT caseReference
             FROM {self.CURATED_PROJECT_TABLE}
@@ -99,10 +103,16 @@ class NsipDocumentCuratedProcess(CurationProcess):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         harmonised_docs: DataFrame = self.load_parameter("harmonised_docs", source_data)
-        curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
+        curated_projects: DataFrame = self.load_parameter(
+            "curated_projects", source_data
+        )
 
         # LEFT JOIN to curated projects (matching notebook: LEFT JOIN on caseReference = caseRef)
-        docs = harmonised_docs.join(curated_projects, curated_projects["caseReference"] == harmonised_docs["caseRef"], "left")
+        docs = harmonised_docs.join(
+            curated_projects,
+            curated_projects["caseReference"] == harmonised_docs["caseRef"],
+            "left",
+        )
 
         # Apply curated column transformations and SELECT DISTINCT
         df = docs.select(
@@ -139,7 +149,10 @@ class NsipDocumentCuratedProcess(CurationProcess):
             F.col("representative"),
             F.col("description"),
             F.col("descriptionWelsh"),
-            F.when(F.col("documentCaseStage") == "Developer's Application", F.lit("developers_application"))
+            F.when(
+                F.col("documentCaseStage") == "Developer's Application",
+                F.lit("developers_application"),
+            )
             .when(F.col("documentCaseStage") == "Post decision", F.lit("post_decision"))
             .otherwise(F.lower(F.col("documentCaseStage")))
             .alias("documentCaseStage"),

@@ -13,10 +13,16 @@ class EntraIDCurationProcess(CurationProcess):
         return "Entrad ID Curation"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        raise NotImplementedError("EntraIDCurationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "EntraIDCurationProcess.load_data() has not been implemented yet."
+        )
 
     def _clean_data(self, raw_entraid_data: DataFrame):
-        raise NotImplementedError("EntraIDCurationProcess._clean_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "EntraIDCurationProcess._clean_data() has not been implemented yet."
+        )
 
     def process(self, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
-        raise NotImplementedError("EntraIDCurationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "EntraIDCurationProcess.process() has not been implemented yet."
+        )

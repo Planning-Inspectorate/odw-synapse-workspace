@@ -34,8 +34,14 @@ class TestAnonymisationPurview(SparkTestCase):
         df = spark.createDataFrame(data)
 
         mocked_cols = [
-            {"column_name": "full_name", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
-            {"column_name": "emailAddress", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
+            {
+                "column_name": "full_name",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+            {
+                "column_name": "emailAddress",
+                "classifications": ["MICROSOFT.PERSONAL.EMAIL"],
+            },
             {"column_name": "Age", "classifications": ["Person's Age"]},
             {"column_name": "NINumber", "classifications": ["NI Number"]},
             {"column_name": "BirthDate", "classifications": ["Birth Date"]},
@@ -58,13 +64,21 @@ class TestAnonymisationPurview(SparkTestCase):
                 asset_qualified_name="https://dummy.dfs.core.windows.net/container/path/asset.csv",
             )
 
-        rows = out.select("full_name", "emailAddress", "Age", "NINumber", "BirthDate", "AnnualSalary").collect()
+        rows = out.select(
+            "full_name", "emailAddress", "Age", "NINumber", "BirthDate", "AnnualSalary"
+        ).collect()
 
         assert rows[0]["full_name"] == "REDACTED"
         assert rows[1]["full_name"] == "REDACTED"
 
-        assert rows[0]["emailAddress"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
-        assert rows[1]["emailAddress"] == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        assert (
+            rows[0]["emailAddress"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
+        assert (
+            rows[1]["emailAddress"]
+            == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        )
 
         for age in (rows[0]["Age"], rows[1]["Age"]):
             assert 18 <= age <= 70
@@ -87,12 +101,22 @@ class TestAnonymisationPurview(SparkTestCase):
         assert out.count() == df.count()
         assert set(out.columns) == set(df.columns)
 
-    def test_engine_apply_from_purview_returns_input_unchanged_when_no_classifications_found(self):
+    def test_engine_apply_from_purview_returns_input_unchanged_when_no_classifications_found(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
-            {"EmployeeID": "E1", "full_name": "John Doe", "emailAddress": "john.doe@example.com"},
-            {"EmployeeID": "E2", "full_name": "Jane Smith", "emailAddress": "jane.smith@example.com"},
+            {
+                "EmployeeID": "E1",
+                "full_name": "John Doe",
+                "emailAddress": "john.doe@example.com",
+            },
+            {
+                "EmployeeID": "E2",
+                "full_name": "Jane Smith",
+                "emailAddress": "jane.smith@example.com",
+            },
         ]
         df = spark.createDataFrame(data)
 
@@ -118,13 +142,24 @@ class TestAnonymisationPurview(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         data = [
-            {"EmployeeID": "E1", "full_name": "John Doe", "emailAddress": "john.doe@example.com", "Age": 34},
+            {
+                "EmployeeID": "E1",
+                "full_name": "John Doe",
+                "emailAddress": "john.doe@example.com",
+                "Age": 34,
+            },
         ]
         df = spark.createDataFrame(data)
 
         mocked_cols = [
-            {"column_name": "full_name", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
-            {"column_name": "emailAddress", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
+            {
+                "column_name": "full_name",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+            {
+                "column_name": "emailAddress",
+                "classifications": ["MICROSOFT.PERSONAL.EMAIL"],
+            },
             {"column_name": "Age", "classifications": ["Person's Age"]},
         ]
 
@@ -147,7 +182,10 @@ class TestAnonymisationPurview(SparkTestCase):
 
         row = out.collect()[0].asDict()
 
-        assert row["emailAddress"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            row["emailAddress"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
         assert row["full_name"] == "John Doe"
         assert row["Age"] == 34
 
@@ -160,7 +198,10 @@ class TestAnonymisationPurview(SparkTestCase):
         df = spark.createDataFrame(data)
 
         mocked_cols = [
-            {"column_name": "free_text", "classifications": ["UNSUPPORTED.CLASSIFICATION.TYPE"]},
+            {
+                "column_name": "free_text",
+                "classifications": ["UNSUPPORTED.CLASSIFICATION.TYPE"],
+            },
         ]
 
         engine = AnonymisationEngine()
@@ -190,7 +231,10 @@ class TestAnonymisationPurview(SparkTestCase):
         df = spark.createDataFrame(data)
 
         mocked_cols = [
-            {"column_name": "Email Address", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
+            {
+                "column_name": "Email Address",
+                "classifications": ["MICROSOFT.PERSONAL.EMAIL"],
+            },
         ]
 
         engine = AnonymisationEngine()
@@ -210,4 +254,7 @@ class TestAnonymisationPurview(SparkTestCase):
             )
 
         row = out.collect()[0].asDict()
-        assert row["emailAddress"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            row["emailAddress"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )

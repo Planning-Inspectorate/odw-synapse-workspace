@@ -1,7 +1,9 @@
 import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import (
+    AppealEventEstimateCuratedProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -103,11 +105,15 @@ def _source_data(harmonised_data):
 
 
 class TestAppealEventEstimateCuratedProcess(SparkTestCase):
-    def test__appeal_event_estimate_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_mixed_active_inactive_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_mixed_active_inactive_harmonised_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -142,11 +148,15 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-    def test__appeal_event_estimate_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_minimal_missing_columns_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_minimal_missing_columns_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -161,10 +171,14 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
 
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_process__process__excludes_inactive_rows_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__excludes_inactive_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inactive_df = _mixed_active_inactive_harmonised_df(spark).where("IsActive = 'N'")
+        inactive_df = _mixed_active_inactive_harmonised_df(spark).where(
+            "IsActive = 'N'"
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(inactive_df))
@@ -175,11 +189,15 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert df.columns == CURATED_COLUMNS
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_estimate_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_empty_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_empty_harmonised_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -189,11 +207,15 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["file_format"] == "parquet"
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_estimate_curated_process__process__preserves_duplicate_active_rows_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__preserves_duplicate_active_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_duplicate_active_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_duplicate_active_harmonised_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -201,11 +223,15 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert df.where("id = 'AEE-001'").count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_event_estimate_curated_process__process__keeps_expected_write_config_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__keeps_expected_write_config_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_active_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_active_harmonised_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
 
@@ -214,7 +240,9 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert "partition_by" not in write_config
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_process__process__only_keeps_exact_uppercase_y_active_rows_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__only_keeps_exact_uppercase_y_active_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         active = _active_harmonised_df(spark)
@@ -233,10 +261,14 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert df.count() == 0
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_estimate_curated_process__process__ignores_extra_source_columns_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__ignores_extra_source_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _active_harmonised_df(spark).withColumn("extraColumn", F.lit("ignore me"))
+        source_df = _active_harmonised_df(spark).withColumn(
+            "extraColumn", F.lit("ignore me")
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(source_df))
@@ -247,10 +279,14 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert "extraColumn" not in df.columns
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_process__process__excludes_null_is_active_rows_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__excludes_null_is_active_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _active_harmonised_df(spark).withColumn("IsActive", F.lit(None).cast(T.StringType()))
+        source_df = _active_harmonised_df(spark).withColumn(
+            "IsActive", F.lit(None).cast(T.StringType())
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(source_df))
@@ -261,7 +297,9 @@ class TestAppealEventEstimateCuratedProcess(SparkTestCase):
         assert df.columns == CURATED_COLUMNS
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_estimate_curated_process__process__preserves_null_selected_values_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__process__preserves_null_selected_values_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = spark.createDataFrame(

@@ -13,21 +13,40 @@ class TestSynapseTableDataIO(SparkTestCase):
         spark_session = PytestSparkSessionUtil().get_spark_session()
         test_name = self.test__synapse_table_data_io__read__successful.__name__
         mock_dataframe: DataFrame = spark_session.createDataFrame(
-            [(1, "a"), (2, "b"), (3, "c")], StructType([StructField("id", IntegerType(), True), StructField("name", StringType(), True)])
+            [(1, "a"), (2, "b"), (3, "c")],
+            StructType(
+                [
+                    StructField("id", IntegerType(), True),
+                    StructField("name", StringType(), True),
+                ]
+            ),
         )
         mock_file_path = f"{tmpdir}/{test_name}"
         mock_table_path = f"{test_name}.sometable"
         spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {test_name}")
-        mock_dataframe.write.format("parquet").mode("overwrite").option("path", mock_file_path).saveAsTable(mock_table_path)
+        mock_dataframe.write.format("parquet").mode("overwrite").option(
+            "path", mock_file_path
+        ).saveAsTable(mock_table_path)
         database_name = test_name
         table_name = "sometable"
         file_format = "parquet"
-        actual_dataframe = SynapseTableDataIO().read(database_name=database_name, table_name=table_name, file_format=file_format, spark=spark_session)
+        actual_dataframe = SynapseTableDataIO().read(
+            database_name=database_name,
+            table_name=table_name,
+            file_format=file_format,
+            spark=spark_session,
+        )
         assert_dataframes_equal(mock_dataframe, actual_dataframe)
 
-    @pytest.mark.parametrize("argument_to_drop", ["database_name", "table_name", "file_format", "spark"])
-    def test__synapse_table_data_io__read__with_missing_arguments(self, argument_to_drop: str):
-        test_name = self.test__synapse_table_data_io__read__with_missing_arguments.__name__
+    @pytest.mark.parametrize(
+        "argument_to_drop", ["database_name", "table_name", "file_format", "spark"]
+    )
+    def test__synapse_table_data_io__read__with_missing_arguments(
+        self, argument_to_drop: str
+    ):
+        test_name = (
+            self.test__synapse_table_data_io__read__with_missing_arguments.__name__
+        )
         all_arguments = {
             "database_name": test_name,
             "table_name": "sometable",
@@ -37,7 +56,9 @@ class TestSynapseTableDataIO(SparkTestCase):
             "file_format": "someformat",
             "spark": "",
         }
-        all_arguments_cleaned = {k: v for k, v in all_arguments.items() if k != argument_to_drop}
+        all_arguments_cleaned = {
+            k: v for k, v in all_arguments.items() if k != argument_to_drop
+        }
         with mock.patch.object(SynapseTableDataIO, "__init__", return_value=None):
             data_io_inst = SynapseTableDataIO()
             with pytest.raises(ValueError):
@@ -47,7 +68,13 @@ class TestSynapseTableDataIO(SparkTestCase):
         spark_session = PytestSparkSessionUtil().get_spark_session()
         test_name = self.test__synapse_table_data_io__write__successful.__name__
         mock_dataframe: DataFrame = spark_session.createDataFrame(
-            [(1, "a"), (2, "b"), (3, "c")], StructType([StructField("id", IntegerType(), True), StructField("name", StringType(), True)])
+            [(1, "a"), (2, "b"), (3, "c")],
+            StructType(
+                [
+                    StructField("id", IntegerType(), True),
+                    StructField("name", StringType(), True),
+                ]
+            ),
         )
         mock_table_path = f"{test_name}.sometable"
         mock_file_path = f"{tmpdir}/{test_name}"
@@ -58,7 +85,9 @@ class TestSynapseTableDataIO(SparkTestCase):
         blob_path = "some/path/to/a/blob.parquet"
         file_format = "parquet"
         spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {test_name}")
-        with mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", return_value=mock_file_path):
+        with mock.patch.object(
+            SynapseTableDataIO, "_format_to_adls_path", return_value=mock_file_path
+        ):
             SynapseTableDataIO().write(
                 data=mock_dataframe,
                 database_name=database_name,
@@ -70,13 +99,26 @@ class TestSynapseTableDataIO(SparkTestCase):
                 write_mode="overwrite",
                 spark=spark_session,
             )
-            written_dataframe = spark_session.read.format(file_format).table(mock_table_path)
+            written_dataframe = spark_session.read.format(file_format).table(
+                mock_table_path
+            )
             assert_dataframes_equal(mock_dataframe, written_dataframe)
 
     @pytest.mark.parametrize(
-        "argument_to_drop", ["database_name", "table_name", "storage_name", "container_name", "blob_path", "file_format", "write_mode"]
+        "argument_to_drop",
+        [
+            "database_name",
+            "table_name",
+            "storage_name",
+            "container_name",
+            "blob_path",
+            "file_format",
+            "write_mode",
+        ],
     )
-    def test__synapse_table_data_io__write__with_missing_arguments(self, argument_to_drop: str):
+    def test__synapse_table_data_io__write__with_missing_arguments(
+        self, argument_to_drop: str
+    ):
         spark_session = PytestSparkSessionUtil().get_spark_session()
         test_name = self.test__synapse_table_data_io__write__successful.__name__
         mock_dataframe: DataFrame = spark_session.createDataFrame(
@@ -97,7 +139,9 @@ class TestSynapseTableDataIO(SparkTestCase):
             "write_mode": "somewritemode",
             "spark": spark_session,
         }
-        all_arguments_cleaned = {k: v for k, v in all_arguments.items() if k != argument_to_drop}
+        all_arguments_cleaned = {
+            k: v for k, v in all_arguments.items() if k != argument_to_drop
+        }
         with mock.patch.object(SynapseTableDataIO, "__init__", return_value=None):
             data_io_inst = SynapseTableDataIO()
             with pytest.raises(ValueError):

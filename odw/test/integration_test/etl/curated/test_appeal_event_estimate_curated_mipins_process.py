@@ -4,9 +4,14 @@ import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import AppealEventEstimateCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import (
+    AppealEventEstimateCuratedMipinsProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 CURATED_COLUMNS = [
@@ -135,10 +140,14 @@ def _harmonised_df(spark):
     pre1900 = F.lit("1899-12-31 23:59:59").cast(T.TimestampType())
     df = df.withColumn(
         "IngestionDate",
-        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-003", pre1900).otherwise(F.col("IngestionDate")),
+        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-003", pre1900).otherwise(
+            F.col("IngestionDate")
+        ),
     ).withColumn(
         "ValidTo",
-        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-004", pre1900).otherwise(F.col("ValidTo")),
+        F.when(F.col("AppealsEstimateEventID") == "AEE-EVENT-004", pre1900).otherwise(
+            F.col("ValidTo")
+        ),
     )
 
     return df.withColumn("extraColumn", F.lit("ignore me"))
@@ -303,7 +312,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
 
         assert_dataframes_equal(actual_selected_df, expected_df)
 
-    def test__appeal_event_estimate_curated_mipins_process__run__creates_output_table_when_missing_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__run__creates_output_table_when_missing_like_legacy(
+        self,
+    ):
         test_case = "t_aeecm_r_cotwm"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -311,7 +322,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
 
         self._assert_curation(spark, actual_df, result)
 
-    def test__appeal_event_estimate_curated_mipins_process__run__overwrites_existing_output_table_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__run__overwrites_existing_output_table_like_legacy(
+        self,
+    ):
         test_case = "t_aeecm_r_oeot"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -332,7 +345,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
         assert actual_df.where("ID = 'OLD-ID'").count() == 0
         self._assert_curation(spark, actual_df, result)
 
-    def test__appeal_event_estimate_curated_mipins_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__run__empty_harmonised_source_writes_empty_output_like_legacy(
+        self,
+    ):
         test_case = "t_aeecm_r_ehs"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -363,7 +378,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(ETLTestCase):
         ):
             inst = AppealEventEstimateCuratedMipinsProcess(spark)
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="appeal_event_estimate_mipins", orchestration_stage_name="curate"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_event_estimate_mipins",
+                orchestration_stage_name="curate",
             )
             assert_etl_result_successful(result)
 

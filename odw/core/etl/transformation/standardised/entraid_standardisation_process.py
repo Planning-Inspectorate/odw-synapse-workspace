@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -71,7 +73,9 @@ class EntraIdStandardisationProcess(StandardisationProcess):
         if date_folder:
             self._folder_name = date_folder
         else:
-            LoggingUtil().log_info(f"No date_folder supplied — discovering latest folder under {raw_path}")
+            LoggingUtil().log_info(
+                f"No date_folder supplied — discovering latest folder under {raw_path}"
+            )
             self._folder_name = self._get_latest_folder(raw_path)
 
         blob_path = f"{self.RAW_FOLDER}/{self._folder_name}/entraid.json"
@@ -102,16 +106,26 @@ class EntraIdStandardisationProcess(StandardisationProcess):
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         raw_df: DataFrame = self.load_parameter("raw_entraid", source_data)
 
-        LoggingUtil().log_info(f"Exploding EntraID records from folder {self._folder_name}")
-        std_df = raw_df.select(F.explode(F.col("value")).alias("record")).select(*[F.col("record")[c].alias(c) for c in _ENTRAID_FIELDS])
+        LoggingUtil().log_info(
+            f"Exploding EntraID records from folder {self._folder_name}"
+        )
+        std_df = raw_df.select(F.explode(F.col("value")).alias("record")).select(
+            *[F.col("record")[c].alias(c) for c in _ENTRAID_FIELDS]
+        )
 
         # expected_from mirrors the ingest_adhoc convention: day prior to the folder date
         folder_date = datetime.strptime(self._folder_name, "%Y-%m-%d").date()
-        expected_from = datetime.combine(folder_date - timedelta(days=1), datetime.min.time())
-        std_df = std_df.withColumn("expected_from", F.to_timestamp(F.lit(str(expected_from))))
+        expected_from = datetime.combine(
+            folder_date - timedelta(days=1), datetime.min.time()
+        )
+        std_df = std_df.withColumn(
+            "expected_from", F.to_timestamp(F.lit(str(expected_from)))
+        )
 
         insert_count = std_df.count()
-        LoggingUtil().log_info(f"Standardised {insert_count} EntraID records into {self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(
+            f"Standardised {insert_count} EntraID records into {self.OUTPUT_TABLE}"
+        )
 
         data_to_write = {
             self.OUTPUT_TABLE: {

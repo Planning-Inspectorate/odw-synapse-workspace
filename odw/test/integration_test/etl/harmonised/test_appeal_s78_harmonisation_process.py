@@ -1,9 +1,24 @@
 import mock
-from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType, TimestampType, DoubleType, ArrayType, BooleanType
-from odw.core.etl.transformation.harmonised.appeal_s78_harmonisation_process import AppealS78HarmonisationProcess
+from pyspark.sql.types import (
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+    DoubleType,
+    ArrayType,
+    BooleanType,
+)
+from odw.core.etl.transformation.harmonised.appeal_s78_harmonisation_process import (
+    AppealS78HarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from datetime import datetime
 import pytest
 
@@ -33,8 +48,12 @@ def _raw_service_bus_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -46,7 +65,9 @@ def _raw_service_bus_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -91,13 +112,27 @@ def _raw_service_bus_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -105,8 +140,12 @@ def _raw_service_bus_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -174,8 +213,12 @@ def _raw_service_bus_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -226,12 +269,16 @@ def _raw_service_bus_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -266,12 +313,28 @@ def _raw_service_bus_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -650,7 +713,12 @@ def _raw_horizon_schema():
                 "enforcementAppealGroundsDetails",
                 ArrayType(
                     StructType(
-                        [StructField("appealGroundLetter", StringType(), True), StructField("groundForAppealStartDate", TimestampType(), True)]
+                        [
+                            StructField("appealGroundLetter", StringType(), True),
+                            StructField(
+                                "groundForAppealStartDate", TimestampType(), True
+                            ),
+                        ]
                     ),
                     True,
                 ),
@@ -852,8 +920,12 @@ def _raw_has_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -865,7 +937,9 @@ def _raw_has_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -929,13 +1003,27 @@ def _raw_has_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -943,15 +1031,21 @@ def _raw_has_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("typeOfPlanningApplication", StringType(), True),
             StructField("siteGridReferenceEasting", StringType(), True),
             StructField("siteGridReferenceNorthing", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -997,7 +1091,11 @@ def _raw_has_schema():
 
 
 def _group_resolver_row(**overrides):
-    base = {"caseReference": "98765", "currentGroup": "B", "asOfTimestamp": datetime(2025, 1, 1)}
+    base = {
+        "caseReference": "98765",
+        "currentGroup": "B",
+        "asOfTimestamp": datetime(2025, 1, 1),
+    }
     return base | overrides
 
 
@@ -1168,8 +1266,16 @@ def _harmonised_s78_row(**overrides):
         "occupancyConditionsMet": None,
         "enforcementAppealGroundsDetails": None,
         "applicationElbAppealGroundsDetails": [
-            {"appealGroundLetter": " ", "groundForAppealStartDate": None, "groundFacts": None},
-            {"appealGroundLetter": "g", "groundForAppealStartDate": None, "groundFacts": None},
+            {
+                "appealGroundLetter": " ",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
+            {
+                "appealGroundLetter": "g",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
         ],
         "applicationMadeAndFeePaid": None,
         "noticeRelatesToBuildingEngineeringMiningOther": None,
@@ -1247,8 +1353,12 @@ def _harmonised_s78_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -1260,7 +1370,9 @@ def _harmonised_s78_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -1305,13 +1417,27 @@ def _harmonised_s78_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -1319,8 +1445,12 @@ def _harmonised_s78_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -1388,8 +1518,12 @@ def _harmonised_s78_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -1440,12 +1574,16 @@ def _harmonised_s78_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -1480,12 +1618,28 @@ def _harmonised_s78_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -1509,23 +1663,55 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
             schema=_raw_service_bus_schema(),
         )
         service_bus_table = f"{test_case}_sb_appeal_s78"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
         horizon_data = spark.createDataFrame(
             (_raw_horizon_row(), _raw_horizon_row(caseReference="23456")),
             schema=_raw_horizon_schema(),
         )
         horizon_table = f"{test_case}_horizon_appeal_s78"
-        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_table,
+            "overwrite",
+        )
         has_data = spark.createDataFrame(
             (_raw_has_row(), _raw_has_row(caseReference="23456")),
             schema=_raw_has_schema(),
         )
         has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, has_data, has_table, "odw_harmonised_db", "odw-harmonised", has_table, "overwrite")
-        group_resolver_data = spark.createDataFrame((_group_resolver_row(),), schema=_group_resolver_schema())
+        self.write_existing_table(
+            spark,
+            has_data,
+            has_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            has_table,
+            "overwrite",
+        )
+        group_resolver_data = spark.createDataFrame(
+            (_group_resolver_row(),), schema=_group_resolver_schema()
+        )
         group_resolver_table = f"{test_case}_GroupResolver"
         self.write_existing_table(
-            spark, group_resolver_data, group_resolver_table, "odw_harmonised_db", "odw-harmonised", group_resolver_table, "overwrite"
+            spark,
+            group_resolver_data,
+            group_resolver_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            group_resolver_table,
+            "overwrite",
         )
         expected_harmonised_data_after_writing = spark.createDataFrame(
             (
@@ -1723,13 +1909,27 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
         output_table = f"{test_case}_appeal_s78"
         expected_group_resolver_to_update = spark.createDataFrame(
             (
-                _group_resolver_row(caseReference="12345", currentGroup="B", asOfTimestamp=datetime(2026, 5, 18, 11, 38, 5, 76735)),
-                _group_resolver_row(caseReference="123456789", currentGroup="B", asOfTimestamp=datetime(2025, 1, 1, 0, 0)),
-                _group_resolver_row(caseReference="23456", currentGroup="B", asOfTimestamp=datetime(2026, 5, 18, 11, 38, 5, 76735)),
+                _group_resolver_row(
+                    caseReference="12345",
+                    currentGroup="B",
+                    asOfTimestamp=datetime(2026, 5, 18, 11, 38, 5, 76735),
+                ),
+                _group_resolver_row(
+                    caseReference="123456789",
+                    currentGroup="B",
+                    asOfTimestamp=datetime(2025, 1, 1, 0, 0),
+                ),
+                _group_resolver_row(
+                    caseReference="23456",
+                    currentGroup="B",
+                    asOfTimestamp=datetime(2026, 5, 18, 11, 38, 5, 76735),
+                ),
             ),
             schema=_group_resolver_schema(),
         )
-        expected_group_resolver_data = group_resolver_data.union(expected_group_resolver_to_update)
+        expected_group_resolver_data = group_resolver_data.union(
+            expected_group_resolver_to_update
+        )
         """
         Rows to be merged into the target HAS table (dumped from the notebook)
         {"caseReference": "12345", "s78HrmActiveTs": datetime(2026, 5, 18, 11, 38, 5, 76735)},
@@ -1738,27 +1938,49 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
         """
         expected_has_data = spark.createDataFrame(
             (
-                _raw_has_row(caseReference="12345", IsActive="N", ValidTo=datetime(2026, 5, 18, 11, 38, 5, 76735)),
-                _raw_has_row(caseReference="23456", IsActive="N", ValidTo=datetime(2026, 5, 18, 11, 38, 5, 76735)),
+                _raw_has_row(
+                    caseReference="12345",
+                    IsActive="N",
+                    ValidTo=datetime(2026, 5, 18, 11, 38, 5, 76735),
+                ),
+                _raw_has_row(
+                    caseReference="23456",
+                    IsActive="N",
+                    ValidTo=datetime(2026, 5, 18, 11, 38, 5, 76735),
+                ),
             ),
             schema=_raw_has_schema(),
         )
         with (
-            mock.patch.object(AppealS78HarmonisationProcess, "SERVICE_BUS_TABLE", service_bus_table),
-            mock.patch.object(AppealS78HarmonisationProcess, "HORIZON_TABLE", horizon_table),
+            mock.patch.object(
+                AppealS78HarmonisationProcess, "SERVICE_BUS_TABLE", service_bus_table
+            ),
+            mock.patch.object(
+                AppealS78HarmonisationProcess, "HORIZON_TABLE", horizon_table
+            ),
             mock.patch.object(AppealS78HarmonisationProcess, "HAS_TABLE", has_table),
-            mock.patch.object(AppealS78HarmonisationProcess, "GROUP_RESOLVER", group_resolver_table),
-            mock.patch.object(AppealS78HarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                AppealS78HarmonisationProcess, "GROUP_RESOLVER", group_resolver_table
+            ),
+            mock.patch.object(
+                AppealS78HarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = AppealS78HarmonisationProcess(spark)
             result = inst.run()
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_harmonised_db.{output_table}")
-            assert_dataframes_equal(expected_harmonised_data_after_writing, actual_table_data)
+            assert_dataframes_equal(
+                expected_harmonised_data_after_writing, actual_table_data
+            )
             # Would be good to move this delta merge logic to the appropriate entities - shouldn't be crossing logic between ETL processes
             # but the original notebook did, so this functionality has been preserved for now
-            actual_group_resolver_data = spark.table(f"odw_harmonised_db.{group_resolver_table}")
-            assert_dataframes_equal(expected_group_resolver_data, actual_group_resolver_data)
+            actual_group_resolver_data = spark.table(
+                f"odw_harmonised_db.{group_resolver_table}"
+            )
+            assert_dataframes_equal(
+                expected_group_resolver_data, actual_group_resolver_data
+            )
             actual_has_data = spark.table(f"odw_harmonised_db.{has_table}")
             assert_dataframes_equal(expected_has_data, actual_has_data)
 
@@ -1785,5 +2007,13 @@ class TestAppealS78HarmonisationProcess(ETLTestCase):
             schema=_harmonised_s78_schema(),
         )
         output_table = f"{test_case}_appeal_s78"
-        self.write_existing_table(spark, existing_s78_data, output_table, "odw_harmonised_db", "odw-harmonised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_s78_data,
+            output_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            output_table,
+            "overwrite",
+        )
         self.assert_etl_successful(test_case)

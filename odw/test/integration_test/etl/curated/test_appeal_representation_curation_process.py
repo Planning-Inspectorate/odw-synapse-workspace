@@ -1,8 +1,13 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_representation_curation_process import AppealRepresentationCurationProcess
+from odw.core.etl.transformation.curated.appeal_representation_curation_process import (
+    AppealRepresentationCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from datetime import datetime
 import pyspark.sql.types as T
 import mock
@@ -133,13 +138,23 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                     T.StructField("redacted", T.BooleanType(), True),
                     T.StructField("redactedRepresentation", T.StringType(), True),
                     T.StructField("redactedBy", T.StringType(), True),
-                    T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                    T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "invalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
+                    T.StructField(
+                        "otherInvalidOrIncompleteDetails",
+                        T.ArrayType(T.StringType(), True),
+                        True,
+                    ),
                     T.StructField("source", T.StringType(), True),
                     T.StructField("serviceUserId", T.StringType(), True),
                     T.StructField("representationType", T.StringType(), True),
                     T.StructField("dateReceived", T.StringType(), True),
-                    T.StructField("documentIds", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "documentIds", T.ArrayType(T.StringType(), True), True
+                    ),
                     T.StructField("migrated", T.StringType(), True),
                     T.StructField("ODTSourceSystem", T.StringType(), True),
                     T.StructField("SourceSystemID", T.StringType(), True),
@@ -163,8 +178,16 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
                 T.StructField("redacted", T.BooleanType(), True),
                 T.StructField("redactedRepresentation", T.StringType(), True),
                 T.StructField("redactedBy", T.StringType(), True),
-                T.StructField("invalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
-                T.StructField("otherInvalidOrIncompleteDetails", T.ArrayType(T.StringType(), True), True),
+                T.StructField(
+                    "invalidOrIncompleteDetails",
+                    T.ArrayType(T.StringType(), True),
+                    True,
+                ),
+                T.StructField(
+                    "otherInvalidOrIncompleteDetails",
+                    T.ArrayType(T.StringType(), True),
+                    True,
+                ),
                 T.StructField("source", T.StringType(), True),
                 T.StructField("serviceUserId", T.StringType(), True),
                 T.StructField("representationType", T.StringType(), True),
@@ -312,11 +335,15 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         ):
             inst = AppealRepresentationCurationProcess(spark)
             result = inst.run(
-                orchestration_run_id="t_arcp_r_wed", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate"
+                orchestration_run_id="t_arcp_r_wed",
+                orchestration_entity_name="appeal_representation",
+                orchestration_stage_name="curate",
             )
             assert_etl_result_successful(result)
             actual_table_data = spark.table("odw_curated_db.appeal_representation")
-            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+            assert_dataframes_equal(
+                expected_curated_data_after_writing, actual_table_data
+            )
 
     def test__appeal_representation_curation_process__run__with_no_existing_data(self):
         """
@@ -348,8 +375,12 @@ class TestAppealRepresentationCurationProcess(ETLTestCase):
         ):
             inst = AppealRepresentationCurationProcess(spark)
             result = inst.run(
-                orchestration_run_id="t_arcp_r_wned", orchestration_entity_name="appeal_representation", orchestration_stage_name="curate"
+                orchestration_run_id="t_arcp_r_wned",
+                orchestration_entity_name="appeal_representation",
+                orchestration_stage_name="curate",
             )
             assert_etl_result_successful(result)
             actual_table_data = spark.table("odw_curated_db.appeal_representation")
-            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+            assert_dataframes_equal(
+                expected_curated_data_after_writing, actual_table_data
+            )

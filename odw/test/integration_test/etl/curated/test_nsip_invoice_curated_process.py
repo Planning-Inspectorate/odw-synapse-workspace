@@ -1,6 +1,9 @@
 import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     IntegerType,
@@ -11,7 +14,9 @@ from pyspark.sql.types import (
     DoubleType,
 )
 
-from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_invoice_curated_process import (
+    NsipInvoiceCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
@@ -182,11 +187,21 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
-            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"
+            ),
         ):
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
@@ -230,11 +245,21 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
-            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"
+            ),
         ):
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
@@ -248,7 +273,9 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
 
         harmonised_invoice = spark.createDataFrame(
             [
-                _harmonised_row(caseId=2001, invoiceNumber="INV-001", amountDue=100.50, IsActive="Y"),
+                _harmonised_row(
+                    caseId=2001, invoiceNumber="INV-001", amountDue=100.50, IsActive="Y"
+                ),
                 _harmonised_row(
                     NSIPInvoiceID=2,
                     NSIPProjectInfoInternalID=200,
@@ -272,11 +299,21 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
-            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"
+            ),
         ):
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
@@ -315,11 +352,21 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
-            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"
+            ),
         ):
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")
@@ -338,11 +385,21 @@ class TestNsipInvoiceCuratedProcess(ETLTestCase):
         expected_table_data = spark.createDataFrame([], _curated_schema())
 
         with (
-            mock.patch.object(NsipInvoiceCuratedProcess, "HARMONISED_TABLE", f"{test_case}_sb_nsip_invoice"),
-            mock.patch.object(NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"{test_case}_sb_nsip_invoice",
+            ),
+            mock.patch.object(
+                NsipInvoiceCuratedProcess, "OUTPUT_TABLE", f"{test_case}_nsip_invoice"
+            ),
         ):
             inst = NsipInvoiceCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_invoice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_invoice",
+                orchestration_stage_name="curate",
+            )
 
         assert_etl_result_successful(result)
         actual_table_data = spark.table(f"odw_curated_db.{test_case}_nsip_invoice")

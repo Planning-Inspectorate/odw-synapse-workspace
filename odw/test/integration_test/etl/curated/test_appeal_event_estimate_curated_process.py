@@ -2,9 +2,14 @@ import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import AppealEventEstimateCuratedProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import (
+    AppealEventEstimateCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 CURATED_COLUMNS = [
@@ -87,14 +92,20 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
             ),
         ):
             inst = AppealEventEstimateCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_event_estimate", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_event_estimate",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{curated_table}")
 
         return actual_df, result
 
-    def test__appeal_event_estimate_curated_process__run__curates_active_harmonised_rows_end_to_end_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__run__curates_active_harmonised_rows_end_to_end_like_legacy(
+        self,
+    ):
         test_case = "t_aeec_r_cahr"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -131,11 +142,15 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
 
         assert_dataframes_equal(actual_selected_df, expected_df)
 
-    def test__appeal_event_estimate_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(self):
+    def test__appeal_event_estimate_curated_process__run__empty_harmonised_source_writes_empty_output_like_legacy(
+        self,
+    ):
         test_case = "t_aeec_r_ehs"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        actual_df, result = self._run_process(spark, test_case, _empty_harmonised_df(spark))
+        actual_df, result = self._run_process(
+            spark, test_case, _empty_harmonised_df(spark)
+        )
 
         assert actual_df.count() == 0
         assert actual_df.columns == CURATED_COLUMNS
@@ -150,11 +165,15 @@ class TestAppealEventEstimateCuratedProcess(ETLTestCase):
             "delete_count": 0,
         }
 
-    def test__appeal_event_estimate_curated_process__run__adds_missing_columns_as_null_like_curated_framework(self):
+    def test__appeal_event_estimate_curated_process__run__adds_missing_columns_as_null_like_curated_framework(
+        self,
+    ):
         test_case = "t_aeec_r_amc"
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        actual_df, result = self._run_process(spark, test_case, _minimal_harmonised_df(spark))
+        actual_df, result = self._run_process(
+            spark, test_case, _minimal_harmonised_df(spark)
+        )
 
         row = actual_df.collect()[0]
 

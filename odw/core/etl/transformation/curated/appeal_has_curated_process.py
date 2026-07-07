@@ -11,7 +11,11 @@ class AppealHasCuratedProcess(CurationProcess):
         return "Appeal HAS Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        raise NotImplementedError("AppealHasCuratedProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealHasCuratedProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError("AppealHasCuratedProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealHasCuratedProcess.process() has not been implemented yet."
+        )

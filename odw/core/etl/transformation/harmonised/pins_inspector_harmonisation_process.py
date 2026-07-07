@@ -1,9 +1,14 @@
-from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.anonymisation.config import load_config, AnonymisationConfig
-from odw.core.anonymisation.engine import AnonymisationEngine, fetch_purview_classifications_by_qualified_name
+from odw.core.anonymisation.engine import (
+    AnonymisationEngine,
+    fetch_purview_classifications_by_qualified_name,
+)
 from pyspark.sql import DataFrame, Window as W
 from pyspark.sql import functions as F
 from datetime import datetime
@@ -47,7 +52,9 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     def _dedup_specialisms(self, specialisms: DataFrame) -> DataFrame:
         """Latest specialism per (StaffNumber, QualificationName) among active records, collected into an array."""
-        w = W.partitionBy("StaffNumber", "QualificationName").orderBy(F.col("ValidFrom").desc())
+        w = W.partitionBy("StaffNumber", "QualificationName").orderBy(
+            F.col("ValidFrom").desc()
+        )
         return (
             specialisms.filter(F.col("Current") == 1)
             .withColumn("rn", F.row_number().over(w))
@@ -70,14 +77,22 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         """Pad SAP IDs shorter than 8 chars with '00' prefix; keep only active records."""
         return entraid.filter(F.col("isActive") == "Y").select(
             F.col("id"),
-            F.when(F.length(F.col("employeeId")) < 8, F.concat(F.lit("00"), F.col("employeeId"))).otherwise(F.col("employeeId")).alias("employeeId"),
+            F.when(
+                F.length(F.col("employeeId")) < 8,
+                F.concat(F.lit("00"), F.col("employeeId")),
+            )
+            .otherwise(F.col("employeeId"))
+            .alias("employeeId"),
         )
 
     def _dedup_address(self, address: DataFrame) -> DataFrame:
         """One address row per inspector, keeping the most recent by IngestionDate."""
         w = W.partitionBy("StaffNumber").orderBy(F.col("IngestionDate").desc())
         return (
-            address.withColumn("rn", F.row_number().over(w)).filter(F.col("rn") == 1).drop("rn").withColumnRenamed("2ndAddressLine", "addressLine2")
+            address.withColumn("rn", F.row_number().over(w))
+            .filter(F.col("rn") == 1)
+            .drop("rn")
+            .withColumnRenamed("2ndAddressLine", "addressLine2")
         )
 
     def _latest_hr(self, hist_hr: DataFrame) -> DataFrame:
@@ -87,7 +102,16 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
             hist_hr.withColumn("rn", F.row_number().over(w))
             .filter(F.col("rn") == 1)
             .drop("rn")
-            .select("PersNo", "Position1", "FTE", "PersonnelArea", "PersonnelSubArea", "OrganizationalUnit", "NameofManagerOM", "SourceSystemID")
+            .select(
+                "PersNo",
+                "Position1",
+                "FTE",
+                "PersonnelArea",
+                "PersonnelSubArea",
+                "OrganizationalUnit",
+                "NameofManagerOM",
+                "SourceSystemID",
+            )
         )
 
     def _join_inspectors(
@@ -106,9 +130,13 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         hr = hr_latest.alias("hr")
 
         return (
-            di.join(ispec, F.col("di.pins_staff_number") == F.col("ispec.sapId"), "left")
+            di.join(
+                ispec, F.col("di.pins_staff_number") == F.col("ispec.sapId"), "left"
+            )
             .join(eid, F.col("eid.employeeId") == F.col("di.pins_staff_number"), "left")
-            .join(addr, F.col("addr.StaffNumber") == F.col("di.pins_staff_number"), "left")
+            .join(
+                addr, F.col("addr.StaffNumber") == F.col("di.pins_staff_number"), "left"
+            )
             .join(hr, F.col("hr.PersNo") == F.col("di.pins_staff_number"), "left")
             .select(
                 F.col("eid.id").alias("entraId"),
@@ -139,19 +167,27 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
 
     def _apply_anonymisation(self, df: DataFrame) -> DataFrame:
         if not Util.is_non_production_environment():
-            LoggingUtil().log_info(f"Environment: {Util.get_environment()} - Skipping anonymisation (production)")
+            LoggingUtil().log_info(
+                f"Environment: {Util.get_environment()} - Skipping anonymisation (production)"
+            )
             return df
 
         env_name = Util.get_environment()
-        LoggingUtil().log_info(f"Environment: {env_name} - Applying anonymisation to pins_inspector")
+        LoggingUtil().log_info(
+            f"Environment: {env_name} - Applying anonymisation to pins_inspector"
+        )
 
         anon_config = AnonymisationConfig()
         try:
             policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
-            policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+            policy_text = (
+                self.spark.read.text(policy_path, wholetext=True).first().value
+            )
             anon_config = load_config(text=policy_text)
         except Exception as config_err:
-            LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
+            LoggingUtil().log_info(
+                f"Could not load anonymisation policy, using defaults: {config_err}"
+            )
 
         engine = AnonymisationEngine(
             config=AnonymisationConfig(
@@ -165,10 +201,16 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         try:
             from notebookutils import mssparkutils
 
-            client_id = mssparkutils.credentials.getSecretWithLS("ls_kv", "synapse-graph-client-id")
-            client_secret = mssparkutils.credentials.getSecretWithLS("ls_kv", "synapse-graph-client-secret")
+            client_id = mssparkutils.credentials.getSecretWithLS(
+                "ls_kv", "synapse-graph-client-id"
+            )
+            client_secret = mssparkutils.credentials.getSecretWithLS(
+                "ls_kv", "synapse-graph-client-secret"
+            )
         except Exception:
-            client_id = os.getenv("ODW_CLIENT_ID", "5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0")
+            client_id = os.getenv(
+                "ODW_CLIENT_ID", "5750ab9b-597c-4b0d-b0f0-f4ef94e91fc0"
+            )
             client_secret = "AZURE_IDENTITY"
 
         cols = fetch_purview_classifications_by_qualified_name(
@@ -198,7 +240,9 @@ class PinsInspectorHarmonisationProcess(HarmonisationProcess):
         addr_dedup = self._dedup_address(address)
         hr_latest = self._latest_hr(hist_hr)
 
-        final_df = self._join_inspectors(live_dim, spec_dedup, entraid_padded, addr_dedup, hr_latest)
+        final_df = self._join_inspectors(
+            live_dim, spec_dedup, entraid_padded, addr_dedup, hr_latest
+        )
 
         # Append ISO-8601 time suffix to date-only validFrom values
         final_df = final_df.withColumn(

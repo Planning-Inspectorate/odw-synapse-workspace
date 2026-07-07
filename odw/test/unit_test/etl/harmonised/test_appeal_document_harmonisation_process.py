@@ -2,7 +2,9 @@ import hashlib
 import mock
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process import AppealDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process import (
+    AppealDocumentHarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -193,7 +195,9 @@ def _service_bus_row(**overrides):
     row.update(overrides)
     # Compute TEMP_PK to match _load_service_bus_data: MD5(CONCAT(documentId, filename, version, documentURI))
     if "TEMP_PK" not in row:
-        row["TEMP_PK"] = hashlib.md5(f"{row['documentId']}{row['filename']}{row['version']}{row['documentURI']}".encode()).hexdigest()
+        row["TEMP_PK"] = hashlib.md5(
+            f"{row['documentId']}{row['filename']}{row['version']}{row['documentURI']}".encode()
+        ).hexdigest()
     return row
 
 
@@ -288,7 +292,9 @@ def _expected_rowid(row):
 
 
 class TestAppealDocumentHarmonisationProcess(SparkTestCase):
-    def test__appeal_document_harmonisation_process__get_name__returns_expected_name(self):
+    def test__appeal_document_harmonisation_process__get_name__returns_expected_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealDocumentHarmonisationProcess(spark)
 
@@ -310,7 +316,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -345,7 +353,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -370,7 +380,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         sb_df = spark.createDataFrame([], _service_bus_schema())
         source_data = {
             "service_bus_data": sb_df,
-            "horizon_data": spark.createDataFrame([duplicate, duplicate], _horizon_schema()),
+            "horizon_data": spark.createDataFrame(
+                [duplicate, duplicate], _horizon_schema()
+            ),
             "aie_data": spark.createDataFrame([_aie_row()], _aie_schema()),
             "sb_primary_keys": sb_df.select("TEMP_PK").distinct(),
             "table_path": "/tmp/test/appeal_document",
@@ -378,7 +390,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -412,7 +426,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -438,7 +454,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         sb_df = spark.createDataFrame([], _service_bus_schema())
         source_data = {
             "service_bus_data": sb_df,
-            "horizon_data": spark.createDataFrame([_horizon_row(version=2)], _horizon_schema()),
+            "horizon_data": spark.createDataFrame(
+                [_horizon_row(version=2)], _horizon_schema()
+            ),
             "aie_data": spark.createDataFrame(
                 [_aie_row(documentid="doc-002", size=22222, version=1)],
                 _aie_schema(),
@@ -449,7 +467,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -496,7 +516,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -507,8 +529,12 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        old_row = df.where(F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000").collect()[0]
-        new_row = df.where(F.col("IngestionDate") == "2025-01-12T10:00:00.000000+0000").collect()[0]
+        old_row = df.where(
+            F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000"
+        ).collect()[0]
+        new_row = df.where(
+            F.col("IngestionDate") == "2025-01-12T10:00:00.000000+0000"
+        ).collect()[0]
 
         assert old_row["IsActive"] == "N"
         assert old_row["ValidTo"] == "2025-01-12T10:00:00.000000+0000"
@@ -547,7 +573,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -557,7 +585,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        old_row = df.where(F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000").collect()[0]
+        old_row = df.where(
+            F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000"
+        ).collect()[0]
 
         assert old_row["ValidTo"] == "2025-01-20T00:00:00.000000+0000"
 
@@ -594,7 +624,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -605,8 +637,20 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000") & (F.col("IsActive") == "N")).count() == 1
-        assert df.where((F.col("IngestionDate") == "2025-01-12T10:00:00.000000+0000") & (F.col("IsActive") == "Y")).count() == 1
+        assert (
+            df.where(
+                (F.col("IngestionDate") == "2025-01-10T10:00:00.000000+0000")
+                & (F.col("IsActive") == "N")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("IngestionDate") == "2025-01-12T10:00:00.000000+0000")
+                & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
 
     def test__appeal_document_harmonisation_process__process__service_bus_row_with_documenturi_results_in_migrated_zero_due_to_legacy_hash_mismatch(
         self,
@@ -624,7 +668,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -653,7 +699,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -687,7 +735,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -756,7 +806,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -785,7 +837,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -856,7 +910,9 @@ class TestAppealDocumentHarmonisationProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.harmonised.appeal_document_harmonisation_process.Util.get_storage_account",
                 return_value="teststorage",

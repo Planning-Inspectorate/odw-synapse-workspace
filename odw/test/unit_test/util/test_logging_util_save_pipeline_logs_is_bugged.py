@@ -22,8 +22,12 @@ def test_save_pipeline_logs__success_path_logs_status_code():
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response):
-        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ):
+        with mock.patch.object(
+            logging_util, "log_info", return_value=None
+        ) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={"table_name": "sb_service_user", "insert_count": 10},
                 event_name="Master_Pipeline_Logs_v2",
@@ -41,8 +45,12 @@ def test_save_pipeline_logs__success_path_calls_requests_post():
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response) as mock_post:
-        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ) as mock_post:
+        with mock.patch.object(
+            logging_util, "log_info", return_value=None
+        ) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={"table_name": "sb_service_user", "insert_count": 10},
                 event_name="Master_Pipeline_Logs_v2",
@@ -73,7 +81,9 @@ def test_save_pipeline_logs__dataframe_payload_triggers_exception_handling():
         raise TypeError("Object of type DataFrame is not JSON serializable")
 
     with mock.patch("odw.core.util.logging_util.requests.post", side_effect=fake_post):
-        with mock.patch.object(logging_util, "log_info", return_value=None) as mock_log_info:
+        with mock.patch.object(
+            logging_util, "log_info", return_value=None
+        ) as mock_log_info:
             logging_util.save_pipeline_logs(
                 payload={
                     "table_name": "sb_service_user",
@@ -124,7 +134,9 @@ def test_save_pipeline_logs__serialisable_payload_is_fine_once_log_info_is_not_t
     mock_response = mock.Mock()
     mock_response.status_code = 200
 
-    with mock.patch("odw.core.util.logging_util.requests.post", return_value=mock_response) as mock_post:
+    with mock.patch(
+        "odw.core.util.logging_util.requests.post", return_value=mock_response
+    ) as mock_post:
         with mock.patch.object(logging_util, "log_info", return_value=None):
             logging_util.save_pipeline_logs(
                 payload={

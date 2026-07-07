@@ -2,7 +2,9 @@ import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import AppealServiceUserCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import (
+    AppealServiceUserCuratedMipinsProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal
@@ -152,8 +154,12 @@ def _service_user_row(**overrides):
 
 def _source_data(spark, sb_rows=None, service_user_rows=None):
     return {
-        "sb_service_user_data": spark.createDataFrame(sb_rows or [], schema=_source_service_user_schema()),
-        "service_user_data": spark.createDataFrame(service_user_rows or [], schema=_source_service_user_schema()),
+        "sb_service_user_data": spark.createDataFrame(
+            sb_rows or [], schema=_source_service_user_schema()
+        ),
+        "service_user_data": spark.createDataFrame(
+            service_user_rows or [], schema=_source_service_user_schema()
+        ),
         "target_exists": False,
     }
 
@@ -162,13 +168,17 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
     def compare_curated_data(self, expected_data, actual_data):
         assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_service_user_curated_mipins_process__get_name__returns_expected_name(self):
+    def test__appeal_service_user_curated_mipins_process__get_name__returns_expected_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedMipinsProcess(spark)
 
         assert inst.get_name() == "Appeal Service User MIPINS Curation Process"
 
-    def test__appeal_service_user_curated_mipins_process__process__outputs_expected_legacy_columns_only(self):
+    def test__appeal_service_user_curated_mipins_process__process__outputs_expected_legacy_columns_only(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, sb_rows=[_sb_service_user_row()])
 
@@ -207,7 +217,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
             "IsActive",
         ]
 
-    def test__appeal_service_user_curated_mipins_process__process__maps_sb_service_user_columns_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__maps_sb_service_user_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, sb_rows=[_sb_service_user_row()])
 
@@ -255,7 +267,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_mipins_process__process__maps_service_user_columns_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__maps_service_user_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, service_user_rows=[_service_user_row()])
 
@@ -303,7 +317,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_mipins_process__process__unions_sb_and_service_user_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__unions_sb_and_service_user_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -321,7 +337,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert df.where(F.col("id") == "SU-001").count() == 1
         assert result.metadata.insert_count == 2
 
-    def test__appeal_service_user_curated_mipins_process__process__uses_union_not_union_all_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__uses_union_not_union_all_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         duplicate_row = _sb_service_user_row(id="DUP-001")
 
@@ -340,15 +358,23 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert df.where(F.col("id") == "DUP-001").count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_service_user_curated_mipins_process__process__filters_out_ingestion_dates_before_1900_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__filters_out_ingestion_dates_before_1900_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             sb_rows=[
                 _sb_service_user_row(id="KEEP-NULL-INGESTION", ingestionDate=None),
-                _sb_service_user_row(id="KEEP-1900-INGESTION", ingestionDate="1900-01-01 00:00:00"),
-                _sb_service_user_row(id="KEEP-AFTER-1900-INGESTION", ingestionDate="2024-01-01 00:00:00"),
-                _sb_service_user_row(id="DROP-BEFORE-1900-INGESTION", ingestionDate="1899-12-31 00:00:00"),
+                _sb_service_user_row(
+                    id="KEEP-1900-INGESTION", ingestionDate="1900-01-01 00:00:00"
+                ),
+                _sb_service_user_row(
+                    id="KEEP-AFTER-1900-INGESTION", ingestionDate="2024-01-01 00:00:00"
+                ),
+                _sb_service_user_row(
+                    id="DROP-BEFORE-1900-INGESTION", ingestionDate="1899-12-31 00:00:00"
+                ),
             ],
         )
 
@@ -363,15 +389,23 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert df.where(F.col("id") == "DROP-BEFORE-1900-INGESTION").count() == 0
         assert result.metadata.insert_count == 3
 
-    def test__appeal_service_user_curated_mipins_process__process__filters_out_valid_to_dates_before_1900_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__filters_out_valid_to_dates_before_1900_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             service_user_rows=[
                 _service_user_row(id="KEEP-NULL-VALIDTO", ValidTo=None),
-                _service_user_row(id="KEEP-1900-VALIDTO", ValidTo="1900-01-01 00:00:00"),
-                _service_user_row(id="KEEP-AFTER-1900-VALIDTO", ValidTo="2024-01-01 00:00:00"),
-                _service_user_row(id="DROP-BEFORE-1900-VALIDTO", ValidTo="1899-12-31 00:00:00"),
+                _service_user_row(
+                    id="KEEP-1900-VALIDTO", ValidTo="1900-01-01 00:00:00"
+                ),
+                _service_user_row(
+                    id="KEEP-AFTER-1900-VALIDTO", ValidTo="2024-01-01 00:00:00"
+                ),
+                _service_user_row(
+                    id="DROP-BEFORE-1900-VALIDTO", ValidTo="1899-12-31 00:00:00"
+                ),
             ],
         )
 
@@ -386,7 +420,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert df.where(F.col("id") == "DROP-BEFORE-1900-VALIDTO").count() == 0
         assert result.metadata.insert_count == 3
 
-    def test__appeal_service_user_curated_mipins_process__process__nullifies_blank_valid_to_for_sb_rows_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__nullifies_blank_valid_to_for_sb_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -401,7 +437,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert row["id"] == "SB-BLANK-VALIDTO"
         assert row["ValidTo"] is None
 
-    def test__appeal_service_user_curated_mipins_process__process__does_not_nullify_blank_valid_to_for_service_user_rows_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__does_not_nullify_blank_valid_to_for_service_user_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -416,7 +454,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert row["id"] == "SU-BLANK-VALIDTO"
         assert row["ValidTo"] == ""
 
-    def test__appeal_service_user_curated_mipins_process__process__does_not_filter_on_is_active_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__does_not_filter_on_is_active_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -441,7 +481,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert df.where(F.col("id") == "INACTIVE-SU").count() == 1
         assert result.metadata.insert_count == 4
 
-    def test__appeal_service_user_curated_mipins_process__process__empty_sources_return_empty_output(self):
+    def test__appeal_service_user_curated_mipins_process__process__empty_sources_return_empty_output(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark)
 
@@ -455,7 +497,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_mipins_process__process__uses_overwrite_and_parquet_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__uses_overwrite_and_parquet_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, sb_rows=[_sb_service_user_row()])
 
@@ -470,7 +514,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert write_config["file_format"] == "parquet"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_service_user_curated_mipins_process__run__initial_load_matches_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__run__initial_load_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(
@@ -502,7 +548,9 @@ class TestAppealServiceUserCuratedMipinsProcess(SparkTestCase):
         assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_mipins_process__process__blank_valid_to_differs_between_sources_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__process__blank_valid_to_differs_between_sources_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,

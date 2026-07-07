@@ -33,7 +33,9 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
         Load source data, selecting only the columns needed downstream.
         No transformations are applied here – only reads.
         """
-        LoggingUtil().log_info(f"Loading harmonised NSIP Subscription data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP Subscription data from {self.HARMONISED_TABLE}"
+        )
         harmonised_subscriptions = self.spark.sql(f"""
             SELECT
                 subscriptionId,
@@ -59,7 +61,9 @@ class NsipSubscriptionCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_subscriptions: DataFrame = self.load_parameter("harmonised_subscriptions", source_data)
+        harmonised_subscriptions: DataFrame = self.load_parameter(
+            "harmonised_subscriptions", source_data
+        )
 
         # Select curated columns and deduplicate
         df = harmonised_subscriptions.select(

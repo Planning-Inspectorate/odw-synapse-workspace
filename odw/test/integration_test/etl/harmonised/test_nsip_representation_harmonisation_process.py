@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import NsipRepresentationHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process import (
+    NsipRepresentationHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -9,7 +11,9 @@ import mock
 
 
 class TestNSIPRepresentationHarmonisation(ETLTestCase):
-    def test__nsip_representation_harmonisation_process__run__combines_sources_and_derives_reference_and_migrated(self):
+    def test__nsip_representation_harmonisation_process__run__combines_sources_and_derives_reference_and_migrated(
+        self,
+    ):
         test_case = "t_nrhp_r_csadram"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -144,7 +148,15 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
             ),
         )
         service_bus_table = f"{test_case}_sb_nsip_representation"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         horizon_data = spark.createDataFrame(
             [
@@ -306,7 +318,15 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
             ),
         )
         horizon_table = f"{test_case}_horizon_nsip_relevant_representation"
-        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_table,
+            "overwrite",
+        )
 
         source_system_data = spark.createDataFrame(
             [("SRC_CASEWORK", "Casework", "Y", None, "2025-02-01 00:00:00")],
@@ -322,7 +342,13 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
         )
         source_system_table = f"{test_case}_main_sourcesystem_fact"
         self.write_existing_table(
-            spark, source_system_data, source_system_table, "odw_harmonised_db", "odw-harmonised", source_system_table, "overwrite"
+            spark,
+            source_system_data,
+            source_system_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            source_system_table,
+            "overwrite",
         )
 
         output_table = f"{test_case}_nsip_representation"
@@ -332,14 +358,32 @@ class TestNSIPRepresentationHarmonisation(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_representation_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipRepresentationHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
-            mock.patch.object(NsipRepresentationHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_table}"),
-            mock.patch.object(NsipRepresentationHarmonisationProcess, "SOURCE_SYSTEM_TABLE", f"odw_harmonised_db.{source_system_table}"),
-            mock.patch.object(NsipRepresentationHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipRepresentationHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"odw_harmonised_db.{service_bus_table}",
+            ),
+            mock.patch.object(
+                NsipRepresentationHarmonisationProcess,
+                "HORIZON_TABLE",
+                f"odw_standardised_db.{horizon_table}",
+            ),
+            mock.patch.object(
+                NsipRepresentationHarmonisationProcess,
+                "SOURCE_SYSTEM_TABLE",
+                f"odw_harmonised_db.{source_system_table}",
+            ),
+            mock.patch.object(
+                NsipRepresentationHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipRepresentationHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_representation", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_representation",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")

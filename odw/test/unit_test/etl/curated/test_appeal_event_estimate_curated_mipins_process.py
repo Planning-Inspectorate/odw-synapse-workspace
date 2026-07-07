@@ -2,7 +2,9 @@ from datetime import datetime
 import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import AppealEventEstimateCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_event_estimate_curated_mipins_process import (
+    AppealEventEstimateCuratedMipinsProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -96,7 +98,9 @@ def _mixed_filter_harmonised_df(spark):
         valid.withColumn("AppealsEstimateEventID", F.lit("AEE-EVENT-003"))
         .withColumn("ID", F.lit("AEE-003"))
         .withColumn("caseReference", F.lit("APP-003"))
-        .withColumn("IngestionDate", F.lit("1899-12-31 23:59:59").cast(T.TimestampType()))
+        .withColumn(
+            "IngestionDate", F.lit("1899-12-31 23:59:59").cast(T.TimestampType())
+        )
     )
 
     old_valid_to = (
@@ -140,16 +144,22 @@ def _source_data(harmonised_data):
 
 
 class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
-    def test__appeal_event_estimate_curated_mipins_process__process__filters_odt_and_valid_dates_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__filters_odt_and_valid_dates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_mixed_filter_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_mixed_filter_harmonised_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
 
-        actual_df = df.select("ID", "caseReference", "ODTSourceSystem", "ISActive").orderBy("ID")
+        actual_df = df.select(
+            "ID", "caseReference", "ODTSourceSystem", "ISActive"
+        ).orderBy("ID")
 
         expected_df = spark.createDataFrame(
             [
@@ -168,7 +178,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-    def test__appeal_event_estimate_curated_mipins_process__process__does_not_filter_inactive_rows_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__does_not_filter_inactive_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inactive_df = _valid_odt_harmonised_df(spark).withColumn("ISActive", F.lit("N"))
@@ -183,22 +195,30 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         assert row["ISActive"] == "N"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_mipins_process__process__applies_distinct_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__applies_distinct_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_duplicate_valid_odt_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_duplicate_valid_odt_harmonised_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_mipins_process__process__empty_harmonised_input_writes_empty_output_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__empty_harmonised_input_writes_empty_output_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_empty_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_empty_harmonised_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -208,10 +228,14 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["file_format"] == "parquet"
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_estimate_curated_mipins_process__process__ignores_extra_source_columns_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__ignores_extra_source_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        source_df = _valid_odt_harmonised_df(spark).withColumn("extraColumn", F.lit("ignore me"))
+        source_df = _valid_odt_harmonised_df(spark).withColumn(
+            "extraColumn", F.lit("ignore me")
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=_source_data(source_df))
@@ -222,7 +246,9 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         assert "extraColumn" not in df.columns
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_mipins_process__process__converts_utc_timestamp_columns_to_london_time_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__converts_utc_timestamp_columns_to_london_time_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _valid_odt_harmonised_df(spark)
@@ -237,11 +263,15 @@ class TestAppealEventEstimateCuratedMipinsProcess(SparkTestCase):
         assert row["ValidTo"] == datetime(2025, 7, 2, 11, 0, 0)
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_estimate_curated_mipins_process__process__keeps_expected_write_config_like_legacy(self):
+    def test__appeal_event_estimate_curated_mipins_process__process__keeps_expected_write_config_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(source_data=_source_data(_valid_odt_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            source_data=_source_data(_valid_odt_harmonised_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
 

@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import (
+    NsipS51AdviceCuratedProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -84,7 +86,9 @@ class TestNSIPS51AdviceCurationProcess(SparkTestCase):
                 "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.LoggingUtil"
+            ),
         ):
             inst = NsipS51AdviceCuratedProcess(spark)
             data_to_write, result = inst.process(
@@ -95,7 +99,9 @@ class TestNSIPS51AdviceCurationProcess(SparkTestCase):
         expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[expected_data_entry]["data"]
-        rows = {row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
 

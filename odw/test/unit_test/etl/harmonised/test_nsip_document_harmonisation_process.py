@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import (
+    NsipDocumentHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,7 +8,9 @@ import mock
 
 
 class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
-    def test__nsip_document_harmonisation_process__process__combines_service_bus_and_horizon_and_sets_migrated_flags(self):
+    def test__nsip_document_harmonisation_process__process__combines_service_bus_and_horizon_and_sets_migrated_flags(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -177,7 +181,19 @@ class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
 
         aie_data = spark.createDataFrame(
             [
-                (20, 1, 120, "EX2", "application/pdf", "http://doc2", "/path2", "md5-2", "OFFICIAL", "origin2", "owner2"),
+                (
+                    20,
+                    1,
+                    120,
+                    "EX2",
+                    "application/pdf",
+                    "http://doc2",
+                    "/path2",
+                    "md5-2",
+                    "OFFICIAL",
+                    "origin2",
+                    "owner2",
+                ),
             ],
             [
                 "DocumentId",
@@ -204,7 +220,9 @@ class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipDocumentHarmonisationProcess(spark)
             data_to_write, result = inst.process(
@@ -218,7 +236,9 @@ class TestNSIPDocumentHarmonisationProcess(SparkTestCase):
         expected_data_entry = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[expected_data_entry]["data"]
-        rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
         assert rows[10]["Migrated"] == "1"
