@@ -3,9 +3,14 @@ import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_service_user_curated_process import AppealServiceUserCuratedProcess
+from odw.core.etl.transformation.curated.appeal_service_user_curated_process import (
+    AppealServiceUserCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 pytestmark = pytest.mark.skip(reason="Curation logic not implemented yet")
@@ -120,7 +125,9 @@ class TestAppealServiceUserCuratedProcess(ETLTestCase):
     def compare_curated_data(expected_data: DataFrame, actual_data: DataFrame):
         assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_service_user_curated_process__run__with_eligible_and_ineligible_service_users(self):
+    def test__appeal_service_user_curated_process__run__with_eligible_and_ineligible_service_users(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_asucp_r_wei"
 
@@ -277,18 +284,34 @@ class TestAppealServiceUserCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(AppealServiceUserCuratedProcess, "SOURCE_TABLE", source_service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedProcess, "OUTPUT_TABLE", output_appeal_service_user_table_name),
+            mock.patch.object(
+                AppealServiceUserCuratedProcess,
+                "SOURCE_TABLE",
+                source_service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedProcess,
+                "OUTPUT_TABLE",
+                output_appeal_service_user_table_name,
+            ),
         ):
             inst = AppealServiceUserCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_service_user",
+                orchestration_stage_name="curate",
+            )
 
             assert_etl_result_successful(result)
 
-            actual_table_data = spark.table(f"odw_curated_db.{output_appeal_service_user_table_name}")
+            actual_table_data = spark.table(
+                f"odw_curated_db.{output_appeal_service_user_table_name}"
+            )
             self.compare_curated_data(expected_appeal_service_user, actual_table_data)
 
-    def test__appeal_service_user_curated_process__run__preserves_duplicate_eligible_rows_like_legacy(self):
+    def test__appeal_service_user_curated_process__run__preserves_duplicate_eligible_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_asucp_r_pder"
 
@@ -379,13 +402,27 @@ class TestAppealServiceUserCuratedProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(AppealServiceUserCuratedProcess, "SOURCE_TABLE", source_service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedProcess, "OUTPUT_TABLE", output_appeal_service_user_table_name),
+            mock.patch.object(
+                AppealServiceUserCuratedProcess,
+                "SOURCE_TABLE",
+                source_service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedProcess,
+                "OUTPUT_TABLE",
+                output_appeal_service_user_table_name,
+            ),
         ):
             inst = AppealServiceUserCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_service_user",
+                orchestration_stage_name="curate",
+            )
 
             assert_etl_result_successful(result)
 
-            actual_table_data = spark.table(f"odw_curated_db.{output_appeal_service_user_table_name}")
+            actual_table_data = spark.table(
+                f"odw_curated_db.{output_appeal_service_user_table_name}"
+            )
             self.compare_curated_data(expected_appeal_service_user, actual_table_data)

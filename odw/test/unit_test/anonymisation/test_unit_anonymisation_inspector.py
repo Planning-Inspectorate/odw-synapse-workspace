@@ -58,7 +58,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             {"sapId": "S002", "firstName": "Charlotte"},
         ]
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
         ]
 
         out = _apply(spark, data, None, mocked_cols)
@@ -94,7 +97,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             {"sapId": "S002", "inspectorManager": "Robert Brown"},
         ]
         mocked_cols = [
-            {"column_name": "inspectorManager", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "inspectorManager",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
         ]
 
         out = _apply(spark, data, None, mocked_cols)
@@ -119,11 +125,19 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         rows = out.orderBy("sapId").select("sapId", "email").collect()
 
         # sha256("john.doe@example.com")
-        assert rows[0]["email"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            rows[0]["email"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
         # sha256("jane.smith@example.com") — email is lowercased before hashing
-        assert rows[1]["email"] == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        assert (
+            rows[1]["email"]
+            == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        )
 
-    def test__inspector__address_struct_is_redacted_preserving_postcode_outward_code(self):
+    def test__inspector__address_struct_is_redacted_preserving_postcode_outward_code(
+        self,
+    ):
         """address struct fields are REDACTED; postcode keeps the outward code (before the space)."""
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -156,7 +170,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             },
         ]
         mocked_cols = [
-            {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+            {
+                "column_name": "address",
+                "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"],
+            },
         ]
 
         out = _apply(spark, data, schema, mocked_cols)
@@ -188,7 +205,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             {"sapId": "S001", "address": None},
         ]
         mocked_cols = [
-            {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+            {
+                "column_name": "address",
+                "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"],
+            },
         ]
 
         out = _apply(spark, data, schema, mocked_cols)
@@ -219,14 +239,22 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             },
         ]
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
             {"column_name": "lastName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
             {"column_name": "email", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
-            {"column_name": "inspectorManager", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "inspectorManager",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
         ]
 
         out = _apply(spark, data, schema, mocked_cols)
-        row = out.select("firstName", "lastName", "email", "inspectorManager").collect()[0]
+        row = out.select(
+            "firstName", "lastName", "email", "inspectorManager"
+        ).collect()[0]
 
         assert row["firstName"] is None
         assert row["lastName"] is None
@@ -254,12 +282,30 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             },
         ]
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
             {"column_name": "email", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
         ]
 
         out = _apply(spark, data, None, mocked_cols)
-        row = out.select("sapId", "entraId", "grade", "isActive", "fte", "unit", "service", "group", "title", "sourceSystem").collect()[0].asDict()
+        row = (
+            out.select(
+                "sapId",
+                "entraId",
+                "grade",
+                "isActive",
+                "fte",
+                "unit",
+                "service",
+                "group",
+                "title",
+                "sourceSystem",
+            )
+            .collect()[0]
+            .asDict()
+        )
 
         assert row["sapId"] == "S001"
         assert row["entraId"] == "aabbccdd-1234-5678-abcd-ef0123456789"
@@ -305,20 +351,40 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
             },
         ]
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
             {"column_name": "lastName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
             {"column_name": "email", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
-            {"column_name": "inspectorManager", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
-            {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+            {
+                "column_name": "inspectorManager",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+            {
+                "column_name": "address",
+                "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"],
+            },
         ]
 
         out = _apply(spark, data, schema, mocked_cols)
-        row = out.select("sapId", "firstName", "lastName", "email", "inspectorManager", "grade", "address").collect()[0]
+        row = out.select(
+            "sapId",
+            "firstName",
+            "lastName",
+            "email",
+            "inspectorManager",
+            "grade",
+            "address",
+        ).collect()[0]
 
         # PII fields anonymised
         assert row["firstName"] == "REDACTED"
         assert row["lastName"] == "REDACTED"
-        assert row["email"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            row["email"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
         assert row["inspectorManager"] == "REDACTED"
         assert row["address"].addressLine1 == "REDACTED"
         assert row["address"].addressLine2 == "REDACTED"
@@ -336,7 +402,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
 
         data = [{"sapId": "S001", "firstName": "John", "email": "john.doe@example.com"}]
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
             {"column_name": "email", "classifications": ["MICROSOFT.PERSONAL.EMAIL"]},
         ]
 
@@ -356,7 +425,10 @@ class TestInspectorHarmonisedAnonymisation(SparkTestCase):
         data = [{"sapId": "S001", "firstName": "John", "lastName": "Doe"}]
         # Only firstName is classified — lastName must not be anonymised
         mocked_cols = [
-            {"column_name": "firstName", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "firstName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
         ]
 
         out = _apply(spark, data, None, mocked_cols)

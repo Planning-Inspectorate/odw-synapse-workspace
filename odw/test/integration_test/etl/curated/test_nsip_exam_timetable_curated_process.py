@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import NsipExamTimetableCuratedProcess
+from odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process import (
+    NsipExamTimetableCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -8,7 +10,9 @@ import mock
 
 
 class TestNSIPExamTimetableCurated(ETLTestCase):
-    def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curated_project_table(self):
+    def test__nsip_exam_timetable_curated_process__run__keeps_only_projects_in_curated_project_table(
+        self,
+    ):
         test_case = "t_netcp_r_kopicpt"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -106,7 +110,13 @@ class TestNSIPExamTimetableCurated(ETLTestCase):
             "overwrite",
         )
         self.write_existing_table(
-            spark, curated_projects, curated_projects_table, "odw_curated_db", "odw-curated", curated_projects_table, "overwrite"
+            spark,
+            curated_projects,
+            curated_projects_table,
+            "odw_curated_db",
+            "odw-curated",
+            curated_projects_table,
+            "overwrite",
         )
         output_table = f"{test_case}_nsip_exam_timetable"
 
@@ -115,13 +125,27 @@ class TestNSIPExamTimetableCurated(ETLTestCase):
                 "odw.core.etl.transformation.curated.nsip_exam_timetable_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipExamTimetableCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_exam_timetable_table}"),
-            mock.patch.object(NsipExamTimetableCuratedProcess, "CURATED_PROJECT_TABLE", f"odw_curated_db.{curated_projects_table}"),
-            mock.patch.object(NsipExamTimetableCuratedProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipExamTimetableCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_exam_timetable_table}",
+            ),
+            mock.patch.object(
+                NsipExamTimetableCuratedProcess,
+                "CURATED_PROJECT_TABLE",
+                f"odw_curated_db.{curated_projects_table}",
+            ),
+            mock.patch.object(
+                NsipExamTimetableCuratedProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipExamTimetableCuratedProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_exam_timetable", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_exam_timetable",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{output_table}")

@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import NsipS51AdviceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process import (
+    NsipS51AdviceHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,7 +8,9 @@ import mock
 
 
 class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
-    def test__nsip_s51_advice_harmonisation_process__process__aggregates_attachments_and_applies_delete_logic(self):
+    def test__nsip_s51_advice_harmonisation_process__process__aggregates_attachments_and_applies_delete_logic(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -233,7 +237,9 @@ class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_s51_advice_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipS51AdviceHarmonisationProcess(spark)
             data_to_write, result = inst.process(

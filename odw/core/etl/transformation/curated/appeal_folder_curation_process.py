@@ -12,7 +12,11 @@ class AppealFolderCurationProcess(CurationProcess):
         return "Appeal Folder Curation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
-        raise NotImplementedError("AppealFolderCurationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealFolderCurationProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError("AppealFolderCurationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealFolderCurationProcess.process() has not been implemented yet."
+        )

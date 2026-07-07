@@ -1,10 +1,24 @@
 import mock
 import pytest
-from pyspark.sql.types import StructType, StructField, StringType, LongType, TimestampType, BooleanType, ArrayType, DoubleType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    LongType,
+    TimestampType,
+    BooleanType,
+    ArrayType,
+    DoubleType,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_s78_curation_process import AppealS78CurationProcess
+from odw.core.etl.transformation.curated.appeal_s78_curation_process import (
+    AppealS78CurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from datetime import datetime
 
@@ -245,8 +259,12 @@ def _harmonised_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -258,7 +276,9 @@ def _harmonised_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -303,13 +323,27 @@ def _harmonised_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -317,8 +351,12 @@ def _harmonised_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -386,8 +424,12 @@ def _harmonised_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -438,12 +480,16 @@ def _harmonised_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -478,12 +524,28 @@ def _harmonised_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -716,8 +778,12 @@ def _curated_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -729,7 +795,9 @@ def _curated_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -772,21 +840,39 @@ def _curated_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
                 ),
                 True,
             ),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("agriculturalHolding", BooleanType(), True),
@@ -852,8 +938,12 @@ def _curated_schema():
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -890,12 +980,16 @@ def _curated_schema():
             StructField("ownerOccupancyStatus", StringType(), True),
             StructField("occupancyConditionsMet", BooleanType(), True),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("didAppellantAppealLpaDecision", BooleanType(), True),
@@ -942,13 +1036,29 @@ def _curated_schema():
             StructField("reasonForAppealAppellant", StringType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("listOfDocumentsBeforeDecision", StringType(), True),
@@ -959,13 +1069,27 @@ def _curated_schema():
 class TestAppealS78CurationProcess(ETLTestCase):
     def assert_curation_successful(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
-        harmonised_data = spark.createDataFrame((_harmonised_row(),), schema=_harmonised_schema())
+        harmonised_data = spark.createDataFrame(
+            (_harmonised_row(),), schema=_harmonised_schema()
+        )
         harmonised_table = f"{test_case}_appeal_s78"
-        self.write_existing_table(spark, harmonised_data, harmonised_table, "odw_harmonised_db", "odw-harmonised", harmonised_table, "overwrite")
-        expected_curated_data = spark.createDataFrame((_curated_row(),), schema=_curated_schema())
+        self.write_existing_table(
+            spark,
+            harmonised_data,
+            harmonised_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_table,
+            "overwrite",
+        )
+        expected_curated_data = spark.createDataFrame(
+            (_curated_row(),), schema=_curated_schema()
+        )
         curated_table = f"{test_case}_appeal_s78"
         with (
-            mock.patch.object(AppealS78CurationProcess, "HARMONISED_TABLE", harmonised_table),
+            mock.patch.object(
+                AppealS78CurationProcess, "HARMONISED_TABLE", harmonised_table
+            ),
             mock.patch.object(AppealS78CurationProcess, "OUTPUT_TABLE", curated_table),
             mock.patch.object(AppealS78CurationProcess, "__init__", return_value=None),
         ):
@@ -991,9 +1115,18 @@ class TestAppealS78CurationProcess(ETLTestCase):
         """
         test_case = "t_as78cp_r_wed"
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_curated_data = spark.createDataFrame((_curated_row(caseReference="99999"),), schema=_curated_schema())
+        existing_curated_data = spark.createDataFrame(
+            (_curated_row(caseReference="99999"),), schema=_curated_schema()
+        )
         curated_table = f"{test_case}_appeal_s78"
         self.write_existing_table(
-            spark, existing_curated_data, curated_table, "odw_curated_db", "odw-curated", curated_table, "overwrite", format="parquet"
+            spark,
+            existing_curated_data,
+            curated_table,
+            "odw_curated_db",
+            "odw-curated",
+            curated_table,
+            "overwrite",
+            format="parquet",
         )
         self.assert_curation_successful(test_case)

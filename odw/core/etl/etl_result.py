@@ -59,7 +59,12 @@ class ETLResultFactory:
 
     @classmethod
     def get(cls, result_outcome: str) -> type[ETLResult]:
-        result_map = {result_class.outcome: result_class for result_class in (ETLSuccessResult, ETLFailResult)}
+        result_map = {
+            result_class.outcome: result_class
+            for result_class in (ETLSuccessResult, ETLFailResult)
+        }
         if result_outcome not in result_map:
-            raise ValueError(f"No ETLResult could be found for outcome '{result_outcome}'")
+            raise ValueError(
+                f"No ETLResult could be found for outcome '{result_outcome}'"
+            )
         return result_map[result_outcome]

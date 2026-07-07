@@ -24,13 +24,29 @@ class TestMetadataManager(SparkTestCase):
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
         spark = PytestSparkSessionUtil().get_spark_session()
-        DeltaTable.createIfNotExists(spark).tableName(f"odw_meta_db.{self.MOCK_METADATA_TABLE}").addColumns(
-            StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"])
+        DeltaTable.createIfNotExists(spark).tableName(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        ).addColumns(
+            StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            )
         ).location(self.MOCK_METADATA_TABLE).execute()
         with (
-            mock.patch.object(MetadataManager, "METADATA_TABLE", self.MOCK_METADATA_TABLE),
-            mock.patch.object(SynapseDeltaIO, "_format_to_adls_path", format_to_adls_path),
-            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
+            mock.patch.object(
+                MetadataManager, "METADATA_TABLE", self.MOCK_METADATA_TABLE
+            ),
+            mock.patch.object(
+                SynapseDeltaIO, "_format_to_adls_path", format_to_adls_path
+            ),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ),
             mock.patch.object(Util, "get_path_to_file", generate_local_path),
         ):
             yield
@@ -40,7 +56,9 @@ class TestMetadataManager(SparkTestCase):
         run_id = "tu_mm_c"
         entity_name = "some_entity"
         stage_name = "some_stage"
-        inst = MetadataManager(spark, run_id, entity_name, stage_name, {"some": "parameters"})
+        inst = MetadataManager(
+            spark, run_id, entity_name, stage_name, {"some": "parameters"}
+        )
         inst.create()
         relevant_entries = spark.sql(
             (
@@ -54,7 +72,9 @@ class TestMetadataManager(SparkTestCase):
         run_id = "tu_mm_c_ffrfse"
         entity_name = "some_entity"
         stage_name = "some_stage"
-        inst = MetadataManager(spark, run_id, entity_name, stage_name, {"some": "parameters"})
+        inst = MetadataManager(
+            spark, run_id, entity_name, stage_name, {"some": "parameters"}
+        )
         inst.create()
         with pytest.raises(RuntimeError):
             inst.create()
@@ -82,7 +102,9 @@ class TestMetadataManager(SparkTestCase):
         for entry in entries_to_create:
             inst = MetadataManager(spark, entry[0], entry[1], entry[2])
             inst.create()
-        relevant_entries = spark.sql(f"select * from odw_meta_db.{self.MOCK_METADATA_TABLE} where run_id like '{run_id_prefix}%'")
+        relevant_entries = spark.sql(
+            f"select * from odw_meta_db.{self.MOCK_METADATA_TABLE} where run_id like '{run_id_prefix}%'"
+        )
         assert relevant_entries.count() == 8
 
     def assert_update(self, etl_result: ETLResult, expected_outcome: bool):
@@ -98,16 +120,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 }
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id, entity_name, stage_name)
         inst._created_entry = True
         inst.update(etl_result)
@@ -122,14 +154,22 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": self.TEST_END_TIME,
                     "successful": expected_outcome,
                     "result_text": etl_result.model_dump_json(indent=4),
                 }
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         assert_dataframes_equal(expected_data, relevant_entries)
 
@@ -144,7 +184,9 @@ class TestMetadataManager(SparkTestCase):
                     update_count=2,
                     delete_count=3,
                     activity_type="some activity",
-                    duration_seconds=(self.TEST_END_TIME - self.TEST_START_TIME).total_seconds(),
+                    duration_seconds=(
+                        self.TEST_END_TIME - self.TEST_START_TIME
+                    ).total_seconds(),
                 )
             ),
             True,
@@ -161,7 +203,9 @@ class TestMetadataManager(SparkTestCase):
                     update_count=0,
                     delete_count=0,
                     activity_type="some activity",
-                    duration_seconds=(self.TEST_END_TIME - self.TEST_START_TIME).total_seconds(),
+                    duration_seconds=(
+                        self.TEST_END_TIME - self.TEST_START_TIME
+                    ).total_seconds(),
                 )
             ),
             False,
@@ -185,7 +229,9 @@ class TestMetadataManager(SparkTestCase):
                         update_count=2,
                         delete_count=3,
                         activity_type="some activity",
-                        duration_seconds=(self.TEST_END_TIME - self.TEST_START_TIME).total_seconds(),
+                        duration_seconds=(
+                            self.TEST_END_TIME - self.TEST_START_TIME
+                        ).total_seconds(),
                     )
                 )
             )
@@ -206,7 +252,9 @@ class TestMetadataManager(SparkTestCase):
                         update_count=2,
                         delete_count=3,
                         activity_type="some activity",
-                        duration_seconds=(self.TEST_END_TIME - self.TEST_START_TIME).total_seconds(),
+                        duration_seconds=(
+                            self.TEST_END_TIME - self.TEST_START_TIME
+                        ).total_seconds(),
                     )
                 )
             )
@@ -223,7 +271,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -233,14 +283,22 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": f"{run_id}_some_other_id",
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         expected_result = spark.createDataFrame(
             [
@@ -248,16 +306,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id)
         result = inst.get_for_run_id()
         assert_dataframes_equal(expected_result, result)
@@ -274,7 +342,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -284,14 +354,22 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "some other entity",
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         expected_result = spark.createDataFrame(
             [
@@ -299,16 +377,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id, entity_name)
         result = inst.get_for_entity()
         assert_dataframes_equal(expected_result, result)
@@ -325,7 +413,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -335,16 +425,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "some other entity",
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id)
         with pytest.raises(RuntimeError):
             inst.get_for_entity()
@@ -361,7 +461,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -371,7 +473,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": "some_other_stage",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -381,7 +485,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": f"{run_id}_some_other_id",
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -391,14 +497,22 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "some other entity",
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         expected_result = spark.createDataFrame(
             [
@@ -406,21 +520,33 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id, entity_name, stage_name)
         result = inst.get_for_entity_stage()
         assert_dataframes_equal(expected_result, result)
 
-    def test__metadata_manager__get_for_entity_stage__fails_with_missing_parameters(self):
+    def test__metadata_manager__get_for_entity_stage__fails_with_missing_parameters(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         run_id = "tu_mm_gfes_wmp"
         entity_name = "some_entity"
@@ -432,7 +558,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -442,7 +570,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": "some_other_stage",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -452,7 +582,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": f"{run_id}_some_other_id",
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -462,16 +594,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "some other entity",
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id, entity_name)
         with pytest.raises(RuntimeError):
             inst.get_for_entity_stage()
@@ -494,15 +636,26 @@ class TestMetadataManager(SparkTestCase):
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        side_effects = [ConcurrentAppendException(desc="some exception", stackTrace="some trace"), None]
+        side_effects = [
+            ConcurrentAppendException(desc="some exception", stackTrace="some trace"),
+            None,
+        ]
         with mock.patch.object(SynapseDeltaIO, "write", side_effect=side_effects):
             inst = MetadataManager(spark, run_id, entity_name, stage_name)
             inst._write(entry_to_write)
             assert SynapseDeltaIO.write.call_count == 2
 
-    def test__metadata_manager__write__only_retries_on_concurrent_append_exception(self):
+    def test__metadata_manager__write__only_retries_on_concurrent_append_exception(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         run_id = "tu_mm_w_orocae"
         entity_name = "some_entity"
@@ -520,7 +673,13 @@ class TestMetadataManager(SparkTestCase):
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         side_effects = [
             ValueError("some exception"),
@@ -548,7 +707,13 @@ class TestMetadataManager(SparkTestCase):
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         side_effects = [
             ConcurrentAppendException(desc="some exception", stackTrace="some trace"),
@@ -575,7 +740,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -585,7 +752,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
                     "execution_finish_time": None,
                     "successful": None,
@@ -595,7 +764,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME + timedelta(days=2),
                     "execution_finish_time": None,
                     "successful": None,
@@ -605,7 +776,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "x",
                     "stage_name": "a",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -615,7 +788,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "x",
                     "stage_name": "a",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
                     "execution_finish_time": None,
                     "successful": None,
@@ -625,7 +800,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "x",
                     "stage_name": "b",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -635,7 +812,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": f"{run_id}_some_other_id",
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
@@ -645,14 +824,22 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": f"{run_id}_some_other_id",
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
         expected_result: DataFrame = spark.createDataFrame(
             [
@@ -660,7 +847,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": entity_name,
                     "stage_name": stage_name,
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME + timedelta(days=2),
                     "execution_finish_time": None,
                     "successful": None,
@@ -670,7 +859,9 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "x",
                     "stage_name": "a",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME + timedelta(days=1),
                     "execution_finish_time": None,
                     "successful": None,
@@ -680,16 +871,26 @@ class TestMetadataManager(SparkTestCase):
                     "run_id": run_id,
                     "entity_name": "x",
                     "stage_name": "b",
-                    "execution_parameters": json.dumps(execution_parameters, default=str),
+                    "execution_parameters": json.dumps(
+                        execution_parameters, default=str
+                    ),
                     "execution_start_time": self.TEST_START_TIME,
                     "execution_finish_time": None,
                     "successful": None,
                     "result_text": None,
                 },
             ],
-            schema=StructType([field for field in MetadataManager.METADATA_SCHEMA.fields if field.name != "_update_key_col"]),
+            schema=StructType(
+                [
+                    field
+                    for field in MetadataManager.METADATA_SCHEMA.fields
+                    if field.name != "_update_key_col"
+                ]
+            ),
         )
-        existing_entry.write.format("delta").mode("append").insertInto(f"odw_meta_db.{self.MOCK_METADATA_TABLE}")
+        existing_entry.write.format("delta").mode("append").insertInto(
+            f"odw_meta_db.{self.MOCK_METADATA_TABLE}"
+        )
         inst = MetadataManager(spark, run_id)
         result = inst.get_most_recent_for_run_id()
         assert_dataframes_equal(expected_result, result)

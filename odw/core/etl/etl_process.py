@@ -28,10 +28,14 @@ class ETLProcess(ABC):
         """
 
     @classmethod
-    def load_parameter(cls, param_name: str, kwargs: Dict[str, Any], default: Any = None):
+    def load_parameter(
+        cls, param_name: str, kwargs: Dict[str, Any], default: Any = None
+    ):
         param_value = kwargs.get(param_name, default)
         if param_value is None:
-            raise ValueError(f"{cls.__name__} requires a {param_name} parameter to be provided, but was missing")
+            raise ValueError(
+                f"{cls.__name__} requires a {param_name} parameter to be provided, but was missing"
+            )
         return param_value
 
     @classmethod
@@ -69,18 +73,26 @@ class ETLProcess(ABC):
         """
         data_to_read: List[Dict[str, Any]] = kwargs.get("data_to_read", None)
         if not data_to_read:
-            raise ValueError("ETLProcess expected a data_to_read parameter to be passed, but this was missing")
+            raise ValueError(
+                "ETLProcess expected a data_to_read parameter to be passed, but this was missing"
+            )
         data_map = dict()
         for metadata in data_to_read:
             data_name = metadata.get("data_name", None)
             storage_kind = metadata.get("storage_kind", None)
             data_format = metadata.get("data_format", None)
             if not data_name:
-                raise ValueError("ETLProcess data_to_read expected a data_name parameter to be passed, but this was missing")
+                raise ValueError(
+                    "ETLProcess data_to_read expected a data_name parameter to be passed, but this was missing"
+                )
             if not storage_kind:
-                raise ValueError("ETLProcess data_to_read expected a storage_kind parameter to be passed, but this was missing")
+                raise ValueError(
+                    "ETLProcess data_to_read expected a storage_kind parameter to be passed, but this was missing"
+                )
             if not data_format:
-                raise ValueError("ETLProcess data_to_read expected a data_format parameter to be passed, but this was missing")
+                raise ValueError(
+                    "ETLProcess data_to_read expected a data_format parameter to be passed, but this was missing"
+                )
             data_io_inst = DataIOFactory.get(storage_kind)()
             data = data_io_inst.read(**metadata)
             data_map[data_name] = data
@@ -103,18 +115,33 @@ class ETLProcess(ABC):
         for table_name, table_metadata in data_to_write.items():
             storage_kind = table_metadata.get("storage_kind", None)
             if not storage_kind:
-                raise ValueError("ETLProcess expected a storage_kind parameter to be passed, but this was missing")
+                raise ValueError(
+                    "ETLProcess expected a storage_kind parameter to be passed, but this was missing"
+                )
             data_io_inst = DataIOFactory.get(storage_kind)()
             data_io_inst.write(**table_metadata, spark=self.spark)
 
     def _log_data_to_write(self, data_to_write: Dict[str, Any]):
         if not self.debug:
-            data_to_write_cleaned = {k: {subk: subv for subk, subv in v.items() if not isinstance(v, DataFrame)} for k, v in data_to_write.items()}
-            LoggingUtil().log_info(f"The following data will be written: {json.dumps(data_to_write_cleaned, indent=4, default=str)}")
+            data_to_write_cleaned = {
+                k: {
+                    subk: subv
+                    for subk, subv in v.items()
+                    if not isinstance(v, DataFrame)
+                }
+                for k, v in data_to_write.items()
+            }
+            LoggingUtil().log_info(
+                f"The following data will be written: {json.dumps(data_to_write_cleaned, indent=4, default=str)}"
+            )
             return
         for table_name, table_metadata in data_to_write.items():
-            table_metadata_cleaned = {k: v for k, v in table_metadata.items() if not isinstance(v, DataFrame)}
-            LoggingUtil().log_info(f"Metadata for the write entry '{table_name}': {json.dumps(table_metadata_cleaned, indent=4, default=str)}")
+            table_metadata_cleaned = {
+                k: v for k, v in table_metadata.items() if not isinstance(v, DataFrame)
+            }
+            LoggingUtil().log_info(
+                f"Metadata for the write entry '{table_name}': {json.dumps(table_metadata_cleaned, indent=4, default=str)}"
+            )
             data = table_metadata.get("data", None)
             if data:
                 if isinstance(data, DataFrame):
@@ -122,7 +149,9 @@ class ETLProcess(ABC):
                 elif isinstance(data, dict):
                     print(json.dumps(data, indent=4, default=str))
                 else:
-                    LoggingUtil().log_info(f"Could not display the data. It is of unexpected type '{type(data)}'")
+                    LoggingUtil().log_info(
+                        f"Could not display the data. It is of unexpected type '{type(data)}'"
+                    )
             else:
                 LoggingUtil().log_info("There is no data to write")
 
@@ -146,9 +175,13 @@ class ETLProcess(ABC):
         run_id = kwargs.pop("orchestration_run_id", None)
         entity_name = kwargs.pop("orchestration_entity_name", None)
         stage_name = kwargs.pop("orchestration_stage_name", None)
-        metadata_manager = MetadataManager(self.spark, run_id, entity_name, stage_name, kwargs)
+        metadata_manager = MetadataManager(
+            self.spark, run_id, entity_name, stage_name, kwargs
+        )
 
-        def generate_failure_result(start_time: datetime, exception: str, exception_trace=None, table_name=None):
+        def generate_failure_result(
+            start_time: datetime, exception: str, exception_trace=None, table_name=None
+        ):
             end_time = datetime.now()
             return ETLFailResult(
                 metadata=ETLResult.ETLResultMetadata(
@@ -169,10 +202,16 @@ class ETLProcess(ABC):
 
         try:
             source_data_map = self.load_data(**kwargs)
-            LoggingUtil().log_info(f"The following tables were loaded: {json.dumps(list(source_data_map), indent=4)}")
-            data_to_write, etl_result = self.process(source_data=source_data_map, **kwargs)
+            LoggingUtil().log_info(
+                f"The following tables were loaded: {json.dumps(list(source_data_map), indent=4)}"
+            )
+            data_to_write, etl_result = self.process(
+                source_data=source_data_map, **kwargs
+            )
         except Exception as e:
-            failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc())
+            failure_result = generate_failure_result(
+                etl_start_time, str(e), traceback.format_exc()
+            )
             LoggingUtil().log_error(failure_result)
             metadata_manager.update(failure_result)
             return failure_result
@@ -185,7 +224,12 @@ class ETLProcess(ABC):
             self.write_data(data_to_write)
             LoggingUtil().log_info(etl_result)
         except Exception as e:
-            failure_result = generate_failure_result(etl_start_time, str(e), traceback.format_exc(), table_name=", ".join(data_to_write.keys()))
+            failure_result = generate_failure_result(
+                etl_start_time,
+                str(e),
+                traceback.format_exc(),
+                table_name=", ".join(data_to_write.keys()),
+            )
             LoggingUtil().log_error(failure_result)
             metadata_manager.update(failure_result)
             return failure_result

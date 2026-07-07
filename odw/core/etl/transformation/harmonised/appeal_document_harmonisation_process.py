@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -91,15 +93,21 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         try:
             self.spark.catalog.refreshTable(self.HORIZON_TABLE)
         except Exception:
-            LoggingUtil().log_info(f"Could not refresh table {self.HORIZON_TABLE}, continuing")
+            LoggingUtil().log_info(
+                f"Could not refresh table {self.HORIZON_TABLE}, continuing"
+            )
 
-        LoggingUtil().log_info(f"Loading service bus data from {self.SERVICE_BUS_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading service bus data from {self.SERVICE_BUS_TABLE}"
+        )
         service_bus_data = self._load_service_bus_data()
 
         LoggingUtil().log_info(f"Loading Horizon data from {self.HORIZON_TABLE}")
         horizon_data = self._load_horizon_data()
 
-        LoggingUtil().log_info(f"Loading AIE extracts data from {self.AIE_EXTRACTS_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading AIE extracts data from {self.AIE_EXTRACTS_TABLE}"
+        )
         aie_data = self._load_aie_data()
 
         # Also load the set of primary keys that exist in the service-bus table.
@@ -255,7 +263,9 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         aie_data: DataFrame = self.load_parameter("aie_data", source_data)
         sb_primary_keys: DataFrame = self.load_parameter("sb_primary_keys", source_data)
@@ -264,7 +274,9 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         # ---------------------------------------------------------
         # Step 1: Join Horizon + AIE
         # ---------------------------------------------------------
-        LoggingUtil().log_info("Joining Horizon with AIE data and aligning to SB schema")
+        LoggingUtil().log_info(
+            "Joining Horizon with AIE data and aligning to SB schema"
+        )
 
         horizon_joined = (
             horizon_data.alias("Doc")
@@ -280,7 +292,10 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
                     F.concat(
                         F.coalesce(F.col("Doc.documentId"), F.lit("")),
                         F.coalesce(F.col("Doc.filename"), F.lit("")),
-                        F.coalesce(F.col("Doc.version").cast("integer").cast("string"), F.lit("")),
+                        F.coalesce(
+                            F.col("Doc.version").cast("integer").cast("string"),
+                            F.lit(""),
+                        ),
                         F.coalesce(F.col("Aie.documentURI"), F.lit("")),
                     )
                 ).alias(self.PRIMARY_KEY),
@@ -343,8 +358,12 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         win_global_asc = Window.orderBy(F.col("IngestionDate").asc(), F.col(pk).asc())
 
         combined = (
-            combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_pk_desc))
-            .withColumn("AppealsDocumentMetadataID", F.row_number().over(win_global_asc))
+            combined.withColumn(
+                "ReverseOrderProcessed", F.row_number().over(win_pk_desc)
+            )
+            .withColumn(
+                "AppealsDocumentMetadataID", F.row_number().over(win_global_asc)
+            )
             .withColumn(
                 "IsActive",
                 F.when(F.row_number().over(win_pk_desc) == 1, "Y").otherwise("N"),
@@ -360,14 +379,19 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         calcs = current.join(
             next_row,
             (F.col(f"CurrentRow.{pk}") == F.col(f"NextRow.{pk}"))
-            & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
+            & (
+                F.col("CurrentRow.ReverseOrderProcessed") - 1
+                == F.col("NextRow.ReverseOrderProcessed")
+            ),
             "left_outer",
         ).select(
             F.col("CurrentRow.AppealsDocumentMetadataID"),
             F.col(f"CurrentRow.{pk}").alias(pk),
             F.col("CurrentRow.IngestionDate"),
             F.coalesce(
-                F.when(F.col("CurrentRow.ValidTo") == "", None).otherwise(F.col("CurrentRow.ValidTo")),
+                F.when(F.col("CurrentRow.ValidTo") == "", None).otherwise(
+                    F.col("CurrentRow.ValidTo")
+                ),
                 F.col("NextRow.IngestionDate"),
             ).alias("ValidTo"),
             F.col("CurrentRow.IsActive"),
@@ -379,7 +403,9 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         sb_keys = sb_primary_keys.withColumnRenamed(pk, "sb_pk")
         calcs = (
             calcs.join(sb_keys, calcs[pk] == sb_keys["sb_pk"], "left_outer")
-            .withColumn("Migrated", F.when(F.col("sb_pk").isNotNull(), "1").otherwise("0"))
+            .withColumn(
+                "Migrated", F.when(F.col("sb_pk").isNotNull(), "1").otherwise("0")
+            )
             .drop("sb_pk")
         )
 
@@ -392,7 +418,11 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         # set for each (PK, IngestionDate).
         # ---------------------------------------------------------
 
-        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID"}]
+        all_columns = [
+            c
+            for c in combined.columns
+            if c not in {"ReverseOrderProcessed", "SourceSystemID"}
+        ]
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("AppealsDocumentMetadataID", "ValidTo", "Migrated", "IsActive")
 
@@ -408,7 +438,8 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         final_df = (
             base.join(
                 calcs_renamed,
-                (base[pk] == calcs_renamed[f"calc_{pk}"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+                (base[pk] == calcs_renamed[f"calc_{pk}"])
+                & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
             )
             .select(all_columns)
             .drop(pk)
@@ -419,7 +450,14 @@ class AppealDocumentHarmonisationProcess(HarmonisationProcess):
         # Step 7: Compute RowID from the final_df.
         # ---------------------------------------------------------
 
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _APPEAL_DOCUMENT_ROW_ID_COLUMNS]))
+        row_id_expr = F.md5(
+            F.concat(
+                *[
+                    F.coalesce(F.col(c).cast("string"), F.lit("."))
+                    for c in _APPEAL_DOCUMENT_ROW_ID_COLUMNS
+                ]
+            )
+        )
         final_df = final_df.withColumn("RowID", row_id_expr)
 
         insert_count = final_df.count()
