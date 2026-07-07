@@ -30,8 +30,12 @@ classDiagram
         class appeal_event_estimate_cu {
             Id: int
         }
+        class appeal_event_estimate_curated_mipins {
+            Id: int
+        }
     }
  
 appeal-event-estimate --> sb_appeal_event_estimate_std
 sb_appeal_event_estimate_std --> sb_appeal_event_estimate_hrm
 sb_appeal_event_estimate_hrm --> appeal_event_estimate_cu
+appeal_event_estimate_cu --> appeal_event_estimate_curated_mipins
