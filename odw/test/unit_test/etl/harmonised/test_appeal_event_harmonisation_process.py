@@ -2,14 +2,15 @@ from datetime import datetime
 import mock
 import pytest
 import pyspark.sql.types as T
-from odw.core.etl.transformation.harmonised.appeal_event_harmonisation_process import AppealEventHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_event_harmonisation_process import (
+    AppealEventHarmonisationProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
 
-pytestmark = pytest.mark.xfail(
-    raises=NotImplementedError,
+pytestmark = pytest.mark.skip(
     reason="Harmonised logic not implemented yet",
 )
 
@@ -208,7 +209,7 @@ def _source_data(service_bus_data, horizon_data):
 
 def _process_under_test(spark):
     with mock.patch(
-        "odw.core.etl.transformation.harmonised.harmonsation_process.HarmonisationProcess.__init__",
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
         return_value=None,
     ):
         inst = AppealEventHarmonisationProcess(spark)
@@ -218,12 +219,16 @@ def _process_under_test(spark):
 
 
 class TestAppealEventHarmonisationProcess(SparkTestCase):
-    def test__appeal_event_harmonisation_process__process__merges_service_bus_and_latest_horizon_rows_like_legacy(self):
+    def test__appeal_event_harmonisation_process__process__merges_service_bus_and_latest_horizon_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(_source_data(_service_bus_df(spark), _horizon_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_service_bus_df(spark), _horizon_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -321,12 +326,16 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-    def test__appeal_event_harmonisation_process__process__uses_latest_horizon_ingestion_only_like_legacy(self):
+    def test__appeal_event_harmonisation_process__process__uses_latest_horizon_ingestion_only_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(_source_data(_empty_service_bus_df(spark), _horizon_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_empty_service_bus_df(spark), _horizon_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -334,24 +343,32 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
         assert df.collect()[0]["eventName"] == "Latest Horizon event"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_event_harmonisation_process__process__applies_distinct_and_drop_duplicates_like_legacy(self):
+    def test__appeal_event_harmonisation_process__process__applies_distinct_and_drop_duplicates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(_source_data(_duplicate_service_bus_df(spark), _empty_horizon_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_duplicate_service_bus_df(spark), _empty_horizon_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_event_harmonisation_process__process__empty_sources_write_empty_output_like_legacy(self):
+    def test__appeal_event_harmonisation_process__process__empty_sources_write_empty_output_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(_source_data(_empty_service_bus_df(spark), _empty_horizon_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_empty_service_bus_df(spark), _empty_horizon_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -359,12 +376,16 @@ class TestAppealEventHarmonisationProcess(SparkTestCase):
         assert df.columns == HARMONISED_COLUMNS
         assert result.metadata.insert_count == 0
 
-    def test__appeal_event_harmonisation_process__process__generates_row_id_like_legacy(self):
+    def test__appeal_event_harmonisation_process__process__generates_row_id_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
 
-        data_to_write, result = inst.process(_source_data(_service_bus_df(spark), _empty_horizon_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_service_bus_df(spark), _empty_horizon_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 

@@ -31,16 +31,32 @@ def import_all_testing_modules():
     # Extract all testing modules under the `test/` directory
     module_content_to_exclude = {"__init__.py", "__pycache__", "conftest.py"}
     python_modules_to_load = []
-    files_to_explore = [x for x in os.listdir(os.path.join("odw", "test")) if "test" in x and os.path.isdir(os.path.join("odw", "test", x))]
+    files_to_explore = [
+        x
+        for x in os.listdir(os.path.join("odw", "test"))
+        if "test" in x and os.path.isdir(os.path.join("odw", "test", x))
+    ]
     while files_to_explore:
         next_file = files_to_explore.pop(0)
         if os.path.isfile(os.path.join("odw", "test", next_file)):
-            if next_file.endswith(".py") and all(x not in next_file for x in module_content_to_exclude):
+            if next_file.endswith(".py") and all(
+                x not in next_file for x in module_content_to_exclude
+            ):
                 python_modules_to_load.append(next_file)
         else:
-            files_to_explore.extend([os.path.join(next_file, x) for x in os.listdir(os.path.join("odw", "test", next_file))])
-    python_modules_to_load_cleaned = sorted([x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load])
-    python_modules_to_load_cleaned = [f"odw.test.{x}" if not x.startswith("odw.test") else x for x in python_modules_to_load_cleaned]
+            files_to_explore.extend(
+                [
+                    os.path.join(next_file, x)
+                    for x in os.listdir(os.path.join("odw", "test", next_file))
+                ]
+            )
+    python_modules_to_load_cleaned = sorted(
+        [x.replace(".py", "").replace(os.sep, ".") for x in python_modules_to_load]
+    )
+    python_modules_to_load_cleaned = [
+        f"odw.test.{x}" if not x.startswith("odw.test") else x
+        for x in python_modules_to_load_cleaned
+    ]
     # Import all testing modules
     for module_to_import in python_modules_to_load_cleaned:
         importlib.import_module(module_to_import)
@@ -80,10 +96,14 @@ def process_arguments(session) -> List[Type[TestCase]]:
     # all tests are being executed
     if not directory_args:
         return test_cases
-    test_case_module_map = {test_case.__module__.replace(".", "/"): test_case for test_case in test_cases}
+    test_case_module_map = {
+        test_case.__module__.replace(".", "/"): test_case for test_case in test_cases
+    }
     matched_modules = []
     for directory in directory_args:
-        matches = [module for module in test_case_module_map.keys() if directory in module]
+        matches = [
+            module for module in test_case_module_map.keys() if directory in module
+        ]
         matched_modules += matches
     return [test_case_module_map[directory] for directory in set(matched_modules)]
 
@@ -184,7 +204,9 @@ def session_teardown(tmp_path_factory, worker_id, request):
     if num_tests < request.config.workerinput["workercount"]:
         last_worker = number_of_completed_workers >= num_tests
     else:
-        last_worker = number_of_completed_workers >= request.config.workerinput["workercount"]
+        last_worker = (
+            number_of_completed_workers >= request.config.workerinput["workercount"]
+        )
     logging.info("Num tests: " + str(num_tests))
     logging.info("completed workers count: " + str(number_of_completed_workers))
     logging.info("Last worker: " + str(last_worker))

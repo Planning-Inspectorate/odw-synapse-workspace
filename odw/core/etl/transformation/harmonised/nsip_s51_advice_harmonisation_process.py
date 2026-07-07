@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -76,7 +78,9 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
     # ------------------------------------------------------------------
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading service bus data from {self.SERVICE_BUS_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading service bus data from {self.SERVICE_BUS_TABLE}"
+        )
         service_bus_data = self._load_service_bus_data()
 
         LoggingUtil().log_info(f"Loading Horizon data from {self.HORIZON_TABLE}")
@@ -217,7 +221,9 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
         horizon_deleted: DataFrame = self.load_parameter("horizon_deleted", source_data)
         sb_advice_ids: DataFrame = self.load_parameter("sb_advice_ids", source_data)
@@ -226,27 +232,41 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Aggregating Horizon attachmentIds")
         horizon_agg = (
             horizon_data.groupBy("adviceId")
-            .agg(F.array_sort(F.array_distinct(F.collect_list(F.col("attachmentIds")))).alias("attachmentIds"))
+            .agg(
+                F.array_sort(
+                    F.array_distinct(F.collect_list(F.col("attachmentIds")))
+                ).alias("attachmentIds")
+            )
             .orderBy("adviceId")
         )
         horizon_data = horizon_data.drop("attachmentIds")
         horizon_data = horizon_data.join(horizon_agg, on="adviceId", how="inner")
 
         # Step 2: Align Horizon columns to SB columns and union
-        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(
+            f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}"
+        )
         horizon_data = horizon_data.select(service_bus_data.columns)
         combined = service_bus_data.union(horizon_data)
 
         # Step 3: Window-function calculations
-        win_per_advice_desc = Window.partitionBy("adviceId").orderBy(F.col("IngestionDate").desc())
-        win_global_asc = Window.orderBy(F.col("IngestionDate").asc(), F.col("adviceId").asc())
+        win_per_advice_desc = Window.partitionBy("adviceId").orderBy(
+            F.col("IngestionDate").desc()
+        )
+        win_global_asc = Window.orderBy(
+            F.col("IngestionDate").asc(), F.col("adviceId").asc()
+        )
 
         combined = (
-            combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_per_advice_desc))
+            combined.withColumn(
+                "ReverseOrderProcessed", F.row_number().over(win_per_advice_desc)
+            )
             .withColumn("NSIPAdviceID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",
-                F.when(F.row_number().over(win_per_advice_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
+                F.when(
+                    F.row_number().over(win_per_advice_desc) == 1, F.lit("Y")
+                ).otherwise(F.lit("N")),
             )
         )
 
@@ -257,14 +277,19 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         calcs = current.join(
             next_row,
             (F.col("CurrentRow.adviceId") == F.col("NextRow.adviceId"))
-            & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
+            & (
+                F.col("CurrentRow.ReverseOrderProcessed") - 1
+                == F.col("NextRow.ReverseOrderProcessed")
+            ),
             "left_outer",
         ).select(
             F.col("CurrentRow.NSIPAdviceID").alias("NSIPAdviceID"),
             F.col("CurrentRow.adviceId").alias("adviceId"),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
-                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(F.col("CurrentRow.ValidTo")),
+                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(
+                    F.col("CurrentRow.ValidTo")
+                ),
                 F.col("NextRow.IngestionDate"),
             ).alias("ValidTo"),
             F.col("CurrentRow.IsActive").alias("IsActive"),
@@ -274,7 +299,12 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         sb_ids = sb_advice_ids.withColumnRenamed("adviceId", "sb_adviceId")
         calcs = (
             calcs.join(sb_ids, calcs["adviceId"] == sb_ids["sb_adviceId"], "left_outer")
-            .withColumn("Migrated", F.when(F.col("sb_adviceId").isNotNull(), F.lit("1")).otherwise(F.lit("0")))
+            .withColumn(
+                "Migrated",
+                F.when(F.col("sb_adviceId").isNotNull(), F.lit("1")).otherwise(
+                    F.lit("0")
+                ),
+            )
             .drop("sb_adviceId")
         )
 
@@ -289,7 +319,12 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         # Step 7: Rejoin calculations back onto the combined dataset
         # The notebook does: SELECT DISTINCT ... FROM spark_table_final (which is the intermediate write)
         # then drops NSIPAdviceID, ValidTo, Migrated, IsActive, joins calcs back, selects columns
-        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed", "SourceSystemID", "AttachmentModifyDate"}]
+        all_columns = [
+            c
+            for c in combined.columns
+            if c
+            not in {"ReverseOrderProcessed", "SourceSystemID", "AttachmentModifyDate"}
+        ]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("NSIPAdviceID", "ValidTo", "Migrated", "IsActive")
@@ -305,7 +340,8 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
 
         joined = base.join(
             calcs_renamed,
-            (base["adviceId"] == calcs_renamed["calc_adviceId"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+            (base["adviceId"] == calcs_renamed["calc_adviceId"])
+            & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
         ).select(columns)
 
         # Apply RowID
@@ -316,10 +352,18 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         deleted_ids = [row[0] for row in horizon_deleted.collect()]
 
         # Set IsActive to N if the adviceId has been deleted from Horizon
-        hrm_updated = final_df.withColumn("IsActive", F.when(F.col("adviceId").isin(deleted_ids), F.lit("N")).otherwise(F.col("IsActive")))
+        hrm_updated = final_df.withColumn(
+            "IsActive",
+            F.when(F.col("adviceId").isin(deleted_ids), F.lit("N")).otherwise(
+                F.col("IsActive")
+            ),
+        )
 
         # Set ValidTo to null if IsActive = Y
-        hrm_updated = hrm_updated.withColumn("ValidTo", F.when(F.col("IsActive") == "Y", F.lit(None)).otherwise(F.col("ValidTo")))
+        hrm_updated = hrm_updated.withColumn(
+            "ValidTo",
+            F.when(F.col("IsActive") == "Y", F.lit(None)).otherwise(F.col("ValidTo")),
+        )
 
         # Set ValidTo if IsActive = N and ValidTo is null to IngestionDate + 1 day
         hrm_final = hrm_updated.withColumn(

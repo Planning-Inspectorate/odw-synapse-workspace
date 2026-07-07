@@ -1,12 +1,21 @@
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from typing import Dict
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import DataFrame
 from pyspark.sql.window import Window
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    IntegerType,
+    LongType,
+    DoubleType,
+)
 import pyspark.sql.functions as F
 from datetime import datetime, date
 
@@ -48,10 +57,16 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
             existing_table = self._load_harmonised_nsip_invoice()
         except AnalysisException:
             existing_table = None
-        return {"source_data": self._load_standardised_nsip_project(), "target_data": existing_table, "target_exists": bool(existing_table)}
+        return {
+            "source_data": self._load_standardised_nsip_project(),
+            "target_data": existing_table,
+            "target_exists": bool(existing_table),
+        }
 
     def _get_max_ingestion_date_to(self, existing_data: DataFrame):
-        max_ingestion_date_to = existing_data.agg(F.max("IngestionDate")).collect()[0][0]
+        max_ingestion_date_to = existing_data.agg(F.max("IngestionDate")).collect()[0][
+            0
+        ]
         if max_ingestion_date_to is None:
             max_ingestion_date_to = datetime(1900, 1, 1)
         return max_ingestion_date_to
@@ -102,12 +117,18 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
         max_id_row = self._get_max_id_from_existing_table(existing_data)
         # Filter only records newer than max IngestionDate
         max_ingestion_date_to = self._get_max_ingestion_date_to(existing_data)
-        new_data = new_data.filter(F.col("IngestionDate") > F.lit(max_ingestion_date_to))
+        new_data = new_data.filter(
+            F.col("IngestionDate") > F.lit(max_ingestion_date_to)
+        )
         # Drop old IngestionDate column
         new_data = new_data.drop("IngestionDate")
         # Add new IngestionDate column with current timestamp (formatted)
         new_data = new_data.withColumn(
-            "IngestionDate", F.concat(F.date_format(F.current_timestamp(), "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"), F.lit("+0000"))
+            "IngestionDate",
+            F.concat(
+                F.date_format(F.current_timestamp(), "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"),
+                F.lit("+0000"),
+            ),
         )
         # Add extra columns and Add surrogate key starting from max_id_row + 1
         window_spec = Window.orderBy(F.monotonically_increasing_id())
@@ -117,12 +138,16 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                 "ValidTo": F.lit(None).cast("string"),
                 "RowID": F.lit(None).cast("string"),
                 "IsActive": F.lit("Y").cast("string"),  # Default IsActive = "Y"
-                self._INCREMENTAL_KEY: (F.row_number().over(window_spec) + F.lit(max_id_row)).cast("long"),
+                self._INCREMENTAL_KEY: (
+                    F.row_number().over(window_spec) + F.lit(max_id_row)
+                ).cast("long"),
             }
         )
         # Reorder columns so incremental_key is first
         cols = new_data.columns
-        reordered_cols = [self._INCREMENTAL_KEY] + [c for c in cols if c != self._INCREMENTAL_KEY]
+        reordered_cols = [self._INCREMENTAL_KEY] + [
+            c for c in cols if c != self._INCREMENTAL_KEY
+        ]
         return new_data.select(reordered_cols)
 
     def process(self, **kwargs):
@@ -167,17 +192,27 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
         new_data = new_data.withColumns(
             {
                 delta_update_col: F.lit("create"),
-                "Migrated": F.lit(None),  # Default value just to align the dataframes, will be updated afterwards
+                "Migrated": F.lit(
+                    None
+                ),  # Default value just to align the dataframes, will be updated afterwards
             }
         )
         combined_data = existing_data.select(new_data.columns).union(new_data)
-        window_spec = Window.partitionBy("caseId", "invoiceNumber").orderBy(F.col("NSIPProjectInfoInternalID").desc())
+        window_spec = Window.partitionBy("caseId", "invoiceNumber").orderBy(
+            F.col("NSIPProjectInfoInternalID").desc()
+        )
         combined_data = (
             combined_data.withColumn("row_num", F.row_number().over(window_spec))
             .withColumns(
                 {
-                    "Migrated": F.when(F.col("caseId").isNotNull() & F.col("invoiceNumber").isNotNull(), F.lit(1)).otherwise(F.lit(0)),
-                    "IsActive": F.when(F.col("row_num") == 1, F.lit("Y")).otherwise(F.lit("N")),
+                    "Migrated": F.when(
+                        F.col("caseId").isNotNull()
+                        & F.col("invoiceNumber").isNotNull(),
+                        F.lit(1),
+                    ).otherwise(F.lit(0)),
+                    "IsActive": F.when(F.col("row_num") == 1, F.lit("Y")).otherwise(
+                        F.lit("N")
+                    ),
                 }
             )
             # Must be done in a separate withColumn due to dependency on other columns
@@ -187,7 +222,10 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                     F.concat_ws(
                         "",
                         F.coalesce(F.col("NSIPInvoiceID").cast("string"), F.lit(".")),
-                        F.coalesce(F.col("NSIPProjectInfoInternalID").cast("string"), F.lit(".")),
+                        F.coalesce(
+                            F.col("NSIPProjectInfoInternalID").cast("string"),
+                            F.lit("."),
+                        ),
                         F.coalesce(F.col("caseId").cast("string"), F.lit(".")),
                         F.coalesce(F.col("caseReference").cast("string"), F.lit(".")),
                         F.coalesce(F.col("invoiceStage").cast("string"), F.lit(".")),
@@ -196,7 +234,9 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                         F.coalesce(F.col("paymentDueDate").cast("string"), F.lit(".")),
                         F.coalesce(F.col("invoicedDate").cast("string"), F.lit(".")),
                         F.coalesce(F.col("paymentDate").cast("string"), F.lit(".")),
-                        F.coalesce(F.col("refundCreditNoteNumber").cast("string"), F.lit(".")),
+                        F.coalesce(
+                            F.col("refundCreditNoteNumber").cast("string"), F.lit(".")
+                        ),
                         F.coalesce(F.col("refundAmount").cast("string"), F.lit(".")),
                         F.coalesce(F.col("refundIssueDate").cast("string"), F.lit(".")),
                         F.coalesce(F.col("Migrated").cast("string"), F.lit(".")),
@@ -208,7 +248,12 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                     )
                 ),
             )
-            .withColumn("ValidTo", F.when(F.col("IsActive") == "N", F.current_timestamp()).otherwise(F.col("ValidTo")))
+            .withColumn(
+                "ValidTo",
+                F.when(F.col("IsActive") == "N", F.current_timestamp()).otherwise(
+                    F.col("ValidTo")
+                ),
+            )
             .drop("row_num")
         )
         data_to_write = {
@@ -220,13 +265,20 @@ class NsipInvoiceHarmonisationProcess(HarmonisationProcess):
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-harmonised",
                 "blob_path": self.OUTPUT_TABLE,
-                "merge_keys": ("caseId", "invoiceNumber", "IngestionDate", "NSIPProjectInfoInternalID"),
+                "merge_keys": (
+                    "caseId",
+                    "invoiceNumber",
+                    "IngestionDate",
+                    "NSIPProjectInfoInternalID",
+                ),
                 "update_key_col": delta_update_col,
                 "columns_to_update": ["IsActive", "ValidTo", "Migrated", "RowID"],
             }
         }
         insert_count = new_data.count()
-        update_count = combined_data.filter(F.to_date("ValidTo") == F.lit(date.today())).count()
+        update_count = combined_data.filter(
+            F.to_date("ValidTo") == F.lit(date.today())
+        ).count()
         end_exec_time = datetime.now()
         return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(

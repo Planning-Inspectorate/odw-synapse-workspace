@@ -26,8 +26,12 @@ import pyspark.sql.types as T
 
 from odw.core.anonymisation.engine import AnonymisationEngine
 from odw.core.etl.etl_result import ETLFailResult
-from odw.core.etl.transformation.standardised.horizon_standardisation_process import HorizonStandardisationProcess
-from odw.core.etl.transformation.standardised.service_bus_standardisation_process import ServiceBusStandardisationProcess
+from odw.core.etl.transformation.standardised.horizon_standardisation_process import (
+    HorizonStandardisationProcess,
+)
+from odw.core.etl.transformation.standardised.service_bus_standardisation_process import (
+    ServiceBusStandardisationProcess,
+)
 from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
@@ -87,11 +91,26 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
         with (
-            mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}),
-            mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path),
-            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path),
-            mock.patch.object(ServiceBusStandardisationProcess, "get_all_files_in_directory", get_all_files_in_directory),
-            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
+            mock.patch(
+                "notebookutils.mssparkutils.runtime.context",
+                {"pipelinejobid": "some_guid", "isForPipeline": True},
+            ),
+            mock.patch.object(
+                SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path
+            ),
+            mock.patch.object(
+                SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path
+            ),
+            mock.patch.object(
+                ServiceBusStandardisationProcess,
+                "get_all_files_in_directory",
+                get_all_files_in_directory,
+            ),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ),
             mock.patch.object(Util, "get_path_to_file", generate_local_path),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
@@ -110,23 +129,47 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
     def _create_empty_sb_table(self, spark, entity):
         """ServiceBusStandardisationProcess.load_data requires the standardised table to exist."""
         empty_df = spark.createDataFrame([], _sb_pre_existing_schema())
-        self.write_existing_table(spark, empty_df, f"sb_{entity}", "odw_standardised_db", "odw-standardised", f"sb_{entity}", "overwrite")
+        self.write_existing_table(
+            spark,
+            empty_df,
+            f"sb_{entity}",
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{entity}",
+            "overwrite",
+        )
 
     def test__anonymisation_engine_called_in_dev(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         entity = f"{_SB_ENTITY}_dev"
         rows = [
-            {"id": 1, "full_name": "Alice Smith", "email": "alice@example.com", "message_enqueued_time_utc": _MSG_TIME},
-            {"id": 2, "full_name": "Bob Jones", "email": "bob@example.com", "message_enqueued_time_utc": _MSG_TIME},
+            {
+                "id": 1,
+                "full_name": "Alice Smith",
+                "email": "alice@example.com",
+                "message_enqueued_time_utc": _MSG_TIME,
+            },
+            {
+                "id": 2,
+                "full_name": "Bob Jones",
+                "email": "bob@example.com",
+                "message_enqueued_time_utc": _MSG_TIME,
+            },
         ]
         self._create_empty_sb_table(spark, entity)
         self._write_sb_input_files(entity, rows)
 
         with (
-            mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()),
+            mock.patch.object(
+                SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()
+            ),
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(AnonymisationEngine, "apply_from_purview", side_effect=lambda df, **kw: df) as mock_apply,
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
+                side_effect=lambda df, **kw: df,
+            ) as mock_apply,
         ):
             result = ServiceBusStandardisationProcess(spark).run(
                 orchestration_run_id="t_anon_sb_dev",
@@ -145,14 +188,23 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         entity = f"{_SB_ENTITY}_prod"
         rows = [
-            {"id": 1, "full_name": "Alice Smith", "email": "alice@example.com", "message_enqueued_time_utc": _MSG_TIME},
+            {
+                "id": 1,
+                "full_name": "Alice Smith",
+                "email": "alice@example.com",
+                "message_enqueued_time_utc": _MSG_TIME,
+            },
         ]
         self._create_empty_sb_table(spark, entity)
         self._write_sb_input_files(entity, rows)
 
         with (
-            mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()),
-            mock.patch.object(Util, "is_non_production_environment", return_value=False),
+            mock.patch.object(
+                SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()
+            ),
+            mock.patch.object(
+                Util, "is_non_production_environment", return_value=False
+            ),
             mock.patch.object(Util, "get_environment", return_value="PROD"),
             mock.patch.object(AnonymisationEngine, "apply_from_purview") as mock_apply,
         ):
@@ -171,16 +223,27 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         entity = f"{_SB_ENTITY}_fail"
         rows = [
-            {"id": 1, "full_name": "Alice Smith", "email": "alice@example.com", "message_enqueued_time_utc": _MSG_TIME},
+            {
+                "id": 1,
+                "full_name": "Alice Smith",
+                "email": "alice@example.com",
+                "message_enqueued_time_utc": _MSG_TIME,
+            },
         ]
         self._create_empty_sb_table(spark, entity)
         self._write_sb_input_files(entity, rows)
 
         with (
-            mock.patch.object(SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()),
+            mock.patch.object(
+                SchemaUtil, "get_service_bus_schema", return_value=_sb_schema()
+            ),
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(AnonymisationEngine, "apply_from_purview", side_effect=RuntimeError("engine failed")),
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
+                side_effect=RuntimeError("engine failed"),
+            ),
         ):
             result = ServiceBusStandardisationProcess(spark).run(
                 orchestration_run_id="t_anon_sb_fail",
@@ -189,7 +252,9 @@ class TestAnonymisationGateServiceBus(ETLTestCase):
                 entity_name=entity,
             )
 
-        assert isinstance(result, ETLFailResult), "Expected ETLFailResult when anonymisation engine raises"
+        assert isinstance(result, ETLFailResult), (
+            "Expected ETLFailResult when anonymisation engine raises"
+        )
         assert "engine failed" in result.metadata.exception_trace
 
 
@@ -205,7 +270,9 @@ class TestAnonymisationGateHorizon(ETLTestCase):
                 {
                     "Source_Filename_Start": f"{_HZ_ENTITY}_{suffix}",
                     "Load_Enable_status": "True",
-                    "Standardised_Table_Definition": (f"standardised_table_definitions/{_HZ_ENTITY}_{suffix}/{_HZ_ENTITY}_{suffix}.json"),
+                    "Standardised_Table_Definition": (
+                        f"standardised_table_definitions/{_HZ_ENTITY}_{suffix}/{_HZ_ENTITY}_{suffix}.json"
+                    ),
                     "Source_Frequency_Folder": "",
                     "Standardised_Table_Name": f"{_HZ_ENTITY}_{suffix}",
                     "Expected_Within_Weekdays": 1,
@@ -215,10 +282,21 @@ class TestAnonymisationGateHorizon(ETLTestCase):
     @pytest.fixture(scope="module", autouse=True)
     def setup(self, request):
         with (
-            mock.patch("notebookutils.mssparkutils.runtime.context", {"pipelinejobid": "some_guid", "isForPipeline": True}),
-            mock.patch.object(SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path),
-            mock.patch.object(SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path),
-            mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"),
+            mock.patch(
+                "notebookutils.mssparkutils.runtime.context",
+                {"pipelinejobid": "some_guid", "isForPipeline": True},
+            ),
+            mock.patch.object(
+                SynapseDataIO, "_format_to_adls_path", format_adls_path_to_local_path
+            ),
+            mock.patch.object(
+                SynapseTableDataIO, "_format_to_adls_path", format_to_adls_path
+            ),
+            mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ),
             mock.patch.object(Util, "get_path_to_file", generate_local_path),
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
@@ -232,8 +310,13 @@ class TestAnonymisationGateHorizon(ETLTestCase):
             ("A1", "Alice Smith", "alice@example.com"),
             ("A2", "Bob Jones", "bob@example.com"),
         )
-        self.write_csv(csv_data, ["odw-raw", entity, self._DATE_FOLDER, f"{entity}.csv"])
-        self.write_json(_hz_schema_json(), ["odw-config", "standardised_table_definitions", entity, f"{entity}.json"])
+        self.write_csv(
+            csv_data, ["odw-raw", entity, self._DATE_FOLDER, f"{entity}.csv"]
+        )
+        self.write_json(
+            _hz_schema_json(),
+            ["odw-config", "standardised_table_definitions", entity, f"{entity}.json"],
+        )
 
     def test__anonymisation_engine_called_in_dev(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -242,12 +325,26 @@ class TestAnonymisationGateHorizon(ETLTestCase):
         spark.sql(f"DROP TABLE IF EXISTS odw_standardised_db.{entity}")
 
         with (
-            mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=self._DATE_FOLDER),
-            mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=[f"{entity}.csv"]),
-            mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_last_modified_folder",
+                return_value=self._DATE_FOLDER,
+            ),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_file_names_in_directory",
+                return_value=[f"{entity}.csv"],
+            ),
+            mock.patch.object(
+                F, "input_file_name", return_value=F.lit("some_input_file")
+            ),
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(AnonymisationEngine, "apply_from_purview", side_effect=lambda df, **kw: df) as mock_apply,
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
+                side_effect=lambda df, **kw: df,
+            ) as mock_apply,
         ):
             result = HorizonStandardisationProcess(spark).run(
                 orchestration_run_id="t_anon_hz_dev",
@@ -269,10 +366,22 @@ class TestAnonymisationGateHorizon(ETLTestCase):
         spark.sql(f"DROP TABLE IF EXISTS odw_standardised_db.{entity}")
 
         with (
-            mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=self._DATE_FOLDER),
-            mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=[f"{entity}.csv"]),
-            mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")),
-            mock.patch.object(Util, "is_non_production_environment", return_value=False),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_last_modified_folder",
+                return_value=self._DATE_FOLDER,
+            ),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_file_names_in_directory",
+                return_value=[f"{entity}.csv"],
+            ),
+            mock.patch.object(
+                F, "input_file_name", return_value=F.lit("some_input_file")
+            ),
+            mock.patch.object(
+                Util, "is_non_production_environment", return_value=False
+            ),
             mock.patch.object(Util, "get_environment", return_value="PROD"),
             mock.patch.object(AnonymisationEngine, "apply_from_purview") as mock_apply,
         ):
@@ -294,12 +403,26 @@ class TestAnonymisationGateHorizon(ETLTestCase):
         spark.sql(f"DROP TABLE IF EXISTS odw_standardised_db.{entity}")
 
         with (
-            mock.patch.object(HorizonStandardisationProcess, "get_last_modified_folder", return_value=self._DATE_FOLDER),
-            mock.patch.object(HorizonStandardisationProcess, "get_file_names_in_directory", return_value=[f"{entity}.csv"]),
-            mock.patch.object(F, "input_file_name", return_value=F.lit("some_input_file")),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_last_modified_folder",
+                return_value=self._DATE_FOLDER,
+            ),
+            mock.patch.object(
+                HorizonStandardisationProcess,
+                "get_file_names_in_directory",
+                return_value=[f"{entity}.csv"],
+            ),
+            mock.patch.object(
+                F, "input_file_name", return_value=F.lit("some_input_file")
+            ),
             mock.patch.object(Util, "is_non_production_environment", return_value=True),
             mock.patch.object(Util, "get_environment", return_value="DEV"),
-            mock.patch.object(AnonymisationEngine, "apply_from_purview", side_effect=RuntimeError("engine failed")),
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
+                side_effect=RuntimeError("engine failed"),
+            ),
         ):
             result = HorizonStandardisationProcess(spark).run(
                 orchestration_run_id="t_anon_hz_fail",
@@ -308,6 +431,10 @@ class TestAnonymisationGateHorizon(ETLTestCase):
                 source_folder=entity,
             )
 
-        assert isinstance(result, ETLFailResult), "Expected ETLFailResult when anonymisation engine raises"
+        assert isinstance(result, ETLFailResult), (
+            "Expected ETLFailResult when anonymisation engine raises"
+        )
         assert "engine failed" in result.metadata.exception_trace
-        assert not spark.catalog.tableExists(f"odw_standardised_db.{entity}"), "Table must not be created when anonymisation fails — no partial write"
+        assert not spark.catalog.tableExists(f"odw_standardised_db.{entity}"), (
+            "Table must not be created when anonymisation fails — no partial write"
+        )

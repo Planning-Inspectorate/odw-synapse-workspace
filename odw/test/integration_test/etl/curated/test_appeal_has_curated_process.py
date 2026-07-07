@@ -2,13 +2,18 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import SparkSession
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_has_curated_process import AppealHasCuratedProcess
+from odw.core.etl.transformation.curated.appeal_has_curated_process import (
+    AppealHasCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -308,14 +313,32 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         appeal_has = _harmonised_df(spark)
         appeal_has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, appeal_has, appeal_has_table, "odw_harmonised_db", "odw-harmonised", appeal_has_table, "overwrite")
-        expected_curated_data_after_writing = spark.createDataFrame((_curated_row(),), schema=_curated_schema())
-        with mock.patch.object(AppealHasCuratedProcess, "OUTPUT_TABLE", appeal_has_table):
+        self.write_existing_table(
+            spark,
+            appeal_has,
+            appeal_has_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            appeal_has_table,
+            "overwrite",
+        )
+        expected_curated_data_after_writing = spark.createDataFrame(
+            (_curated_row(),), schema=_curated_schema()
+        )
+        with mock.patch.object(
+            AppealHasCuratedProcess, "OUTPUT_TABLE", appeal_has_table
+        ):
             inst = AppealHasCuratedProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_has", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_has",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
             actual_table_data = spark.table(appeal_has_table)
-            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+            assert_dataframes_equal(
+                expected_curated_data_after_writing, actual_table_data
+            )
 
     def test__appeal_has_curated_process__run__with_no_existing_data(self):
         """
@@ -334,7 +357,17 @@ class TestAppealHasCuratedProcess(ETLTestCase):
         test_case = "t_ahcp_r_wed"
         output_table = f"{test_case}_appeals_has"
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_data = spark.createDataFrame((_curated_row(caseId="1"),), schema=_curated_schema())
+        existing_data = spark.createDataFrame(
+            (_curated_row(caseId="1"),), schema=_curated_schema()
+        )
         self.assert_curated_etl(test_case)
-        self.write_existing_table(spark, existing_data, output_table, "odw_curated_db", "odw-curated", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            output_table,
+            "odw_curated_db",
+            "odw-curated",
+            output_table,
+            "overwrite",
+        )
         self.assert_curated_etl(test_case)

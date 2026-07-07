@@ -3,12 +3,17 @@ import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import AppealServiceUserCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_service_user_curated_mipins_process import (
+    AppealServiceUserCuratedMipinsProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
-pytestmark = pytest.mark.xfail(reason="Curation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curation logic not implemented yet")
 
 
 def _source_service_user_schema():
@@ -154,7 +159,9 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
     def compare_curated_data(expected_data: DataFrame, actual_data: DataFrame):
         assert_dataframes_equal(expected_data, actual_data)
 
-    def test__appeal_service_user_curated_mipins_process__run__with_valid_and_filtered_rows(self):
+    def test__appeal_service_user_curated_mipins_process__run__with_valid_and_filtered_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_asucmp_r_wvfr"
 
@@ -164,20 +171,46 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
 
         sb_service_user = spark.createDataFrame(
             [
-                _sb_service_user_row(id="SB-VALID", ingestionDate="2024-01-01 00:00:00", ValidTo=None),
-                _sb_service_user_row(id="SB-NULL-INGESTION", ingestionDate=None, ValidTo=None),
-                _sb_service_user_row(id="SB-DROP-OLD-INGESTION", ingestionDate="1899-12-31 00:00:00", ValidTo=None),
-                _sb_service_user_row(id="SB-DROP-OLD-VALIDTO", ingestionDate="2024-01-01 00:00:00", ValidTo="1899-12-31 00:00:00"),
+                _sb_service_user_row(
+                    id="SB-VALID", ingestionDate="2024-01-01 00:00:00", ValidTo=None
+                ),
+                _sb_service_user_row(
+                    id="SB-NULL-INGESTION", ingestionDate=None, ValidTo=None
+                ),
+                _sb_service_user_row(
+                    id="SB-DROP-OLD-INGESTION",
+                    ingestionDate="1899-12-31 00:00:00",
+                    ValidTo=None,
+                ),
+                _sb_service_user_row(
+                    id="SB-DROP-OLD-VALIDTO",
+                    ingestionDate="2024-01-01 00:00:00",
+                    ValidTo="1899-12-31 00:00:00",
+                ),
             ],
             schema=_source_service_user_schema(),
         )
 
         service_user = spark.createDataFrame(
             [
-                _service_user_row(id="SU-VALID", ingestionDate="2024-02-01 00:00:00", ValidTo=None),
-                _service_user_row(id="SU-1900-VALIDTO", ingestionDate="2024-02-01 00:00:00", ValidTo="1900-01-01 00:00:00"),
-                _service_user_row(id="SU-DROP-OLD-INGESTION", ingestionDate="1899-12-31 00:00:00", ValidTo=None),
-                _service_user_row(id="SU-DROP-OLD-VALIDTO", ingestionDate="2024-02-01 00:00:00", ValidTo="1899-12-31 00:00:00"),
+                _service_user_row(
+                    id="SU-VALID", ingestionDate="2024-02-01 00:00:00", ValidTo=None
+                ),
+                _service_user_row(
+                    id="SU-1900-VALIDTO",
+                    ingestionDate="2024-02-01 00:00:00",
+                    ValidTo="1900-01-01 00:00:00",
+                ),
+                _service_user_row(
+                    id="SU-DROP-OLD-INGESTION",
+                    ingestionDate="1899-12-31 00:00:00",
+                    ValidTo=None,
+                ),
+                _service_user_row(
+                    id="SU-DROP-OLD-VALIDTO",
+                    ingestionDate="2024-02-01 00:00:00",
+                    ValidTo="1899-12-31 00:00:00",
+                ),
             ],
             schema=_source_service_user_schema(),
         )
@@ -324,13 +357,25 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "SOURCE_SB_SERVICE_USER_TABLE", sb_service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "SOURCE_SERVICE_USER_TABLE", service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess,
+                "SOURCE_SB_SERVICE_USER_TABLE",
+                sb_service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess,
+                "SOURCE_SERVICE_USER_TABLE",
+                service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name
+            ),
         ):
             inst = AppealServiceUserCuratedMipinsProcess(spark)
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_service_user_mipins",
+                orchestration_stage_name="curate",
             )
 
             assert_etl_result_successful(result)
@@ -338,7 +383,9 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
             actual_table_data = spark.table(f"odw_curated_db.{output_table_name}")
             self.compare_curated_data(expected_data, actual_table_data)
 
-    def test__appeal_service_user_curated_mipins_process__run__uses_union_not_union_all_like_legacy(self):
+    def test__appeal_service_user_curated_mipins_process__run__uses_union_not_union_all_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_asucmp_r_un"
 
@@ -348,8 +395,12 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
 
         duplicate_row = _sb_service_user_row(id="DUP-001")
 
-        sb_service_user = spark.createDataFrame([duplicate_row], schema=_source_service_user_schema())
-        service_user = spark.createDataFrame([duplicate_row], schema=_source_service_user_schema())
+        sb_service_user = spark.createDataFrame(
+            [duplicate_row], schema=_source_service_user_schema()
+        )
+        service_user = spark.createDataFrame(
+            [duplicate_row], schema=_source_service_user_schema()
+        )
 
         self.write_existing_table(
             spark,
@@ -406,13 +457,25 @@ class TestAppealServiceUserCuratedMipinsProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "SOURCE_SB_SERVICE_USER_TABLE", sb_service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "SOURCE_SERVICE_USER_TABLE", service_user_table_name),
-            mock.patch.object(AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess,
+                "SOURCE_SB_SERVICE_USER_TABLE",
+                sb_service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess,
+                "SOURCE_SERVICE_USER_TABLE",
+                service_user_table_name,
+            ),
+            mock.patch.object(
+                AppealServiceUserCuratedMipinsProcess, "OUTPUT_TABLE", output_table_name
+            ),
         ):
             inst = AppealServiceUserCuratedMipinsProcess(spark)
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="appeal_service_user_mipins", orchestration_stage_name="curate"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="appeal_service_user_mipins",
+                orchestration_stage_name="curate",
             )
 
             assert_etl_result_successful(result)

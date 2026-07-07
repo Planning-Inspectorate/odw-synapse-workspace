@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -21,7 +23,9 @@ _CHANGE_TRACKING_COLS = [
 ]
 
 
-def _align_source_to_target_schema(source_df: DataFrame, target_df: DataFrame) -> DataFrame:
+def _align_source_to_target_schema(
+    source_df: DataFrame, target_df: DataFrame
+) -> DataFrame:
     """
     Keep all source columns:
     - Columns in both source and target: Cast to target datatype
@@ -32,7 +36,9 @@ def _align_source_to_target_schema(source_df: DataFrame, target_df: DataFrame) -
     aligned_columns = []
     for col_name in source_df.columns:
         if col_name in target_schema:
-            aligned_columns.append(F.col(col_name).cast(target_schema[col_name]).alias(col_name))
+            aligned_columns.append(
+                F.col(col_name).cast(target_schema[col_name]).alias(col_name)
+            )
         else:
             aligned_columns.append(F.col(col_name))
     return source_df.select(aligned_columns)
@@ -83,7 +89,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
         """)
 
         # Ensure target table exists and read it
-        LoggingUtil().log_info(f"Loading target table odw_harmonised_db.{self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading target table odw_harmonised_db.{self.OUTPUT_TABLE}"
+        )
         if self.spark.catalog.tableExists(f"odw_harmonised_db.{self.OUTPUT_TABLE}"):
             target_df = self.spark.table(f"odw_harmonised_db.{self.OUTPUT_TABLE}")
         else:
@@ -102,7 +110,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
         target_df = source_data.get("target_df")
 
         # Step 1: Explode meetings array
@@ -136,17 +146,25 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
         # Step 3: Align source schema to target if target exists
         if target_df is not None and not target_df.isEmpty():
-            service_bus_exploded = _align_source_to_target_schema(service_bus_exploded, target_df)
+            service_bus_exploded = _align_source_to_target_schema(
+                service_bus_exploded, target_df
+            )
 
         # Step 4: Create business key and row hash
         all_hash_cols = _BUSINESS_KEY_COLS + _CHANGE_TRACKING_COLS
-        source_df = service_bus_exploded.withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256)).withColumn(
-            "row_hash", F.sha2(F.concat_ws("~", *all_hash_cols), 256)
-        )
+        source_df = service_bus_exploded.withColumn(
+            "business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256)
+        ).withColumn("row_hash", F.sha2(F.concat_ws("~", *all_hash_cols), 256))
 
         # Step 5: Deduplicate source - keep latest per business_key by IngestionDate desc
-        window_dedup = Window.partitionBy("business_key").orderBy(F.col("IngestionDate").desc())
-        source_df_deduped = source_df.withColumn("rn", F.row_number().over(window_dedup)).filter("rn = 1").drop("rn")
+        window_dedup = Window.partitionBy("business_key").orderBy(
+            F.col("IngestionDate").desc()
+        )
+        source_df_deduped = (
+            source_df.withColumn("rn", F.row_number().over(window_dedup))
+            .filter("rn = 1")
+            .drop("rn")
+        )
 
         # Step 6: SCD Type 2 logic
         insert_count = 0
@@ -157,7 +175,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             LoggingUtil().log_info("Target table empty — performing initial load")
             window_spec = Window.orderBy("business_key")
             initial_load = (
-                source_df_deduped.withColumn("NSIPMeetingId", F.row_number().over(window_spec))
+                source_df_deduped.withColumn(
+                    "NSIPMeetingId", F.row_number().over(window_spec)
+                )
                 .withColumn("ValidTo", F.lit(None).cast("timestamp"))
                 .withColumn("IsActive", F.lit("Y"))
                 .drop("business_key")
@@ -167,16 +187,22 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             write_mode = "overwrite"
         else:
             # Incremental SCD2
-            LoggingUtil().log_info("Target table has data — performing SCD2 incremental load")
+            LoggingUtil().log_info(
+                "Target table has data — performing SCD2 incremental load"
+            )
 
             # Get max NSIPMeetingId
-            max_id_result = target_df.agg(F.max("NSIPMeetingId").alias("max_id")).collect()[0]["max_id"]
+            max_id_result = target_df.agg(
+                F.max("NSIPMeetingId").alias("max_id")
+            ).collect()[0]["max_id"]
             max_id = max_id_result if max_id_result is not None else 0
 
             # Read current active harmonised records
             current_harmonised_active = (
                 target_df.filter("IsActive = 'Y'")
-                .withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256))
+                .withColumn(
+                    "business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256)
+                )
                 .select("business_key", "row_hash", "NSIPMeetingId")
             )
 
@@ -200,23 +226,32 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
             # Expire old records if changes detected
             if update_count > 0:
-                all_harmonised = target_df.withColumn("business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256))
+                all_harmonised = target_df.withColumn(
+                    "business_key", F.sha2(F.concat_ws("~", *_BUSINESS_KEY_COLS), 256)
+                )
 
                 expired_df = (
                     all_harmonised.alias("target")
                     .join(
                         changed_records.alias("expire"),
                         (F.col("target.NSIPMeetingId") == F.col("expire.NSIPMeetingId"))
-                        & (F.col("target.business_key") == F.col("expire.business_key")),
+                        & (
+                            F.col("target.business_key") == F.col("expire.business_key")
+                        ),
                         "left",
                     )
                     .withColumn(
                         "IsActive",
-                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.lit("N")).otherwise(F.col("target.IsActive")),
+                        F.when(
+                            F.col("expire.NSIPMeetingId").isNotNull(), F.lit("N")
+                        ).otherwise(F.col("target.IsActive")),
                     )
                     .withColumn(
                         "ValidTo",
-                        F.when(F.col("expire.NSIPMeetingId").isNotNull(), F.current_timestamp()).otherwise(F.col("target.ValidTo")),
+                        F.when(
+                            F.col("expire.NSIPMeetingId").isNotNull(),
+                            F.current_timestamp(),
+                        ).otherwise(F.col("target.ValidTo")),
                     )
                     .select("target.*", "IsActive", "ValidTo")
                     .drop("business_key")
@@ -227,7 +262,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
 
             # Find new records (never seen before)
             new_records = source_df_deduped.alias("source").join(
-                current_harmonised_active.select("business_key").distinct().alias("target"),
+                current_harmonised_active.select("business_key")
+                .distinct()
+                .alias("target"),
                 F.col("source.business_key") == F.col("target.business_key"),
                 "left_anti",
             )
@@ -251,7 +288,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             if insert_count > 0:
                 window_spec = Window.orderBy("business_key", "row_hash")
                 new_versions = (
-                    records_to_insert.withColumn("temp_row_num", F.row_number().over(window_spec))
+                    records_to_insert.withColumn(
+                        "temp_row_num", F.row_number().over(window_spec)
+                    )
                     .withColumn("NSIPMeetingId", F.col("temp_row_num") + F.lit(max_id))
                     .drop("temp_row_num")
                     .withColumn("ValidTo", F.lit(None).cast("timestamp"))
@@ -266,7 +305,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             if update_count > 0 and insert_count > 0:
                 # expired_df (overwrite base) + new_versions (append)
                 # Combine: overwrite with expired_df union new_versions
-                final_df = expired_df.unionByName(new_versions, allowMissingColumns=True)
+                final_df = expired_df.unionByName(
+                    new_versions, allowMissingColumns=True
+                )
                 write_mode = "overwrite"
             elif update_count > 0:
                 final_df = expired_df
@@ -290,7 +331,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                 "blob_path": self.OUTPUT_TABLE,
                 "file_format": "delta",
                 "write_mode": write_mode,
-                "write_options": {"overwriteSchema": "true"} if write_mode == "overwrite" else {},
+                "write_options": {"overwriteSchema": "true"}
+                if write_mode == "overwrite"
+                else {},
             }
         }
 

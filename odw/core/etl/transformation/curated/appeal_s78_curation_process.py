@@ -10,10 +10,16 @@ class AppealS78CurationProcess(CurationProcess):
         return "Appeal S78 Curation Process"
 
     def load_data(self, **kwargs):
-        raise NotImplementedError("AppealS78CurationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealS78CurationProcess.load_data() has not been implemented yet."
+        )
 
     def _load_harmonised_data(self):
-        raise NotImplementedError("AppealS78CurationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealS78CurationProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, **kwargs):
-        raise NotImplementedError("AppealS78CurationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealS78CurationProcess.process() has not been implemented yet."
+        )

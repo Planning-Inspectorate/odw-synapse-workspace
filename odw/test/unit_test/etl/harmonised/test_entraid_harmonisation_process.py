@@ -5,7 +5,9 @@ import mock
 import pytest
 import pyspark.sql.types as T
 
-from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
+from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import (
+    EntraIdHarmonisationProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -59,7 +61,17 @@ def _row_id(id, employee_id, given_name, surname, upn):
     return hashlib.md5(concat.encode("utf-8")).hexdigest()
 
 
-def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employee_entra_id=1, valid_to=None):
+def _hrm_row(
+    id,
+    employee_id,
+    given_name,
+    surname,
+    upn,
+    *,
+    is_active="Y",
+    employee_entra_id=1,
+    valid_to=None,
+):
     return (
         employee_entra_id,
         employee_id,
@@ -116,7 +128,16 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
@@ -131,11 +152,22 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
-        row = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[
+            0
+        ]
         assert row["RowID"] is not None
         assert len(row["RowID"]) == 32
 
@@ -143,11 +175,22 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
-        row = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[
+            0
+        ]
         assert row["EmployeeEntraId"] is not None
         assert row["EmployeeEntraId"] >= 1
 
@@ -159,14 +202,35 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user2", "emp2", "NewFirst", "Last2", "user2@test.com", datetime(2024, 2, 1))],
-            hrm_rows=[_hrm_row("user2", "emp2", "OldFirst", "Last2", "user2@test.com", is_active="Y", employee_entra_id=1)],
+            std_rows=[
+                (
+                    "user2",
+                    "emp2",
+                    "NewFirst",
+                    "Last2",
+                    "user2@test.com",
+                    datetime(2024, 2, 1),
+                )
+            ],
+            hrm_rows=[
+                _hrm_row(
+                    "user2",
+                    "emp2",
+                    "OldFirst",
+                    "Last2",
+                    "user2@test.com",
+                    is_active="Y",
+                    employee_entra_id=1,
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
 
-        actual_df = df.select("id", "givenName", "IsActive", "ValidTo").orderBy("IsActive")
+        actual_df = df.select("id", "givenName", "IsActive", "ValidTo").orderBy(
+            "IsActive"
+        )
         expected_df = spark.createDataFrame(
             [
                 ("user2", "OldFirst", "N", "2024-01-31 00:00:00"),
@@ -187,7 +251,9 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         source_data = _source_data(
             spark,
             std_rows=[(id_, emp, fn, sn, upn, datetime(2024, 1, 15))],
-            hrm_rows=[_hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)],
+            hrm_rows=[
+                _hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
@@ -203,7 +269,17 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            hrm_rows=[_hrm_row("user4", "emp4", "Old4", "Last4", "user4@test.com", is_active="N", valid_to="2024-01-14")],
+            hrm_rows=[
+                _hrm_row(
+                    "user4",
+                    "emp4",
+                    "Old4",
+                    "Last4",
+                    "user4@test.com",
+                    is_active="N",
+                    valid_to="2024-01-14",
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
@@ -221,8 +297,22 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         source_data = _source_data(
             spark,
             std_rows=[
-                ("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15)),
-                ("user2", "emp2", "Bob", "Jones", "bob@test.com", datetime(2024, 1, 15)),
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                ),
+                (
+                    "user2",
+                    "emp2",
+                    "Bob",
+                    "Jones",
+                    "bob@test.com",
+                    datetime(2024, 1, 15),
+                ),
             ],
         )
         inst = _process_under_test(spark)
@@ -239,23 +329,51 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
             source_system_id="sys42",
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
-        assert data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[0]["SourceSystemID"] == "sys42"
+        assert (
+            data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[
+                0
+            ]["SourceSystemID"]
+            == "sys42"
+        )
 
     def test__process__missing_source_system_sets_none(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
             source_system_id=None,
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)
-        assert data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[0]["SourceSystemID"] is None
+        assert (
+            data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()[
+                0
+            ]["SourceSystemID"]
+            is None
+        )
 
     # ------------------------------------------------------------------
     # process – write config and output column order
@@ -265,7 +383,16 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(source_data=source_data)
@@ -278,7 +405,16 @@ class TestEntraIdHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = _process_under_test(spark)
         data_to_write, _ = inst.process(source_data=source_data)

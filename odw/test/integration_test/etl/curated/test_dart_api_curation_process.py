@@ -1,15 +1,29 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.dart_api_curation_process import DartAPICurationProcess
+from odw.core.etl.transformation.curated.dart_api_curation_process import (
+    DartAPICurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-from pyspark.sql.types import StringType, StructField, StructType, LongType, DoubleType, ArrayType, BooleanType, TimestampType
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
+from pyspark.sql.types import (
+    StringType,
+    StructField,
+    StructType,
+    LongType,
+    DoubleType,
+    ArrayType,
+    BooleanType,
+    TimestampType,
+)
 from datetime import datetime
 import mock
 import pytest
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def generate_harmonised_appeal_has_row(**overrides):
@@ -183,8 +197,12 @@ def generate_harmonised_appeal_has_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -196,7 +214,9 @@ def generate_harmonised_appeal_has_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -260,28 +280,48 @@ def generate_harmonised_appeal_has_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
                 ),
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("typeOfPlanningApplication", StringType(), True),
             StructField("siteGridReferenceEasting", StringType(), True),
             StructField("siteGridReferenceNorthing", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -777,15 +817,29 @@ def generate_harmonised_appeal_s78_row(**overrides):
         "wasApplicationRefusedDueToHighwayOrTraffic": True,
         "didAppellantSubmitCompletePhotosAndPlans": True,
         "isSiteInAreaOfSpecialControlAdverts": True,
-        "advertDetails": [{"advertType": "", "isAdvertInPosition": True, "isSiteOnHighwayLand": True}],
+        "advertDetails": [
+            {"advertType": "", "isAdvertInPosition": True, "isSiteOnHighwayLand": True}
+        ],
         "padsSapId": "",
         "enforcementNoticeReference": None,
         "descriptionOfAllegedBreach": None,
         "dateAppellantContactedPins": None,
         "ownerOccupancyStatus": None,
         "occupancyConditionsMet": True,
-        "enforcementAppealGroundsDetails": [{"appealGroundLetter": None, "groundForAppealStartDate": None, "groundFacts": None}],
-        "applicationElbAppealGroundsDetails": [{"appealGroundLetter": None, "groundForAppealStartDate": None, "groundFacts": None}],
+        "enforcementAppealGroundsDetails": [
+            {
+                "appealGroundLetter": None,
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            }
+        ],
+        "applicationElbAppealGroundsDetails": [
+            {
+                "appealGroundLetter": None,
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            }
+        ],
         "applicationMadeAndFeePaid": True,
         "noticeRelatesToBuildingEngineeringMiningOther": True,
         "changeOfUseRefuseOrWaste": True,
@@ -825,7 +879,9 @@ def generate_harmonised_appeal_s78_row(**overrides):
         "wasRetrospectivePlanningApplicationMade": True,
         "reasonForAppealAppellant": None,
         "screeningOpinionIndicatesEiaRequired": True,
-        "significantChangesAffectingApplicationAppellant": [{"value": None, "comment": ""}],
+        "significantChangesAffectingApplicationAppellant": [
+            {"value": None, "comment": ""}
+        ],
         "significantChangesAffectingApplicationLpa": [{"value": None, "comment": ""}],
         "migrated": "1",
         "ODTSourceSystem": "ODT",
@@ -862,8 +918,12 @@ def generate_harmonised_appeal_s78_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -875,7 +935,9 @@ def generate_harmonised_appeal_s78_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -920,13 +982,27 @@ def generate_harmonised_appeal_s78_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -934,8 +1010,12 @@ def generate_harmonised_appeal_s78_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -1003,8 +1083,12 @@ def generate_harmonised_appeal_s78_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -1055,12 +1139,16 @@ def generate_harmonised_appeal_s78_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -1095,12 +1183,28 @@ def generate_harmonised_appeal_s78_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -1202,8 +1306,12 @@ def generate_cleaned_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -1237,20 +1345,36 @@ def generate_cleaned_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
                 ),
                 True,
             ),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("appellantName", StringType(), True),
@@ -1268,14 +1392,40 @@ class TestDartAPICurationProcess(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         appeal_has = spark.createDataFrame(
             (
-                generate_harmonised_appeal_has_row(caseId=1, lpaCode="A", caseReference=60000001, inspectorId="insId1", caseOfficerId="insId7"),
-                generate_harmonised_appeal_has_row(caseId=2, lpaCode="B", caseReference=60000002, inspectorId="insId2", caseOfficerId="insId6"),
-                generate_harmonised_appeal_has_row(caseId=3, lpaCode="C", caseReference=60000003, inspectorId="insId3", caseOfficerId="insId5"),
                 generate_harmonised_appeal_has_row(
-                    caseId=4, lpaCode="D", caseReference=60000004, inspectorId="insId4", caseOfficerId="insId4"
+                    caseId=1,
+                    lpaCode="A",
+                    caseReference=60000001,
+                    inspectorId="insId1",
+                    caseOfficerId="insId7",
+                ),
+                generate_harmonised_appeal_has_row(
+                    caseId=2,
+                    lpaCode="B",
+                    caseReference=60000002,
+                    inspectorId="insId2",
+                    caseOfficerId="insId6",
+                ),
+                generate_harmonised_appeal_has_row(
+                    caseId=3,
+                    lpaCode="C",
+                    caseReference=60000003,
+                    inspectorId="insId3",
+                    caseOfficerId="insId5",
+                ),
+                generate_harmonised_appeal_has_row(
+                    caseId=4,
+                    lpaCode="D",
+                    caseReference=60000004,
+                    inspectorId="insId4",
+                    caseOfficerId="insId4",
                 ),  # For the dropped pins_lpa row
                 generate_harmonised_appeal_has_row(
-                    caseId=5, lpaCode="E", caseReference=60000005, inspectorId="insId5", caseOfficerId="insId3"
+                    caseId=5,
+                    lpaCode="E",
+                    caseReference=60000005,
+                    inspectorId="insId5",
+                    caseOfficerId="insId3",
                 ),  # For the dropped service_user row
             ),
             schema=generate_harmonised_appeal_has_schema(),
@@ -1293,16 +1443,32 @@ class TestDartAPICurationProcess(ETLTestCase):
         appeal_s78 = spark.createDataFrame(
             (
                 generate_harmonised_appeal_s78_row(
-                    caseId=6, lpaCode="F", caseReference=60000006, inspectorId="insId6", caseOfficerId="insId2"
+                    caseId=6,
+                    lpaCode="F",
+                    caseReference=60000006,
+                    inspectorId="insId6",
+                    caseOfficerId="insId2",
                 ),  # For the dropped service_user row
                 generate_harmonised_appeal_s78_row(
-                    caseId=7, lpaCode="G", caseReference=60000007, inspectorId="insId7", caseOfficerId="insId1"
+                    caseId=7,
+                    lpaCode="G",
+                    caseReference=60000007,
+                    inspectorId="insId7",
+                    caseOfficerId="insId1",
                 ),  # For the dropped appeal_event row
                 generate_harmonised_appeal_s78_row(
-                    caseId=8, lpaCode="H", caseReference=60000008, inspectorId="insId10", caseOfficerId="insId7"
+                    caseId=8,
+                    lpaCode="H",
+                    caseReference=60000008,
+                    inspectorId="insId10",
+                    caseOfficerId="insId7",
                 ),  # For the dropped entraid_ins row
                 generate_harmonised_appeal_s78_row(
-                    caseId=9, lpaCode="I", caseReference=60000009, inspectorId="insId7", caseOfficerId="insId10"
+                    caseId=9,
+                    lpaCode="I",
+                    caseReference=60000009,
+                    inspectorId="insId7",
+                    caseOfficerId="insId10",
                 ),  # For the dropped entraid_co row
             ),
             schema=generate_harmonised_appeal_s78_schema(),
@@ -1319,10 +1485,18 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         pins_lpa = spark.createDataFrame(
             (
-                generate_harmonised_pins_lpa_row(id=1, pinsLpaCode="A", caseReference=60000001),
-                generate_harmonised_pins_lpa_row(id=2, pinsLpaCode="B", caseReference=60000002),
-                generate_harmonised_pins_lpa_row(id=3, pinsLpaCode="C", caseReference=60000003),
-                generate_harmonised_pins_lpa_row(id=3, pinsLpaCode="C", caseReference=60000004, isActive="N"),  # Should be dropped
+                generate_harmonised_pins_lpa_row(
+                    id=1, pinsLpaCode="A", caseReference=60000001
+                ),
+                generate_harmonised_pins_lpa_row(
+                    id=2, pinsLpaCode="B", caseReference=60000002
+                ),
+                generate_harmonised_pins_lpa_row(
+                    id=3, pinsLpaCode="C", caseReference=60000003
+                ),
+                generate_harmonised_pins_lpa_row(
+                    id=3, pinsLpaCode="C", caseReference=60000004, isActive="N"
+                ),  # Should be dropped
             ),
             schema=generate_harmonised_pins_lpa_schema(),
         )
@@ -1338,13 +1512,34 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         sb_service_user = spark.createDataFrame(
             (
-                generate_harmonised_sb_service_user_row(LPAId=1, firstName="A", caseReference=60000001, serviceUserType="Appellant", lastName="B"),
-                generate_harmonised_sb_service_user_row(LPAId=2, firstName="B", caseReference=60000002, serviceUserType="Appellant"),
-                generate_harmonised_sb_service_user_row(LPAId=3, firstName="C", caseReference=60000003, serviceUserType="Appellant"),
                 generate_harmonised_sb_service_user_row(
-                    LPAId=4, firstName="D", caseReference=60000005, serviceUserType="Something else"
+                    LPAId=1,
+                    firstName="A",
+                    caseReference=60000001,
+                    serviceUserType="Appellant",
+                    lastName="B",
+                ),
+                generate_harmonised_sb_service_user_row(
+                    LPAId=2,
+                    firstName="B",
+                    caseReference=60000002,
+                    serviceUserType="Appellant",
+                ),
+                generate_harmonised_sb_service_user_row(
+                    LPAId=3,
+                    firstName="C",
+                    caseReference=60000003,
+                    serviceUserType="Appellant",
+                ),
+                generate_harmonised_sb_service_user_row(
+                    LPAId=4,
+                    firstName="D",
+                    caseReference=60000005,
+                    serviceUserType="Something else",
                 ),  # Should be dropped
-                generate_harmonised_sb_service_user_row(LPAId=5, firstName="E", caseReference=60000006, isActive="N"),  # Should be dropped
+                generate_harmonised_sb_service_user_row(
+                    LPAId=5, firstName="E", caseReference=60000006, isActive="N"
+                ),  # Should be dropped
             ),
             schema=generate_harmonised_sb_service_user_schema(),
         )
@@ -1360,10 +1555,18 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         sb_appeal_event = spark.createDataFrame(
             (
-                generate_harmonised_sb_appeal_event_row(eventId="1", caseReference=60000001),
-                generate_harmonised_sb_appeal_event_row(eventId="2", caseReference=60000002),
-                generate_harmonised_sb_appeal_event_row(eventId="3", caseReference=60000003),
-                generate_harmonised_sb_appeal_event_row(eventId="4", caseReference=60000004),  # Should be dropped
+                generate_harmonised_sb_appeal_event_row(
+                    eventId="1", caseReference=60000001
+                ),
+                generate_harmonised_sb_appeal_event_row(
+                    eventId="2", caseReference=60000002
+                ),
+                generate_harmonised_sb_appeal_event_row(
+                    eventId="3", caseReference=60000003
+                ),
+                generate_harmonised_sb_appeal_event_row(
+                    eventId="4", caseReference=60000004
+                ),  # Should be dropped
             ),
             schema=generate_harmonised_sb_appeal_event_schema(),
         )
@@ -1380,15 +1583,33 @@ class TestDartAPICurationProcess(ETLTestCase):
         entraid = spark.createDataFrame(
             (
                 generate_harmonised_entraid_row(
-                    EmployeeEntraId=1, givenName="A", surname="X", id="insId1", userPrincipalName="x@pins.gov.uk"
+                    EmployeeEntraId=1,
+                    givenName="A",
+                    surname="X",
+                    id="insId1",
+                    userPrincipalName="x@pins.gov.uk",
                 ),  # ent_ins
                 generate_harmonised_entraid_row(
-                    EmployeeEntraId=2, givenName="B", surname="Y", id="insId2", userPrincipalName="y@pins.gov.uk"
+                    EmployeeEntraId=2,
+                    givenName="B",
+                    surname="Y",
+                    id="insId2",
+                    userPrincipalName="y@pins.gov.uk",
                 ),  # ent_ins
                 generate_harmonised_entraid_row(
-                    EmployeeEntraId=3, givenName="C", surname="Z", id="insId3", userPrincipalName="z@pins.gov.uk"
+                    EmployeeEntraId=3,
+                    givenName="C",
+                    surname="Z",
+                    id="insId3",
+                    userPrincipalName="z@pins.gov.uk",
                 ),  # ent_co
-                generate_harmonised_entraid_row(EmployeeEntraId=10, givenName="Z", surname="AA", id="insId10", isActive="N"),  # Should be dropped
+                generate_harmonised_entraid_row(
+                    EmployeeEntraId=10,
+                    givenName="Z",
+                    surname="AA",
+                    id="insId10",
+                    isActive="N",
+                ),  # Should be dropped
             ),
             schema=generate_harmonised_entraid_schema(),
         )
@@ -1404,10 +1625,22 @@ class TestDartAPICurationProcess(ETLTestCase):
         )
         horizon_pins_inspector = spark.createDataFrame(
             (
-                generate_harmonised_horizon_pins_inspector_row(horizonId="1", firstName="A", lastName="D", email="x@pins.gov.uk"),
-                generate_harmonised_horizon_pins_inspector_row(horizonId="2", firstName="B", lastName="E", email="y@pins.gov.uk"),
-                generate_harmonised_horizon_pins_inspector_row(horizonId="3", firstName="C", lastName="F", email="z@pins.gov.uk"),
-                generate_harmonised_horizon_pins_inspector_row(horizonId="4", firstName="D", lastName="G", email="a@pins.gov.uk", isActive="Y"),
+                generate_harmonised_horizon_pins_inspector_row(
+                    horizonId="1", firstName="A", lastName="D", email="x@pins.gov.uk"
+                ),
+                generate_harmonised_horizon_pins_inspector_row(
+                    horizonId="2", firstName="B", lastName="E", email="y@pins.gov.uk"
+                ),
+                generate_harmonised_horizon_pins_inspector_row(
+                    horizonId="3", firstName="C", lastName="F", email="z@pins.gov.uk"
+                ),
+                generate_harmonised_horizon_pins_inspector_row(
+                    horizonId="4",
+                    firstName="D",
+                    lastName="G",
+                    email="a@pins.gov.uk",
+                    isActive="Y",
+                ),
             ),
             schema=generate_harmonised_horizon_pins_inspector_schema(),
         )
@@ -1424,41 +1657,116 @@ class TestDartAPICurationProcess(ETLTestCase):
         expected_curated_data_after_writing = spark.createDataFrame(
             (
                 generate_cleaned_row(
-                    caseId=1, caseReference="60000001", lpaCode="A", applicationReference="UNKNOWN", appellantName="A B", inspectorName="A X"
+                    caseId=1,
+                    caseReference="60000001",
+                    lpaCode="A",
+                    applicationReference="UNKNOWN",
+                    appellantName="A B",
+                    inspectorName="A X",
                 ),
-                generate_cleaned_row(caseId=2, caseReference="60000002", lpaCode="B", applicationReference="UNKNOWN", inspectorName="B Y"),
-                generate_cleaned_row(caseId=3, caseReference="60000003", lpaCode="C", applicationReference="UNKNOWN", inspectorName="C Z"),
+                generate_cleaned_row(
+                    caseId=2,
+                    caseReference="60000002",
+                    lpaCode="B",
+                    applicationReference="UNKNOWN",
+                    inspectorName="B Y",
+                ),
+                generate_cleaned_row(
+                    caseId=3,
+                    caseReference="60000003",
+                    lpaCode="C",
+                    applicationReference="UNKNOWN",
+                    inspectorName="C Z",
+                ),
                 generate_cleaned_row(
                     caseId=4,
                     caseReference="60000004",
                     lpaCode="D",
                     applicationReference="UNKNOWN",
                 ),
-                generate_cleaned_row(caseId=5, caseReference="60000005", lpaCode="E", applicationReference="UNKNOWN", caseOfficerName="C Z"),
-                generate_cleaned_row(caseId=6, caseReference="60000006", lpaCode="F", applicationReference="UNKNOWN", caseOfficerName="B Y"),
-                generate_cleaned_row(caseId=7, caseReference="60000007", lpaCode="G", applicationReference="UNKNOWN", caseOfficerName="A X"),
-                generate_cleaned_row(caseId=8, caseReference="60000008", lpaCode="H", applicationReference="UNKNOWN", inspectorName="Z AA"),
-                generate_cleaned_row(caseId=9, caseReference="60000009", lpaCode="I", applicationReference="UNKNOWN", caseOfficerName="Z AA"),
+                generate_cleaned_row(
+                    caseId=5,
+                    caseReference="60000005",
+                    lpaCode="E",
+                    applicationReference="UNKNOWN",
+                    caseOfficerName="C Z",
+                ),
+                generate_cleaned_row(
+                    caseId=6,
+                    caseReference="60000006",
+                    lpaCode="F",
+                    applicationReference="UNKNOWN",
+                    caseOfficerName="B Y",
+                ),
+                generate_cleaned_row(
+                    caseId=7,
+                    caseReference="60000007",
+                    lpaCode="G",
+                    applicationReference="UNKNOWN",
+                    caseOfficerName="A X",
+                ),
+                generate_cleaned_row(
+                    caseId=8,
+                    caseReference="60000008",
+                    lpaCode="H",
+                    applicationReference="UNKNOWN",
+                    inspectorName="Z AA",
+                ),
+                generate_cleaned_row(
+                    caseId=9,
+                    caseReference="60000009",
+                    lpaCode="I",
+                    applicationReference="UNKNOWN",
+                    caseOfficerName="Z AA",
+                ),
             ),
             schema=generate_cleaned_schema(),
         )
         expected_curated_table = f"{test_case}_dart_api"
         with (
             mock.patch.object(DartAPICurationProcess, "__init__", return_value=None),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_HAS", appeal_has_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_LPA", pins_lpa_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_SERVICE_USER", sb_service_user_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_SB_APPEAL_EVENT", sb_appeal_event_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_ENTRAID", entraid_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_PINS_INSPECTOR", horizon_pins_inspector_table),
-            mock.patch.object(DartAPICurationProcess, "HARMONISED_APPEAL_S78", appeal_s78_table),
-            mock.patch.object(DartAPICurationProcess, "OUTPUT_TABLE", expected_curated_table),
+            mock.patch.object(
+                DartAPICurationProcess, "HARMONISED_APPEAL_HAS", appeal_has_table
+            ),
+            mock.patch.object(
+                DartAPICurationProcess, "HARMONISED_PINS_LPA", pins_lpa_table
+            ),
+            mock.patch.object(
+                DartAPICurationProcess,
+                "HARMONISED_SB_SERVICE_USER",
+                sb_service_user_table,
+            ),
+            mock.patch.object(
+                DartAPICurationProcess,
+                "HARMONISED_SB_APPEAL_EVENT",
+                sb_appeal_event_table,
+            ),
+            mock.patch.object(
+                DartAPICurationProcess, "HARMONISED_ENTRAID", entraid_table
+            ),
+            mock.patch.object(
+                DartAPICurationProcess,
+                "HARMONISED_PINS_INSPECTOR",
+                horizon_pins_inspector_table,
+            ),
+            mock.patch.object(
+                DartAPICurationProcess, "HARMONISED_APPEAL_S78", appeal_s78_table
+            ),
+            mock.patch.object(
+                DartAPICurationProcess, "OUTPUT_TABLE", expected_curated_table
+            ),
         ):
             inst = DartAPICurationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="dart_api", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="dart_api",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_curated_db.{expected_curated_table}")
-            assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+            assert_dataframes_equal(
+                expected_curated_data_after_writing, actual_table_data
+            )
 
     def test__dart_api_curation_process__run__with_no_existing_data(self):
         """

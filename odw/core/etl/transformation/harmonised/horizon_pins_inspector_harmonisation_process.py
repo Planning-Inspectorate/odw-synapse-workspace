@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -31,7 +33,17 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
     OUTPUT_TABLE = "odw_harmonised_db.horizon_pins_inspector"
 
     # Columns excluded from the SCD-2 state hash (plumbing / tracking fields)
-    _HASH_EXCLUDE = frozenset({"RowID", "ValidTo", "IsActive", "IngestionDate", "ODTSourceSystem", "Migrated", "SourceSystemID"})
+    _HASH_EXCLUDE = frozenset(
+        {
+            "RowID",
+            "ValidTo",
+            "IsActive",
+            "IngestionDate",
+            "ODTSourceSystem",
+            "Migrated",
+            "SourceSystemID",
+        }
+    )
 
     @classmethod
     def get_name(cls) -> str:
@@ -54,7 +66,11 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
         # Derive IngestionDate if absent: prefer expected_from, else current_timestamp
         if "IngestionDate" not in hzn_src.columns:
-            ing_col = F.col("expected_from") if "expected_from" in hzn_src.columns else F.current_timestamp()
+            ing_col = (
+                F.col("expected_from")
+                if "expected_from" in hzn_src.columns
+                else F.current_timestamp()
+            )
             hzn_src = hzn_src.withColumn("IngestionDate", ing_col)
 
         return hzn_src.withColumns(
@@ -73,11 +89,16 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
 
         hash_cols = [c for c in stg.columns if c not in self._HASH_EXCLUDE]
         state_hash = F.sha2(
-            F.concat_ws("||", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in hash_cols]),
+            F.concat_ws(
+                "||",
+                *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in hash_cols],
+            ),
             256,
         )
 
-        norm_row_id = F.when(F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")).otherwise(F.col("RowID"))
+        norm_row_id = F.when(
+            F.col("RowID").isNull() | (F.col("RowID") == ""), F.lit("~")
+        ).otherwise(F.col("RowID"))
 
         # tie-breaker row_number within (horizonId, IngestionDate, ODTSourceSystem)
         w_tie = W.partitionBy("horizonId", "IngestionDate", "ODTSourceSystem").orderBy(
@@ -94,11 +115,17 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         ).withColumn("tie", F.row_number().over(w_tie))
 
         # Collapse exact duplicates within (horizonId, IngestionDate, ODTSourceSystem, state_hash)
-        w_dup = W.partitionBy("horizonId", "IngestionDate", "ODTSourceSystem", "state_hash").orderBy(
+        w_dup = W.partitionBy(
+            "horizonId", "IngestionDate", "ODTSourceSystem", "state_hash"
+        ).orderBy(
             F.col("normRowID").asc(),
             F.col("fallback_hash").asc(),
         )
-        ordered = ordered.withColumn("dup_rn", F.row_number().over(w_dup)).filter(F.col("dup_rn") == 1).drop("dup_rn")
+        ordered = (
+            ordered.withColumn("dup_rn", F.row_number().over(w_dup))
+            .filter(F.col("dup_rn") == 1)
+            .drop("dup_rn")
+        )
 
         # Timeline ordering within each inspector
         w_ing = W.partitionBy("horizonId").orderBy(
@@ -109,9 +136,15 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         )
 
         # Mark state changes (new row or hash differs from previous)
-        scd_base = ordered.withColumn("prev_hash", F.lag("state_hash").over(w_ing)).withColumn(
+        scd_base = ordered.withColumn(
+            "prev_hash", F.lag("state_hash").over(w_ing)
+        ).withColumn(
             "chg",
-            F.when(F.col("prev_hash").isNull() | (F.col("prev_hash") != F.col("state_hash")), 1).otherwise(0),
+            F.when(
+                F.col("prev_hash").isNull()
+                | (F.col("prev_hash") != F.col("state_hash")),
+                1,
+            ).otherwise(0),
         )
 
         changes = scd_base.filter(F.col("chg") == 1)
@@ -125,16 +158,26 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         )
 
         scd2 = (
-            changes.withColumns({"ValidFrom": F.col("IngestionDate"), "next_IngestionDate": F.lead("IngestionDate").over(w_change)})
+            changes.withColumns(
+                {
+                    "ValidFrom": F.col("IngestionDate"),
+                    "next_IngestionDate": F.lead("IngestionDate").over(w_change),
+                }
+            )
             .withColumns(
                 {
-                    "ValidTo": F.when(F.col("next_IngestionDate").isNull(), F.lit(None).cast("timestamp"))
+                    "ValidTo": F.when(
+                        F.col("next_IngestionDate").isNull(),
+                        F.lit(None).cast("timestamp"),
+                    )
                     .when(
                         F.col("next_IngestionDate") == F.col("IngestionDate"),
                         F.col("next_IngestionDate") + F.expr("INTERVAL 1 MICROSECOND"),
                     )
                     .otherwise(F.col("next_IngestionDate")),
-                    "IsActive": F.when(F.col("next_IngestionDate").isNull(), F.lit("Y")).otherwise(F.lit("N")),
+                    "IsActive": F.when(
+                        F.col("next_IngestionDate").isNull(), F.lit("Y")
+                    ).otherwise(F.lit("N")),
                 }
             )
             .drop("prev_hash", "chg", "next_IngestionDate", "ValidFrom")
@@ -151,7 +194,9 @@ class HorizonPinsInspectorHarmonisationProcess(HarmonisationProcess):
         scd2 = self._build_scd2(stg_df)
 
         insert_count = scd2.count()
-        LoggingUtil().log_info(f"Horizon PINS Inspector SCD-2 row count: {insert_count}")
+        LoggingUtil().log_info(
+            f"Horizon PINS Inspector SCD-2 row count: {insert_count}"
+        )
 
         end_exec_time = datetime.now()
         output_db, output_table_name = self.OUTPUT_TABLE.split(".", 1)

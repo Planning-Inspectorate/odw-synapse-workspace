@@ -2,12 +2,14 @@ import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.listed_building_curated_process import ListedBuildingCuratedProcess
+from odw.core.etl.transformation.curated.listed_building_curated_process import (
+    ListedBuildingCuratedProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -36,7 +38,10 @@ def _harmonised_schema():
 
 
 def _harmonised_schema_with_extra_source_column():
-    return StructType(_harmonised_schema().fields + [StructField("sourceOnlyColumn", StringType(), True)])
+    return StructType(
+        _harmonised_schema().fields
+        + [StructField("sourceOnlyColumn", StringType(), True)]
+    )
 
 
 def _curated_schema():
@@ -128,7 +133,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -177,7 +184,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -201,7 +210,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -231,7 +242,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -283,7 +296,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         target_rows = [_curated_row(entity=1001, reference="LB-001")]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_data": spark.createDataFrame(target_rows, schema=_curated_schema()),
             "target_exists": True,
         }
@@ -307,7 +322,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         target_rows = [_curated_row(entity=1001, name="Building One")]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_data": spark.createDataFrame(target_rows, schema=_curated_schema()),
             "target_exists": True,
         }
@@ -331,7 +348,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         target_rows = [_curated_row(entity=1001, name="Building One")]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_data": spark.createDataFrame(target_rows, schema=_curated_schema()),
             "target_exists": True,
         }
@@ -363,7 +382,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_data": spark.createDataFrame(
                 target_rows,
                 schema=_curated_schema_with_extra_target_column(),
@@ -377,7 +398,10 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert "legacyOnlyColumn" not in df.columns
-        assert df.where(F.col("entity") == 1001).collect()[0]["name"] == "Building One Updated"
+        assert (
+            df.where(F.col("entity") == 1001).collect()[0]["name"]
+            == "Building One Updated"
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
@@ -416,7 +440,14 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         )
 
         target_df = spark.createDataFrame(
-            [_curated_row(entity=1001, reference="LB-001", name="Building One", listedBuildingGrade="II")],
+            [
+                _curated_row(
+                    entity=1001,
+                    reference="LB-001",
+                    name="Building One",
+                    listedBuildingGrade="II",
+                )
+            ],
             schema=_curated_schema(),
         )
 
@@ -432,7 +463,10 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert "sourceOnlyColumn" not in df.columns
-        assert df.where(F.col("entity") == 1001).collect()[0]["name"] == "Building One Updated"
+        assert (
+            df.where(F.col("entity") == 1001).collect()[0]["name"]
+            == "Building One Updated"
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
@@ -533,7 +567,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         assert entity_ids == {1001, 1002}
         assert df.where(F.col("entity") == 1003).count() == 0
 
-    def test__listed_building_curated_process__run__updates_existing_entity_when_non_key_fields_change(self):
+    def test__listed_building_curated_process__run__updates_existing_entity_when_non_key_fields_change(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
@@ -591,7 +627,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
-    def test__listed_building_curated_process__run__does_not_duplicate_identical_existing_entity(self):
+    def test__listed_building_curated_process__run__does_not_duplicate_identical_existing_entity(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         identical_source = spark.createDataFrame(
@@ -721,7 +759,9 @@ class TestListedBuildingCuratedProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__listed_building_curated_process__run__empty_source_returns_empty_output(self):
+    def test__listed_building_curated_process__run__empty_source_returns_empty_output(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {

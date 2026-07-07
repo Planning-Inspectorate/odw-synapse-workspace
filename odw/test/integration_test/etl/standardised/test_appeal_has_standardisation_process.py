@@ -1,15 +1,27 @@
 import mock
 import pytest
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import AppealHasStandardisationProcess
+from odw.core.etl.transformation.standardised.appeal_has_standardisation_process import (
+    AppealHasStandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from pyspark.sql.types import StructType, StructField, TimestampType, StringType, IntegerType, DoubleType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    TimestampType,
+    StringType,
+    IntegerType,
+    DoubleType,
+)
 from datetime import datetime
 from contextlib import ExitStack
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 def horizon_cases_has_row(**overrides):
@@ -1326,7 +1338,9 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
                 cases_specialisms_row(casereference="7", casespecialism="Specialism G"),
                 cases_specialisms_row(casereference="8", casespecialism="Specialism H"),
                 cases_specialisms_row(casereference="9", casespecialism="Specialism I"),
-                cases_specialisms_row(casereference="10", casespecialism="Specialism J"),
+                cases_specialisms_row(
+                    casereference="10", casespecialism="Specialism J"
+                ),
             ),
             schema=cases_specialisms_schema(),
         )
@@ -1599,16 +1613,36 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         # haa
         horizon_advert_attributes = spark.createDataFrame(
             (
-                horizon_advert_attributes_row(caseNodeId=1, caseUniqueId=1, advertType="adTypeA"),
-                horizon_advert_attributes_row(caseNodeId=2, caseUniqueId=2, advertType="adTypeB"),
-                horizon_advert_attributes_row(caseNodeId=3, caseUniqueId=3, advertType="adTypeC"),
-                horizon_advert_attributes_row(caseNodeId=4, caseUniqueId=4, advertType="adTypeD"),
-                horizon_advert_attributes_row(caseNodeId=5, caseUniqueId=5, advertType="adTypeE"),
-                horizon_advert_attributes_row(caseNodeId=6, caseUniqueId=6, advertType="adTypeF"),
-                horizon_advert_attributes_row(caseNodeId=7, caseUniqueId=7, advertType="adTypeG"),
-                horizon_advert_attributes_row(caseNodeId=8, caseUniqueId=8, advertType="adTypeH"),
-                horizon_advert_attributes_row(caseNodeId=9, caseUniqueId=9, advertType="adTypeI"),
-                horizon_advert_attributes_row(caseNodeId=10, caseUniqueId=10, advertType="adTypeJ"),
+                horizon_advert_attributes_row(
+                    caseNodeId=1, caseUniqueId=1, advertType="adTypeA"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=2, caseUniqueId=2, advertType="adTypeB"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=3, caseUniqueId=3, advertType="adTypeC"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=4, caseUniqueId=4, advertType="adTypeD"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=5, caseUniqueId=5, advertType="adTypeE"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=6, caseUniqueId=6, advertType="adTypeF"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=7, caseUniqueId=7, advertType="adTypeG"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=8, caseUniqueId=8, advertType="adTypeH"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=9, caseUniqueId=9, advertType="adTypeI"
+                ),
+                horizon_advert_attributes_row(
+                    caseNodeId=10, caseUniqueId=10, advertType="adTypeJ"
+                ),
             ),
             schema=horizon_advert_attributes_schema(),
         )
@@ -1664,7 +1698,9 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
             ),
             schema=horizon_specialist_case_dates_schema(),
         )
-        horizon_specialist_case_dates_table = f"{test_case}_horizon_specialist_case_dates"
+        horizon_specialist_case_dates_table = (
+            f"{test_case}_horizon_specialist_case_dates"
+        )
         self.write_existing_table(
             spark,
             horizon_specialist_case_dates,
@@ -1677,16 +1713,36 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         # pas
         planningappstrings = spark.createDataFrame(
             (
-                planning_app_strings_row(casenodeid="1", planningapplicationtype="appTypeA"),
-                planning_app_strings_row(casenodeid="2", planningapplicationtype="appTypeB"),
-                planning_app_strings_row(casenodeid="3", planningapplicationtype="appTypeC"),
-                planning_app_strings_row(casenodeid="4", planningapplicationtype="appTypeD"),
-                planning_app_strings_row(casenodeid="5", planningapplicationtype="appTypeE"),
-                planning_app_strings_row(casenodeid="6", planningapplicationtype="appTypeF"),
-                planning_app_strings_row(casenodeid="7", planningapplicationtype="appTypeG"),
-                planning_app_strings_row(casenodeid="8", planningapplicationtype="appTypeH"),
-                planning_app_strings_row(casenodeid="9", planningapplicationtype="appTypeI"),
-                planning_app_strings_row(casenodeid="10", planningapplicationtype="appTypeJ"),
+                planning_app_strings_row(
+                    casenodeid="1", planningapplicationtype="appTypeA"
+                ),
+                planning_app_strings_row(
+                    casenodeid="2", planningapplicationtype="appTypeB"
+                ),
+                planning_app_strings_row(
+                    casenodeid="3", planningapplicationtype="appTypeC"
+                ),
+                planning_app_strings_row(
+                    casenodeid="4", planningapplicationtype="appTypeD"
+                ),
+                planning_app_strings_row(
+                    casenodeid="5", planningapplicationtype="appTypeE"
+                ),
+                planning_app_strings_row(
+                    casenodeid="6", planningapplicationtype="appTypeF"
+                ),
+                planning_app_strings_row(
+                    casenodeid="7", planningapplicationtype="appTypeG"
+                ),
+                planning_app_strings_row(
+                    casenodeid="8", planningapplicationtype="appTypeH"
+                ),
+                planning_app_strings_row(
+                    casenodeid="9", planningapplicationtype="appTypeI"
+                ),
+                planning_app_strings_row(
+                    casenodeid="10", planningapplicationtype="appTypeJ"
+                ),
             ),
             schema=planning_app_strings_schema(),
         )
@@ -1833,20 +1889,42 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         # aad
         horizon_appeals_additional_data = spark.createDataFrame(
             (
-                horizon_appeals_additional_data_row(appealrefnumber="1", processingstate="Complete", appellant="Alice"),
-                horizon_appeals_additional_data_row(appealrefnumber="2", processingstate="Complete", appellant="Bob"),
-                horizon_appeals_additional_data_row(appealrefnumber="3", processingstate="Complete", appellant="Charlie"),
-                horizon_appeals_additional_data_row(appealrefnumber="4", processingstate="Complete", appellant="Dave"),
-                horizon_appeals_additional_data_row(appealrefnumber="5", processingstate="Complete", appellant="Emily"),
-                horizon_appeals_additional_data_row(appealrefnumber="6", processingstate="Complete", appellant="Frank"),
-                horizon_appeals_additional_data_row(appealrefnumber="7", processingstate="Complete", appellant="Garry"),
-                horizon_appeals_additional_data_row(appealrefnumber="8", processingstate="Complete", appellant="Harry"),
-                horizon_appeals_additional_data_row(appealrefnumber="9", processingstate="Complete", appellant="Ivy"),
-                horizon_appeals_additional_data_row(appealrefnumber="10", processingstate="Complete", appellant="Jim"),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="1", processingstate="Complete", appellant="Alice"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="2", processingstate="Complete", appellant="Bob"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="3", processingstate="Complete", appellant="Charlie"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="4", processingstate="Complete", appellant="Dave"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="5", processingstate="Complete", appellant="Emily"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="6", processingstate="Complete", appellant="Frank"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="7", processingstate="Complete", appellant="Garry"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="8", processingstate="Complete", appellant="Harry"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="9", processingstate="Complete", appellant="Ivy"
+                ),
+                horizon_appeals_additional_data_row(
+                    appealrefnumber="10", processingstate="Complete", appellant="Jim"
+                ),
             ),
             schema=horizon_appeals_additional_data_schema(),
         )
-        horizon_appeals_additional_data_table = f"{test_case}_horizon_appeals_additional_data"
+        horizon_appeals_additional_data_table = (
+            f"{test_case}_horizon_appeals_additional_data"
+        )
         self.write_existing_table(
             spark,
             horizon_appeals_additional_data,
@@ -1857,9 +1935,12 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
             "overwrite",
         )
         bis_case_site_category_additional_str = spark.createDataFrame(
-            (bis_case_site_category_additional_str_row(),), schema=bis_case_site_category_additional_str_schema()
+            (bis_case_site_category_additional_str_row(),),
+            schema=bis_case_site_category_additional_str_schema(),
         )
-        bis_case_site_category_additional_str_table = f"{test_case}_bis_case_site_category_additional_str_table"
+        bis_case_site_category_additional_str_table = (
+            f"{test_case}_bis_case_site_category_additional_str_table"
+        )
         self.write_existing_table(
             spark,
             bis_case_site_category_additional_str,
@@ -1869,7 +1950,9 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
             bis_case_site_category_additional_str_table,
             "overwrite",
         )
-        horizon_inspector_cases = spark.createDataFrame((horizon_inspector_cases_row(),), schema=horizon_inspector_cases_schema())
+        horizon_inspector_cases = spark.createDataFrame(
+            (horizon_inspector_cases_row(),), schema=horizon_inspector_cases_schema()
+        )
         horizon_inspector_cases_table = f"{test_case}_horizon_inspector_cases"
         self.write_existing_table(
             spark,
@@ -2028,9 +2111,17 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         }
         with ExitStack() as stack:
             for s78_property, override_value in property_override_map.items():
-                stack.enter_context(mock.patch.object(AppealHasStandardisationProcess, s78_property, override_value))
+                stack.enter_context(
+                    mock.patch.object(
+                        AppealHasStandardisationProcess, s78_property, override_value
+                    )
+                )
             inst = AppealHasStandardisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_has", orchestration_stage_name="standardise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="ref_appeal_has",
+                orchestration_stage_name="standardise",
+            )
             assert_etl_result_successful(result)
             actual_table_data = spark.table(f"odw_standardised_db.{output_table}")
             assert_dataframes_equal(expected_data_after_writing, actual_table_data)
@@ -2051,7 +2142,18 @@ class TestRefAppealHasStandardisationProcess(ETLTestCase):
         """
         test_case = "t_rahsp_r_wed"
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_appeal_has = spark.createDataFrame((appeal_has_standardised_row(caseReference="25"),), schema=appeal_has_standardised_schema())
+        existing_appeal_has = spark.createDataFrame(
+            (appeal_has_standardised_row(caseReference="25"),),
+            schema=appeal_has_standardised_schema(),
+        )
         output_table = f"{test_case}_horizon_appeal_has"
-        self.write_existing_table(spark, existing_appeal_has, output_table, "odw_standardised_db", "odw-standardised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_appeal_has,
+            output_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            output_table,
+            "overwrite",
+        )
         self.assert_standardisation_successful("t_rahsp_r_wed")

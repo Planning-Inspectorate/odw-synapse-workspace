@@ -10,12 +10,14 @@ from pyspark.sql.types import (
     StructType,
     DoubleType,
 )
-from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import NsipInvoiceHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_invoice_harmonisation_process import (
+    NsipInvoiceHarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from datetime import datetime
 
-# pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+# pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 MOCK_TIMESTAMP = datetime(2025, 1, 1)
 
@@ -182,19 +184,26 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 2
-        assert set(df.select("invoiceNumber").rdd.flatMap(lambda x: x).collect()) == {"INV-001", "INV-002"}
+        assert set(df.select("invoiceNumber").rdd.flatMap(lambda x: x).collect()) == {
+            "INV-001",
+            "INV-002",
+        }
         assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
 
@@ -205,17 +214,25 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         source_rows = [
             _source_row(invoices=None),
-            _source_row(caseId=2002, caseReference="EN010002", invoices=[_invoice(invoiceNumber="INV-002")]),
+            _source_row(
+                caseId=2002,
+                caseReference="EN010002",
+                invoices=[_invoice(invoiceNumber="INV-002")],
+            ),
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -234,13 +251,17 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -255,13 +276,17 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
-            "source_data": spark.createDataFrame([_source_row()], schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                [_source_row()], schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -298,21 +323,32 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         source_rows = [
             _source_row(invoices=[_invoice(invoiceNumber="INV-001")]),
-            _source_row(caseId=2002, caseReference="EN010002", invoices=[_invoice(invoiceNumber="INV-002")]),
+            _source_row(
+                caseId=2002,
+                caseReference="EN010002",
+                invoices=[_invoice(invoiceNumber="INV-002")],
+            ),
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        ids = [row["NSIPInvoiceID"] for row in df.select("NSIPInvoiceID").orderBy("NSIPInvoiceID").collect()]
+        ids = [
+            row["NSIPInvoiceID"]
+            for row in df.select("NSIPInvoiceID").orderBy("NSIPInvoiceID").collect()
+        ]
 
         assert ids == [1, 2]
 
@@ -343,20 +379,30 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         new_ids = [
-            row["NSIPInvoiceID"] for row in df.where(F.col("caseId").isin(2002, 2003)).select("NSIPInvoiceID").orderBy("NSIPInvoiceID").collect()
+            row["NSIPInvoiceID"]
+            for row in df.where(F.col("caseId").isin(2002, 2003))
+            .select("NSIPInvoiceID")
+            .orderBy("NSIPInvoiceID")
+            .collect()
         ]
 
         assert new_ids == [11, 12]
@@ -389,20 +435,29 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.where(F.col("invoiceNumber") == "INV-002").count() == 1
-        assert df.where((F.col("caseId") == 2001) & (F.col("NSIPInvoiceID") != 10)).count() == 0
+        assert (
+            df.where((F.col("caseId") == 2001) & (F.col("NSIPInvoiceID") != 10)).count()
+            == 0
+        )
         assert result.metadata.insert_count == 1
 
     def test__nsip_invoice_harmonisation_process__process__preserves_duplicate_source_rows_on_initial_load_like_legacy(
@@ -416,13 +471,17 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -459,20 +518,30 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        old_row = df.where((F.col("caseId") == 2001) & (F.col("NSIPProjectInfoInternalID") == 100)).collect()[0]
-        new_row = df.where((F.col("caseId") == 2001) & (F.col("NSIPProjectInfoInternalID") == 200)).collect()[0]
+        old_row = df.where(
+            (F.col("caseId") == 2001) & (F.col("NSIPProjectInfoInternalID") == 100)
+        ).collect()[0]
+        new_row = df.where(
+            (F.col("caseId") == 2001) & (F.col("NSIPProjectInfoInternalID") == 200)
+        ).collect()[0]
 
         assert old_row["IsActive"] == "N"
         assert old_row["ValidTo"] == "2025-01-01 00:00:00"
@@ -508,21 +577,44 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("caseId") == 2001) & (F.col("invoiceNumber") == "INV-001") & (F.col("IsActive") == "Y")).count() == 1
-        assert df.where((F.col("caseId") == 2001) & (F.col("invoiceNumber") == "INV-002") & (F.col("IsActive") == "Y")).count() == 1
-        assert df.where((F.col("caseId") == 2001) & F.col("ValidTo").isNotNull()).count() == 0
+        assert (
+            df.where(
+                (F.col("caseId") == 2001)
+                & (F.col("invoiceNumber") == "INV-001")
+                & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("caseId") == 2001)
+                & (F.col("invoiceNumber") == "INV-002")
+                & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where((F.col("caseId") == 2001) & F.col("ValidTo").isNotNull()).count()
+            == 0
+        )
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
@@ -554,20 +646,36 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("NSIPProjectInfoInternalID") == 500) & (F.col("IsActive") == "Y")).count() == 1
-        assert df.where((F.col("NSIPProjectInfoInternalID") == 400) & (F.col("IsActive") == "N")).count() == 1
+        assert (
+            df.where(
+                (F.col("NSIPProjectInfoInternalID") == 500) & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("NSIPProjectInfoInternalID") == 400) & (F.col("IsActive") == "N")
+            ).count()
+            == 1
+        )
 
     def test__nsip_invoice_harmonisation_process__process__sets_migrated_to_zero_when_caseid_or_invoice_number_is_null(
         self,
@@ -587,13 +695,17 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -636,19 +748,27 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
-            "target_data": spark.createDataFrame(existing_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
+            "target_data": spark.createDataFrame(
+                existing_rows, schema=_harmonised_schema()
+            ),
             "target_exists": True,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        untouched_row = df.where((F.col("caseId") == 3001) & (F.col("invoiceNumber") == "INV-999")).collect()[0]
+        untouched_row = df.where(
+            (F.col("caseId") == 3001) & (F.col("invoiceNumber") == "INV-999")
+        ).collect()[0]
 
         assert untouched_row["IsActive"] == "Y"
         assert untouched_row["ValidTo"] is None
@@ -662,7 +782,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         source_rows = [_source_row()]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -670,7 +792,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -724,7 +848,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -732,7 +858,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -770,18 +898,29 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _source_row(caseId=2001, invoices=[_invoice(invoiceNumber="INV-001", amountDue=100.50)]),
-            _source_row(caseId=2002, caseReference="EN010002", invoices=[_invoice(invoiceNumber="INV-001", amountDue=200.50)]),
+            _source_row(
+                caseId=2001,
+                invoices=[_invoice(invoiceNumber="INV-001", amountDue=100.50)],
+            ),
+            _source_row(
+                caseId=2002,
+                caseReference="EN010002",
+                invoices=[_invoice(invoiceNumber="INV-001", amountDue=200.50)],
+            ),
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
@@ -810,18 +949,25 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_standardised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_standardised_schema()
+            ),
             "target_exists": False,
         }
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, _ = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("IsActive") == "Y") & F.col("ValidTo").isNotNull()).count() == 0
+        assert (
+            df.where((F.col("IsActive") == "Y") & F.col("ValidTo").isNotNull()).count()
+            == 0
+        )
 
     def test__nsip_invoice_harmonisation_process__process__empty_source_returns_empty_output(
         self,
@@ -837,7 +983,9 @@ class TestNsipInvoiceHarmonisationProcess(SparkTestCase):
 
         inst = NsipInvoiceHarmonisationProcess(spark)
 
-        with mock.patch.object(F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)):
+        with mock.patch.object(
+            F, "current_timestamp", return_value=F.lit(MOCK_TIMESTAMP)
+        ):
             data_to_write, result = inst.process(source_data=source_data)
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]

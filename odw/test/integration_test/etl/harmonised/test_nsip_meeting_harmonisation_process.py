@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import (
+    NsipMeetingHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -9,7 +11,9 @@ import mock
 
 
 class TestNSIPMeetingHarmonisation(ETLTestCase):
-    def test__nsip_meeting_harmonisation_process__run__initial_load_overwrites_and_keeps_latest_per_business_key(self):
+    def test__nsip_meeting_harmonisation_process__run__initial_load_overwrites_and_keeps_latest_per_business_key(
+        self,
+    ):
         test_case = "t_nmhp_r_iloaklpbk"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -64,7 +68,15 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
             ],
         )
         service_bus_table = f"{test_case}_sb_nsip_project"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         output_table = f"{test_case}_sb_nsip_meeting"
 
@@ -73,12 +85,22 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"odw_harmonised_db.{service_bus_table}",
+            ),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_meeting", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_meeting",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
@@ -90,7 +112,9 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
         assert rows[0]["IsActive"] == "Y"
         assert rows[0]["ValidTo"] is None
 
-    def test__nsip_meeting_harmonisation_process__run__incremental_change_expires_old_record_and_inserts_new_version(self):
+    def test__nsip_meeting_harmonisation_process__run__incremental_change_expires_old_record_and_inserts_new_version(
+        self,
+    ):
         test_case = "t_nmhp_r_iceorainv"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -171,22 +195,48 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
         )
 
         service_bus_table = f"{test_case}_sb_nsip_project"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         output_table = f"{test_case}_sb_nsip_meeting"
-        self.write_existing_table(spark, target_df, output_table, "odw_harmonised_db", "odw-harmonised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            target_df,
+            output_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            output_table,
+            "overwrite",
+        )
 
         with (
             mock.patch(
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"odw_harmonised_db.{service_bus_table}",
+            ),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_meeting", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_meeting",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")

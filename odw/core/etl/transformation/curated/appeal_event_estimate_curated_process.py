@@ -42,8 +42,12 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
         """
         Load harmonised Appeal Event Estimate data. All business rules are applied in `process`.
         """
-        LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")
-        harmonised_appeal_event_estimate = self.spark.sql(f"SELECT * FROM {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}"
+        )
+        harmonised_appeal_event_estimate = self.spark.sql(
+            f"SELECT * FROM {self.HARMONISED_TABLE}"
+        )
         return {
             "harmonised_appeal_event_estimate": harmonised_appeal_event_estimate,
         }
@@ -58,16 +62,24 @@ class AppealEventEstimateCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
+        harmonised: DataFrame = self.load_parameter(
+            "harmonised_appeal_event_estimate", source_data
+        )
 
         df = harmonised.where(F.col("IsActive") == F.lit("Y"))
-        missing_columns = {col_name: F.lit(None).cast(StringType()) for col_name in self.CURATED_COLUMNS if col_name not in df.columns}
+        missing_columns = {
+            col_name: F.lit(None).cast(StringType())
+            for col_name in self.CURATED_COLUMNS
+            if col_name not in df.columns
+        }
         if missing_columns:
             df = df.withColumns(missing_columns)
         df = df.select(*[F.col(col_name) for col_name in self.CURATED_COLUMNS])
 
         insert_count = df.count()
-        LoggingUtil().log_info(f"Curated Appeal Event Estimate row count: {insert_count}")
+        LoggingUtil().log_info(
+            f"Curated Appeal Event Estimate row count: {insert_count}"
+        )
 
         end_exec_time = datetime.now()
         data_to_write = {

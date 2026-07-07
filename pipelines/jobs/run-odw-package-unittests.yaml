@@ -1,6 +1,7 @@
 parameters:
   agentPool: ''
   env: ''
+  coverageThreshold: 75  # This needs to be increased, this is set to the current unit test coverage percentage
 
 ##
 # Run ODW Package unit tests
@@ -17,13 +18,14 @@ jobs:
       python3 -m pip install .[test]
     displayName: 'install requirements'
   - script: |
+      set -e
+      cd $(System.DefaultWorkingDirectory)
       export PATH="$PATH:/home/AzDevOps/.local/bin/"
-      sudo apt-get install unixodbc-dev
-      sudo curl -fsSL https://aka.ms/install-azd.sh | bash
-      export SYNAPSE_ENDPOINT="${{ format('https://pins-synw-odw-{0}-uks.dev.azuresynapse.net/', lower(parameters.env)) }}"
-      export CREDENTIAL_NAME="${{ format('https://dev.azuresynapse.net/.default', lower(parameters.env)) }}"
-      export PYSPARK_SUBMIT_ARGS="--conf spark.ui.showConsoleProgress=false --conf spark.sql.shuffle.partitions=4 pyspark-shell"
-      echo $SYNAPSE_ENDPOINT 
-      echo $CREDENTIAL_NAME
-      python3 -m pytest $(Build.SourcesDirectory)/odw/test/unit_test -vv -rP -n 2 --dist loadscope
+      python3 -m pytest $(Build.SourcesDirectory)/odw/test/unit_test -vv -rP -n 2 --dist loadscope --junitxml=junit/unit_test_results.xml --cov="odw/core" --cov-report=
+      python3 -m coverage report --fail-under=${{ parameters.coverageThreshold }} --show-missing
+      mv .coverage .coverage.unit
     displayName: 'pytest'
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload unit test coverage report'
+    inputs:
+      targetPath: '.coverage.unit'
