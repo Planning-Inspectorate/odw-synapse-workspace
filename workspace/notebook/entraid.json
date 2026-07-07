@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e864c286-53af-4097-b7c0-bdd1553da5ef"
+				"spark.autotune.trackingId": "207dbb22-ebff-4af9-b3b7-7397d83177a3"
 			}
 		},
 		"metadata": {
@@ -62,7 +62,7 @@
 					"PipelineTriggeredbyPipelineName = None\n",
 					"PipelineTriggeredbyPipelineRunID = None"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -74,7 +74,7 @@
 					"from pyspark.sql import functions as F\n",
 					"from pyspark.sql import types as T"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -92,7 +92,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -112,7 +112,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -124,46 +124,7 @@
 					"    _log_telemetry(\"Failed\", error_message, step_name)\n",
 					"    raise e"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def _fail_and_log(step_name: str, e: Exception):\n",
-					"    global error_message\n",
-					"\n",
-					"    try:\n",
-					"        error_message = f\"[{step_name}] {type(e).__name__}: {str(e)}\"[:800]\n",
-					"    except Exception as format_error:\n",
-					"        error_message = (\n",
-					"            f\"[{step_name}] Failed to format original exception: \"\n",
-					"            f\"{type(format_error).__name__}: {str(format_error)}\"\n",
-					"        )[:800]\n",
-					"\n",
-					"    try:\n",
-					"        logError(error_message)\n",
-					"    except Exception as log_error:\n",
-					"        print(f\"Primary logging failed: {log_error}\")\n",
-					"        print(error_message)\n",
-					"\n",
-					"    try:\n",
-					"        telemetry_fn = globals().get(\"_log_telemetry\")\n",
-					"        if callable(telemetry_fn):\n",
-					"            telemetry_fn(\"Failed\", error_message, step_name)\n",
-					"        else:\n",
-					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\n",
-					"    except Exception as telemetry_error:\n",
-					"        print(f\"Telemetry logging failed: {telemetry_error}\")\n",
-					"\n",
-					"    raise e"
-				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -176,7 +137,7 @@
 					"    except Exception as e:\n",
 					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -203,7 +164,7 @@
 					"delete_count = 0\n",
 					"error_message = \"\""
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "markdown",
@@ -274,76 +235,7 @@
 					"    step_load_current_raw_entraid\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_load_current_raw_entraid():\n",
-					"    logInfo(\"Starting: Load current raw EntraID file\")\n",
-					"    raw_entraid_snapshot = datetime.now().strftime(\"%Y-%m-%d\")\n",
-					"    storage_account = spark.sparkContext.environment.get(\"dataLakeAccountName\", \"get\")\n",
-					"    base_file_path = f\"abfss://odw-raw@{storage_account}.dfs.core.windows.net\"\n",
-					"\n",
-					"    folder_names = sorted(\n",
-					"        [folder.name for folder in mssparkutils.fs.ls(f\"{base_file_path}/entraid/\")],\n",
-					"        reverse=True\n",
-					"    )\n",
-					"\n",
-					"    if not folder_names:\n",
-					"        msg = (\n",
-					"            f\"No folders could be found under '{base_file_path}'. \"\n",
-					"            \"Expected to see folders with the form YYYY-mm-dd\"\n",
-					"        )\n",
-					"        logError(msg)\n",
-					"\n",
-					"        # Build empty DF with required schema to avoid downstream failures\n",
-					"        required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"]\n",
-					"        schema = T.StructType([T.StructField(c, T.StringType(), True) for c in required_cols])\n",
-					"        empty_df = spark.createDataFrame([], schema)\n",
-					"        empty_df.createOrReplaceTempView(\"raw_entraids\")\n",
-					"\n",
-					"        logInfo(\"Created empty 'raw_entraids' temp view due to missing snapshot folder. row_count=0\")\n",
-					"        return empty_df\n",
-					"\n",
-					"    snapshot_folder = folder_names[0]\n",
-					"    current_entraid_file = f\"entraid/{snapshot_folder}/entraid.json\"\n",
-					"    logInfo(f\"Using snapshot_folder={snapshot_folder}, file={current_entraid_file}\")\n",
-					"\n",
-					"    raw_entraids = (\n",
-					"        spark.read\n",
-					"        .option(\"multiline\", \"true\")\n",
-					"        .json(f\"{base_file_path}/{current_entraid_file}\")\n",
-					"        .select(\"value\")\n",
-					"    )\n",
-					"\n",
-					"    required_cols = [\"givenName\", \"surname\", \"userPrincipalName\", \"id\", \"employeeId\"] \n",
-					"    raw_entraids = raw_entraids.withColumn(\"json\", F.explode(\"value\"))\n",
-					"\n",
-					"    for col in required_cols:\n",
-					"        raw_entraids = raw_entraids.withColumn(col, F.col(\"json\")[col])\n",
-					"\n",
-					"    raw_entraids = raw_entraids.select(required_cols)\n",
-					"    raw_entraids.createOrReplaceTempView(\"raw_entraids\")\n",
-					"\n",
-					"    row_count = raw_entraids.count()\n",
-					"    logInfo(f\"raw_entraids temp view created successfully. row_count={row_count}\")\n",
-					"\n",
-					"    return raw_entraids\n",
-					"\n",
-					"raw_entraids_df = run_step(\n",
-					"    \"Load current raw file (EntraID) + create raw_entraids view\",\n",
-					"    step_load_current_raw_entraid\n",
-					")\n",
-					""
-				],
-				"execution_count": null
+				"execution_count": 38
 			},
 			{
 				"cell_type": "markdown",
@@ -477,77 +369,7 @@
 					"    step_build_entraid_new_candidates\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_build_entraid_new_candidates():\n",
-					"    logInfo(\"Starting: Build entraid_new_candidates view\")\n",
-					"\n",
-					"    query = \"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW entraid_new_candidates AS\n",
-					"    SELECT DISTINCT\n",
-					"        CASE WHEN T1.id IS NULL THEN T2.EmployeeEntraId ELSE NULL END AS EmployeeEntraId,\n",
-					"        T1.id AS id,\n",
-					"        T1.employeeId AS employeeId,\n",
-					"        T1.givenName AS givenName,\n",
-					"        T1.surname AS surname,\n",
-					"        T1.userPrincipalName AS userPrincipalName,\n",
-					"        '0' AS Migrated,\n",
-					"        'EntraID' AS ODTSourceSystem,\n",
-					"        T3.SourceSystemID AS SourceSystemID,\n",
-					"        to_timestamp(T1.expected_from) AS IngestionDate,\n",
-					"        NULL AS ValidTo,\n",
-					"        md5(concat(\n",
-					"            IFNULL(T1.id,'.'),\n",
-					"            IFNULL(T1.employeeId,'.'),\n",
-					"            IFNULL(T1.givenName,'.'),\n",
-					"            IFNULL(T1.surname,'.'),\n",
-					"            IFNULL(T1.userPrincipalName,'.')\n",
-					"        )) AS RowID,\n",
-					"        'Y' AS IsActive,\n",
-					"        T2.IsActive AS HistoricIsActive\n",
-					"    FROM odw_standardised_db.entraid T1\n",
-					"    LEFT JOIN odw_harmonised_db.main_sourcesystem_fact T3\n",
-					"        ON 'SAP HR' = T3.Description AND T3.IsActive = 'Y'\n",
-					"    FULL JOIN odw_harmonised_db.entraid T2\n",
-					"        ON T1.id = T2.id AND T2.IsActive = 'Y'\n",
-					"    WHERE (\n",
-					"        CASE\n",
-					"            WHEN T1.id = T2.id AND md5(concat(\n",
-					"                IFNULL(T1.id,'.'),\n",
-					"                IFNULL(T1.employeeId,'.'),\n",
-					"                IFNULL(T1.givenName,'.'),\n",
-					"                IFNULL(T1.surname,'.'),\n",
-					"                IFNULL(T1.userPrincipalName,'.')\n",
-					"            )) <> T2.RowID THEN 'Y'\n",
-					"            WHEN T2.id IS NULL THEN 'Y'\n",
-					"            ELSE 'N'\n",
-					"        END = 'Y'\n",
-					"    )\n",
-					"    AND T1.id IS NOT NULL\n",
-					"    AND T1.expected_from = (SELECT MAX(expected_from) FROM odw_standardised_db.entraid)\n",
-					"    \"\"\"\n",
-					"\n",
-					"    spark.sql(query)\n",
-					"\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new_candidates\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_new_candidates view created successfully. row_count={row_count}\")\n",
-					"\n",
-					"    return row_count\n",
-					"raw_entraid_new_candidates_count = run_step(\n",
-					"    \"Build entraid_new_candidates view\",\n",
-					"    step_build_entraid_new_candidates\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -567,45 +389,12 @@
 				"cell_type": "code",
 				"source": [
 					"def step_build_entraid_new():\n",
-					"    logInfo(\"Starting: Build entraid_new view\")\n",
-					" \n",
-					"    query = \"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n",
-					"    SELECT\n",
-					"        candidates.*\n",
-					"    FROM entraid_new_candidates AS candidates\n",
-					"    INNER JOIN raw_entraids\n",
-					"        ON candidates.id = raw_entraids.id\n",
-					"    \"\"\"\n",
-					" \n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n",
-					"    return row_count\n",
-					" \n",
-					"entraid_new_count = run_step(\n",
-					"    \"Build entraid_new view\",\n",
-					"    step_build_entraid_new\n",
-					")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_build_entraid_new():\n",
 					"    \"\"\"\n",
 					"    Creates or replaces the temporary view 'entraid_new'\n",
 					"    by joining entraid_new_candidates with raw_entraids.\n",
 					"    \"\"\"\n",
 					"    logInfo(\"Starting: Build entraid_new view\")\n",
-					"\n",
+					" \n",
 					"    query = \"\"\"\n",
 					"    CREATE OR REPLACE TEMPORARY VIEW entraid_new AS\n",
 					"    SELECT\n",
@@ -614,18 +403,18 @@
 					"    INNER JOIN raw_entraids\n",
 					"        ON candidates.id = raw_entraids.id\n",
 					"    \"\"\"\n",
-					"\n",
+					" \n",
 					"    spark.sql(query)\n",
 					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_new\").collect()[0][\"cnt\"]\n",
 					"    logInfo(f\"entraid_new view created successfully. row_count={row_count}\")\n",
-					"\n",
 					"    return row_count\n",
+					" \n",
 					"entraid_new_count = run_step(\n",
 					"    \"Build entraid_new view\",\n",
 					"    step_build_entraid_new\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -647,6 +436,10 @@
 				"cell_type": "code",
 				"source": [
 					"def step_build_entraid_changed_rows():\n",
+					"    \"\"\"\n",
+					"    Creates or replaces the temporary view 'entraid_changed_rows'\n",
+					"    which combines new/updated rows and original versions for updates.\n",
+					"    \"\"\"\n",
 					"    logInfo(\"Starting: Build entraid_changed_rows view\")\n",
 					" \n",
 					"    query = \"\"\"\n",
@@ -701,76 +494,7 @@
 					"    step_build_entraid_changed_rows\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_build_entraid_changed_rows():\n",
-					"    \"\"\"\n",
-					"    Creates or replaces the temporary view 'entraid_changed_rows'\n",
-					"    which combines new/updated rows and original versions for updates.\n",
-					"    \"\"\"\n",
-					"    logInfo(\"Starting: Build entraid_changed_rows view\")\n",
-					"\n",
-					"    query = \"\"\"\n",
-					"    CREATE OR REPLACE TEMPORARY VIEW entraid_changed_rows AS\n",
-					"    -- gets updated, deleted and new rows\n",
-					"    SELECT\n",
-					"        EmployeeEntraId,\n",
-					"        id,\n",
-					"        employeeId,\n",
-					"        givenName,\n",
-					"        surname,\n",
-					"        userPrincipalName,\n",
-					"        Migrated,\n",
-					"        ODTSourceSystem,\n",
-					"        SourceSystemID,\n",
-					"        IngestionDate,\n",
-					"        ValidTo,\n",
-					"        RowID,\n",
-					"        IsActive\n",
-					"    FROM entraid_new\n",
-					"    WHERE HistoricIsActive = 'Y' OR HistoricIsActive IS NULL\n",
-					"\n",
-					"    UNION ALL\n",
-					"\n",
-					"    -- gets original versions of updated rows so we can update EndDate and set IsActive flag to 'N'\n",
-					"    SELECT\n",
-					"        EmployeeEntraId,\n",
-					"        id,\n",
-					"        employeeId,\n",
-					"        givenName,\n",
-					"        surname,\n",
-					"        userPrincipalName,\n",
-					"        Migrated,\n",
-					"        ODTSourceSystem,\n",
-					"        SourceSystemID,\n",
-					"        IngestionDate,\n",
-					"        ValidTo,\n",
-					"        RowID,\n",
-					"        IsActive\n",
-					"    FROM odw_harmonised_db.entraid\n",
-					"    WHERE id IN (SELECT id FROM entraid_new WHERE id IS NULL) AND IsActive = 'Y'\n",
-					"    \"\"\"\n",
-					"\n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_changed_rows view created successfully. row_count={row_count}\")\n",
-					"\n",
-					"    return row_count\n",
-					"entraid_changed_rows_count = run_step(\n",
-					"    \"Build entraid_changed_rows view\",\n",
-					"    step_build_entraid_changed_rows\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "markdown",
@@ -792,59 +516,6 @@
 				"cell_type": "code",
 				"source": [
 					"def step_build_entraid_changed_rows_final():\n",
-					"    logInfo(\"Starting: Build Loading_month and entraid_changed_rows_final views\")\n",
-					" \n",
-					"    spark.sql(\"\"\"\n",
-					"        CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
-					"        SELECT DISTINCT\n",
-					"            IngestionDate AS IngestionDate,\n",
-					"            to_timestamp(date_sub(IngestionDate, 1)) AS ClosingDate,\n",
-					"            'Y' AS IsActive\n",
-					"        FROM entraid_new\n",
-					"    \"\"\")\n",
-					" \n",
-					"    spark.sql(\"\"\"\n",
-					"        CREATE OR REPLACE TEMPORARY VIEW entraid_changed_rows_final AS\n",
-					"        SELECT\n",
-					"            EmployeeEntraId,\n",
-					"            id,\n",
-					"            employeeId,\n",
-					"            givenName,\n",
-					"            surname,\n",
-					"            userPrincipalName,\n",
-					"            Migrated,\n",
-					"            ODTSourceSystem,\n",
-					"            T1.SourceSystemID,\n",
-					"            T1.IngestionDate,\n",
-					"            T1.ValidTo,\n",
-					"            T1.RowID,\n",
-					"            T1.IsActive,\n",
-					"            T2.ClosingDate\n",
-					"        FROM entraid_changed_rows T1\n",
-					"        FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
-					"    \"\"\")\n",
-					" \n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_changed_rows_final view created successfully. row_count={row_count}\")\n",
-					"    return row_count\n",
-					" \n",
-					"entraid_changed_rows_final_count = run_step(\n",
-					"    \"Build entraid_changed_rows_final view\",\n",
-					"    step_build_entraid_changed_rows_final\n",
-					")"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_build_entraid_changed_rows_final():\n",
 					"    \"\"\"\n",
 					"    Creates or replaces the temporary views:\n",
 					"    1) Loading_month - calculates ingestion and closing dates.\n",
@@ -852,7 +523,6 @@
 					"    \"\"\"\n",
 					"    logInfo(\"Starting: Build Loading_month and entraid_changed_rows_final views\")\n",
 					"\n",
-					"    # 1) Create Loading_month\n",
 					"    spark.sql(\"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW Loading_month AS\n",
 					"        SELECT DISTINCT\n",
@@ -862,7 +532,6 @@
 					"        FROM entraid_new\n",
 					"    \"\"\")\n",
 					"\n",
-					"    # 2) Create entraid_changed_rows_final\n",
 					"    spark.sql(\"\"\"\n",
 					"        CREATE OR REPLACE TEMPORARY VIEW entraid_changed_rows_final AS\n",
 					"        SELECT\n",
@@ -881,24 +550,27 @@
 					"            T1.IsActive,\n",
 					"            T2.ClosingDate\n",
 					"        FROM entraid_changed_rows T1\n",
-					"        FULL JOIN Loading_month T2 ON T1.IsActive = T2.IsActive\n",
+					"        FULL JOIN Loading_month T2\n",
+					"            ON T1.IsActive = T2.IsActive\n",
 					"    \"\"\")\n",
 					"\n",
-					"    # Validate row count\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\") \\\n",
-					"                     .collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"entraid_changed_rows_final view created successfully. row_count={row_count}\")\n",
+					"    row_count = spark.sql(\n",
+					"        \"SELECT COUNT(*) AS cnt FROM entraid_changed_rows_final\"\n",
+					"    ).collect()[0][\"cnt\"]\n",
+					"\n",
+					"    logInfo(\n",
+					"        f\"entraid_changed_rows_final view created successfully. row_count={row_count}\"\n",
+					"    )\n",
+					"    \n",
 					"    return row_count\n",
 					"\n",
 					"\n",
-					"# Run via your step runner\n",
 					"entraid_changed_rows_final_count = run_step(\n",
 					"    \"Build entraid_changed_rows_final view\",\n",
 					"    step_build_entraid_changed_rows_final\n",
-					")\n",
-					""
+					")"
 				],
-				"execution_count": null
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -969,7 +641,7 @@
 					"    step_merge_entraid\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -991,6 +663,10 @@
 				"cell_type": "code",
 				"source": [
 					"def step_insert_overwrite_entraid():\n",
+					"    \"\"\"\n",
+					"    Performs INSERT OVERWRITE into odw_harmonised_db.entraid:\n",
+					"    - Rebuilds the table with a new EmployeeEntraId sequence using ROW_NUMBER().\n",
+					"    \"\"\"\n",
 					"    logInfo(\"Starting: INSERT OVERWRITE into odw_harmonised_db.entraid (renumber EmployeeEntraId)\")\n",
 					" \n",
 					"    query = \"\"\"\n",
@@ -1022,54 +698,7 @@
 					"    step_insert_overwrite_entraid\n",
 					")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def step_insert_overwrite_entraid():\n",
-					"    \"\"\"\n",
-					"    Performs INSERT OVERWRITE into odw_harmonised_db.entraid:\n",
-					"    - Rebuilds the table with a new EmployeeEntraId sequence using ROW_NUMBER().\n",
-					"    \"\"\"\n",
-					"    logInfo(\"Starting: INSERT OVERWRITE into odw_harmonised_db.entraid\")\n",
-					"\n",
-					"    query = \"\"\"\n",
-					"    INSERT OVERWRITE odw_harmonised_db.entraid\n",
-					"    SELECT\n",
-					"        ROW_NUMBER() OVER (ORDER BY EmployeeEntraId NULLS LAST) AS EmployeeEntraId,\n",
-					"        employeeId,\n",
-					"        id,\n",
-					"        givenName,\n",
-					"        surname,\n",
-					"        userPrincipalName,\n",
-					"        Migrated,\n",
-					"        ODTSourceSystem,\n",
-					"        SourceSystemID,\n",
-					"        IngestionDate,\n",
-					"        ValidTo,\n",
-					"        RowID,\n",
-					"        IsActive\n",
-					"    FROM odw_harmonised_db.entraid\n",
-					"    \"\"\"\n",
-					"\n",
-					"    spark.sql(query)\n",
-					"    row_count = spark.sql(\"SELECT COUNT(*) AS cnt FROM odw_harmonised_db.entraid\").collect()[0][\"cnt\"]\n",
-					"    logInfo(f\"INSERT OVERWRITE completed successfully. Total rows in entraid: {row_count}\")\n",
-					"\n",
-					"    return row_count\n",
-					"insert_overwrite_result_count = run_step(\n",
-					"    \"INSERT OVERWRITE into harmonised entraid table\",\n",
-					"    step_insert_overwrite_entraid\n",
-					")"
-				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -1117,61 +746,7 @@
 					"if not error_message:\n",
 					"    _log_telemetry(\"Success\")"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"editable": false,
-					"run_control": {
-						"frozen": true
-					}
-				},
-				"source": [
-					"def _log_telemetry(stage: str, error_msg: str = None, step_name: str = None):\n",
-					"    end_exec_time = datetime.now()\n",
-					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
-					"    activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
-					"\n",
-					"    if stage == \"Success\":\n",
-					"        status_message = f\"Successfully loaded data into {target_table} table\"\n",
-					"        status_code = \"200\"\n",
-					"        final_error_msg = None\n",
-					"    else:\n",
-					"        status_message = f\"Failed to load data into {target_table} table\"\n",
-					"        if step_name:\n",
-					"            status_message = f\"Failed at step [{step_name}]: {status_message}\"\n",
-					"        status_code = \"500\"\n",
-					"        final_error_msg = error_msg\n",
-					"    try:\n",
-					"        log_telemetry_and_exit(\n",
-					"            stage,\n",
-					"            start_exec_time,\n",
-					"            end_exec_time,\n",
-					"            final_error_msg,\n",
-					"            target_table,\n",
-					"            insert_count,\n",
-					"            update_count,\n",
-					"            delete_count,\n",
-					"            PipelineName,\n",
-					"            PipelineRunID,\n",
-					"            PipelineTriggerID,\n",
-					"            PipelineTriggerName,\n",
-					"            PipelineTriggerType,\n",
-					"            PipelineTriggeredbyPipelineName,\n",
-					"            PipelineTriggeredbyPipelineRunID,\n",
-					"            activity_type,\n",
-					"            duration_seconds,\n",
-					"            status_message,\n",
-					"            status_code\n",
-					"        )\n",
-					"    except Exception as te:\n",
-					"        print(f\"Telemetry logging failed: {te}\")\n",
-					" \n",
-					"if not error_message:\n",
-					"    _log_telemetry(\"Success\")"
-				],
-				"execution_count": null
+				"execution_count": 47
 			}
 		]
 	}
