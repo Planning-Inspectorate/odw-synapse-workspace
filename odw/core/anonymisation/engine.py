@@ -64,7 +64,10 @@ def _log_event(event: str, level: int = logging.INFO, **fields):
     except Exception:
         # Last-resort fallback to avoid raising from logging
         try:
-            if _HAS_LOGGING_UTIL and getattr(LoggingUtil, "_INSTANCE", None) is not None:
+            if (
+                _HAS_LOGGING_UTIL
+                and getattr(LoggingUtil, "_INSTANCE", None) is not None
+            ):
                 LoggingUtil().log_info(f"[AnonymisationEngine] {event}")
             else:
                 logger.log(level, f"[AnonymisationEngine] {event}")
@@ -127,7 +130,9 @@ def _resolve_client_id() -> str:
     val = os.getenv("ODW_CLIENT_ID")
     if val:
         return val
-    secret_name = os.getenv("ODW_CLIENT_ID_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_ID_SECRET)
+    secret_name = os.getenv(
+        "ODW_CLIENT_ID_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_ID_SECRET
+    )
     kv_val = _kv_secret_via_linked_service(secret_name)
     if kv_val:
         return kv_val
@@ -148,7 +153,9 @@ def _resolve_client_secret() -> str:
     val = os.getenv("ODW_CLIENT_SECRET")
     if val:
         return val
-    secret_name = os.getenv("ODW_PURVIEW_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET)
+    secret_name = os.getenv(
+        "ODW_PURVIEW_SECRET_NAME", _DEFAULT_PURVIEW_CLIENT_SECRET_SECRET
+    )
     # Primary: linked service (does not require IMDS or direct vault network access)
     kv_val = _kv_secret_via_linked_service(secret_name)
     if kv_val:
@@ -160,7 +167,11 @@ def _resolve_client_secret() -> str:
         try:
             from pyspark.sql import SparkSession  # type: ignore
 
-            vault_name = SparkSession.builder.getOrCreate().sparkContext.getConf().get("spark.executorEnv.keyVaultName", None)
+            vault_name = (
+                SparkSession.builder.getOrCreate()
+                .sparkContext.getConf()
+                .get("spark.executorEnv.keyVaultName", None)
+            )
         except Exception:
             vault_name = None
         vault_name = vault_name or os.getenv("ODW_KEYVAULT_NAME")
@@ -186,7 +197,13 @@ def _horizon_filename_to_purview_pattern(file_name: str) -> str:
     return re.sub(r"\d+", "{N}", base) + dot + ext
 
 
-def _build_asset_qualified_name_from_params(*, storage_host: str, source_folder: str, entity_name: Optional[str], file_name: Optional[str]) -> str:
+def _build_asset_qualified_name_from_params(
+    *,
+    storage_host: str,
+    source_folder: str,
+    entity_name: Optional[str],
+    file_name: Optional[str],
+) -> str:
     """Build the Purview qualified name for ADLS Gen2 resource sets.
 
     Notes:
@@ -249,11 +266,17 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
     1. Try mssparkutils.credentials.getToken (Synapse workspace identity — works on Spark pools).
     2. Fall back to DefaultAzureCredential (works locally with az login or env vars).
     """
-    if not client_secret or str(client_secret).strip().upper() in {"AZURE_IDENTITY", "USE_AZURE_IDENTITY", "DEFAULT"}:
+    if not client_secret or str(client_secret).strip().upper() in {
+        "AZURE_IDENTITY",
+        "USE_AZURE_IDENTITY",
+        "DEFAULT",
+    }:
         try:
             from notebookutils import mssparkutils  # type: ignore
 
-            token = mssparkutils.credentials.getToken("https://purview.azure.net/.default")
+            token = mssparkutils.credentials.getToken(
+                "https://purview.azure.net/.default"
+            )
             # Validate the token is a real JWT string (all JWTs start with 'eyJ').
             # Guarded against test environments where notebookutils is a Mock.
             if isinstance(token, str) and token.startswith("eyJ"):
@@ -263,7 +286,11 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
         # Lazy import to avoid typing_extensions.Sentinel import error in Synapse
         from azure.identity import DefaultAzureCredential  # type: ignore
 
-        return DefaultAzureCredential(exclude_interactive_browser_credential=True).get_token("https://purview.azure.net/.default").token
+        return (
+            DefaultAzureCredential(exclude_interactive_browser_credential=True)
+            .get_token("https://purview.azure.net/.default")
+            .token
+        )
 
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     data = {
@@ -279,7 +306,11 @@ def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str
 
 
 def _get_guid_by_unique_attrs(
-    purview_name: str, type_name: str, qualified_name: str, api_version: str = "2023-09-01", headers: Optional[Dict[str, str]] = None
+    purview_name: str,
+    type_name: str,
+    qualified_name: str,
+    api_version: str = "2023-09-01",
+    headers: Optional[Dict[str, str]] = None,
 ) -> str:
     from urllib.parse import quote
 
@@ -296,7 +327,12 @@ def _get_guid_by_unique_attrs(
     raise Exception(f"Could not resolve GUID for {type_name} :: {qualified_name}")
 
 
-def _get_entity_with_refs(purview_name: str, guid: str, api_version: str = "2023-09-01", headers: Optional[Dict[str, str]] = None) -> dict:
+def _get_entity_with_refs(
+    purview_name: str,
+    guid: str,
+    api_version: str = "2023-09-01",
+    headers: Optional[Dict[str, str]] = None,
+) -> dict:
     url = f"{_purview_base_url(purview_name)}/entity/guid/{guid}?minExtInfo=true&ignoreRelationships=false&api-version={api_version}"
     return _http_get(url, headers=headers or {})
 
@@ -314,7 +350,9 @@ def _extract_classified_columns(
     its referred entities and relationships to collect column classifications.
     Falls back to scanning the original entity's referredEntities if necessary.
     """
-    rel_attrs = (entity_with_refs.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+    rel_attrs = (entity_with_refs.get("entity", {}) or {}).get(
+        "relationshipAttributes", {}
+    ) or {}
 
     # attachedSchema: list form used by most asset types
     attached_schema = rel_attrs.get("attachedSchema", []) or []
@@ -333,7 +371,9 @@ def _extract_classified_columns(
         referred_entity_count=len((entity_with_refs.get("referredEntities", {}) or {})),
     )
 
-    def _collect_from_referred(source: dict, only_guids: Optional[Set[str]] = None) -> List[dict]:
+    def _collect_from_referred(
+        source: dict, only_guids: Optional[Set[str]] = None
+    ) -> List[dict]:
         cols = source.get("referredEntities", {}) or {}
         _log_event(
             "purview.referred_entities_debug",
@@ -344,7 +384,9 @@ def _extract_classified_columns(
                     "typeName": (v or {}).get("typeName"),
                     "name": ((v or {}).get("attributes", {}) or {}).get("name"),
                     "has_classifications": bool((v or {}).get("classifications")),
-                    "rel_keys": sorted(((v or {}).get("relationshipAttributes", {}) or {}).keys()),
+                    "rel_keys": sorted(
+                        ((v or {}).get("relationshipAttributes", {}) or {}).keys()
+                    ),
                 }
                 for g, v in list(cols.items())[:10]  # cap at 10 to avoid log flood
             ],
@@ -370,14 +412,18 @@ def _extract_classified_columns(
         schema_entity = None
         if purview_name:
             try:
-                schema_entity = _get_entity_with_refs(purview_name, schema_guid, api_version, headers)
+                schema_entity = _get_entity_with_refs(
+                    purview_name, schema_guid, api_version, headers
+                )
             except Exception:
                 schema_entity = None
         # If we couldn't fetch the schema entity, try to work with what we have
         source = schema_entity or entity_with_refs
 
         # Try to identify the column GUIDs from schema relationships
-        schema_rel = (source.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+        schema_rel = (source.get("entity", {}) or {}).get(
+            "relationshipAttributes", {}
+        ) or {}
         rel_keys = [
             "columns",
             "column",
@@ -399,7 +445,11 @@ def _extract_classified_columns(
             schema_entity_fetched=schema_entity is not None,
             schema_rel_keys=sorted(schema_rel.keys()),
             column_guids_found=len(guids),
-            referred_in_schema=len((schema_entity or {}).get("referredEntities", {}) or {}) if schema_entity else 0,
+            referred_in_schema=len(
+                (schema_entity or {}).get("referredEntities", {}) or {}
+            )
+            if schema_entity
+            else 0,
         )
         extracted = _collect_from_referred(source, only_guids=guids if guids else None)
         if extracted:
@@ -428,7 +478,15 @@ def _fetch_classified_columns_deep(
       attachedSchema → root json_schema → value (json_property) → array json_schema
         → surname, givenName, ... (classified json_property entities)
     """
-    _FOLLOW_KEYS = ("items", "properties", "columns", "column", "fields", "schemaElements", "schema")
+    _FOLLOW_KEYS = (
+        "items",
+        "properties",
+        "columns",
+        "column",
+        "fields",
+        "schemaElements",
+        "schema",
+    )
     visited: Set[str] = {start_guid}
     queue: List[str] = [start_guid]
 
@@ -450,17 +508,26 @@ def _fetch_classified_columns_deep(
                     "column_guid": g,
                     "column_name": ((e or {}).get("attributes", {}) or {}).get("name"),
                     "column_type": (e or {}).get("typeName"),
-                    "classifications": [c.get("typeName") for c in ((e or {}).get("classifications", []) or [])],
+                    "classifications": [
+                        c.get("typeName")
+                        for c in ((e or {}).get("classifications", []) or [])
+                    ],
                 }
                 for g, e in ref_ents.items()
                 if (e or {}).get("classifications")
             ]
             if classified:
-                _log_event("purview.deep_bfs.found", depth=depth, classified_count=len(classified))
+                _log_event(
+                    "purview.deep_bfs.found",
+                    depth=depth,
+                    classified_count=len(classified),
+                )
                 return classified
 
             # Enqueue guids from relationship attributes
-            rel_attrs = (ent.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+            rel_attrs = (ent.get("entity", {}) or {}).get(
+                "relationshipAttributes", {}
+            ) or {}
             for key in _FOLLOW_KEYS:
                 val = rel_attrs.get(key)
                 if not val:
@@ -509,7 +576,9 @@ def fetch_purview_classifications_by_qualified_name(
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     try:
-        guid = _get_guid_by_unique_attrs(purview_name, asset_type_name, asset_qualified_name, api_version, headers)
+        guid = _get_guid_by_unique_attrs(
+            purview_name, asset_type_name, asset_qualified_name, api_version, headers
+        )
     except PurviewEntityNotFoundError:
         _log_event(
             "purview.entity_not_found",
@@ -522,31 +591,52 @@ def fetch_purview_classifications_by_qualified_name(
     _log_event(
         "purview.entity_debug",
         entity_type=((entity.get("entity", {}) or {}).get("typeName")),
-        relationship_keys=sorted((((entity.get("entity", {}) or {}).get("relationshipAttributes", {})) or {}).keys()),
+        relationship_keys=sorted(
+            (
+                ((entity.get("entity", {}) or {}).get("relationshipAttributes", {}))
+                or {}
+            ).keys()
+        ),
         referred_entity_count=len((entity.get("referredEntities", {}) or {})),
-        referred_entity_types=sorted({v.get("typeName") for v in (entity.get("referredEntities", {}) or {}).values() if isinstance(v, dict)}),
+        referred_entity_types=sorted(
+            {
+                v.get("typeName")
+                for v in (entity.get("referredEntities", {}) or {}).values()
+                if isinstance(v, dict)
+            }
+        ),
     )
 
     # Primary extraction attempt
-    cols = _extract_classified_columns(entity, purview_name=purview_name, headers=headers, api_version=api_version)
+    cols = _extract_classified_columns(
+        entity, purview_name=purview_name, headers=headers, api_version=api_version
+    )
     if cols:
         return cols
 
     # Fallback: BFS from schema GUID for deeply-nested JSON schema entity graphs
     try:
-        rel_attrs = (entity.get("entity", {}) or {}).get("relationshipAttributes", {}) or {}
+        rel_attrs = (entity.get("entity", {}) or {}).get(
+            "relationshipAttributes", {}
+        ) or {}
         attached_schema = rel_attrs.get("attachedSchema", []) or []
         schema_guid = attached_schema[0].get("guid") if attached_schema else None
         if not schema_guid:
             tab_schema = rel_attrs.get("tabSchema") or {}
             if isinstance(tab_schema, dict):
                 schema_guid = tab_schema.get("guid")
-        _log_event("purview.schema_lookup", attached_schema_count=len(attached_schema), tab_schema_guid=schema_guid)
+        _log_event(
+            "purview.schema_lookup",
+            attached_schema_count=len(attached_schema),
+            tab_schema_guid=schema_guid,
+        )
     except Exception:
         schema_guid = None
 
     if schema_guid:
-        deep_cols = _fetch_classified_columns_deep(purview_name, schema_guid, api_version, headers)
+        deep_cols = _fetch_classified_columns_deep(
+            purview_name, schema_guid, api_version, headers
+        )
         if deep_cols:
             return deep_cols
 
@@ -579,7 +669,11 @@ class AnonymisationEngine:
         columns_with_classifications: Iterable of dicts with keys: column_name, classifications
         classification_allowlist: if provided, only apply rules for classifications in this set
         """
-        allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
+        allowlist: Optional[Set[str]] = (
+            set(classification_allowlist)
+            if classification_allowlist
+            else self.config.classification_allowlist
+        )
         out = df
         seed = BaseStrategy.seed_col(df, self.config.seed_column)
         # Case-insensitive + trimmed mapping from normalised name -> actual df column
@@ -614,7 +708,10 @@ class AnonymisationEngine:
             if not classes:
                 continue
 
-            context = {"is_lm": ("line manager" in actual_col.lower()), "classifications": classes}
+            context = {
+                "is_lm": ("line manager" in actual_col.lower()),
+                "classifications": classes,
+            }
 
             # Precedence: first strategy whose classification_names intersect applies
             for strat in self.strategies:
@@ -679,12 +776,20 @@ class AnonymisationEngine:
         # were classified at all, and if so under what name.
         _log_event(
             "purview.columns_raw",
-            columns={item.get("column_name"): item.get("classifications") for item in (cols or []) if isinstance(item, dict)},
+            columns={
+                item.get("column_name"): item.get("classifications")
+                for item in (cols or [])
+                if isinstance(item, dict)
+            },
             run_id=self.run_id,
         )
 
         # Determine which columns will be anonymised (respecting classification_allowlist and strategies)
-        allowlist: Optional[Set[str]] = set(classification_allowlist) if classification_allowlist else self.config.classification_allowlist
+        allowlist: Optional[Set[str]] = (
+            set(classification_allowlist)
+            if classification_allowlist
+            else self.config.classification_allowlist
+        )
         df_aug = df
         target_cols: List[str] = []
         norm_to_actual = {_norm_col_name(c): c for c in df.columns}
@@ -696,19 +801,44 @@ class AnonymisationEngine:
             col_norm = _norm_col_name(col_name)
             actual_col = norm_to_actual.get(col_norm)
             if not actual_col:
-                skipped.append({"column": col_name, "reason": "not_in_dataframe", "classifications": item.get("classifications")})
+                skipped.append(
+                    {
+                        "column": col_name,
+                        "reason": "not_in_dataframe",
+                        "classifications": item.get("classifications"),
+                    }
+                )
                 continue
             raw_classes = set(item.get("classifications") or [])
-            classes = {c for c in raw_classes if c in allowlist} if allowlist is not None else raw_classes
+            classes = (
+                {c for c in raw_classes if c in allowlist}
+                if allowlist is not None
+                else raw_classes
+            )
             if not classes:
-                skipped.append({"column": col_name, "reason": "no_allowlisted_classification", "raw_classifications": sorted(raw_classes)})
+                skipped.append(
+                    {
+                        "column": col_name,
+                        "reason": "no_allowlisted_classification",
+                        "raw_classifications": sorted(raw_classes),
+                    }
+                )
                 continue
-            has_matching_strategy = any(classes.intersection(strat.classification_names) for strat in self.strategies)
+            has_matching_strategy = any(
+                classes.intersection(strat.classification_names)
+                for strat in self.strategies
+            )
             if has_matching_strategy:
                 if actual_col not in target_cols:
                     target_cols.append(actual_col)
             else:
-                skipped.append({"column": col_name, "reason": "no_matching_strategy", "allowlisted_classifications": sorted(classes)})
+                skipped.append(
+                    {
+                        "column": col_name,
+                        "reason": "no_matching_strategy",
+                        "allowlisted_classifications": sorted(classes),
+                    }
+                )
 
         if skipped:
             _log_event(
@@ -730,7 +860,9 @@ class AnonymisationEngine:
             df_aug = df_aug.withColumn(f"__orig__{c}", F.col(c))
 
         # Apply anonymisation
-        out = self.apply(df_aug, cols, classification_allowlist=classification_allowlist)
+        out = self.apply(
+            df_aug, cols, classification_allowlist=classification_allowlist
+        )
 
         # Compute how many rows were actually changed across any anonymised column
         changed_exprs: List[Column] = []
@@ -743,7 +875,9 @@ class AnonymisationEngine:
         for expr in changed_exprs:
             any_changed = expr if any_changed is None else (any_changed | expr)
 
-        changed_rows = out.filter(any_changed if any_changed is not None else F.lit(False)).count()
+        changed_rows = out.filter(
+            any_changed if any_changed is not None else F.lit(False)
+        ).count()
         _log_event(
             "apply_from_purview.summary",
             changed_rows=changed_rows,
@@ -752,7 +886,9 @@ class AnonymisationEngine:
         )
 
         # Drop helper columns
-        drop_cols = [f"__orig__{c}" for c in target_cols if f"__orig__{c}" in out.columns]
+        drop_cols = [
+            f"__orig__{c}" for c in target_cols if f"__orig__{c}" in out.columns
+        ]
         if drop_cols:
             out = out.drop(*drop_cols)
 
@@ -775,16 +911,37 @@ class AnonymisationEngine:
             apply_from_purview(df, entity_name=..., file_name=..., source_folder=...)
         """
         # If explicit parameters are provided, delegate to the explicit implementation
-        explicit_keys = {"purview_name", "tenant_id", "client_id", "client_secret", "asset_type_name", "asset_qualified_name"}
+        explicit_keys = {
+            "purview_name",
+            "tenant_id",
+            "client_id",
+            "client_secret",
+            "asset_type_name",
+            "asset_qualified_name",
+        }
         if explicit_keys.intersection(kwargs.keys()) or (len(args) >= 6):
             return self._apply_from_purview_explicit(df, *args, **kwargs)
 
         # Simplified path
-        entity_name: Optional[str] = kwargs.get("entity_name") if "entity_name" in kwargs else (args[0] if len(args) > 0 else None)
-        file_name: Optional[str] = kwargs.get("file_name") if "file_name" in kwargs else (args[1] if len(args) > 1 else None)
-        source_folder: Optional[str] = kwargs.get("source_folder") if "source_folder" in kwargs else (args[2] if len(args) > 2 else None)
+        entity_name: Optional[str] = (
+            kwargs.get("entity_name")
+            if "entity_name" in kwargs
+            else (args[0] if len(args) > 0 else None)
+        )
+        file_name: Optional[str] = (
+            kwargs.get("file_name")
+            if "file_name" in kwargs
+            else (args[1] if len(args) > 1 else None)
+        )
+        source_folder: Optional[str] = (
+            kwargs.get("source_folder")
+            if "source_folder" in kwargs
+            else (args[2] if len(args) > 2 else None)
+        )
         if not source_folder:
-            raise ValueError("source_folder is required (one of 'ServiceBus', 'Horizon', 'entraid')")
+            raise ValueError(
+                "source_folder is required (one of 'ServiceBus', 'Horizon', 'entraid')"
+            )
 
         # Resolve storage host:
         storage_host = os.getenv("ODW_STORAGE_ACCOUNT_DFS_HOST") or ""

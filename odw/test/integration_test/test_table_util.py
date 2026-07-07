@@ -6,7 +6,16 @@ from odw.test.util.test_case import SparkTestCase
 import pytest
 import mock
 from datetime import datetime
-from pyspark.sql.types import StructType, StructField, IntegerType, LongType, StringType, TimestampType, ArrayType, MapType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    IntegerType,
+    LongType,
+    StringType,
+    TimestampType,
+    ArrayType,
+    MapType,
+)
 from pyspark.errors.exceptions.captured import AnalysisException
 from pyspark.sql import SparkSession
 from typing import Callable
@@ -36,13 +45,24 @@ DESCRIPTION_SCHEMA = StructType(
 )
 
 
-def validate_table_deleted(database_name: str, table_name: str, raw_data_path: str, function_to_test: Callable):
+def validate_table_deleted(
+    database_name: str, table_name: str, raw_data_path: str, function_to_test: Callable
+):
     spark = PytestSparkSessionUtil().get_spark_session()
     with mock.patch.object(notebookutils.mssparkutils.fs, "rm", return_value=None):
-        mock_mssparkutils_context = {"pipelinejobid": "some_guid", "isForPipeline": True}
+        mock_mssparkutils_context = {
+            "pipelinejobid": "some_guid",
+            "isForPipeline": True,
+        }
         app_insights_connection_string = TEST_CONFIG["APP_INSIGHTS_CONNECTION_STRING"]
-        with mock.patch("notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context):
-            with mock.patch.object(notebookutils.mssparkutils.credentials, "getSecretWithLS", return_value=app_insights_connection_string):
+        with mock.patch(
+            "notebookutils.mssparkutils.runtime.context", mock_mssparkutils_context
+        ):
+            with mock.patch.object(
+                notebookutils.mssparkutils.credentials,
+                "getSecretWithLS",
+                return_value=app_insights_connection_string,
+            ):
                 # Mock configure_azure_monitor to save time, since this takes 1 minute each time it is called
                 datetime_format = "%Y-%m-%d %H:%M:%S.%f"
                 mock_table_details = spark.createDataFrame(
@@ -53,8 +73,12 @@ def validate_table_deleted(database_name: str, table_name: str, raw_data_path: s
                             f"spark_catalog.{database_name}.{table_name}",
                             None,
                             raw_data_path,
-                            datetime.strptime("2024-01-01 00:00:00.000000", datetime_format),
-                            datetime.strptime("2025-01-01 00:00:00.000000", datetime_format),
+                            datetime.strptime(
+                                "2024-01-01 00:00:00.000000", datetime_format
+                            ),
+                            datetime.strptime(
+                                "2025-01-01 00:00:00.000000", datetime_format
+                            ),
                             [],
                             20000,
                             4000000000,
@@ -74,7 +98,9 @@ def validate_table_deleted(database_name: str, table_name: str, raw_data_path: s
                         return mock_table_details
                     return real_sql_function(sql_query)
 
-                with mock.patch.object(SparkSession, "sql", side_effect=sql_side_effect):
+                with mock.patch.object(
+                    SparkSession, "sql", side_effect=sql_side_effect
+                ):
                     function_to_test(spark, database_name, table_name)
                 # Table should not exist after delete_table is called
                 with pytest.raises(AnalysisException):
@@ -103,13 +129,19 @@ def create_table(data_format: str, file_path: str, database_name: str, table_nam
 
 class TestTableUtil(SparkTestCase):
     def test_delete_parquet_table(self):
-        parquet_file_path = "/tmp/out/test_table_util__test_delete_parquet_table.parquet"
+        parquet_file_path = (
+            "/tmp/out/test_table_util__test_delete_parquet_table.parquet"
+        )
         database_name = "test_table_util"
         table_name = "test_delete_parquet_table"
         create_table("parquet", parquet_file_path, database_name, table_name)
-        validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table)
+        validate_table_deleted(
+            database_name, table_name, parquet_file_path, TableUtil.delete_table
+        )
 
-    @pytest.mark.skip("Cannot test this due to compatibility issue when running outside of Synapse. Need to investigate this further")
+    @pytest.mark.skip(
+        "Cannot test this due to compatibility issue when running outside of Synapse. Need to investigate this further"
+    )
     def test_delete_delta_table(self):
         parquet_file_path = "/tmp/out/test_table_util__test_delete_delta_table.parquet"
         database_name = "test_table_util"
@@ -117,4 +149,9 @@ class TestTableUtil(SparkTestCase):
         # Note: Writing delta tables requires third-party packages. Logically the process would work on any kind
         # of data source, so for simplicity this is being tested against parquet for now
         create_table("parquet", parquet_file_path, database_name, table_name)
-        validate_table_deleted(database_name, table_name, parquet_file_path, TableUtil.delete_table_contents)
+        validate_table_deleted(
+            database_name,
+            table_name,
+            parquet_file_path,
+            TableUtil.delete_table_contents,
+        )

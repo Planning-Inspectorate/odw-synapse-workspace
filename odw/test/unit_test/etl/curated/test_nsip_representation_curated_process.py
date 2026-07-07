@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.nsip_representation_curated_process import NsipRepresentationCuratedProcess
+from odw.core.etl.transformation.curated.nsip_representation_curated_process import (
+    NsipRepresentationCuratedProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,7 +8,9 @@ import mock
 
 
 class TestNSIPRepresentationCurationProcess(SparkTestCase):
-    def test__nsip_representation_curated_process__process__applies_status_and_party_mappings(self):
+    def test__nsip_representation_curated_process__process__applies_status_and_party_mappings(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_representations = spark.createDataFrame(
@@ -81,7 +85,9 @@ class TestNSIPRepresentationCurationProcess(SparkTestCase):
                 "odw.core.etl.transformation.curated.nsip_representation_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.curated.nsip_representation_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_representation_curated_process.LoggingUtil"
+            ),
         ):
             inst = NsipRepresentationCuratedProcess(spark)
             data_to_write, result = inst.process(
@@ -92,7 +98,10 @@ class TestNSIPRepresentationCurationProcess(SparkTestCase):
         expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[expected_data_entry]["data"]
-        rows = {row["representationId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["representationId"]: row.asDict(recursive=True)
+            for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
 

@@ -3,9 +3,14 @@ import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql import DataFrame
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import ServiceUserHarmonisationProcess
+from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import (
+    ServiceUserHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
@@ -170,8 +175,12 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
     def compare_harmonised_data(expected_data: DataFrame, actual_data: DataFrame):
         # Dropping ValidTo means the integration test does not prove the SCD2 latest/old row behaviour in the first integration test
         # It is ok though as the second int test checks ValidTo
-        expected_data_cleaned = expected_data.drop("ServiceUserID", "IngestionDate", "ValidTo")
-        actual_data_cleaned = actual_data.drop("ServiceUserID", "IngestionDate", "ValidTo")
+        expected_data_cleaned = expected_data.drop(
+            "ServiceUserID", "IngestionDate", "ValidTo"
+        )
+        actual_data_cleaned = actual_data.drop(
+            "ServiceUserID", "IngestionDate", "ValidTo"
+        )
         # If assert_dataframes_equal compares without ordering fine. If it is order sensitive this could fail:
         assert_dataframes_equal(expected_data_cleaned, actual_data_cleaned)
 
@@ -183,7 +192,9 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
         sb_service_user_table_name = f"{test_case}_sb_service_user"
         horizon_case_involvement_table_name = f"{test_case}_horizon_case_involvement"
         horizon_nsip_data_table_name = f"{test_case}_horizon_nsip_data"
-        horizon_representation_table_name = f"{test_case}_horizon_nsip_relevant_representation"
+        horizon_representation_table_name = (
+            f"{test_case}_horizon_nsip_relevant_representation"
+        )
 
         sb_service_user = spark.createDataFrame(
             [
@@ -632,23 +643,47 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(ServiceUserHarmonisationProcess, "OUTPUT_TABLE", service_user_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "SERVICE_BUS_TABLE", sb_service_user_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_SERVICE_USER_TABLE", horizon_case_involvement_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_PROJECT_TABLE", horizon_nsip_data_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_REPRESENTATION_TABLE", horizon_representation_table_name),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess, "OUTPUT_TABLE", service_user_table_name
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                sb_service_user_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_SERVICE_USER_TABLE",
+                horizon_case_involvement_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_NSIP_PROJECT_TABLE",
+                horizon_nsip_data_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_NSIP_REPRESENTATION_TABLE",
+                horizon_representation_table_name,
+            ),
         ):
             inst = ServiceUserHarmonisationProcess(spark)
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="service_user", orchestration_orchestration_stage_name="harmonise"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="service_user",
+                orchestration_orchestration_stage_name="harmonise",
             )
 
             assert_etl_result_successful(result)
 
-            actual_table_data = spark.table(f"odw_harmonised_db.{service_user_table_name}")
+            actual_table_data = spark.table(
+                f"odw_harmonised_db.{service_user_table_name}"
+            )
             self.compare_harmonised_data(expected_service_user, actual_table_data)
 
-    def test__service_user_harmonisation_process__run__same_composite_key_marks_latest_active_like_legacy(self):
+    def test__service_user_harmonisation_process__run__same_composite_key_marks_latest_active_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_case = "t_suhp_r_sck"
 
@@ -656,7 +691,9 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
         sb_service_user_table_name = f"{test_case}_sb_service_user"
         horizon_case_involvement_table_name = f"{test_case}_horizon_case_involvement"
         horizon_nsip_data_table_name = f"{test_case}_horizon_nsip_data"
-        horizon_representation_table_name = f"{test_case}_horizon_nsip_relevant_representation"
+        horizon_representation_table_name = (
+            f"{test_case}_horizon_nsip_relevant_representation"
+        )
 
         sb_service_user = spark.createDataFrame(
             [
@@ -726,9 +763,13 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
             schema=_sb_service_user_schema(),
         )
 
-        empty_case_involvement = spark.createDataFrame([], schema=_horizon_case_involvement_schema())
+        empty_case_involvement = spark.createDataFrame(
+            [], schema=_horizon_case_involvement_schema()
+        )
         empty_nsip_data = spark.createDataFrame([], schema=_horizon_nsip_data_schema())
-        empty_representations = spark.createDataFrame([], schema=_horizon_nsip_relevant_representation_schema())
+        empty_representations = spark.createDataFrame(
+            [], schema=_horizon_nsip_relevant_representation_schema()
+        )
 
         self.write_existing_table(
             spark,
@@ -768,20 +809,42 @@ class TestServiceUserHarmonisationProcess(ETLTestCase):
         )
 
         with (
-            mock.patch.object(ServiceUserHarmonisationProcess, "OUTPUT_TABLE", service_user_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "SERVICE_BUS_TABLE", sb_service_user_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_SERVICE_USER_TABLE", horizon_case_involvement_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_PROJECT_TABLE", horizon_nsip_data_table_name),
-            mock.patch.object(ServiceUserHarmonisationProcess, "HZN_NSIP_REPRESENTATION_TABLE", horizon_representation_table_name),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess, "OUTPUT_TABLE", service_user_table_name
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                sb_service_user_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_SERVICE_USER_TABLE",
+                horizon_case_involvement_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_NSIP_PROJECT_TABLE",
+                horizon_nsip_data_table_name,
+            ),
+            mock.patch.object(
+                ServiceUserHarmonisationProcess,
+                "HZN_NSIP_REPRESENTATION_TABLE",
+                horizon_representation_table_name,
+            ),
         ):
             inst = ServiceUserHarmonisationProcess(spark)
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="service_user", orchestration_orchestration_stage_name="harmonise"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="service_user",
+                orchestration_orchestration_stage_name="harmonise",
             )
 
             assert_etl_result_successful(result)
 
-            actual_table_data = spark.table(f"odw_harmonised_db.{service_user_table_name}")
+            actual_table_data = spark.table(
+                f"odw_harmonised_db.{service_user_table_name}"
+            )
 
             older = actual_table_data.where("firstname = 'Older'").collect()[0]
             newer = actual_table_data.where("firstname = 'Newer'").collect()[0]

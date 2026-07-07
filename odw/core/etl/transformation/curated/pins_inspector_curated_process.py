@@ -53,7 +53,9 @@ class PinsInspectorCuratedProcess(CurationProcess):
         return "PINS Inspector Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading active inspectors from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading active inspectors from {self.HARMONISED_TABLE}"
+        )
         harmonised = self.spark.sql(f"""
             SELECT DISTINCT
                 {", ".join(self._OUTPUT_COLUMNS)}
@@ -61,7 +63,9 @@ class PinsInspectorCuratedProcess(CurationProcess):
             WHERE IsActive = 'Y'
         """)
 
-        LoggingUtil().log_info(f"Loading existing curated data from {self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading existing curated data from {self.OUTPUT_TABLE}"
+        )
         try:
             curated = self.spark.sql(f"SELECT * FROM {self.OUTPUT_TABLE}")
         except AnalysisException:
@@ -85,21 +89,30 @@ class PinsInspectorCuratedProcess(CurationProcess):
         hash_expr = F.sha2(F.to_json(F.struct(*[F.col(c) for c in non_key_cols])), 256)
 
         new_with_hash = new_df.withColumn("_new_hash", hash_expr)
-        existing_with_hash = existing_df.select(F.col(key_col), hash_expr.alias("_existing_hash"))
+        existing_with_hash = existing_df.select(
+            F.col(key_col), hash_expr.alias("_existing_hash")
+        )
 
         labelled = (
             new_with_hash.join(existing_with_hash, key_col, "left")
-            .filter(F.col("_existing_hash").isNull() | (F.col("_new_hash") != F.col("_existing_hash")))
+            .filter(
+                F.col("_existing_hash").isNull()
+                | (F.col("_new_hash") != F.col("_existing_hash"))
+            )
             .withColumn(
                 self._UPDATE_KEY_COL,
-                F.when(F.col("_existing_hash").isNull(), F.lit("create")).otherwise(F.lit("update")),
+                F.when(F.col("_existing_hash").isNull(), F.lit("create")).otherwise(
+                    F.lit("update")
+                ),
             )
             .drop("_new_hash", "_existing_hash")
         )
 
         insert_count = labelled.filter(F.col(self._UPDATE_KEY_COL) == "create").count()
         update_count = labelled.filter(F.col(self._UPDATE_KEY_COL) == "update").count()
-        LoggingUtil().log_info(f"Curated PINS Inspector: {insert_count} new, {update_count} changed")
+        LoggingUtil().log_info(
+            f"Curated PINS Inspector: {insert_count} new, {update_count} changed"
+        )
 
         end_exec_time = datetime.now()
         output_db, output_table_name = self.OUTPUT_TABLE.split(".", 1)

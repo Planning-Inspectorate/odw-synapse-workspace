@@ -2,7 +2,9 @@ import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import ServiceUserHarmonisationProcess
+from odw.core.etl.transformation.harmonised.service_user_harmonisation_process import (
+    ServiceUserHarmonisationProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -282,11 +284,23 @@ def _horizon_relevant_representation_row(**overrides):
     return row
 
 
-def _source_data(spark, service_bus_rows=None, case_involvement_rows=None, nsip_rows=None, representation_rows=None):
+def _source_data(
+    spark,
+    service_bus_rows=None,
+    case_involvement_rows=None,
+    nsip_rows=None,
+    representation_rows=None,
+):
     return {
-        "service_bus_data": spark.createDataFrame(service_bus_rows or [], schema=_sb_service_user_schema()),
-        "horizon_case_involvement_data": spark.createDataFrame(case_involvement_rows or [], schema=_horizon_case_involvement_schema()),
-        "horizon_nsip_data": spark.createDataFrame(nsip_rows or [], schema=_horizon_nsip_data_schema()),
+        "service_bus_data": spark.createDataFrame(
+            service_bus_rows or [], schema=_sb_service_user_schema()
+        ),
+        "horizon_case_involvement_data": spark.createDataFrame(
+            case_involvement_rows or [], schema=_horizon_case_involvement_schema()
+        ),
+        "horizon_nsip_data": spark.createDataFrame(
+            nsip_rows or [], schema=_horizon_nsip_data_schema()
+        ),
         "horizon_nsip_relevant_representation_data": spark.createDataFrame(
             representation_rows or [],
             schema=_horizon_nsip_relevant_representation_schema(),
@@ -302,7 +316,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
 
         assert inst.get_name() == "Service User Harmonisation Process"
 
-    def test__service_user_harmonisation_process__process__outputs_expected_legacy_columns_only(self):
+    def test__service_user_harmonisation_process__process__outputs_expected_legacy_columns_only(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, service_bus_rows=[_sb_service_user_row()])
 
@@ -345,7 +361,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
             "IsActive",
         ]
 
-    def test__service_user_harmonisation_process__process__maps_service_bus_source_like_legacy(self):
+    def test__service_user_harmonisation_process__process__maps_service_bus_source_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, service_bus_rows=[_sb_service_user_row()])
 
@@ -371,13 +389,19 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__service_user_harmonisation_process__process__maps_horizon_appellant_and_agent_rows_like_legacy(self):
+    def test__service_user_harmonisation_process__process__maps_horizon_appellant_and_agent_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             case_involvement_rows=[
-                _horizon_case_involvement_row(ContactId="HZN-APP", typeOfInvolvement="Appellant"),
-                _horizon_case_involvement_row(ContactId="HZN-AGENT", typeOfInvolvement="Agent"),
+                _horizon_case_involvement_row(
+                    ContactId="HZN-APP", typeOfInvolvement="Appellant"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId="HZN-AGENT", typeOfInvolvement="Agent"
+                ),
             ],
         )
 
@@ -403,15 +427,25 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
 
-    def test__service_user_harmonisation_process__process__maps_legacy_appellant_typo_values(self):
+    def test__service_user_harmonisation_process__process__maps_legacy_appellant_typo_values(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             case_involvement_rows=[
-                _horizon_case_involvement_row(ContactId="APP-1", typeOfInvolvement="Appellant"),
-                _horizon_case_involvement_row(ContactId="APP-2", typeOfInvolvement="tAppellant"),
-                _horizon_case_involvement_row(ContactId="APP-3", typeOfInvolvement="Apellant"),
-                _horizon_case_involvement_row(ContactId="IGNORE-1", typeOfInvolvement="InterestedParty"),
+                _horizon_case_involvement_row(
+                    ContactId="APP-1", typeOfInvolvement="Appellant"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId="APP-2", typeOfInvolvement="tAppellant"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId="APP-3", typeOfInvolvement="Apellant"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId="IGNORE-1", typeOfInvolvement="InterestedParty"
+                ),
             ],
         )
 
@@ -427,14 +461,22 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert df.where(F.col("serviceUserType") == "Appellant").count() == 3
         assert result.metadata.insert_count == 3
 
-    def test__service_user_harmonisation_process__process__filters_horizon_case_involvement_to_latest_expected_from_and_non_null_contact(self):
+    def test__service_user_harmonisation_process__process__filters_horizon_case_involvement_to_latest_expected_from_and_non_null_contact(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             case_involvement_rows=[
-                _horizon_case_involvement_row(ContactId="OLD", expected_from="2024-01-01 00:00:00"),
-                _horizon_case_involvement_row(ContactId="LATEST", expected_from="2024-02-01 00:00:00"),
-                _horizon_case_involvement_row(ContactId=None, expected_from="2024-02-01 00:00:00"),
+                _horizon_case_involvement_row(
+                    ContactId="OLD", expected_from="2024-01-01 00:00:00"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId="LATEST", expected_from="2024-02-01 00:00:00"
+                ),
+                _horizon_case_involvement_row(
+                    ContactId=None, expected_from="2024-02-01 00:00:00"
+                ),
             ],
         )
 
@@ -447,7 +489,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert df.where(F.col("id") == "LATEST").count() == 1
         assert df.where(F.col("id").isNull()).count() == 0
 
-    def test__service_user_harmonisation_process__process__maps_nsip_project_applicant_like_legacy(self):
+    def test__service_user_harmonisation_process__process__maps_nsip_project_applicant_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark, nsip_rows=[_horizon_nsip_data_row()])
 
@@ -468,14 +512,22 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert row["Migrated"] == "0"
         assert row["IsActive"] == "Y"
 
-    def test__service_user_harmonisation_process__process__filters_nsip_project_to_latest_expected_from_and_non_null_case_node_id(self):
+    def test__service_user_harmonisation_process__process__filters_nsip_project_to_latest_expected_from_and_non_null_case_node_id(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             nsip_rows=[
-                _horizon_nsip_data_row(caseNodeId="OLD-NSIP", expected_from="2024-01-01 00:00:00"),
-                _horizon_nsip_data_row(caseNodeId="LATEST-NSIP", expected_from="2024-03-01 00:00:00"),
-                _horizon_nsip_data_row(caseNodeId=None, expected_from="2024-03-01 00:00:00"),
+                _horizon_nsip_data_row(
+                    caseNodeId="OLD-NSIP", expected_from="2024-01-01 00:00:00"
+                ),
+                _horizon_nsip_data_row(
+                    caseNodeId="LATEST-NSIP", expected_from="2024-03-01 00:00:00"
+                ),
+                _horizon_nsip_data_row(
+                    caseNodeId=None, expected_from="2024-03-01 00:00:00"
+                ),
             ],
         )
 
@@ -488,14 +540,22 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert df.where(F.col("id") == "LATEST-NSIP").count() == 1
         assert df.where(F.col("id").isNull()).count() == 0
 
-    def test__service_user_harmonisation_process__process__maps_relevant_representation_represented_contact_method_like_legacy(self):
+    def test__service_user_harmonisation_process__process__maps_relevant_representation_represented_contact_method_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             representation_rows=[
-                _horizon_relevant_representation_row(ContactId="REP-LETTER", preferredContactMethod="Letter"),
-                _horizon_relevant_representation_row(ContactId="REP-EMAIL", preferredContactMethod="E-Mail"),
-                _horizon_relevant_representation_row(ContactId="REP-PORTAL", preferredContactMethod="Portal"),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-LETTER", preferredContactMethod="Letter"
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-EMAIL", preferredContactMethod="E-Mail"
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-PORTAL", preferredContactMethod="Portal"
+                ),
             ],
         )
 
@@ -504,12 +564,34 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("id") == "REP-LETTER") & (F.col("contactMethod") == "post")).count() == 1
-        assert df.where((F.col("id") == "REP-EMAIL") & (F.col("contactMethod") == "email")).count() == 1
-        assert df.where((F.col("id") == "REP-PORTAL") & (F.col("contactMethod") == "portal")).count() == 1
-        assert df.where(F.col("serviceUserTypeInternal") == "RepresentationContact_Represented").count() == 3
+        assert (
+            df.where(
+                (F.col("id") == "REP-LETTER") & (F.col("contactMethod") == "post")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("id") == "REP-EMAIL") & (F.col("contactMethod") == "email")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("id") == "REP-PORTAL") & (F.col("contactMethod") == "portal")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                F.col("serviceUserTypeInternal") == "RepresentationContact_Represented"
+            ).count()
+            == 3
+        )
 
-    def test__service_user_harmonisation_process__process__maps_relevant_representation_agent_like_legacy(self):
+    def test__service_user_harmonisation_process__process__maps_relevant_representation_agent_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -550,16 +632,30 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert row["serviceUserTypeInternal"] == "RepresentationContact_Agent"
         assert row["contactMethod"] == "email"
 
-    def test__service_user_harmonisation_process__process__filters_representations_like_legacy(self):
+    def test__service_user_harmonisation_process__process__filters_representations_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             representation_rows=[
-                _horizon_relevant_representation_row(ContactId="REP-VALID", AgentContactId=None),
-                _horizon_relevant_representation_row(ContactId=None, AgentContactId=None),
-                _horizon_relevant_representation_row(ContactId="REP-NO-CASE", CaseReference=None, AgentContactId=None),
-                _horizon_relevant_representation_row(ContactId="REP-WITH-AGENT", AgentContactId="AGENT-VALID"),
-                _horizon_relevant_representation_row(ContactId="REP-AGENT-NO-CASE", CaseReference=None, AgentContactId="AGENT-NO-CASE"),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-VALID", AgentContactId=None
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId=None, AgentContactId=None
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-NO-CASE", CaseReference=None, AgentContactId=None
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-WITH-AGENT", AgentContactId="AGENT-VALID"
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="REP-AGENT-NO-CASE",
+                    CaseReference=None,
+                    AgentContactId="AGENT-NO-CASE",
+                ),
             ],
         )
 
@@ -568,20 +664,50 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("id") == "REP-VALID") & (F.col("serviceUserTypeInternal") == "RepresentationContact_Represented")).count() == 1
-        assert df.where((F.col("id") == "REP-WITH-AGENT") & (F.col("serviceUserTypeInternal") == "RepresentationContact_Represented")).count() == 1
-        assert df.where((F.col("id") == "AGENT-VALID") & (F.col("serviceUserTypeInternal") == "RepresentationContact_Agent")).count() == 1
+        assert (
+            df.where(
+                (F.col("id") == "REP-VALID")
+                & (
+                    F.col("serviceUserTypeInternal")
+                    == "RepresentationContact_Represented"
+                )
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("id") == "REP-WITH-AGENT")
+                & (
+                    F.col("serviceUserTypeInternal")
+                    == "RepresentationContact_Represented"
+                )
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("id") == "AGENT-VALID")
+                & (F.col("serviceUserTypeInternal") == "RepresentationContact_Agent")
+            ).count()
+            == 1
+        )
         assert df.where(F.col("id").isNull()).count() == 0
         assert df.where(F.col("id") == "REP-NO-CASE").count() == 0
         assert df.where(F.col("id") == "AGENT-NO-CASE").count() == 0
 
-    def test__service_user_harmonisation_process__process__filters_representations_to_latest_expected_from(self):
+    def test__service_user_harmonisation_process__process__filters_representations_to_latest_expected_from(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             representation_rows=[
-                _horizon_relevant_representation_row(ContactId="OLD-REP", expected_from="2024-01-01 00:00:00"),
-                _horizon_relevant_representation_row(ContactId="LATEST-REP", expected_from="2024-04-01 00:00:00"),
+                _horizon_relevant_representation_row(
+                    ContactId="OLD-REP", expected_from="2024-01-01 00:00:00"
+                ),
+                _horizon_relevant_representation_row(
+                    ContactId="LATEST-REP", expected_from="2024-04-01 00:00:00"
+                ),
             ],
         )
 
@@ -593,7 +719,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert df.where(F.col("id") == "OLD-REP").count() == 0
         assert df.where(F.col("id") == "LATEST-REP").count() == 1
 
-    def test__service_user_harmonisation_process__process__calculates_service_user_id_active_and_valid_to_like_legacy(self):
+    def test__service_user_harmonisation_process__process__calculates_service_user_id_active_and_valid_to_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -629,7 +757,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert newer["ValidTo"] is None
         assert older["ServiceUserID"] != newer["ServiceUserID"]
 
-    def test__service_user_harmonisation_process__process__preserves_non_blank_service_bus_valid_to_like_legacy(self):
+    def test__service_user_harmonisation_process__process__preserves_non_blank_service_bus_valid_to_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -648,7 +778,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert row["ValidTo"] is not None
         assert str(row["ValidTo"]).startswith("2024-05-01 00:00:00")
 
-    def test__service_user_harmonisation_process__process__drops_exact_duplicate_rows_like_legacy(self):
+    def test__service_user_harmonisation_process__process__drops_exact_duplicate_rows_like_legacy(
+        self,
+    ):
         # Legacy notebook applies drop_duplicates() after calculating final fields
         spark = PytestSparkSessionUtil().get_spark_session()
         duplicate_row = _sb_service_user_row()
@@ -669,7 +801,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__service_user_harmonisation_process__process__same_id_and_case_reference_but_different_type_are_separate_active_rows(self):
+    def test__service_user_harmonisation_process__process__same_id_and_case_reference_but_different_type_are_separate_active_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -697,17 +831,31 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 2
-        assert df.where((F.col("serviceUserType") == "Appellant") & (F.col("IsActive") == "Y")).count() == 1
-        assert df.where((F.col("serviceUserType") == "Agent") & (F.col("IsActive") == "Y")).count() == 1
+        assert (
+            df.where(
+                (F.col("serviceUserType") == "Appellant") & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("serviceUserType") == "Agent") & (F.col("IsActive") == "Y")
+            ).count()
+            == 1
+        )
 
-    def test__service_user_harmonisation_process__process__initial_load_uses_overwrite_and_inserts_all_rows(self):
+    def test__service_user_harmonisation_process__process__initial_load_uses_overwrite_and_inserts_all_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
             service_bus_rows=[_sb_service_user_row()],
             case_involvement_rows=[_horizon_case_involvement_row(ContactId="HZN-1")],
             nsip_rows=[_horizon_nsip_data_row(caseNodeId="NSIP-1")],
-            representation_rows=[_horizon_relevant_representation_row(ContactId="REP-1")],
+            representation_rows=[
+                _horizon_relevant_representation_row(ContactId="REP-1")
+            ],
         )
 
         inst = ServiceUserHarmonisationProcess(spark)
@@ -722,7 +870,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 4
         assert result.metadata.update_count == 0
 
-    def test__service_user_harmonisation_process__process__empty_sources_return_empty_output(self):
+    def test__service_user_harmonisation_process__process__empty_sources_return_empty_output(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark)
 
@@ -736,7 +886,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
 
-    def test__service_user_harmonisation_process__run__initial_load_matches_legacy(self):
+    def test__service_user_harmonisation_process__run__initial_load_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(
@@ -744,7 +896,9 @@ class TestServiceUserHarmonisationProcess(SparkTestCase):
             service_bus_rows=[_sb_service_user_row()],
             case_involvement_rows=[_horizon_case_involvement_row(ContactId="HZN-1")],
             nsip_rows=[_horizon_nsip_data_row(caseNodeId="NSIP-1")],
-            representation_rows=[_horizon_relevant_representation_row(ContactId="REP-1")],
+            representation_rows=[
+                _horizon_relevant_representation_row(ContactId="REP-1")
+            ],
         )
 
         inst = ServiceUserHarmonisationProcess(spark)

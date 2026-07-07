@@ -1,9 +1,14 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
+from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import (
+    AppealAttributeMatrixCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql.types import StructType, StructField, StringType
 import mock
 
@@ -22,32 +27,61 @@ class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):
             ["attribute", "IsActive"],
         )
         hrm_table = f"{test_case}_ref_appeal_attribute_matrix"
-        self.write_existing_table(spark, hrm_data, hrm_table, "odw_harmonised_db", "odw-harmonised", hrm_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            hrm_data,
+            hrm_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            hrm_table,
+            "overwrite",
+        )
 
         std_data = spark.createDataFrame(
             [("a",), ("b",)],
             ["attribute"],
         )
         std_table = f"{test_case}_appeal_attribute_matrix"
-        self.write_existing_table(spark, std_data, std_table, "odw_standardised_db", "odw-standardised", std_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            std_data,
+            std_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            std_table,
+            "overwrite",
+        )
         output_table = f"{test_case}_ref_appeal_attribute_matrix"
         expected_data = spark.createDataFrame(
             (
                 ("a", "Y"),
                 ("b", "N"),
             ),
-            schema=StructType([StructField("attribute", StringType(), True), StructField("IsActive", StringType(), True)]),
+            schema=StructType(
+                [
+                    StructField("attribute", StringType(), True),
+                    StructField("IsActive", StringType(), True),
+                ]
+            ),
         )
 
         with (
-            mock.patch.object(AppealAttributeMatrixCuratedProcess, "STANDARDISED_TABLE", std_table),
-            mock.patch.object(AppealAttributeMatrixCuratedProcess, "HARMONISED_TABLE", hrm_table),
-            mock.patch.object(AppealAttributeMatrixCuratedProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                AppealAttributeMatrixCuratedProcess, "STANDARDISED_TABLE", std_table
+            ),
+            mock.patch.object(
+                AppealAttributeMatrixCuratedProcess, "HARMONISED_TABLE", hrm_table
+            ),
+            mock.patch.object(
+                AppealAttributeMatrixCuratedProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
 
             result = inst.run(
-                orchestration_run_id=test_case, orchestration_entity_name="ref_appeal_attribute_matrix", orchestration_stage_name="curate"
+                orchestration_run_id=test_case,
+                orchestration_entity_name="ref_appeal_attribute_matrix",
+                orchestration_stage_name="curate",
             )
             assert_etl_result_successful(result)
             actual_table_data = spark.table(output_table)
@@ -73,5 +107,13 @@ class TestRefAppealAttributeMatrixCurationProcess(ETLTestCase):
             ),
         )
         output_table = f"{test_case}_ref_appeal_attribute_matrix"
-        self.write_existing_table(spark, expected_data, output_table, "odw_curated_db", "odw-curated", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            expected_data,
+            output_table,
+            "odw_curated_db",
+            "odw-curated",
+            output_table,
+            "overwrite",
+        )
         self.assert_curation("t_aamcp_r_wed")

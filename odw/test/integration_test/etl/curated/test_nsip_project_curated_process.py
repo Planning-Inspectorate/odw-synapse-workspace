@@ -1,10 +1,25 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import mock
-from odw.core.etl.transformation.curated.nsip_project_curated_process import NsipProjectCuratedProcess
+from odw.core.etl.transformation.curated.nsip_project_curated_process import (
+    NsipProjectCuratedProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
-from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, StringType, StructField, StructType, DateType, TimestampType
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
+from pyspark.sql.types import (
+    ArrayType,
+    BooleanType,
+    DoubleType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+    DateType,
+    TimestampType,
+)
 from datetime import datetime, date
 
 
@@ -51,12 +66,16 @@ def _harmonised_schema():
             StructField("dateOfNonAcceptance", StringType(), True),
             StructField("dateOfRepresentationPeriodOpen", StringType(), True),
             StructField("dateOfRelevantRepresentationClose", StringType(), True),
-            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField(
+                "extensionToDateRelevantRepresentationsClose", StringType(), True
+            ),
             StructField("dateRRepAppearOnWebsite", StringType(), True),
             StructField("dateIAPIDue", StringType(), True),
             StructField("rule6LetterPublishDate", StringType(), True),
             StructField("preliminaryMeetingStartDate", StringType(), True),
-            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField(
+                "notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True
+            ),
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
@@ -76,7 +95,9 @@ def _harmonised_schema():
             StructField("operationsManagerId", StringType(), True),
             StructField("caseManagerId", StringType(), True),
             StructField("nsipOfficerIds", ArrayType(StringType(), True), True),
-            StructField("nsipAdministrationOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "nsipAdministrationOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("leadInspectorId", StringType(), True),
             StructField("inspectorIds", ArrayType(StringType(), True), True),
             StructField("environmentalServicesOfficerId", StringType(), True),
@@ -107,15 +128,21 @@ def _harmonised_schema():
             StructField("programmeDocumentSubmissionDate", StringType(), True),
             StructField("estimatedScopingSubmissionDate", StringType(), True),
             StructField("consultationMilestoneAdequacyDate", StringType(), True),
-            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField(
+                "principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True
+            ),
             StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
             StructField("designApproachDocumentSubmittedDate", StringType(), True),
             StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
             StructField("caseTeamIssuedCommentsDate", StringType(), True),
             StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
-            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "matureOutlineControlDocumentSubmittedDate", StringType(), True
+            ),
             StructField("memLastUpdated", StringType(), True),
-            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "multipartyApplicationCheckDocumentSubmittedDate", StringType(), True
+            ),
             StructField("programmeDocumentReviewedByEstDate", StringType(), True),
             StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
             StructField("statutoryConsultationPeriodEndDate", StringType(), True),
@@ -138,7 +165,9 @@ def _harmonised_schema():
                             StructField("planningInspectorateRole", StringType(), True),
                             StructField("meetingDate", StringType(), True),
                             StructField("meetingType", StringType(), True),
-                            StructField("estimatedPrelimMeetingDate", StringType(), True),
+                            StructField(
+                                "estimatedPrelimMeetingDate", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -185,7 +214,9 @@ def _harmonised_schema():
             StructField("operationsManagerIds", ArrayType(StringType(), True), True),
             StructField("caseManagerIds", ArrayType(StringType(), True), True),
             StructField("leadInspectorIds", ArrayType(StringType(), True), True),
-            StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "environmentalServicesOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("legalOfficerIds", ArrayType(StringType(), True), True),
             StructField("migrated", StringType(), True),
             StructField("ODTSourceSystem", StringType(), True),
@@ -397,12 +428,16 @@ def _curated_schema():
             StructField("dateOfNonAcceptance", StringType(), True),
             StructField("dateOfRepresentationPeriodOpen", StringType(), True),
             StructField("dateOfRelevantRepresentationClose", StringType(), True),
-            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField(
+                "extensionToDateRelevantRepresentationsClose", StringType(), True
+            ),
             StructField("dateRRepAppearOnWebsite", StringType(), True),
             StructField("dateIAPIDue", StringType(), True),
             StructField("rule6LetterPublishDate", StringType(), True),
             StructField("preliminaryMeetingStartDate", StringType(), True),
-            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField(
+                "notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True
+            ),
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
@@ -422,7 +457,9 @@ def _curated_schema():
             StructField("operationsManagerId", StringType(), True),
             StructField("caseManagerId", StringType(), True),
             StructField("nsipOfficerIds", ArrayType(StringType(), True), True),
-            StructField("nsipAdministrationOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "nsipAdministrationOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("leadInspectorId", StringType(), True),
             StructField("inspectorIds", ArrayType(StringType(), True), True),
             StructField("environmentalServicesOfficerId", StringType(), True),
@@ -437,15 +474,21 @@ def _curated_schema():
             StructField("programmeDocumentSubmissionDate", StringType(), True),
             StructField("estimatedScopingSubmissionDate", StringType(), True),
             StructField("consultationMilestoneAdequacyDate", StringType(), True),
-            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField(
+                "principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True
+            ),
             StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
             StructField("designApproachDocumentSubmittedDate", StringType(), True),
             StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
             StructField("caseTeamIssuedCommentsDate", StringType(), True),
             StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
-            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "matureOutlineControlDocumentSubmittedDate", StringType(), True
+            ),
             StructField("memLastUpdated", StringType(), True),
-            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "multipartyApplicationCheckDocumentSubmittedDate", StringType(), True
+            ),
             StructField("programmeDocumentReviewedByEstDate", StringType(), True),
             StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
             StructField("statutoryConsultationPeriodEndDate", StringType(), True),
@@ -468,7 +511,9 @@ def _curated_schema():
                             StructField("planningInspectorateRole", StringType(), True),
                             StructField("meetingDate", StringType(), True),
                             StructField("meetingType", StringType(), True),
-                            StructField("estimatedPrelimMeetingDate", StringType(), True),
+                            StructField(
+                                "estimatedPrelimMeetingDate", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -515,7 +560,9 @@ def _curated_schema():
             StructField("operationsManagerIds", ArrayType(StringType(), True), True),
             StructField("caseManagerIds", ArrayType(StringType(), True), True),
             StructField("leadInspectorIds", ArrayType(StringType(), True), True),
-            StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "environmentalServicesOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("legalOfficerIds", ArrayType(StringType(), True), True),
             StructField("estimatedPrelimMeetingDate", TimestampType(), True),
         ]
@@ -663,7 +710,15 @@ class TestNsipProjectCuratedProcess(ETLTestCase):
             ),
             schema=_harmonised_schema(),
         )
-        self.write_existing_table(spark, source_data, "t_npcp_r_wned", "odw_harmonised_db", "odw-harmonised-db", "t_npcp_r_wned", "overwrite")
+        self.write_existing_table(
+            spark,
+            source_data,
+            "t_npcp_r_wned",
+            "odw_harmonised_db",
+            "odw-harmonised-db",
+            "t_npcp_r_wned",
+            "overwrite",
+        )
         expected_output_table = spark.createDataFrame(
             (
                 _curated_row(caseId=1, projectName="projectA"),
@@ -671,11 +726,17 @@ class TestNsipProjectCuratedProcess(ETLTestCase):
             ),
             schema=_curated_schema(),
         )
-        with mock.patch.object(NsipProjectCuratedProcess, "HARMONISED_TABLE", "t_npcp_r_wned"):
-            with mock.patch.object(NsipProjectCuratedProcess, "OUTPUT_TABLE", "t_npcp_r_wned"):
+        with mock.patch.object(
+            NsipProjectCuratedProcess, "HARMONISED_TABLE", "t_npcp_r_wned"
+        ):
+            with mock.patch.object(
+                NsipProjectCuratedProcess, "OUTPUT_TABLE", "t_npcp_r_wned"
+            ):
                 inst = NsipProjectCuratedProcess(spark)
                 etl_result = inst.run(
-                    orchestration_run_id="t_npcp_r_wned", orchestration_entity_name="nsip_project", orchestration_stage_name="curate"
+                    orchestration_run_id="t_npcp_r_wned",
+                    orchestration_entity_name="nsip_project",
+                    orchestration_stage_name="curate",
                 )
                 assert_etl_result_successful(etl_result)
                 actual_output_table = spark.table("odw_curated_db.t_npcp_r_wned")

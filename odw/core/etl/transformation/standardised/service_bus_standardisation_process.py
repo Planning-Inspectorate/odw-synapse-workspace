@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from odw.core.etl.util.schema_util import SchemaUtil
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
@@ -37,11 +39,18 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         """
         try:
             date_pattern = r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{4})"
-            df = df.withColumn("file_date", F.regexp_extract(df["input_file"], date_pattern, 1).cast(TimestampType()))
+            df = df.withColumn(
+                "file_date",
+                F.regexp_extract(df["input_file"], date_pattern, 1).cast(
+                    TimestampType()
+                ),
+            )
             max_timestamp: datetime = df.agg(F.max("file_date")).collect()[0][0]
             return max_timestamp
         except Exception as e:
-            error_message = f"Error extracting maximum file date from DataFrame: {str(e)}"
+            error_message = (
+                f"Error extracting maximum file date from DataFrame: {str(e)}"
+            )
             LoggingUtil().log_error(error_message)
             raise
 
@@ -60,7 +69,9 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         """
         try:
             files_in_path: set = set(self.get_all_files_in_directory(source_path))
-            files_in_table: set = set(df.select("input_file").rdd.flatMap(lambda x: x).collect())
+            files_in_table: set = set(
+                df.select("input_file").rdd.flatMap(lambda x: x).collect()
+            )
             return list(files_in_path - files_in_table)
         except Exception as e:
             error_message = f"Error getting missing files from source path '{source_path}': {str(e)}"
@@ -79,14 +90,24 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
 
         def inner_condition(file: str):
             print(type(file))
-            timestamp_pattern = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{2}[:_]\d{2}[:_]\d{2}[.\d]*[+-]\d{4})")
+            timestamp_pattern = re.compile(
+                r"(\d{4}-\d{2}-\d{2}T\d{2}[:_]\d{2}[:_]\d{2}[.\d]*[+-]\d{4})"
+            )
             match = timestamp_pattern.search(file)
-            return match and datetime.strptime(match.group(1).replace("_", ":"), "%Y-%m-%dT%H:%M:%S.%f%z") > filter_date
+            return (
+                match
+                and datetime.strptime(
+                    match.group(1).replace("_", ":"), "%Y-%m-%dT%H:%M:%S.%f%z"
+                )
+                > filter_date
+            )
 
         return [file for file in files if inner_condition(file)]
 
     @LoggingUtil.logging_to_appins
-    def read_raw_messages(self, filtered_paths: list[str], spark_schema: StructType = None) -> DataFrame:
+    def read_raw_messages(
+        self, filtered_paths: list[str], spark_schema: StructType = None
+    ) -> DataFrame:
         """
         Ingests data from service bus messages stored as json files in the raw layer
 
@@ -100,7 +121,9 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         return (
             df.withColumn("expected_from", F.current_timestamp())
             .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 1 DAY"))
-            .withColumn("ingested_datetime", F.to_timestamp(df.message_enqueued_time_utc))
+            .withColumn(
+                "ingested_datetime", F.to_timestamp(df.message_enqueued_time_utc)
+            )
             .withColumn("input_file", F.input_file_name())
         )
 
@@ -114,75 +137,117 @@ class ServiceBusStandardisationProcess(StandardisationProcess):
         """
         # removing duplicates while ignoring the ingestion dates columns
         columns_to_ignore = {"expected_to", "expected_from", "ingested_datetime"}
-        df = df.dropDuplicates(subset=[c for c in df.columns if c not in columns_to_ignore])
+        df = df.dropDuplicates(
+            subset=[c for c in df.columns if c not in columns_to_ignore]
+        )
         return df
 
     def load_data(self, **kwargs):
         entity_name: str = kwargs.get("entity_name", None)
         if not entity_name:
-            raise ValueError("ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing")
+            raise ValueError(
+                "ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing"
+            )
         use_max_date_filter = kwargs.get("use_max_date_filter", False)
         database_name = "odw_standardised_db"
         table_name = f"sb_{entity_name.replace('-', '_')}"
         source_path = Util.get_path_to_file(f"odw-raw/ServiceBus/{entity_name}")
 
-        table_df = SynapseTableDataIO().read(spark=self.spark, database_name=database_name, table_name=table_name, file_format="delta")
+        table_df = SynapseTableDataIO().read(
+            spark=self.spark,
+            database_name=database_name,
+            table_name=table_name,
+            file_format="delta",
+        )
 
         max_extracted_date = self.get_max_file_date(table_df)
         missing_files = self.get_missing_files(table_df, source_path)
         filtered_paths = []
         if use_max_date_filter:
-            filtered_paths = self.extract_and_filter_paths(self.get_all_files_in_directory(source_path=source_path), max_extracted_date)
+            filtered_paths = self.extract_and_filter_paths(
+                self.get_all_files_in_directory(source_path=source_path),
+                max_extracted_date,
+            )
         new_raw_messages = self.read_raw_messages(
-            missing_files + filtered_paths, SchemaUtil(db_name="odw_standardised_db").get_service_bus_schema(entity_name)
+            missing_files + filtered_paths,
+            SchemaUtil(db_name="odw_standardised_db").get_service_bus_schema(
+                entity_name
+            ),
         )
-        return {f"{database_name}.{table_name}": table_df, "raw_messages": new_raw_messages}
+        return {
+            f"{database_name}.{table_name}": table_df,
+            "raw_messages": new_raw_messages,
+        }
 
     def process(self, **kwargs) -> ETLResult:
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
         if not source_data:
-            raise ValueError("ServiceBusStandardisationProcess.process requires a source_data dictionary to be provided, but was missing")
+            raise ValueError(
+                "ServiceBusStandardisationProcess.process requires a source_data dictionary to be provided, but was missing"
+            )
         entity_name: str = kwargs.get("entity_name", None)
         if not entity_name:
-            raise ValueError("ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing")
+            raise ValueError(
+                "ServiceBusStandardisationProcess.process requires a entity_name to be provided, but was missing"
+            )
         database_name = "odw_standardised_db"
         table_name = f"sb_{entity_name.replace('-', '_')}"
         table_path: str = f"{database_name}.{table_name}"
 
         table_df = source_data.pop(table_path, None)
         if table_df is None:
-            raise ValueError("ServiceBusStandardisationProcess.process requires a source_data dataframe to be provided, but was missing")
+            raise ValueError(
+                "ServiceBusStandardisationProcess.process requires a source_data dataframe to be provided, but was missing"
+            )
 
         new_raw_messages = source_data.pop("raw_messages", None)
         if new_raw_messages is None:
-            raise ValueError("ServiceBusStandardisationProcess.process requires new_raw_messages dataframe to be provided, but was missing")
+            raise ValueError(
+                "ServiceBusStandardisationProcess.process requires new_raw_messages dataframe to be provided, but was missing"
+            )
         table_row_count = table_df.count()
         new_raw_messages = self.remove_data_duplicates(new_raw_messages)
         insert_count = new_raw_messages.count()
 
         _anon_enabled = Util.is_non_production_environment()
-        LoggingUtil().log_info(f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} entity={entity_name}")
+        LoggingUtil().log_info(
+            f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} entity={entity_name}"
+        )
         # Apply anonymisation only in DEV/TEST environments, and only when there are rows to process
         if _anon_enabled and insert_count > 0:
             try:
                 anon_config = AnonymisationConfig()
                 try:
-                    policy_path = Util.get_path_to_file("odw-config/anonymisation/policy.yaml")
-                    policy_text = self.spark.read.text(policy_path, wholetext=True).first().value
+                    policy_path = Util.get_path_to_file(
+                        "odw-config/anonymisation/policy.yaml"
+                    )
+                    policy_text = (
+                        self.spark.read.text(policy_path, wholetext=True).first().value
+                    )
                     anon_config = load_config(text=policy_text)
                 except Exception as config_err:
-                    LoggingUtil().log_info(f"Could not load anonymisation policy, using defaults: {config_err}")
+                    LoggingUtil().log_info(
+                        f"Could not load anonymisation policy, using defaults: {config_err}"
+                    )
                 engine = AnonymisationEngine(
                     config=AnonymisationConfig(
                         classification_allowlist=anon_config.classification_allowlist,
                         seed_column=anon_config.get_seed_column(entity_name),
                     )
                 )
-                LoggingUtil().log_info(f"Applying anonymisation to Service Bus entity: {entity_name}")
-                new_raw_messages = engine.apply_from_purview(new_raw_messages, entity_name=entity_name, source_folder="ServiceBus")
+                LoggingUtil().log_info(
+                    f"Applying anonymisation to Service Bus entity: {entity_name}"
+                )
+                new_raw_messages = engine.apply_from_purview(
+                    new_raw_messages,
+                    entity_name=entity_name,
+                    source_folder="ServiceBus",
+                )
             except Exception as e:
-                LoggingUtil().log_error(f"Anonymisation failed for {entity_name}: {str(e)}")
+                LoggingUtil().log_error(
+                    f"Anonymisation failed for {entity_name}: {str(e)}"
+                )
                 raise
 
         LoggingUtil().log_info(f"Rows to append: {insert_count}")

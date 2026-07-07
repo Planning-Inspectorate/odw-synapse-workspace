@@ -1,10 +1,17 @@
 import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.pins_inspector_curated_process import PinsInspectorCuratedProcess
-from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
+from odw.core.etl.transformation.curated.pins_inspector_curated_process import (
+    PinsInspectorCuratedProcess,
+)
+from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import (
+    PinsInspectorHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.util import format_adls_path_to_local_path
@@ -77,27 +84,68 @@ def _hist_hr_schema():
     )
 
 
-def _live_dim_row(sap_id, first_name="Alice", last_name="Smith", email=None, grade="G7", is_active="Y", active_status="ACTIVE"):
-    return (sap_id, email or f"{first_name.lower()}@pins.gov.uk", first_name, last_name, "2020-01-01", grade, is_active, active_status)
+def _live_dim_row(
+    sap_id,
+    first_name="Alice",
+    last_name="Smith",
+    email=None,
+    grade="G7",
+    is_active="Y",
+    active_status="ACTIVE",
+):
+    return (
+        sap_id,
+        email or f"{first_name.lower()}@pins.gov.uk",
+        first_name,
+        last_name,
+        "2020-01-01",
+        grade,
+        is_active,
+        active_status,
+    )
 
 
 def _entraid_row(entra_id, sap_id):
     return (entra_id, sap_id, "Y")
 
 
-def _source_data(spark, live_dim_rows=None, entraid_rows=None, specialisms_rows=None, address_rows=None, hist_hr_rows=None):
+def _source_data(
+    spark,
+    live_dim_rows=None,
+    entraid_rows=None,
+    specialisms_rows=None,
+    address_rows=None,
+    hist_hr_rows=None,
+):
     return {
         "live_dim": spark.createDataFrame(live_dim_rows or [], _live_dim_schema()),
         "entraid": spark.createDataFrame(entraid_rows or [], _entraid_schema()),
-        "specialisms": spark.createDataFrame(specialisms_rows or [], _specialisms_schema()),
+        "specialisms": spark.createDataFrame(
+            specialisms_rows or [], _specialisms_schema()
+        ),
         "address": spark.createDataFrame(address_rows or [], _address_schema()),
         "hist_hr": spark.createDataFrame(hist_hr_rows or [], _hist_hr_schema()),
     }
 
 
 class TestPinsInspectorCuratedProcess(ETLTestCase):
-    def _harmonise(self, spark, live_dim_rows=None, entraid_rows=None, specialisms_rows=None, address_rows=None, hist_hr_rows=None):
-        source = _source_data(spark, live_dim_rows, entraid_rows, specialisms_rows, address_rows, hist_hr_rows)
+    def _harmonise(
+        self,
+        spark,
+        live_dim_rows=None,
+        entraid_rows=None,
+        specialisms_rows=None,
+        address_rows=None,
+        hist_hr_rows=None,
+    ):
+        source = _source_data(
+            spark,
+            live_dim_rows,
+            entraid_rows,
+            specialisms_rows,
+            address_rows,
+            hist_hr_rows,
+        )
         with mock.patch(
             "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment",
             return_value=False,
@@ -123,10 +171,14 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         data_path = format_adls_path_to_local_path(None, "odw-curated", table_name)
         spark.sql(f"DROP TABLE IF EXISTS odw_curated_db.{table_name}")
         df.write.format("delta").mode("overwrite").save(data_path)
-        spark.sql(f"CREATE TABLE IF NOT EXISTS odw_curated_db.{table_name} USING DELTA LOCATION '{data_path}'")
+        spark.sql(
+            f"CREATE TABLE IF NOT EXISTS odw_curated_db.{table_name} USING DELTA LOCATION '{data_path}'"
+        )
 
     def _empty_curated(self, spark, harmonised_df):
-        empty = harmonised_df.filter(F.lit(False)).select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS)
+        empty = harmonised_df.filter(F.lit(False)).select(
+            *PinsInspectorCuratedProcess._OUTPUT_COLUMNS
+        )
         self._write_curated(spark, empty)
 
     def test__run__writes_active_inspectors_end_to_end(self):
@@ -135,25 +187,45 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
 
         harmonised_df = self._harmonise(
             spark,
-            live_dim_rows=[_live_dim_row("00010001", first_name="Alice"), _live_dim_row("00010002", first_name="Bob")],
-            entraid_rows=[_entraid_row("entra-001", "00010001"), _entraid_row("entra-002", "00010002")],
+            live_dim_rows=[
+                _live_dim_row("00010001", first_name="Alice"),
+                _live_dim_row("00010002", first_name="Bob"),
+            ],
+            entraid_rows=[
+                _entraid_row("entra-001", "00010001"),
+                _entraid_row("entra-002", "00010002"),
+            ],
         )
         self._write_harmonised(spark, harmonised_df)
         self._empty_curated(spark, harmonised_df)
 
         table_name = f"{self.test_case}_pins_inspector"
         with (
-            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
-            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{table_name}",
+            ),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "OUTPUT_TABLE",
+                f"odw_curated_db.{table_name}",
+            ),
         ):
             result = PinsInspectorCuratedProcess(spark).run(
-                orchestration_run_id="t_r_waiete", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+                orchestration_run_id="t_r_waiete",
+                orchestration_entity_name="pins_inspector",
+                orchestration_stage_name="curate",
             )
 
         assert_etl_result_successful(result)
         actual = spark.table(f"odw_curated_db.{table_name}").orderBy("entraId")
 
-        expected = harmonised_df.filter(F.col("isActive") == "Y").select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS).orderBy("entraId")
+        expected = (
+            harmonised_df.filter(F.col("isActive") == "Y")
+            .select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS)
+            .orderBy("entraId")
+        )
 
         assert actual.count() == 2
 
@@ -174,7 +246,9 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
             "title",
             "validFrom",
         ]
-        assert_dataframes_equal(actual.select(scalar_cols), expected.select(scalar_cols))
+        assert_dataframes_equal(
+            actual.select(scalar_cols), expected.select(scalar_cols)
+        )
 
     def test__run__empty_source_writes_empty_output(self):
         self.test_case = "t_picp_r_eseo"
@@ -186,11 +260,21 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
 
         table_name = f"{self.test_case}_pins_inspector"
         with (
-            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
-            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{table_name}",
+            ),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "OUTPUT_TABLE",
+                f"odw_curated_db.{table_name}",
+            ),
         ):
             result = PinsInspectorCuratedProcess(spark).run(
-                orchestration_run_id="t_r_esweo", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+                orchestration_run_id="t_r_esweo",
+                orchestration_entity_name="pins_inspector",
+                orchestration_stage_name="curate",
             )
 
         assert_etl_result_successful(result)
@@ -204,27 +288,51 @@ class TestPinsInspectorCuratedProcess(ETLTestCase):
         # Harmonise the initial state and seed the curated table from it
         initial_harmonised = self._harmonise(
             spark,
-            live_dim_rows=[_live_dim_row("00010001", first_name="OldName"), _live_dim_row("00010002", first_name="Bob")],
-            entraid_rows=[_entraid_row("entra-001", "00010001"), _entraid_row("entra-002", "00010002")],
+            live_dim_rows=[
+                _live_dim_row("00010001", first_name="OldName"),
+                _live_dim_row("00010002", first_name="Bob"),
+            ],
+            entraid_rows=[
+                _entraid_row("entra-001", "00010001"),
+                _entraid_row("entra-002", "00010002"),
+            ],
         )
-        initial_curated = initial_harmonised.filter(F.col("isActive") == "Y").select(*PinsInspectorCuratedProcess._OUTPUT_COLUMNS)
+        initial_curated = initial_harmonised.filter(F.col("isActive") == "Y").select(
+            *PinsInspectorCuratedProcess._OUTPUT_COLUMNS
+        )
         self._write_curated(spark, initial_curated)
 
         # Harmonise updated source data (entra-001 first name changed)
         updated_harmonised = self._harmonise(
             spark,
-            live_dim_rows=[_live_dim_row("00010001", first_name="NewName"), _live_dim_row("00010002", first_name="Bob")],
-            entraid_rows=[_entraid_row("entra-001", "00010001"), _entraid_row("entra-002", "00010002")],
+            live_dim_rows=[
+                _live_dim_row("00010001", first_name="NewName"),
+                _live_dim_row("00010002", first_name="Bob"),
+            ],
+            entraid_rows=[
+                _entraid_row("entra-001", "00010001"),
+                _entraid_row("entra-002", "00010002"),
+            ],
         )
         self._write_harmonised(spark, updated_harmonised)
 
         table_name = f"{self.test_case}_pins_inspector"
         with (
-            mock.patch.object(PinsInspectorCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{table_name}"),
-            mock.patch.object(PinsInspectorCuratedProcess, "OUTPUT_TABLE", f"odw_curated_db.{table_name}"),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{table_name}",
+            ),
+            mock.patch.object(
+                PinsInspectorCuratedProcess,
+                "OUTPUT_TABLE",
+                f"odw_curated_db.{table_name}",
+            ),
         ):
             result = PinsInspectorCuratedProcess(spark).run(
-                orchestration_run_id="t_r_cruurp", orchestration_entity_name="pins_inspector", orchestration_stage_name="curate"
+                orchestration_run_id="t_r_cruurp",
+                orchestration_entity_name="pins_inspector",
+                orchestration_stage_name="curate",
             )
 
         assert_etl_result_successful(result)

@@ -31,7 +31,9 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
         return "NSIP Exam Timetable Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading harmonised NSIP Exam Timetable data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP Exam Timetable data from {self.HARMONISED_TABLE}"
+        )
         harmonised_exam_timetable = self.spark.sql(f"""
             SELECT
                 caseReference,
@@ -49,7 +51,9 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
             FROM {self.HARMONISED_TABLE}
         """)
 
-        LoggingUtil().log_info(f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading curated NSIP Project data from {self.CURATED_PROJECT_TABLE}"
+        )
         curated_projects = self.spark.sql(f"""
             SELECT caseReference
             FROM {self.CURATED_PROJECT_TABLE}
@@ -71,19 +75,33 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_exam_timetable: DataFrame = self.load_parameter("harmonised_exam_timetable", source_data)
-        curated_projects: DataFrame = self.load_parameter("curated_projects", source_data)
+        harmonised_exam_timetable: DataFrame = self.load_parameter(
+            "harmonised_exam_timetable", source_data
+        )
+        curated_projects: DataFrame = self.load_parameter(
+            "curated_projects", source_data
+        )
 
         # Match legacy logic: only Horizon records are eligible
-        horizon_exam_timetable = harmonised_exam_timetable.filter(F.lower(F.col("ODTSourceSystem")) == "horizon")
+        horizon_exam_timetable = harmonised_exam_timetable.filter(
+            F.lower(F.col("ODTSourceSystem")) == "horizon"
+        )
 
         # Match legacy logic: latest Horizon record per caseReference
-        latest_horizon_dates = horizon_exam_timetable.groupBy("caseReference").agg(F.max("IngestionDate").alias("latest_date"))
+        latest_horizon_dates = horizon_exam_timetable.groupBy("caseReference").agg(
+            F.max("IngestionDate").alias("latest_date")
+        )
 
         latest_horizon_exam_timetable = horizon_exam_timetable.join(
             latest_horizon_dates,
-            (horizon_exam_timetable["caseReference"] == latest_horizon_dates["caseReference"])
-            & (horizon_exam_timetable["IngestionDate"] == latest_horizon_dates["latest_date"]),
+            (
+                horizon_exam_timetable["caseReference"]
+                == latest_horizon_dates["caseReference"]
+            )
+            & (
+                horizon_exam_timetable["IngestionDate"]
+                == latest_horizon_dates["latest_date"]
+            ),
             "inner",
         ).select(horizon_exam_timetable["*"])
 
@@ -91,7 +109,8 @@ class NsipExamTimetableCuratedProcess(CurationProcess):
         df = (
             latest_horizon_exam_timetable.join(
                 curated_projects,
-                latest_horizon_exam_timetable["caseReference"] == curated_projects["caseReference"],
+                latest_horizon_exam_timetable["caseReference"]
+                == curated_projects["caseReference"],
                 "inner",
             )
             .select(

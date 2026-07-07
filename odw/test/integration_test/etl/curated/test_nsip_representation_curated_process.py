@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.nsip_representation_curated_process import NsipRepresentationCuratedProcess
+from odw.core.etl.transformation.curated.nsip_representation_curated_process import (
+    NsipRepresentationCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -8,7 +10,9 @@ import mock
 
 
 class TestNSIPRepresentationCurated(ETLTestCase):
-    def test__nsip_representation_curated_process__run__applies_status_and_party_mappings(self):
+    def test__nsip_representation_curated_process__run__applies_status_and_party_mappings(
+        self,
+    ):
         test_case = "t_nrcp_r_asapm"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -99,16 +103,29 @@ class TestNSIPRepresentationCurated(ETLTestCase):
                 "odw.core.etl.transformation.curated.nsip_representation_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipRepresentationCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_representations_table}"),
-            mock.patch.object(NsipRepresentationCuratedProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipRepresentationCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_representations_table}",
+            ),
+            mock.patch.object(
+                NsipRepresentationCuratedProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipRepresentationCuratedProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_representation", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_representation",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{output_table}")
-        rows = {row["representationId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["representationId"]: row.asDict(recursive=True)
+            for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
 

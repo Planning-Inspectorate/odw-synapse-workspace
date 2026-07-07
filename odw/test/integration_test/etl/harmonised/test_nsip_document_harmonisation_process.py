@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import NsipDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process import (
+    NsipDocumentHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -8,7 +10,9 @@ import mock
 
 
 class TestNSIPDocumentHarmonisation(ETLTestCase):
-    def test__nsip_document_harmonisation_process__run__combines_service_bus_and_horizon_and_sets_migrated_flags(self):
+    def test__nsip_document_harmonisation_process__run__combines_service_bus_and_horizon_and_sets_migrated_flags(
+        self,
+    ):
         test_case = "t_ndhp_r_csbahasmf"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -115,7 +119,15 @@ class TestNSIPDocumentHarmonisation(ETLTestCase):
             ),
         )
         service_bus_table = f"{test_case}_sb_nsip_document"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         horizon_data = spark.createDataFrame(
             [
@@ -180,11 +192,31 @@ class TestNSIPDocumentHarmonisation(ETLTestCase):
             ],
         )
         horizon_table = f"{test_case}_document_meta_data"
-        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_table,
+            "overwrite",
+        )
 
         aie_data = spark.createDataFrame(
             [
-                (20, 1, 120, "EX2", "application/pdf", "http://doc2", "/path2", "md5-2", "OFFICIAL", "origin2", "owner2"),
+                (
+                    20,
+                    1,
+                    120,
+                    "EX2",
+                    "application/pdf",
+                    "http://doc2",
+                    "/path2",
+                    "md5-2",
+                    "OFFICIAL",
+                    "origin2",
+                    "owner2",
+                ),
             ],
             [
                 "DocumentId",
@@ -201,7 +233,15 @@ class TestNSIPDocumentHarmonisation(ETLTestCase):
             ],
         )
         aie_table = f"{test_case}_aie_document_data"
-        self.write_existing_table(spark, aie_data, aie_table, "odw_harmonised_db", "odw-harmonised", aie_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            aie_data,
+            aie_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            aie_table,
+            "overwrite",
+        )
 
         output_table = f"{test_case}_nsip_document"
 
@@ -210,19 +250,39 @@ class TestNSIPDocumentHarmonisation(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipDocumentHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
-            mock.patch.object(NsipDocumentHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_table}"),
-            mock.patch.object(NsipDocumentHarmonisationProcess, "AIE_EXTRACTS_TABLE", f"odw_harmonised_db.{aie_table}"),
-            mock.patch.object(NsipDocumentHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipDocumentHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"odw_harmonised_db.{service_bus_table}",
+            ),
+            mock.patch.object(
+                NsipDocumentHarmonisationProcess,
+                "HORIZON_TABLE",
+                f"odw_standardised_db.{horizon_table}",
+            ),
+            mock.patch.object(
+                NsipDocumentHarmonisationProcess,
+                "AIE_EXTRACTS_TABLE",
+                f"odw_harmonised_db.{aie_table}",
+            ),
+            mock.patch.object(
+                NsipDocumentHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipDocumentHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_document", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_document",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
 
-        rows = {row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["documentId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
         assert rows[10]["Migrated"] == "1"
