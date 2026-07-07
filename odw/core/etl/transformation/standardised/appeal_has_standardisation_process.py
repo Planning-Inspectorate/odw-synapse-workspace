@@ -1,5 +1,7 @@
 from typing import Any, Dict
-from odw.core.etl.transformation.standardised.standardisation_process import StandardisationProcess
+from odw.core.etl.transformation.standardised.standardisation_process import (
+    StandardisationProcess,
+)
 from pyspark.sql import DataFrame
 
 
@@ -30,7 +32,11 @@ class AppealHasStandardisationProcess(StandardisationProcess):
         return "Appeal HAS Standardisation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        raise NotImplementedError("AppealHasStandardisationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealHasStandardisationProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError("AppealHasStandardisationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "AppealHasStandardisationProcess.process() has not been implemented yet."
+        )

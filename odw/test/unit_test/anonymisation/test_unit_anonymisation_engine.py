@@ -3,7 +3,10 @@ import re
 from datetime import date
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
-from odw.core.anonymisation.engine import _build_asset_qualified_name_from_params, _horizon_filename_to_purview_pattern
+from odw.core.anonymisation.engine import (
+    _build_asset_qualified_name_from_params,
+    _horizon_filename_to_purview_pattern,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 import pyspark.sql.functions as F
@@ -40,12 +43,16 @@ class TestAnonymisationEngine(SparkTestCase):
         # Add standardised columns (simulating what Horizon process does)
         df = (
             df.withColumn("ingested_datetime", F.current_timestamp())
-            .withColumn("ingested_by_process_name", F.lit("horizon_standardisation_process"))
+            .withColumn(
+                "ingested_by_process_name", F.lit("horizon_standardisation_process")
+            )
             .withColumn("expected_from", F.current_timestamp())
             .withColumn("expected_to", F.expr("current_timestamp() + INTERVAL 1 DAY"))
             .withColumn("input_file", F.lit("test_file.csv"))
             .withColumn("modified_datetime", F.current_timestamp())
-            .withColumn("modified_by_process_name", F.lit("horizon_standardisation_process"))
+            .withColumn(
+                "modified_by_process_name", F.lit("horizon_standardisation_process")
+            )
             .withColumn("entity_name", F.lit("test_entity"))
             .withColumn("file_ID", F.lit("test_file_id"))
         )
@@ -59,23 +66,39 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Annual Salary", "classifications": ["Annual Salary"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
                                 # Simulate the anonymisation step in process()
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         # Verify anonymisation was applied
-        rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date", "Annual Salary").collect()
+        rows = result_df.select(
+            "First Name", "Last Name", "Email Address", "Birth Date", "Annual Salary"
+        ).collect()
 
         assert rows[0]["First Name"] == "REDACTED"
         assert rows[0]["Last Name"] == "REDACTED"
@@ -83,8 +106,14 @@ class TestAnonymisationEngine(SparkTestCase):
         assert rows[1]["Last Name"] == "REDACTED"
 
         # Email should be masked
-        assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
-        assert rows[1]["Email Address"] == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        assert (
+            rows[0]["Email Address"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
+        assert (
+            rows[1]["Email Address"]
+            == "f2d1f1c853fd1f4be1eb5060eaae93066c877d069473795e31db5e70c4880859"
+        )
 
         # Birth date should be within anonymised range
         start = date(1955, 1, 1)
@@ -93,8 +122,14 @@ class TestAnonymisationEngine(SparkTestCase):
         assert start <= rows[1]["Birth Date"] <= end
 
         # Salary should be within anonymised range
-        assert isinstance(rows[0]["Annual Salary"], int) and 20000 <= rows[0]["Annual Salary"] <= 100000
-        assert isinstance(rows[1]["Annual Salary"], int) and 20000 <= rows[1]["Annual Salary"] <= 100000
+        assert (
+            isinstance(rows[0]["Annual Salary"], int)
+            and 20000 <= rows[0]["Annual Salary"] <= 100000
+        )
+        assert (
+            isinstance(rows[1]["Annual Salary"], int)
+            and 20000 <= rows[1]["Annual Salary"] <= 100000
+        )
 
     def test__horizon_standardisation__anonymisation_skipped_in_prod_environment(self):
         """
@@ -121,26 +156,34 @@ class TestAnonymisationEngine(SparkTestCase):
             .withColumn("input_file", F.lit("test_file.csv"))
         )
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=False):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=False
+        ):
             with mock.patch.object(LoggingUtil, "__new__"):
                 with mock.patch.object(LoggingUtil, "log_info", return_value=None):
                     with mock.patch.object(LoggingUtil, "log_error", return_value=None):
                         # Simulate the anonymisation check in process()
                         if Util.is_non_production_environment():
                             # This should NOT be executed in PROD
-                            raise AssertionError("Anonymisation should not run in PROD environment")
+                            raise AssertionError(
+                                "Anonymisation should not run in PROD environment"
+                            )
 
                         result_df = df
 
         # Verify data remains unchanged
-        rows = result_df.select("First Name", "Last Name", "Email Address", "Birth Date").collect()
+        rows = result_df.select(
+            "First Name", "Last Name", "Email Address", "Birth Date"
+        ).collect()
 
         assert rows[0]["First Name"] == "John"
         assert rows[0]["Last Name"] == "Doe"
         assert rows[0]["Email Address"] == "john.doe@example.com"
         assert rows[0]["Birth Date"] == "1990-01-01"
 
-    def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns(self):
+    def test__horizon_standardisation__anonymisation_preserves_non_sensitive_columns(
+        self,
+    ):
         """
         Test that non-sensitive columns in Horizon data are not modified during anonymisation
         """
@@ -173,22 +216,43 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Email Address", "classifications": ["Email Address"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         # Verify non-sensitive columns remain unchanged
-        rows = result_df.select("Staff Number", "Department", "Location", "First Name", "Last Name", "Email Address").collect()
+        rows = result_df.select(
+            "Staff Number",
+            "Department",
+            "Location",
+            "First Name",
+            "Last Name",
+            "Email Address",
+        ).collect()
 
         # Non-sensitive columns should be unchanged
         assert rows[0]["Staff Number"] == "S001"
@@ -198,9 +262,14 @@ class TestAnonymisationEngine(SparkTestCase):
         # Sensitive columns should be anonymised
         assert rows[0]["First Name"] == "REDACTED"
         assert rows[0]["Last Name"] == "REDACTED"
-        assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            rows[0]["Email Address"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
 
-    def test__horizon_standardisation__anonymisation_handles_column_name_transformations(self):
+    def test__horizon_standardisation__anonymisation_handles_column_name_transformations(
+        self,
+    ):
         """
         Test that anonymisation works correctly after Horizon column name transformations
         (lowercase, special character removal, etc...)
@@ -226,7 +295,9 @@ class TestAnonymisationEngine(SparkTestCase):
         df = df.toDF(*cols)
 
         # Add standardised columns
-        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn(
+            "input_file", F.lit("test_file.csv")
+        )
 
         # Mock Purview classifications (using normalized column names)
         mocked_purview_cols = [
@@ -235,22 +306,38 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "email_address", "classifications": ["Email Address"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         # Verify anonymisation was applied to transformed column names
-        rows = result_df.select("staff_number", "first_name", "last_name", "email_address").collect()
+        rows = result_df.select(
+            "staff_number", "first_name", "last_name", "email_address"
+        ).collect()
 
         # staff_number should be unchanged
         assert rows[0]["staff_number"] == "S001"
@@ -258,7 +345,10 @@ class TestAnonymisationEngine(SparkTestCase):
         # Classified columns should be anonymised
         assert rows[0]["first_name"] == "REDACTED"
         assert rows[0]["last_name"] == "REDACTED"
-        assert rows[0]["email_address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            rows[0]["email_address"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
 
     def test__horizon_standardisation__anonymisation_is_idempotent(self):
         """
@@ -278,7 +368,9 @@ class TestAnonymisationEngine(SparkTestCase):
         df = spark.createDataFrame(data)
 
         # Add standardised columns
-        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn(
+            "input_file", F.lit("test_file.csv")
+        )
 
         # Mock Purview classifications
         mocked_purview_cols = [
@@ -286,22 +378,40 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Annual Salary", "classifications": ["Annual Salary"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 # Run anonymisation twice
                                 engine = AnonymisationEngine()
-                                result_df_1 = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df_1 = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
-                                result_df_2 = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df_2 = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         # Verify both runs produce identical results
         rows_1 = result_df_1.select("First Name", "Annual Salary").collect()
@@ -323,31 +433,57 @@ class TestAnonymisationEngine(SparkTestCase):
             {"Staff Number": "S002", "Email Address": "john.doe@example.com"},
         ]
         df = spark.createDataFrame(data)
-        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn(
+            "input_file", F.lit("test_file.csv")
+        )
 
-        mocked_purview_cols = [{"column_name": "Email Address", "classifications": ["Email Address"]}]
+        mocked_purview_cols = [
+            {"column_name": "Email Address", "classifications": ["Email Address"]}
+        ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("Email Address").orderBy("Email Address").collect()
         # sha256("john.doe@example.com") — both casing variants must produce this
-        expected_hash = "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        expected_hash = (
+            "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
 
-        assert rows[0]["Email Address"] == expected_hash, "Uppercase email should produce the same hash as lowercase"
-        assert rows[1]["Email Address"] == expected_hash, "Lowercase email should produce the same hash as uppercase"
-        assert rows[0]["Email Address"] == rows[1]["Email Address"], "Both casing variants must hash identically"
+        assert rows[0]["Email Address"] == expected_hash, (
+            "Uppercase email should produce the same hash as lowercase"
+        )
+        assert rows[1]["Email Address"] == expected_hash, (
+            "Lowercase email should produce the same hash as uppercase"
+        )
+        assert rows[0]["Email Address"] == rows[1]["Email Address"], (
+            "Both casing variants must hash identically"
+        )
 
     def test__horizon_standardisation__anonymisation_handles_null_values(self):
         """
@@ -371,7 +507,9 @@ class TestAnonymisationEngine(SparkTestCase):
         df = spark.createDataFrame(data)
 
         # Add standardised columns
-        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn("input_file", F.lit("test_file.csv"))
+        df = df.withColumn("ingested_datetime", F.current_timestamp()).withColumn(
+            "input_file", F.lit("test_file.csv")
+        )
 
         # Mock Purview classifications
         mocked_purview_cols = [
@@ -379,26 +517,43 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Email Address", "classifications": ["Email Address"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         # Verify anonymisation
         rows = result_df.select("First Name", "Email Address").collect()
 
         # First row should be anonymised
         assert rows[0]["First Name"] == "REDACTED"
-        assert rows[0]["Email Address"] == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        assert (
+            rows[0]["Email Address"]
+            == "836f82db99121b3481011f16b49dfa5fbc714a0d1b1b9f784a1ebbbf5b39577f"
+        )
 
         # Second row nulls should remain null
         assert rows[1]["First Name"] is None
@@ -420,17 +575,29 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Postcode", "classifications": ["UK Postcode"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "E17"
@@ -489,22 +656,39 @@ class TestAnonymisationEngine(SparkTestCase):
         df = spark.createDataFrame(data, schema)
 
         mocked_purview_cols = [
-            {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+            {
+                "column_name": "address",
+                "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"],
+            },
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("sapId", "firstName", "address").collect()
 
@@ -552,21 +736,37 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Postcode", "classifications": ["Postcode"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
-        rows = result_df.select("Staff Number", "Address Line 1", "Address Line 2", "Postcode").collect()
+        rows = result_df.select(
+            "Staff Number", "Address Line 1", "Address Line 2", "Postcode"
+        ).collect()
 
         assert rows[0]["Staff Number"] == "S001"
         assert rows[0]["Address Line 1"] == "REDACTED"
@@ -620,22 +820,39 @@ class TestAnonymisationEngine(SparkTestCase):
         df = spark.createDataFrame(data, schema)
 
         mocked_purview_cols = [
-            {"column_name": "address", "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"]},
+            {
+                "column_name": "address",
+                "classifications": ["MICROSOFT.PERSONAL.PHYSICALADDRESS"],
+            },
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
-                                from odw.core.anonymisation.engine import AnonymisationEngine
+                                from odw.core.anonymisation.engine import (
+                                    AnonymisationEngine,
+                                )
 
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("sapId", "firstName", "address").collect()
 
@@ -663,23 +880,39 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Postcode", "classifications": ["UK Postcode"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "SW1W"  # multiple spaces: first block kept
-        assert rows[1]["Postcode"] == "E17"  # leading/trailing spaces stripped, first block kept
+        assert (
+            rows[1]["Postcode"] == "E17"
+        )  # leading/trailing spaces stripped, first block kept
         assert rows[2]["Postcode"] == "sw1w"  # lowercase preserved as-is
-        assert rows[3]["Postcode"] == "E174NT"  # no space: full value kept (no block to split)
+        assert (
+            rows[3]["Postcode"] == "E174NT"
+        )  # no space: full value kept (no block to split)
 
     def test__anonymisation__non_allowlisted_classification_skipped(self):
         from odw.core.anonymisation.engine import AnonymisationEngine
@@ -697,11 +930,19 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Secret", "classifications": ["Internal Only"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
@@ -716,7 +957,9 @@ class TestAnonymisationEngine(SparkTestCase):
 
         rows = result_df.select("Postcode", "Secret").collect()
         assert rows[0]["Postcode"] == "E17"  # anonymised — classification in allowlist
-        assert rows[0]["Secret"] == "sensitive"  # not anonymised — classification not in allowlist
+        assert (
+            rows[0]["Secret"] == "sensitive"
+        )  # not anonymised — classification not in allowlist
 
     def test__anonymisation__duplicate_purview_column_applied_once(self):
         from odw.core.anonymisation.engine import AnonymisationEngine
@@ -734,17 +977,29 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "Postcode", "classifications": ["UK Postcode"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, file_name="test_file.csv", source_folder="Horizon")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    file_name="test_file.csv",
+                                    source_folder="Horizon",
+                                )
 
         rows = result_df.select("Postcode").collect()
         assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
@@ -763,17 +1018,30 @@ class TestAnonymisationEngine(SparkTestCase):
             {"column_name": "value[].givenName", "classifications": ["All Full Names"]},
         ]
 
-        with mock.patch.object(Util, "is_non_production_environment", return_value=True):
-            with mock.patch.object(Util, "get_storage_account", return_value="test-storage.dfs.core.windows.net"):
+        with mock.patch.object(
+            Util, "is_non_production_environment", return_value=True
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="test-storage.dfs.core.windows.net",
+            ):
                 with mock.patch.object(LoggingUtil, "__new__"):
                     with mock.patch.object(LoggingUtil, "log_info", return_value=None):
-                        with mock.patch.object(LoggingUtil, "log_error", return_value=None):
+                        with mock.patch.object(
+                            LoggingUtil, "log_error", return_value=None
+                        ):
                             with mock.patch(
                                 "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
                                 return_value=mocked_purview_cols,
                             ):
                                 engine = AnonymisationEngine()
-                                result_df = engine.apply_from_purview(df, entity_name="entraid", file_name="entraid.json", source_folder="entraid")
+                                result_df = engine.apply_from_purview(
+                                    df,
+                                    entity_name="entraid",
+                                    file_name="entraid.json",
+                                    source_folder="entraid",
+                                )
 
         rows = result_df.collect()
         assert rows[0]["surname"] != "Smith", "surname should have been anonymised"
@@ -784,16 +1052,27 @@ class TestHorizonPurviewFQNBuilder:
     """Unit tests for the Horizon Purview qualified-name helpers."""
 
     def test__filename_to_purview_pattern__replaces_trailing_number(self):
-        assert _horizon_filename_to_purview_pattern("HorizonCases_s78.csv") == "HorizonCases_s{N}.csv"
+        assert (
+            _horizon_filename_to_purview_pattern("HorizonCases_s78.csv")
+            == "HorizonCases_s{N}.csv"
+        )
 
     def test__filename_to_purview_pattern__replaces_all_digit_runs(self):
-        assert _horizon_filename_to_purview_pattern("Appeals123_v2.csv") == "Appeals{N}_v{N}.csv"
+        assert (
+            _horizon_filename_to_purview_pattern("Appeals123_v2.csv")
+            == "Appeals{N}_v{N}.csv"
+        )
 
     def test__filename_to_purview_pattern__no_digits_unchanged(self):
-        assert _horizon_filename_to_purview_pattern("HorizonContacts.csv") == "HorizonContacts.csv"
+        assert (
+            _horizon_filename_to_purview_pattern("HorizonContacts.csv")
+            == "HorizonContacts.csv"
+        )
 
     def test__filename_to_purview_pattern__no_extension(self):
-        assert _horizon_filename_to_purview_pattern("HorizonCases78") == "HorizonCases{N}"
+        assert (
+            _horizon_filename_to_purview_pattern("HorizonCases78") == "HorizonCases{N}"
+        )
 
     def test__build_fqn__horizon_path(self):
         fqn = _build_asset_qualified_name_from_params(
@@ -802,7 +1081,9 @@ class TestHorizonPurviewFQNBuilder:
             entity_name=None,
             file_name="HorizonCases_s78.csv",
         )
-        assert fqn == ("https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv")
+        assert fqn == (
+            "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/Horizon/{Year}-{Month}-{Day}/HorizonCases_s{N}.csv"
+        )
 
     def test__build_fqn__horizon_converts_filename_to_pattern(self):
         fqn = _build_asset_qualified_name_from_params(
@@ -852,8 +1133,13 @@ class TestHorizonPurviewFQNBuilder:
 
         from unittest import mock
 
-        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
-            result = _extract_classified_columns(entity_with_refs, purview_name="pins-pview")
+        with mock.patch(
+            "odw.core.anonymisation.engine._get_entity_with_refs",
+            side_effect=mock_get_entity,
+        ):
+            result = _extract_classified_columns(
+                entity_with_refs, purview_name="pins-pview"
+            )
 
         assert len(result) == 1
         assert result[0]["column_name"] == "surname"
@@ -866,7 +1152,10 @@ class TestHorizonPurviewFQNBuilder:
             entity_name="entraid",
             file_name=None,
         )
-        assert fqn == "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/entraid/{Year}-{Month}-{Day}/entraid.json"
+        assert (
+            fqn
+            == "https://pinsstodwdevuks9h80mb.dfs.core.windows.net/odw-raw/entraid/{Year}-{Month}-{Day}/entraid.json"
+        )
 
     def test__build_fqn__service_bus_unaffected(self):
         fqn = _build_asset_qualified_name_from_params(
@@ -929,19 +1218,31 @@ class TestHorizonPurviewFQNBuilder:
             schema_guid: {
                 "entity": {"relationshipAttributes": {}},
                 "referredEntities": {
-                    root_schema_guid: {"guid": root_schema_guid, "typeName": "json_schema", "attributes": {"name": "-"}, "classifications": []},
+                    root_schema_guid: {
+                        "guid": root_schema_guid,
+                        "typeName": "json_schema",
+                        "attributes": {"name": "-"},
+                        "classifications": [],
+                    },
                 },
             },
             root_schema_guid: {
                 "entity": {"relationshipAttributes": {}},
                 "referredEntities": {
-                    value_guid: {"guid": value_guid, "typeName": "json_property", "attributes": {"name": "value"}, "classifications": []},
+                    value_guid: {
+                        "guid": value_guid,
+                        "typeName": "json_property",
+                        "attributes": {"name": "value"},
+                        "classifications": [],
+                    },
                 },
             },
             value_guid: {
                 "entity": {
                     "relationshipAttributes": {
-                        "items": [{"guid": array_schema_guid, "typeName": "json_schema"}],
+                        "items": [
+                            {"guid": array_schema_guid, "typeName": "json_schema"}
+                        ],
                     }
                 },
                 "referredEntities": {},
@@ -970,8 +1271,13 @@ class TestHorizonPurviewFQNBuilder:
                 return entity_map[guid]
             raise ValueError(f"Unexpected GUID: {guid}")
 
-        with mock.patch("odw.core.anonymisation.engine._get_entity_with_refs", side_effect=mock_get_entity):
-            result = _fetch_classified_columns_deep("pins-pview", schema_guid, "2023-09-01", {})
+        with mock.patch(
+            "odw.core.anonymisation.engine._get_entity_with_refs",
+            side_effect=mock_get_entity,
+        ):
+            result = _fetch_classified_columns_deep(
+                "pins-pview", schema_guid, "2023-09-01", {}
+            )
 
         assert len(result) == 2
         names = {r["column_name"] for r in result}

@@ -2,7 +2,9 @@ import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_service_user_curated_process import AppealServiceUserCuratedProcess
+from odw.core.etl.transformation.curated.appeal_service_user_curated_process import (
+    AppealServiceUserCuratedProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -125,15 +127,21 @@ def _source_data(spark, service_user_rows=None):
 
 
 class TestAppealServiceUserCuratedProcess(SparkTestCase):
-    def test__appeal_service_user_curated_process__get_name__returns_expected_name(self):
+    def test__appeal_service_user_curated_process__get_name__returns_expected_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = AppealServiceUserCuratedProcess(spark)
 
         assert inst.get_name() == "Appeal Service User Curation Process"
 
-    def test__appeal_service_user_curated_process__process__outputs_expected_legacy_columns_only(self):
+    def test__appeal_service_user_curated_process__process__outputs_expected_legacy_columns_only(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_data = _source_data(spark, service_user_rows=[_harmonised_service_user_row()])
+        source_data = _source_data(
+            spark, service_user_rows=[_harmonised_service_user_row()]
+        )
 
         inst = AppealServiceUserCuratedProcess(spark)
         data_to_write, _ = inst.process(source_data=source_data)
@@ -165,9 +173,13 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
             "sourceSystem",
         ]
 
-    def test__appeal_service_user_curated_process__process__maps_selected_columns_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__maps_selected_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_data = _source_data(spark, service_user_rows=[_harmonised_service_user_row()])
+        source_data = _source_data(
+            spark, service_user_rows=[_harmonised_service_user_row()]
+        )
 
         inst = AppealServiceUserCuratedProcess(spark)
         data_to_write, result = inst.process(source_data=source_data)
@@ -201,7 +213,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_process__process__includes_appellant_from_any_source_system_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__includes_appellant_from_any_source_system_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -234,7 +248,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "APP-OTHER").count() == 1
         assert result.metadata.insert_count == 3
 
-    def test__appeal_service_user_curated_process__process__includes_back_office_appeals_source_system_for_any_service_user_type_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__includes_back_office_appeals_source_system_for_any_service_user_type_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -261,7 +277,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "BO-REP").count() == 1
         assert result.metadata.insert_count == 2
 
-    def test__appeal_service_user_curated_process__process__filters_out_non_appellant_non_back_office_appeals_rows_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__filters_out_non_appellant_non_back_office_appeals_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -300,7 +318,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "DROP-REP").count() == 0
         assert result.metadata.insert_count == 2
 
-    def test__appeal_service_user_curated_process__process__filter_uses_or_not_and_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__filter_uses_or_not_and_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -326,7 +346,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "APP-NOT-BACK-OFFICE-APPEALS").count() == 1
         assert df.where(F.col("id") == "BACK-OFFICE-APPEALS-NOT-APP").count() == 1
 
-    def test__appeal_service_user_curated_process__process__preserves_duplicate_rows_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__preserves_duplicate_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         duplicate_row = _harmonised_service_user_row(id="DUP-001")
 
@@ -348,7 +370,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "DUP-001").count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_service_user_curated_process__process__does_not_filter_on_is_active_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__does_not_filter_on_is_active_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
@@ -375,7 +399,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "INACTIVE-APP").count() == 1
         assert result.metadata.insert_count == 2
 
-    def test__appeal_service_user_curated_process__process__empty_source_returns_empty_output(self):
+    def test__appeal_service_user_curated_process__process__empty_source_returns_empty_output(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(spark)
 
@@ -389,9 +415,13 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
 
-    def test__appeal_service_user_curated_process__process__uses_overwrite_and_parquet_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__uses_overwrite_and_parquet_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        source_data = _source_data(spark, service_user_rows=[_harmonised_service_user_row()])
+        source_data = _source_data(
+            spark, service_user_rows=[_harmonised_service_user_row()]
+        )
 
         inst = AppealServiceUserCuratedProcess(spark)
         data_to_write, result = inst.process(source_data=source_data)
@@ -404,7 +434,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert write_config["file_format"] == "parquet"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_service_user_curated_process__run__initial_load_matches_legacy(self):
+    def test__appeal_service_user_curated_process__run__initial_load_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = _source_data(
@@ -452,7 +484,9 @@ class TestAppealServiceUserCuratedProcess(SparkTestCase):
         assert df.where(F.col("id") == "BO-AGENT").count() == 1
         assert df.where(F.col("id") == "DROP-HZN-AGENT").count() == 0
 
-    def test__appeal_service_user_curated_process__process__filters_are_case_sensitive_like_legacy(self):
+    def test__appeal_service_user_curated_process__process__filters_are_case_sensitive_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,

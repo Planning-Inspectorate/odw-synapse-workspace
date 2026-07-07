@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonisation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -40,8 +42,12 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         # Load orchestration data
         orchestration_data = self.load_orchestration_data()
 
-        definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
-        definition: dict = next((d for d in definitions if entity_name == d["Source_Filename_Start"]), None)
+        definitions: list = json.loads(orchestration_data.toJSON().first())[
+            "definitions"
+        ]
+        definition: dict = next(
+            (d for d in definitions if entity_name == d["Source_Filename_Start"]), None
+        )
         if not definition:
             raise RuntimeError(
                 f"No definition could be found for 'Source_Filename_Start' == '{entity_name}' in the followin definitions: "
@@ -60,13 +66,18 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         # Load the harmonised layer
         try:
             existing_harmonised_data = SynapseTableDataIO().read(
-                spark=self.spark, database_name=self.hrm_db, table_name=hrm_table, file_format="delta"
+                spark=self.spark,
+                database_name=self.hrm_db,
+                table_name=hrm_table,
+                file_format="delta",
             )
         except AnalysisException:
             existing_harmonised_data = None
 
         # Extract source system data
-        LoggingUtil().log_info(f"Attempting to load '{self.hrm_db}.main_sourcesystem_fact'")
+        LoggingUtil().log_info(
+            f"Attempting to load '{self.hrm_db}.main_sourcesystem_fact'"
+        )
         source_system_data: DataFrame = self.spark.sql(
             f"SELECT * FROM {self.hrm_db}.main_sourcesystem_fact WHERE Description = 'Casework' AND IsActive = 'Y'"
         )
@@ -77,7 +88,13 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "source_system_data": source_system_data,
         }
 
-    def harmonise(self, data: DataFrame, source_system_data: DataFrame, incremental_key: str, primary_key: str):
+    def harmonise(
+        self,
+        data: DataFrame,
+        source_system_data: DataFrame,
+        incremental_key: str,
+        primary_key: str,
+    ):
         """
         Add harmonised columns to the dataframe, and drop unnecessary columns
         """
@@ -90,29 +107,49 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
             "ODTSourceSystem": F.lit("ODT").cast("string"),
             "ValidTo": F.lit("").cast("string"),
             "IsActive": F.lit("Y").cast("string"),
-            incremental_key: absolute(F.hash(F.col(primary_key).cast(T.StringType()), F.col("message_enqueued_time_utc").cast(T.StringType()))).cast(
-                T.LongType()
-            ),
+            incremental_key: absolute(
+                F.hash(
+                    F.col(primary_key).cast(T.StringType()),
+                    F.col("message_enqueued_time_utc").cast(T.StringType()),
+                )
+            ).cast(T.LongType()),
             "IngestionDate": F.col("message_enqueued_time_utc").cast("string"),
         }
         for col_name, col_value in cols_to_add.items():
             data = data.withColumn(col_name, col_value)
-        cols_to_drop = ("ingested_datetime", "message_enqueued_time_utc", "expected_from", "expected_to", "input_file")
+        cols_to_drop = (
+            "ingested_datetime",
+            "message_enqueued_time_utc",
+            "expected_from",
+            "expected_to",
+            "input_file",
+        )
         for col_to_drop in cols_to_drop:
             data = data.drop(col_to_drop)
         data = data.dropDuplicates()
         return data
 
-    def _align_old_data_to_new_data(self, old_data: DataFrame, new_data: DataFrame, joined_data: DataFrame, is_updated: bool):
+    def _align_old_data_to_new_data(
+        self,
+        old_data: DataFrame,
+        new_data: DataFrame,
+        joined_data: DataFrame,
+        is_updated: bool,
+    ):
         update_rows = joined_data
         # Update to match new schema
         for col in new_data.columns:
             if col in old_data.columns:
                 update_rows = update_rows.withColumn(f"{col}__cleaned", old_data[col])
             elif col != "row_state_metadata":
-                update_rows = update_rows.withColumn(f"{col}__cleaned", F.lit(None).cast(update_rows.schema[col].dataType))
+                update_rows = update_rows.withColumn(
+                    f"{col}__cleaned",
+                    F.lit(None).cast(update_rows.schema[col].dataType),
+                )
         if is_updated:
-            update_rows = update_rows.withColumn("ValidTo__cleaned", new_data["IngestionDate"]).withColumn("IsActive__cleaned", F.lit("N"))
+            update_rows = update_rows.withColumn(
+                "ValidTo__cleaned", new_data["IngestionDate"]
+            ).withColumn("IsActive__cleaned", F.lit("N"))
         cols_to_keep = [col for col in update_rows.columns if col.endswith("__cleaned")]
         update_rows = update_rows.select(cols_to_keep)
         for col in cols_to_keep:
@@ -125,13 +162,21 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         # Load parameters
         entity_name: str = self.load_parameter("entity_name", kwargs)
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        orchestration_data: DataFrame = self.load_parameter("orchestration_data", source_data)
+        orchestration_data: DataFrame = self.load_parameter(
+            "orchestration_data", source_data
+        )
         new_data: DataFrame = self.load_parameter("new_data", source_data)
         existing_data: DataFrame = self.load_parameter("existing_data", source_data)
-        source_system_data: DataFrame = self.load_parameter("source_system_data", source_data)
+        source_system_data: DataFrame = self.load_parameter(
+            "source_system_data", source_data
+        )
 
-        definitions: list = json.loads(orchestration_data.toJSON().first())["definitions"]
-        definition: dict = next((d for d in definitions if entity_name == d["Source_Filename_Start"]), None)
+        definitions: list = json.loads(orchestration_data.toJSON().first())[
+            "definitions"
+        ]
+        definition: dict = next(
+            (d for d in definitions if entity_name == d["Source_Filename_Start"]), None
+        )
         if not definition:
             raise RuntimeError(
                 f"No definition could be found for 'Source_Filename_Start' == '{entity_name}' in the followin definitions: "
@@ -142,27 +187,47 @@ class ServiceBusHarmonisationProcess(HarmonisationProcess):
         entity_primary_key: str = definition["Entity_Primary_Key"]
         harmonised_table_path = f"{self.hrm_db}.{hrm_table}"
 
-        new_data = self.harmonise(new_data, source_system_data, hrm_incremental_key, entity_primary_key)
+        new_data = self.harmonise(
+            new_data, source_system_data, hrm_incremental_key, entity_primary_key
+        )
         # Note this does not work if the harmonised table does not exist at the start - fix after first int test is working
         # new_data = new_data.select(existing_data.columns)
 
         new_data = new_data.withColumn(
             "row_state_metadata",
             F.when(F.col("message_type") == "Create", F.lit("create"))
-            .when(F.col("message_type").isin(["update", "Update", "Publish", "Unpublish"]), F.lit("update"))
+            .when(
+                F.col("message_type").isin(
+                    ["update", "Update", "Publish", "Unpublish"]
+                ),
+                F.lit("update"),
+            )
             .otherwise(F.lit("delete")),
         )
         new_data = new_data.drop("message_type")
-        existing_join_new = existing_data.join(new_data, new_data[entity_primary_key] == existing_data[entity_primary_key], "left")
-        unupdated_rows = existing_join_new.filter((new_data["row_state_metadata"].isNull())).drop("row_state_metadata")
-        unupdated_rows = self._align_old_data_to_new_data(existing_data, new_data, unupdated_rows, False)
+        existing_join_new = existing_data.join(
+            new_data,
+            new_data[entity_primary_key] == existing_data[entity_primary_key],
+            "left",
+        )
+        unupdated_rows = existing_join_new.filter(
+            (new_data["row_state_metadata"].isNull())
+        ).drop("row_state_metadata")
+        unupdated_rows = self._align_old_data_to_new_data(
+            existing_data, new_data, unupdated_rows, False
+        )
         # The legacy process keeps a history of rows - insert the old rows with IsActive=False to work with the new delta write
         joined_updated_rows = existing_join_new.filter(
-            (new_data["row_state_metadata"] == "update") | (new_data["row_state_metadata"] == "delete")
+            (new_data["row_state_metadata"] == "update")
+            | (new_data["row_state_metadata"] == "delete")
         ).drop("row_state_metadata")
         # Update to match new schema
-        update_rows = self._align_old_data_to_new_data(existing_data, new_data, joined_updated_rows, True)
-        new_data = new_data.filter(F.col("row_state_metadata") != "delete").drop("row_state_metadata")
+        update_rows = self._align_old_data_to_new_data(
+            existing_data, new_data, joined_updated_rows, True
+        )
+        new_data = new_data.filter(F.col("row_state_metadata") != "delete").drop(
+            "row_state_metadata"
+        )
         new_data = new_data.union(update_rows).union(unupdated_rows).dropDuplicates()
 
         insert_count = new_data.count()

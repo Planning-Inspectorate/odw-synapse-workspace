@@ -3,7 +3,9 @@ from datetime import datetime
 import mock
 import pyspark.sql.types as T
 
-from odw.core.etl.transformation.standardised.entraid_standardisation_process import EntraIdStandardisationProcess
+from odw.core.etl.transformation.standardised.entraid_standardisation_process import (
+    EntraIdStandardisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -63,17 +65,35 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
         raw_df = _raw_df(
             spark,
             [
-                {"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"},
-                {"id": "u2", "employeeId": "e2", "givenName": "Bob", "surname": "Jones", "userPrincipalName": "bob@test.com"},
+                {
+                    "id": "u1",
+                    "employeeId": "e1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                },
+                {
+                    "id": "u2",
+                    "employeeId": "e2",
+                    "givenName": "Bob",
+                    "surname": "Jones",
+                    "userPrincipalName": "bob@test.com",
+                },
             ],
         )
         data_to_write, _ = self._run_process(raw_df)
-        assert data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].count() == 2
+        assert (
+            data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].count()
+            == 2
+        )
 
     def test__process__empty_value_array_produces_zero_rows(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         data_to_write, result = self._run_process(_empty_raw_df(spark))
-        assert data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].count() == 0
+        assert (
+            data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].count()
+            == 0
+        )
         assert result.metadata.insert_count == 0
 
     # ------------------------------------------------------------------
@@ -82,10 +102,28 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
 
     def test__process__output_has_expected_column_order(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        raw_df = _raw_df(spark, [{"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}])
+        raw_df = _raw_df(
+            spark,
+            [
+                {
+                    "id": "u1",
+                    "employeeId": "e1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
+        )
         data_to_write, _ = self._run_process(raw_df)
         df = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"]
-        assert df.columns == ["id", "employeeId", "givenName", "surname", "userPrincipalName", "expected_from"]
+        assert df.columns == [
+            "id",
+            "employeeId",
+            "givenName",
+            "surname",
+            "userPrincipalName",
+            "expected_from",
+        ]
 
     # ------------------------------------------------------------------
     # process – field values
@@ -93,9 +131,22 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
 
     def test__process__field_values_are_correctly_extracted(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        raw_df = _raw_df(spark, [{"id": "u1", "employeeId": "emp1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}])
+        raw_df = _raw_df(
+            spark,
+            [
+                {
+                    "id": "u1",
+                    "employeeId": "emp1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
+        )
         data_to_write, _ = self._run_process(raw_df)
-        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE][
+            "data"
+        ].collect()[0]
         assert row["id"] == "u1"
         assert row["employeeId"] == "emp1"
         assert row["givenName"] == "Alice"
@@ -104,9 +155,22 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
 
     def test__process__null_optional_fields_are_preserved(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        raw_df = _raw_df(spark, [{"id": "u1", "employeeId": None, "givenName": "Alice", "surname": None, "userPrincipalName": "alice@test.com"}])
+        raw_df = _raw_df(
+            spark,
+            [
+                {
+                    "id": "u1",
+                    "employeeId": None,
+                    "givenName": "Alice",
+                    "surname": None,
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
+        )
         data_to_write, _ = self._run_process(raw_df)
-        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE][
+            "data"
+        ].collect()[0]
         assert row["employeeId"] is None
         assert row["surname"] is None
 
@@ -116,9 +180,22 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
 
     def test__process__expected_from_is_day_before_folder_date(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        raw_df = _raw_df(spark, [{"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}])
+        raw_df = _raw_df(
+            spark,
+            [
+                {
+                    "id": "u1",
+                    "employeeId": "e1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
+        )
         data_to_write, _ = self._run_process(raw_df, folder_name="2024-01-15")
-        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE][
+            "data"
+        ].collect()[0]
         assert row["expected_from"] == datetime(2024, 1, 14, 0, 0, 0)
 
     def test__process__all_rows_share_the_same_expected_from(self):
@@ -126,12 +203,26 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
         raw_df = _raw_df(
             spark,
             [
-                {"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"},
-                {"id": "u2", "employeeId": "e2", "givenName": "Bob", "surname": "Jones", "userPrincipalName": "bob@test.com"},
+                {
+                    "id": "u1",
+                    "employeeId": "e1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                },
+                {
+                    "id": "u2",
+                    "employeeId": "e2",
+                    "givenName": "Bob",
+                    "surname": "Jones",
+                    "userPrincipalName": "bob@test.com",
+                },
             ],
         )
         data_to_write, _ = self._run_process(raw_df, folder_name="2024-03-10")
-        rows = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()
+        rows = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE][
+            "data"
+        ].collect()
         expected = datetime(2024, 3, 9, 0, 0, 0)
         assert all(row["expected_from"] == expected for row in rows)
 
@@ -141,7 +232,18 @@ class TestEntraIdStandardisationProcess(SparkTestCase):
 
     def test__process__write_config_has_overwrite_mode_and_delta_format(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        raw_df = _raw_df(spark, [{"id": "u1", "employeeId": "e1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}])
+        raw_df = _raw_df(
+            spark,
+            [
+                {
+                    "id": "u1",
+                    "employeeId": "e1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
+        )
         data_to_write, result = self._run_process(raw_df)
         write_config = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]
         assert write_config["write_mode"] == "overwrite"

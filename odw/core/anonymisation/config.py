@@ -26,7 +26,9 @@ class AnonymisationConfig:
         return self.seed_column
 
 
-def load_config(path: Optional[str] = None, text: Optional[str] = None) -> AnonymisationConfig:
+def load_config(
+    path: Optional[str] = None, text: Optional[str] = None
+) -> AnonymisationConfig:
     """Load configuration from a YAML file path or YAML text.
 
     Schema:

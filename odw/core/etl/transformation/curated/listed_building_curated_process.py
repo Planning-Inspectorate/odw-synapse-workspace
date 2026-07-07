@@ -11,7 +11,11 @@ class ListedBuildingCuratedProcess(CurationProcess):
         return "Listed Building Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        raise NotImplementedError("ListedBuildingCuratedProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "ListedBuildingCuratedProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: dict[str, Any]):
-        raise NotImplementedError("ListedBuildingCuratedProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "ListedBuildingCuratedProcess.process() has not been implemented yet."
+        )

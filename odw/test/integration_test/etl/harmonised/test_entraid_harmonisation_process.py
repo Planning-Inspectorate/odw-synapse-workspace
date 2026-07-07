@@ -5,7 +5,9 @@ import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
 
-from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import EntraIdHarmonisationProcess
+from odw.core.etl.transformation.harmonised.entraid_harmonisation_process import (
+    EntraIdHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
@@ -58,7 +60,17 @@ def _row_id(id, employee_id, given_name, surname, upn):
     return hashlib.md5(concat.encode("utf-8")).hexdigest()
 
 
-def _hrm_row(id, employee_id, given_name, surname, upn, *, is_active="Y", employee_entra_id=1, valid_to=None):
+def _hrm_row(
+    id,
+    employee_id,
+    given_name,
+    surname,
+    upn,
+    *,
+    is_active="Y",
+    employee_entra_id=1,
+    valid_to=None,
+):
     return (
         employee_entra_id,
         employee_id,
@@ -92,14 +104,27 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = EntraIdHarmonisationProcess(spark)
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run(orchestration_run_id="t_r_nrwaawcm", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id="t_r_nrwaawcm",
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="harmonise",
+            )
 
         data_to_write = mock_write.call_args[0][0]
         rows = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"].collect()
@@ -112,7 +137,10 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         assert rows[0]["ValidTo"] is None
         assert rows[0]["RowID"] is not None and len(rows[0]["RowID"]) == 32
         assert rows[0]["EmployeeEntraId"] >= 1
-        assert data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert (
+            data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["write_mode"]
+            == "overwrite"
+        )
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
@@ -120,20 +148,45 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user2", "emp2", "NewFirst", "Last2", "user2@test.com", datetime(2024, 2, 1))],
-            hrm_rows=[_hrm_row("user2", "emp2", "OldFirst", "Last2", "user2@test.com", is_active="Y", employee_entra_id=1)],
+            std_rows=[
+                (
+                    "user2",
+                    "emp2",
+                    "NewFirst",
+                    "Last2",
+                    "user2@test.com",
+                    datetime(2024, 2, 1),
+                )
+            ],
+            hrm_rows=[
+                _hrm_row(
+                    "user2",
+                    "emp2",
+                    "OldFirst",
+                    "Last2",
+                    "user2@test.com",
+                    is_active="Y",
+                    employee_entra_id=1,
+                )
+            ],
         )
         inst = EntraIdHarmonisationProcess(spark)
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run(orchestration_run_id="t_r_crcorwidmo", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id="t_r_crcorwidmo",
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="harmonise",
+            )
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
 
-        actual_df = df.select("id", "givenName", "IsActive", "ValidTo").orderBy("IsActive")
+        actual_df = df.select("id", "givenName", "IsActive", "ValidTo").orderBy(
+            "IsActive"
+        )
         expected_df = spark.createDataFrame(
             [
                 ("user2", "OldFirst", "N", "2024-01-31 00:00:00"),
@@ -151,14 +204,20 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         source_data = _source_data(
             spark,
             std_rows=[(id_, emp, fn, sn, upn, datetime(2024, 1, 15))],
-            hrm_rows=[_hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)],
+            hrm_rows=[
+                _hrm_row(id_, emp, fn, sn, upn, is_active="Y", employee_entra_id=1)
+            ],
         )
         inst = EntraIdHarmonisationProcess(spark)
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run(orchestration_run_id="t_r_urpaa", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id="t_r_urpaa",
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="harmonise",
+            )
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -171,14 +230,28 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            hrm_rows=[_hrm_row("user4", "emp4", "Old4", "Last4", "user4@test.com", is_active="N", valid_to="2024-01-14")],
+            hrm_rows=[
+                _hrm_row(
+                    "user4",
+                    "emp4",
+                    "Old4",
+                    "Last4",
+                    "user4@test.com",
+                    is_active="N",
+                    valid_to="2024-01-14",
+                )
+            ],
         )
         inst = EntraIdHarmonisationProcess(spark)
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            result = inst.run(orchestration_run_id="t_r_hircf", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id="t_r_hircf",
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="harmonise",
+            )
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -194,14 +267,27 @@ class TestEntraIdHarmonisationProcessIntegration(ETLTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         source_data = _source_data(
             spark,
-            std_rows=[("user1", "emp1", "Alice", "Smith", "alice@test.com", datetime(2024, 1, 15))],
+            std_rows=[
+                (
+                    "user1",
+                    "emp1",
+                    "Alice",
+                    "Smith",
+                    "alice@test.com",
+                    datetime(2024, 1, 15),
+                )
+            ],
         )
         inst = EntraIdHarmonisationProcess(spark)
         with (
             mock.patch.object(inst, "load_data", return_value=source_data),
             mock.patch.object(inst, "write_data") as mock_write,
         ):
-            inst.run(orchestration_run_id="t_r_ocmrs", orchestration_entity_name="entraid", orchestration_stage_name="harmonise")
+            inst.run(
+                orchestration_run_id="t_r_ocmrs",
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="harmonise",
+            )
 
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[EntraIdHarmonisationProcess.OUTPUT_TABLE]["data"]

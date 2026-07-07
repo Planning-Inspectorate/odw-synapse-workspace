@@ -1,6 +1,7 @@
 parameters:
   agentPool: ''
   env: ''
+  overallCoverageThreshold: 80
 
 ##
 # Run tests for the odw python package.
@@ -20,4 +21,33 @@ stages:
     parameters:
       agentPool: ${{ parameters.agentPool }}
       env: ${{ parameters.env }}
-
+  - job: CombineAndPublishCoverage
+    pool: ${{ parameters.agentPool }}
+    dependsOn:
+    - RunODWPackageUnitTestsJob
+    - RunODWPackageIntegrationTestsJob
+    steps:
+    - checkout: self
+      clean: true
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        targetPath: '$(System.DefaultWorkingDirectory)/coverageDump'
+    - script: |
+        set -e
+        cd $(System.DefaultWorkingDirectory)/coverageDump
+        find . -type f -name "**.coverage.*" -exec cp {} $(System.DefaultWorkingDirectory)/ \;
+        cd $(System.DefaultWorkingDirectory)
+        python3 -m pip install coverage
+        python3 -m coverage combine
+        python3 -m coverage xml
+        python3 -m coverage html -d .
+        python3 -m coverage report --fail-under=${{ parameters.overallCoverageThreshold }}
+      displayName: 'Combine coverage reports'
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish test coverage'
+      condition: succeededOrFailed()
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: coverage.xml
+        reportDirectory: $(System.DefaultWorkingDirectory)

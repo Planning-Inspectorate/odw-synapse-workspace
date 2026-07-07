@@ -1,11 +1,23 @@
-from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import NsipProjectHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process import (
+    NsipProjectHarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.core.util.util import Util
 import mock
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType
+from pyspark.sql.types import (
+    ArrayType,
+    BooleanType,
+    DoubleType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
 from datetime import datetime
 
 
@@ -52,12 +64,16 @@ def _service_bus_schema():
             StructField("dateOfNonAcceptance", StringType(), True),
             StructField("dateOfRepresentationPeriodOpen", StringType(), True),
             StructField("dateOfRelevantRepresentationClose", StringType(), True),
-            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField(
+                "extensionToDateRelevantRepresentationsClose", StringType(), True
+            ),
             StructField("dateRRepAppearOnWebsite", StringType(), True),
             StructField("dateIAPIDue", StringType(), True),
             StructField("rule6LetterPublishDate", StringType(), True),
             StructField("preliminaryMeetingStartDate", StringType(), True),
-            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField(
+                "notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True
+            ),
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
@@ -77,7 +93,9 @@ def _service_bus_schema():
             StructField("operationsManagerId", StringType(), True),
             StructField("caseManagerId", StringType(), True),
             StructField("nsipOfficerIds", ArrayType(StringType(), True), True),
-            StructField("nsipAdministrationOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "nsipAdministrationOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("leadInspectorId", StringType(), True),
             StructField("inspectorIds", ArrayType(StringType(), True), True),
             StructField("environmentalServicesOfficerId", StringType(), True),
@@ -109,15 +127,21 @@ def _service_bus_schema():
             StructField("programmeDocumentSubmissionDate", StringType(), True),
             StructField("estimatedScopingSubmissionDate", StringType(), True),
             StructField("consultationMilestoneAdequacyDate", StringType(), True),
-            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField(
+                "principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True
+            ),
             StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
             StructField("designApproachDocumentSubmittedDate", StringType(), True),
             StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
             StructField("caseTeamIssuedCommentsDate", StringType(), True),
             StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
-            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "matureOutlineControlDocumentSubmittedDate", StringType(), True
+            ),
             StructField("memLastUpdated", StringType(), True),
-            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "multipartyApplicationCheckDocumentSubmittedDate", StringType(), True
+            ),
             StructField("programmeDocumentReviewedByEstDate", StringType(), True),
             StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
             StructField("statutoryConsultationPeriodEndDate", StringType(), True),
@@ -140,7 +164,9 @@ def _service_bus_schema():
                             StructField("planningInspectorateRole", StringType(), True),
                             StructField("meetingDate", StringType(), True),
                             StructField("meetingType", StringType(), True),
-                            StructField("estimatedPrelimMeetingDate", StringType(), True),
+                            StructField(
+                                "estimatedPrelimMeetingDate", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -187,7 +213,9 @@ def _service_bus_schema():
             StructField("operationsManagerIds", ArrayType(StringType(), True), True),
             StructField("caseManagerIds", ArrayType(StringType(), True), True),
             StructField("leadInspectorIds", ArrayType(StringType(), True), True),
-            StructField("environmentalServicesOfficerIds", ArrayType(StringType(), True), True),
+            StructField(
+                "environmentalServicesOfficerIds", ArrayType(StringType(), True), True
+            ),
             StructField("legalOfficerIds", ArrayType(StringType(), True), True),
             StructField("migrated", BooleanType(), False),
             StructField("ODTSourceSystem", StringType(), True),
@@ -244,12 +272,16 @@ def _horizon_schema():
             StructField("dateOfNonAcceptance", StringType(), True),
             StructField("dateOfRepresentationPeriodOpen", StringType(), True),
             StructField("dateOfRelevantRepresentationClose", StringType(), True),
-            StructField("extensionToDateRelevantRepresentationsClose", StringType(), True),
+            StructField(
+                "extensionToDateRelevantRepresentationsClose", StringType(), True
+            ),
             StructField("dateRRepAppearOnWebsite", StringType(), True),
             StructField("dateIAPIDue", StringType(), True),
             StructField("rule6LetterPublishDate", StringType(), True),
             StructField("preliminaryMeetingStartDate", StringType(), True),
-            StructField("notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True),
+            StructField(
+                "notificationDateForPMAndEventsDirectlyFollowingPM", StringType(), True
+            ),
             StructField("notificationDateForEventsDeveloper", StringType(), True),
             StructField("dateSection58NoticeReceived", StringType(), True),
             StructField("confirmedStartOfExamination", StringType(), True),
@@ -300,15 +332,21 @@ def _horizon_schema():
             StructField("programmeDocumentSubmissionDate", StringType(), True),
             StructField("estimatedScopingSubmissionDate", StringType(), True),
             StructField("consultationMilestoneAdequacyDate", StringType(), True),
-            StructField("principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True),
+            StructField(
+                "principalAreaDisagreementSummaryStmtSubmittedDate", StringType(), True
+            ),
             StructField("policyComplianceDocumentSubmittedDate", StringType(), True),
             StructField("designApproachDocumentSubmittedDate", StringType(), True),
             StructField("caAndTpEvidenceSubmittedDate", StringType(), True),
             StructField("caseTeamIssuedCommentsDate", StringType(), True),
             StructField("fastTrackAdmissionDocumentSubmittedDate", StringType(), True),
-            StructField("matureOutlineControlDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "matureOutlineControlDocumentSubmittedDate", StringType(), True
+            ),
             StructField("memLastUpdated", StringType(), True),
-            StructField("multipartyApplicationCheckDocumentSubmittedDate", StringType(), True),
+            StructField(
+                "multipartyApplicationCheckDocumentSubmittedDate", StringType(), True
+            ),
             StructField("programmeDocumentReviewedByEstDate", StringType(), True),
             StructField("publicSectorEqualityDutySubmittedDate", StringType(), True),
             StructField("statutoryConsultationPeriodEndDate", StringType(), True),
@@ -695,11 +733,17 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
 
         assert inst.get_name() == "NSIP Project Harmonisation Process"
 
-    def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_cases_and_keeps_non_migrated_history(self):
+    def test__nsip_project_harmonisation_process__process__filters_migrated_horizon_cases_and_keeps_non_migrated_history(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
-            _service_bus_row(caseId=1001, caseReference="EN010001", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
+            _service_bus_row(
+                caseId=1001,
+                caseReference="EN010001",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),
         ]
         horizon_rows = [
             _horizon_row(
@@ -720,15 +764,23 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
             ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -739,15 +791,21 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        output_case_ids = {row["caseId"] for row in df.select("caseId").distinct().collect()}
+        output_case_ids = {
+            row["caseId"] for row in df.select("caseId").distinct().collect()
+        }
 
         assert 1001 in output_case_ids
         assert 3003 in output_case_ids
 
-        migrated_horizon_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
+        migrated_horizon_count = df.where(
+            (F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")
+        ).count()
         assert migrated_horizon_count == 0
 
-    def test__nsip_project_harmonisation_process__process__filters_horizon_rows_using_first_seen_service_bus_data(self):
+    def test__nsip_project_harmonisation_process__process__filters_horizon_rows_using_first_seen_service_bus_data(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
@@ -755,20 +813,38 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         ]
         horizon_rows = [
             _horizon_row(
-                caseid=1001, HorizonCaseNumber="1001", projectname="Should Be Filtered", IngestionDate=datetime(2025, 2, 1, 10, 0, 0), RowID=1
+                caseid=1001,
+                HorizonCaseNumber="1001",
+                projectname="Should Be Filtered",
+                IngestionDate=datetime(2025, 2, 1, 10, 0, 0),
+                RowID=1,
             ),
-            _horizon_row(caseid=3003, HorizonCaseNumber="3003", projectname="Should Remain", IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=2),
+            _horizon_row(
+                caseid=3003,
+                HorizonCaseNumber="3003",
+                projectname="Should Remain",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=2,
+            ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             [(1001, datetime(2025, 1, 10, 9, 0, 0))],
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -780,30 +856,54 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        filtered_count = df.where((F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")).count()
-        kept_count = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).count()
+        filtered_count = df.where(
+            (F.col("caseId") == 1001) & (F.col("sourceSystem") == "Horizon")
+        ).count()
+        kept_count = df.where(
+            (F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")
+        ).count()
 
         assert filtered_count == 0
         assert kept_count == 1
 
-    def test__nsip_project_harmonisation_process__process__aggregates_regions_using_collect_list(self):
+    def test__nsip_project_harmonisation_process__process__aggregates_regions_using_collect_list(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
         horizon_rows = [
-            _horizon_row(caseid=3003, Region="wales", IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1),
-            _horizon_row(caseid=3003, Region="north west", IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=2),
+            _horizon_row(
+                caseid=3003,
+                Region="wales",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=1,
+            ),
+            _horizon_row(
+                caseid=3003,
+                Region="north west",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=2,
+            ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -814,13 +914,19 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("regions").collect()
+        rows = (
+            df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
+            .select("regions")
+            .collect()
+        )
         assert rows
         row = rows[0]
 
         assert sorted(row["regions"]) == ["north west", "wales"]
 
-    def test__nsip_project_harmonisation_process__process__aggregates_horizon_array_like_id_fields(self):
+    def test__nsip_project_harmonisation_process__process__aggregates_horizon_array_like_id_fields(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
@@ -887,15 +993,23 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
             ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -957,21 +1071,35 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert len(row["leadInspectorIds"]) == 1
         assert len(row["environmentalServicesOfficerIds"]) == 1
 
-    def test__nsip_project_harmonisation_process__process__parses_invoices_and_meetings_json_from_horizon(self):
+    def test__nsip_project_harmonisation_process__process__parses_invoices_and_meetings_json_from_horizon(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
-        horizon_rows = [_horizon_row(caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1)]
+        horizon_rows = [
+            _horizon_row(
+                caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1
+            )
+        ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -982,7 +1110,11 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon")).select("invoices", "meetings").collect()
+        rows = (
+            df.where((F.col("caseId") == 3003) & (F.col("sourceSystem") == "Horizon"))
+            .select("invoices", "meetings")
+            .collect()
+        )
         assert rows
         row = rows[0]
 
@@ -996,21 +1128,35 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert row["meetings"][0]["meetingId"] == "m-1"
         assert row["meetings"][0]["meetingType"] == "Intro"
 
-    def test__nsip_project_harmonisation_process__process__sets_horizon_source_system_and_odt_source_system_to_horizon(self):
+    def test__nsip_project_harmonisation_process__process__sets_horizon_source_system_and_odt_source_system_to_horizon(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
-        horizon_rows = [_horizon_row(caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1)]
+        horizon_rows = [
+            _horizon_row(
+                caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1
+            )
+        ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1021,12 +1167,18 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        row = df.where(F.col("caseId") == 3003).select("sourceSystem", "ODTSourceSystem").collect()[0]
+        row = (
+            df.where(F.col("caseId") == 3003)
+            .select("sourceSystem", "ODTSourceSystem")
+            .collect()[0]
+        )
 
         assert row["sourceSystem"] == "Horizon"
         assert row["ODTSourceSystem"] == "Horizon"
 
-    def test__nsip_project_harmonisation_process__process__preserves_service_bus_metadata_fields(self):
+    def test__nsip_project_harmonisation_process__process__preserves_service_bus_metadata_fields(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
@@ -1040,15 +1192,23 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         ]
         horizon_rows = [_horizon_row(caseid=3003, RowID=1)]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1061,7 +1221,9 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = (
             df.where(F.col("caseId") == 1001)
-            .select("sourceSystem", "ODTSourceSystem", "SourceSystemID", "IngestionDate")
+            .select(
+                "sourceSystem", "ODTSourceSystem", "SourceSystemID", "IngestionDate"
+            )
             .orderBy("IngestionDate")
             .collect()[0]
         )
@@ -1071,21 +1233,35 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert row["SourceSystemID"] == "SRC-123"
         assert row["IngestionDate"] is not None
 
-    def test__nsip_project_harmonisation_process__process__populates_horizon_default_null_columns_like_legacy(self):
+    def test__nsip_project_harmonisation_process__process__populates_horizon_default_null_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
-        horizon_rows = [_horizon_row(caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1)]
+        horizon_rows = [
+            _horizon_row(
+                caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1
+            )
+        ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1122,21 +1298,35 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert row["migrationStatus"] is False
         assert row["SourceSystemID"] is None
 
-    def test__nsip_project_harmonisation_process__process__preserves_horizon_only_fields_after_column_alignment(self):
+    def test__nsip_project_harmonisation_process__process__preserves_horizon_only_fields_after_column_alignment(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
-        horizon_rows = [_horizon_row(caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1)]
+        horizon_rows = [
+            _horizon_row(
+                caseid=3003, IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1
+            )
+        ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1184,24 +1374,36 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert row["applicantemailaddress"] == "applicant@example.com"
         assert row["applicantwebaddress"] == "https://example.com"
         assert row["applicantphonenumber"] == "01234567890"
-        assert row["applicantdescriptionofproject"] == "Project description from applicant"
+        assert (
+            row["applicantdescriptionofproject"] == "Project description from applicant"
+        )
         assert row["HorizonCaseNumber"] == "3003"
 
-    def test__nsip_project_harmonisation_process__process__keeps_service_bus_and_horizon_rows_via_union_by_name(self):
+    def test__nsip_project_harmonisation_process__process__keeps_service_bus_and_horizon_rows_via_union_by_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
         horizon_rows = [_horizon_row(caseid=3003, RowID=1)]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, result = inst.process(
                     source_data={
@@ -1217,21 +1419,31 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert case_ids == {1001, 3003}
         assert result.metadata.insert_count == 2
 
-    def test__nsip_project_harmonisation_process__process__uses_overwrite_write_mode(self):
+    def test__nsip_project_harmonisation_process__process__uses_overwrite_write_mode(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [_service_bus_row(caseId=1001)]
         horizon_rows = []
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, result = inst.process(
                     source_data={
@@ -1244,7 +1456,9 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__nsip_project_harmonisation_process__process__sets_insert_count_to_final_output_row_count(self):
+    def test__nsip_project_harmonisation_process__process__sets_insert_count_to_final_output_row_count(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
@@ -1253,15 +1467,23 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         ]
         horizon_rows = [_horizon_row(caseid=3003, RowID=1)]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, result = inst.process(
                     source_data={
@@ -1275,25 +1497,47 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
 
         assert result.metadata.insert_count == df.count()
 
-    def test__nsip_project_harmonisation_process__process__rowid_changes_when_hashed_business_fields_change(self):
+    def test__nsip_project_harmonisation_process__process__rowid_changes_when_hashed_business_fields_change(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
-            _service_bus_row(caseId=1001, projectName="Version A", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),  # Should have matching RowIds
-            _service_bus_row(caseId=1001, projectName="Version A", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),  # Should have matching RowIds
-            _service_bus_row(caseId=1002, projectName="Version A", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),  # Should have a different RowId
+            _service_bus_row(
+                caseId=1001,
+                projectName="Version A",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),  # Should have matching RowIds
+            _service_bus_row(
+                caseId=1001,
+                projectName="Version A",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),  # Should have matching RowIds
+            _service_bus_row(
+                caseId=1002,
+                projectName="Version A",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),  # Should have a different RowId
         ]
         horizon_rows = []
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1312,25 +1556,40 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert rows[0]["RowID"] == rows[1]["RowID"]
         assert rows[0]["RowID"] != rows[2]["RowID"]
 
-    def test__nsip_project_harmonisation_process__process__sets_migrated_to_1_only_for_caseids_present_in_service_bus(self):
+    def test__nsip_project_harmonisation_process__process__sets_migrated_to_1_only_for_caseids_present_in_service_bus(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
             _service_bus_row(caseId=1001, IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
         ]
         horizon_rows = [
-            _horizon_row(caseid=3003, HorizonCaseNumber="3003", IngestionDate=datetime(2025, 3, 1, 10, 0, 0), RowID=1),
+            _horizon_row(
+                caseid=3003,
+                HorizonCaseNumber="3003",
+                IngestionDate=datetime(2025, 3, 1, 10, 0, 0),
+                RowID=1,
+            ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1347,25 +1606,47 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert str(sb_row["migrated"]) == "1"
         assert str(horizon_row["migrated"]) == "0"
 
-    def test__nsip_project_harmonisation_process__process__derives_valid_to_from_next_ingestion_date_per_case_only(self):
+    def test__nsip_project_harmonisation_process__process__derives_valid_to_from_next_ingestion_date_per_case_only(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
-            _service_bus_row(caseId=1001, projectName="V1", IngestionDate=datetime(2025, 1, 10, 10, 0, 0)),
-            _service_bus_row(caseId=1001, projectName="V2", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
-            _service_bus_row(caseId=2002, projectName="Other Case", IngestionDate=datetime(2025, 1, 15, 9, 0, 0)),
+            _service_bus_row(
+                caseId=1001,
+                projectName="V1",
+                IngestionDate=datetime(2025, 1, 10, 10, 0, 0),
+            ),
+            _service_bus_row(
+                caseId=1001,
+                projectName="V2",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),
+            _service_bus_row(
+                caseId=2002,
+                projectName="Other Case",
+                IngestionDate=datetime(2025, 1, 15, 9, 0, 0),
+            ),
         ]
         horizon_rows = []
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1376,35 +1657,64 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        case_1001_rows = df.where(F.col("caseId") == 1001).select("projectName", "IngestionDate", "ValidTo").orderBy("IngestionDate").collect()
+        case_1001_rows = (
+            df.where(F.col("caseId") == 1001)
+            .select("projectName", "IngestionDate", "ValidTo")
+            .orderBy("IngestionDate")
+            .collect()
+        )
         case_2002_row = df.where(F.col("caseId") == 2002).select("ValidTo").collect()[0]
         # need to double checl this.
         # For the duplicate row, the entry with the older ingestedDate is validTo the ingestedDate of the newer entry
         # For the newer row, and row without a duplicate validTo is undefined
 
-        assert case_1001_rows[0]["ValidTo"] == datetime(2025, 1, 10, 10, 0, 0).strftime("%Y-%m-%d %H:%M:%S")
+        assert case_1001_rows[0]["ValidTo"] == datetime(2025, 1, 10, 10, 0, 0).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
         assert case_1001_rows[1]["ValidTo"] is None
         assert case_2002_row["ValidTo"] is None
 
-    def test__nsip_project_harmonisation_process__process__assigns_internal_ids_globally_by_ingestiondate_then_caseid(self):
+    def test__nsip_project_harmonisation_process__process__assigns_internal_ids_globally_by_ingestiondate_then_caseid(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
-            _service_bus_row(caseId=2002, projectName="Later CaseId", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
-            _service_bus_row(caseId=1001, projectName="Earlier CaseId", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
-            _service_bus_row(caseId=3003, projectName="Latest", IngestionDate=datetime(2025, 1, 10, 9, 0, 0)),
+            _service_bus_row(
+                caseId=2002,
+                projectName="Later CaseId",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),
+            _service_bus_row(
+                caseId=1001,
+                projectName="Earlier CaseId",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),
+            _service_bus_row(
+                caseId=3003,
+                projectName="Latest",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+            ),
         ]
         horizon_rows = []
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1415,30 +1725,54 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.select("caseId", "IngestionDate", "NSIPProjectInfoInternalID").orderBy("NSIPProjectInfoInternalID").collect()
+        rows = (
+            df.select("caseId", "IngestionDate", "NSIPProjectInfoInternalID")
+            .orderBy("NSIPProjectInfoInternalID")
+            .collect()
+        )
 
         assert rows[0]["caseId"] == 1001
         assert rows[1]["caseId"] == 2002
         assert rows[2]["caseId"] == 3003
 
-    def test__nsip_project_harmonisation_process__process__marks_only_latest_row_per_case_as_active(self):
+    def test__nsip_project_harmonisation_process__process__marks_only_latest_row_per_case_as_active(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = [
-            _service_bus_row(caseId=1001, projectName="Old", IngestionDate=datetime(2025, 1, 10, 9, 0, 0), IsActive="N"),
-            _service_bus_row(caseId=1001, projectName="New", IngestionDate=datetime(2025, 1, 10, 10, 0, 0), IsActive="Y"),
+            _service_bus_row(
+                caseId=1001,
+                projectName="Old",
+                IngestionDate=datetime(2025, 1, 10, 9, 0, 0),
+                IsActive="N",
+            ),
+            _service_bus_row(
+                caseId=1001,
+                projectName="New",
+                IngestionDate=datetime(2025, 1, 10, 10, 0, 0),
+                IsActive="Y",
+            ),
         ]
         horizon_rows = []
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             _default_first_seen_rows(service_bus_rows),
             ["caseId", "ingested"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1449,7 +1783,12 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                 )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
-        rows = df.where(F.col("caseId") == 1001).select("projectName", "IsActive").orderBy("projectName").collect()
+        rows = (
+            df.where(F.col("caseId") == 1001)
+            .select("projectName", "IsActive")
+            .orderBy("projectName")
+            .collect()
+        )
 
         is_active_by_name = {row["projectName"]: row["IsActive"] for row in rows}
         print(is_active_by_name)
@@ -1457,16 +1796,30 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
         assert is_active_by_name["Old"] == "N"
         assert is_active_by_name["New"] == "Y"
 
-    def test__nsip_project_harmonisation_process__process__uses_min_horizon_ingested_datetime_for_grouped_rows(self):
+    def test__nsip_project_harmonisation_process__process__uses_min_horizon_ingested_datetime_for_grouped_rows(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_rows = []
         horizon_rows = [
-            _horizon_row(caseid=3003, Region="wales", IngestionDate=datetime(2025, 3, 2, 10, 0, 0), RowID=1),
-            _horizon_row(caseid=3003, Region="north west", IngestionDate=datetime(2025, 3, 1, 9, 0, 0), RowID=1),
+            _horizon_row(
+                caseid=3003,
+                Region="wales",
+                IngestionDate=datetime(2025, 3, 2, 10, 0, 0),
+                RowID=1,
+            ),
+            _horizon_row(
+                caseid=3003,
+                Region="north west",
+                IngestionDate=datetime(2025, 3, 1, 9, 0, 0),
+                RowID=1,
+            ),
         ]
 
-        service_bus_data = spark.createDataFrame(service_bus_rows, schema=_service_bus_schema())
+        service_bus_data = spark.createDataFrame(
+            service_bus_rows, schema=_service_bus_schema()
+        )
         horizon_data = spark.createDataFrame(horizon_rows, schema=_horizon_schema())
         first_seen_service_bus_data = spark.createDataFrame(
             [],
@@ -1478,8 +1831,14 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
             ),
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"):
-            with mock.patch.object(Util, "get_storage_account", return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.nsip_project_harmonisation_process.LoggingUtil"
+        ):
+            with mock.patch.object(
+                Util,
+                "get_storage_account",
+                return_value="pinsstodwdevuks9h80mb.dfs.core.windows.net",
+            ):
                 inst = NsipProjectHarmonisationProcess(spark)
                 data_to_write, _ = inst.process(
                     source_data={
@@ -1489,7 +1848,10 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
                     }
                 )
         expected_data = spark.createDataFrame(
-            ((3003, datetime(2025, 3, 2, 10, 0, 0), None), (3003, datetime(2025, 3, 1, 9, 0, 0), "2025-03-02 10:00:00")),
+            (
+                (3003, datetime(2025, 3, 2, 10, 0, 0), None),
+                (3003, datetime(2025, 3, 1, 9, 0, 0), "2025-03-02 10:00:00"),
+            ),
             schema=StructType(
                 [
                     StructField("caseId", IntegerType(), True),
@@ -1499,5 +1861,7 @@ class TestNsipProjectHarmonisationProcess(SparkTestCase):
             ),
         )
 
-        df = data_to_write[inst.OUTPUT_TABLE]["data"].select("caseId", "IngestionDate", "ValidTo")
+        df = data_to_write[inst.OUTPUT_TABLE]["data"].select(
+            "caseId", "IngestionDate", "ValidTo"
+        )
         assert_dataframes_equal(expected_data, df)

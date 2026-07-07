@@ -53,7 +53,9 @@ class AppealRepresentationCurationProcess(CurationProcess):
             "harmonised_data": harmonised_data,
         }
 
-    def process(self, source_data=None, **kwargs) -> Tuple[Dict[str, DataFrame], ETLResult]:
+    def process(
+        self, source_data=None, **kwargs
+    ) -> Tuple[Dict[str, DataFrame], ETLResult]:
         start_exec_time = datetime.now()
 
         if source_data is None:

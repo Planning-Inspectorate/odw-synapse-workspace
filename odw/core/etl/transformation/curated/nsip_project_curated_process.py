@@ -169,23 +169,31 @@ class NsipProjectCuratedProcess(CurationProcess):
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        nsip_project_data: DataFrame = self.load_parameter("harmonised_data", source_data)
+        nsip_project_data: DataFrame = self.load_parameter(
+            "harmonised_data", source_data
+        )
         nsip_project_data = nsip_project_data.withColumns(
             {
                 "caseId": F.col("caseId").cast(IntegerType()),
                 "publishStatus": F.lower(F.col("publishStatus")),
                 "projectType": F.when(
-                    F.col("ProjectType") == "WW01 - Waste Water treatment Plants", F.lit("WW01 - Waste Water Treatment Plants")
+                    F.col("ProjectType") == "WW01 - Waste Water treatment Plants",
+                    F.lit("WW01 - Waste Water Treatment Plants"),
                 ).otherwise(F.col("ProjectType")),
                 "stage": F.lower(F.regexp_replace(F.col("Stage"), r"[- ]", "_")),
                 "sourceSystem": F.lower(
-                    F.when(F.col("ODTSourceSystem") == "ODT", F.lit("back-office-applications")).otherwise(F.col("ODTSourceSystem"))
+                    F.when(
+                        F.col("ODTSourceSystem") == "ODT",
+                        F.lit("back-office-applications"),
+                    ).otherwise(F.col("ODTSourceSystem"))
                 ),
                 "easting": F.col("easting").cast(IntegerType()),
                 "northing": F.col("northing").cast(IntegerType()),
                 "welshLanguage": F.col("WelshLanguage"),
                 "secretaryOfState": F.col("SecretaryOfState"),
-                "rule8LetterPublishDate": F.col("rule8LetterPublishDate").cast(DateType()),
+                "rule8LetterPublishDate": F.col("rule8LetterPublishDate").cast(
+                    DateType()
+                ),
             }
         ).drop("ODTSourceSystem")
         end_exec_time = datetime.now()
