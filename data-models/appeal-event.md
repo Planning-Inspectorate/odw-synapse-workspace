@@ -52,6 +52,9 @@ classDiagram
         class appeal_event{
             eventId: string
         }
+        class appeal_event_curated_mipins{
+            eventId: string
+        }
     }
 
 `Horizon_vw_Event` --> `Horizon_appeals_event`
@@ -63,5 +66,6 @@ classDiagram
 `sb_appeals_event` --> `appeal_event_final`
 
 `appeal_event_final` --> `appeal_event`
+`appeal_event` --> `appeal_event_curated_mipins`
 
 ```
