@@ -58,6 +58,9 @@ classDiagram
             appeal_document_sb
             appeals_document_metadata
         }
+        class appeal_document_hrm {
+            documentId: int
+        }
 
         class appeals_folder_hrm {
             id: int
@@ -82,7 +85,11 @@ classDiagram
 `horizon_appeals_document_metadata` --> `appeals_document_metadata`
 `aie_document_data_std` --> `aie_document_data_hrm`
 `aie_document_data_hrm` --> `appeals_document_metadata`
-`appeals_document_metadata` --> `appeal_document`
+`appeal_document_sb` --> `appeal_document_hrm`
+`horizon_appeals_document_metadata` --> `appeal_document_hrm`
+`aie_document_data_hrm` --> `appeal_document_hrm`
+
+`appeal_document_hrm` --> `appeal_document`
 
 `Horizon_ODW_vw_FolderEntity_std_src` --> `horizon_appeals_folder`
 `horizon_appeals_folder` --> `appeals_folder_hrm`
