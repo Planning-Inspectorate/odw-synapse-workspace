@@ -212,8 +212,12 @@ class MetadataManager:
         """
         Return all entries for the run_id
         """
-        if not self._spark.catalog.tableExists(f"{self.METADATA_DB}.{self.METADATA_TABLE}"):
-            data_to_create = self._spark.createDataFrame([], schema=self.METADATA_SCHEMA)
+        if not self._spark.catalog.tableExists(
+            f"{self.METADATA_DB}.{self.METADATA_TABLE}"
+        ):
+            data_to_create = self._spark.createDataFrame(
+                [], schema=self.METADATA_SCHEMA
+            )
             self._write(data_to_create)
         run_id = self._entry.get("run_id", None)
         return self._spark.sql(
