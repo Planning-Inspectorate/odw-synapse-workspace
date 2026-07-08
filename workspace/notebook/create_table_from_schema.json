@@ -212,16 +212,10 @@
 				},
 				"source": [
 					"def parse_status_flag(value) -> bool:\n",
-					"    if isinstance(value, bool):\n",
-					"        return value\n",
-					"    if isinstance(value, str):\n",
-					"        return value.strip().lower() in (\"true\", \"1\", \"yes\", \"y\")\n",
-					"    if isinstance(value, (int, float)):\n",
-					"        return value != 0\n",
-					"    return False\n",
+					"    return bool(value)\n",
 					"\n",
 					"@logging_to_appins\n",
-					"def get_table_created_status(db_name: str, entity_name: str, path_to_orchestration_file: str) -> bool:\n",
+					"def is_table_creation_enabled(db_name: str, entity_name: str, path_to_orchestration_file: str) -> bool:\n",
 					"    status_field_map = {\n",
 					"        \"odw_curated_db\": \"odw_curated_table_creation_enabled\",\n",
 					"        \"odw_curated_migration_db\": \"odw_curated_table_creation_enabled\",\n",
@@ -230,8 +224,7 @@
 					"    }\n",
 					"\n",
 					"    status_field = status_field_map.get(db_name)\n",
-					"    if not status_field:\n",
-					"        return True\n",
+
 					"\n",
 					"    try:\n",
 					"        df: DataFrame = spark.read.option(\"multiline\", \"true\").json(path_to_orchestration_file)\n",
@@ -265,7 +258,7 @@
 					}
 				},
 				"source": [
-					"if db_name in (\"odw_curated_db\", \"odw_curated_migration_db\") and not get_table_created_status(db_name, entity_name, path_to_orchestration_file):\n",
+					"if db_name in (\"odw_curated_db\", \"odw_curated_migration_db\") and not is_table_creation_enabled(db_name, entity_name, path_to_orchestration_file):\n",
 					"    logInfo(f\"Table creation disabled in orchestration for {db_name}.{table_name}; skipping creation\")\n",
 					"    end_exec_time = datetime.now()\n",
 					"    duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
