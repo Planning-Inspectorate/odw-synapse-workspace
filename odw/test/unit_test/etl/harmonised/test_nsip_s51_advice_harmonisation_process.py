@@ -374,7 +374,9 @@ class TestNSIPS51AdviceHarmonisationProcess(SparkTestCase):
                     T.StructField("adviceDetailsWelsh", T.StringType(), True),
                     T.StructField("status", T.StringType(), True),
                     T.StructField("redactionStatus", T.StringType(), True),
-                    T.StructField("attachmentIds", T.ArrayType(T.StringType(), True), True),
+                    T.StructField(
+                        "attachmentIds", T.ArrayType(T.StringType(), True), True
+                    ),
                     T.StructField("Section51Advice", T.StringType(), True),
                     T.StructField("EnquirerFirstName", T.StringType(), True),
                     T.StructField("EnquirerLastName", T.StringType(), True),

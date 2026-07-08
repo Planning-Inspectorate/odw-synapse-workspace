@@ -341,7 +341,8 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
         joined = (
             base.join(
                 calcs_renamed,
-                (base["adviceId"] == calcs_renamed["calc_adviceId"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+                (base["adviceId"] == calcs_renamed["calc_adviceId"])
+                & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
             )
             .select(columns)
             .distinct()
