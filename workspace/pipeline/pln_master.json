@@ -1047,44 +1047,9 @@
 				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "Notify Curated success via email",
+						"activity": "Record pln_master pipeline Completed",
 						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"notebook": {
-						"referenceName": "py_logging_from_app_insights",
-						"type": "NotebookReference"
-					},
-					"snapshot": true,
-					"conf": {
-						"spark.dynamicAllocation.enabled": null,
-						"spark.dynamicAllocation.minExecutors": null,
-						"spark.dynamicAllocation.maxExecutors": null
-					},
-					"numExecutors": null
-				}
-			},
-			{
-				"name": "Logging_from_App_Insights_failure",
-				"type": "SynapseNotebook",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "Notify Curated failure via email",
-						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -1222,15 +1187,19 @@
 				}
 			},
 			{
-				"name": "Record pipeline starting Completed",
+				"name": "Record pln_master pipeline Completed",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "pln_master_ Status",
+						"activity": "Notify Curated success via email",
 						"dependencyConditions": [
-							"Succeeded"
+							"Completed"
+						]
+					},
+					{
+						"activity": "Notify Curated failure via email",
+						"dependencyConditions": [
+							"Completed"
 						]
 					}
 				],
@@ -1245,7 +1214,7 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Start",
+						"Stage": "Completed",
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -1255,9 +1224,10 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
+							"value": "@variables('start_time')",
 							"type": "Expression"
 						},
+						"EndTime": "@utcNow()",
 						"StatusMessage": "Overall Status",
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
@@ -1279,73 +1249,17 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
+						"PipelineExecutionTimeInSec": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
 						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
+							"type": "Expression"
+						},
+						"StatusCode": "200",
 						"AppInsIKey": {
 							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"
 						}
-					}
-				}
-			},
-			{
-				"name": "Lookup_Errors",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Logging_from_App_Insights_Success",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": {
-							"value": "SELECT *\nFROM [logging].[dbo].[pipeline_logs_odw]\nWHERE\n(\n    PipelineName IN (\n        'pln_horizon_to_odw',\n        'pln_curated',\n        'pln_curated_mipins',\n        '0_Raw_EntraID',\n        'pln_listed_buildings_main',\n        '0_Listed_Buildings_API_to_RAW',\n        'pln_aie_document_data',\n        'AIEData',\n        'EntraID',\n        'pln_publish_to_sb',\n        'pln_sb_run_entity_custom_harmonised',\n        'pln_pins_inspector_main'\n    )\n    OR PipelineName LIKE 'pln_service_bus%'\n)\nAND [timestamp] > '@{variables('start_time')}'\nAND ErrorMessage IS NOT NULL\nAND LTRIM(RTRIM(ErrorMessage)) <> ''\nORDER BY PipelineName;\n",
-							"type": "Expression"
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "ds_odw_logging",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "pln_master_ Status",
-				"type": "SetVariable",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [
-					{
-						"activity": "Lookup_Errors",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "pln_master_ Status",
-					"value": {
-						"value": "@activity('Lookup_Errors').output.firstRow.Status",
-						"type": "Expression"
 					}
 				}
 			}
