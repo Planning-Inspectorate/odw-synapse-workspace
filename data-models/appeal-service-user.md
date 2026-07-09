@@ -36,7 +36,15 @@ classDiagram
         class horizon_case_involvement {
             horizon_case_involvement
         }
+        
+        class horizon_nsip_data {
+            horizon_nsip_data
+        }
 
+        class horizon_nsip_relevant_representation {
+            horizon_nsip_relevant_representation
+        }
+        
         class sb_service_user {
             sb_service_user
         }
@@ -45,7 +53,7 @@ classDiagram
     namespace Harmonised {
 
         class service_user {
-            service_user
+            TEMP_PK
         }
     }
 
@@ -65,15 +73,13 @@ classDiagram
 
     horizon_odw_vw_serviceuser --> case_involvement_raw
     case_involvement_raw --> horizon_case_involvement
-
     service_bus --> service_user_raw
     service_user_raw --> sb_service_user
-
     horizon_case_involvement --> service_user
+    horizon_nsip_data --> service_user
+    horizon_nsip_relevant_representation --> service_user
     sb_service_user --> service_user
-
     service_user --> appeal_service_user
-
     appeal_service_user --> appeal_service_user_curated_mipins
 ```
 
@@ -85,6 +91,8 @@ classDiagram
 
 - Standardised
   - odw_standardised_db.horizon_case_involvement
+  - odw_standardised_db.horizon_nsip_data
+  - odw_standardised_db.horizon_nsip_relevant_representation
   - odw_standardised_db.sb_service_user
 
 - Harmonised
