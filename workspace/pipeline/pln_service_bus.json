@@ -3,69 +3,16 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Record service bus completion",
-				"type": "ExecutePipeline",
+				"name": "Lookup SB Orchestration",
+				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "ForEach - Raw to Std",
+						"activity": "Set_Pipeline_Start_Time",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					}
 				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"PipelineName": {
-							"value": "@pipeline().Pipeline",
-							"type": "Expression"
-						},
-						"PipelineRunID": {
-							"value": "@pipeline().RunId",
-							"type": "Expression"
-						},
-						"StatusMessage": "Service bus pipeline completed",
-						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
-							"type": "Expression"
-						},
-						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
-							"type": "Expression"
-						},
-						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@pipeline()?.TriggeredByPipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@pipeline()?.TriggeredByPipelineRunId",
-							"type": "Expression"
-						},
-						"ActivityType": "Pipeline",
-						"AppInsIKey": {
-							"value": "@pipeline().parameters.apps_insights_ikey",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Lookup SB Orchestration",
-				"type": "Lookup",
-				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -1244,15 +1191,42 @@
 											},
 											"waitOnCompletion": true,
 											"parameters": {
-												"entity_name": "@item().entity_name",
-												"custom_harmonised_notebooks": "@item().custom_harmonised_notebooks",
-												"PipelineName": "@pipeline().Pipeline",
-												"PipelineRunID": "@pipeline().RunId",
-												"PipelineTriggerID": "@pipeline().TriggerId",
-												"PipelineTriggerName": "@pipeline().TriggerName",
-												"PipelineTriggerType": "@pipeline().TriggerType",
-												"PipelineTriggeredbyPipelineName": "@pipeline()?.TriggeredByPipelineName",
-												"PipelineTriggeredbyPipelineRunID": "@pipeline()?.TriggeredByPipelineRunId"
+												"entity_name": {
+													"value": "@item().entity_name",
+													"type": "Expression"
+												},
+												"custom_harmonised_notebooks": {
+													"value": "@item().custom_harmonised_notebooks",
+													"type": "Expression"
+												},
+												"PipelineName": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().TriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().TriggerName",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().TriggerType",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												}
 											}
 										}
 									}
@@ -1337,6 +1311,121 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "Set_Pipeline_Start_Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Service_bus_Pipeline_Start_Time",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record service_bus Logs",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "ForEach - Raw to Std",
+						"dependencyConditions": [
+							"Completed",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n    or(\n        not(empty(activity('Lookup SB Orchestration')?.Error?.Message)),\n        not(empty(activity('Filter Enabled Entities')?.Error?.Message))\n    ),\n    'Failed',\n    'Success'\n)",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('Service_bus_Pipeline_Start_Time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@if(\n    empty(activity('Filter Enabled Entities')?.Error?.Message),\n    activity('Filter Enabled Entities')?.output?.rowsCopied,\n    0\n)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@concat(\n    coalesce(activity('Lookup SB Orchestration')?.Error?.message, ''),\n    coalesce(activity('Filter Enabled Entities')?.Error?.message, '')\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\nor(\nnot(empty(activity('Lookup SB Orchestration')?.Error?.Message)),\nnot(empty(activity('Filter Enabled Entities')?.Error?.Message))\n),\n'Failed Service_bus Pipeline' ,\n'Successfully Service_bus Pipeline'\n)\n",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Service_bus_Pipeline_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "Filter Enabled Entities Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Service_bus_Pipeline_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    empty(activity('Filter Enabled Entities')?.Error?.Message),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
 		"parameters": {
@@ -1352,6 +1441,11 @@
 			"entity_name_array": {
 				"type": "array",
 				"defaultValue": []
+			}
+		},
+		"variables": {
+			"Service_bus_Pipeline_Start_Time": {
+				"type": "String"
 			}
 		},
 		"folder": {
