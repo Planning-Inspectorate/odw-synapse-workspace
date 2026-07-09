@@ -3,9 +3,33 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "StartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
 				"name": "Lookup-LogStart",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set variable Start Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.02:00:00",
 					"retry": 0,
@@ -58,7 +82,7 @@
 				}
 			},
 			{
-				"name": "Copy_appeals_event_estimate_curated_mipins",
+				"name": "copy_appeal_event_estimate_curated_mipins",
 				"type": "Copy",
 				"dependsOn": [
 					{
@@ -114,37 +138,13 @@
 				]
 			},
 			{
-				"name": "Record_Count",
-				"type": "SetVariable",
-				"dependsOn": [
-					{
-						"activity": "Copy_appeals_event_estimate_curated_mipins",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "RowCount_event_estimate",
-					"value": {
-						"value": "@activity('Copy_appeals_event_estimate_curated_mipins').output.rowscopied",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Sp_log_success",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "Record_Count",
+						"activity": "copy_appeal_event_estimate_curated_mipins",
 						"dependencyConditions": [
-							"Succeeded"
+							"Completed"
 						]
 					}
 				],
@@ -164,7 +164,10 @@
 							"type": "String"
 						},
 						"ErrorMessage": {
-							"value": null,
+							"value": {
+								"value": "@if(empty(concat(coalesce(activity('Lookup-LogStart').Error?.message, ''),coalesce(activity('copy_appeal_event_estimate_curated_mipins').Error?.message, ''))),null,concat(coalesce(activity('Lookup-LogStart').Error?.message, ''),coalesce(activity('copy_appeal_event_estimate_curated_mipins').Error?.message, '')))",
+								"type": "Expression"
+							},
 							"type": "String"
 						},
 						"LogType": {
@@ -177,7 +180,7 @@
 						},
 						"RowCount": {
 							"value": {
-								"value": "@variables('RowCount_event_estimate')",
+								"value": "@if(and(not(equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, '')),not(equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, null))),0,activity('copy_appeal_event_estimate_curated_mipins').output.rowsCopied)",
 								"type": "Expression"
 							},
 							"type": "Int32"
@@ -201,99 +204,154 @@
 				}
 			},
 			{
-				"name": "Error",
-				"type": "SetVariable",
+				"name": "Record completed estimate event to odw",
+				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Record_Count",
+						"activity": "Sp_log_success",
 						"dependencyConditions": [
 							"Skipped",
-							"Failed"
+							"Completed"
 						]
 					}
 				],
 				"policy": {
-					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Error_event_estimate",
-					"value": {
-						"value": "@replace(concat(activity('Lookup-LogStart').Error?.message,'|',\nactivity('Copy_appeals_event_estimate_curated_mipins')?.Error?.message),'|','')",
-						"type": "Expression"
-					}
-				}
-			},
-			{
-				"name": "Sp_log_failed",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "Error",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Audit].[usp_addETLLog]",
-					"storedProcedureParameters": {
-						"Description": {
-							"value": "appeal_event_estimate_curated_mipins_pipeline_failed",
-							"type": "String"
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(or(or(not(empty(activity('Lookup-LogStart')?.Error?.Message)),not(empty(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message))),not(empty(activity('Sp_log_success')?.Error?.Message))),'Failed','Success')",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('StartTime')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@if(or(equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, null)),activity('copy_appeal_event_estimate_curated_mipins').output.rowsCopied,0)",
+							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": {
-								"value": "@variables('Error_event_estimate')",
-								"type": "Expression"
-							},
-							"type": "String"
+							"value": "@concat(coalesce(activity('Lookup-LogStart')?.Error?.message, ''),coalesce(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.message, ''),coalesce(activity('Sp_log_success')?.Error?.message, ''))",
+							"type": "Expression"
 						},
-						"LogType": {
-							"value": "2",
-							"type": "String"
+						"StatusMessage": {
+							"value": "@if(or(or(not(empty(activity('Lookup-LogStart')?.Error?.Message)),not(empty(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message))),not(empty(activity('Sp_log_success')?.Error?.Message))),'Failed copying data from ODW appeal estimate mipins event','Successfully copied data from ODW appeal estimate mipins event')",
+							"type": "Expression"
 						},
-						"Param1Value": {
-							"value": null,
-							"type": "String"
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
 						},
-						"RowCount": {
-							"value": null,
-							"type": "Int32"
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
 						},
-						"RunId": {
-							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
-								"type": "Expression"
-							},
-							"type": "Int32"
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
 						},
-						"Source": {
-							"value": "appeal_event_estimate",
-							"type": "String"
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "copy_appeal_event_estimate_curated_mipins Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(or(equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, ''),equals(activity('copy_appeal_event_estimate_curated_mipins')?.Error?.Message, null)),'200','500')",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
 						}
 					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
 				}
 			}
 		],
-		"variables": {
-			"RowCount_event_estimate": {
-				"type": "Integer"
+		"parameters": {
+			"webhook_url": {
+				"type": "string"
 			},
-			"Error_event_estimate": {
+			"subscription_id": {
+				"type": "string"
+			},
+			"resource_group": {
+				"type": "string"
+			},
+			"starting_colour": {
+				"type": "string"
+			},
+			"on_progress_colour": {
+				"type": "string"
+			},
+			"failed_colour": {
+				"type": "string"
+			},
+			"start_time": {
+				"type": "string"
+			},
+			"starting_image": {
+				"type": "string"
+			},
+			"progress_image": {
+				"type": "string"
+			},
+			"warning_image": {
+				"type": "string"
+			},
+			"failed_image": {
+				"type": "string"
+			},
+			"warning_colour": {
+				"type": "string"
+			},
+			"apps_insights_ikey": {
+				"type": "string",
+				"defaultValue": "87864c3b-0d8b-4a98-b2c4-596ddf8fe123"
+			},
+			"completed_colour": {
+				"type": "string"
+			},
+			"completed_image": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"StartTime": {
 				"type": "String"
 			}
 		},
