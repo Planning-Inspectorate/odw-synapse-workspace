@@ -85,138 +85,11 @@
 					"batchCount": 20,
 					"activities": [
 						{
-							"name": "Record starting service bus stage",
-							"type": "ExecutePipeline",
-							"dependsOn": [],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat('Progressing to load service bus: ', item().entity_name)",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
-							"name": "Record checking data on service bus",
-							"type": "ExecutePipeline",
-							"dependsOn": [
-								{
-									"activity": "Record starting service bus stage",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"pipeline": {
-									"referenceName": "pln_log_to_appins",
-									"type": "PipelineReference"
-								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"Stage": "OnProgress",
-									"PipelineName": {
-										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
-										"type": "Expression"
-									},
-									"PipelineRunID": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"StartTime": {
-										"value": "@formatDateTime(utcnow(), 'yyyy-MM-ddTHH:mm:ssZ')",
-										"type": "Expression"
-									},
-									"StatusMessage": {
-										"value": "@concat(item().entity_name, ': Checking service bus subscription for messages')",
-										"type": "Expression"
-									},
-									"PipelineTriggerID": {
-										"value": "@pipeline().TriggerId",
-										"type": "Expression"
-									},
-									"PipelineTriggerName": {
-										"value": "@pipeline().TriggerName",
-										"type": "Expression"
-									},
-									"PipelineTriggerType": {
-										"value": "@pipeline().TriggerType",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineName": {
-										"value": "@pipeline()?.TriggeredByPipelineName",
-										"type": "Expression"
-									},
-									"PipelineTriggeredbyPipelineRunID": {
-										"value": "@pipeline()?.TriggeredByPipelineRunId",
-										"type": "Expression"
-									},
-									"ActivityType": "Pipeline",
-									"AppInsIKey": {
-										"value": "@pipeline().parameters.apps_insights_ikey",
-										"type": "Expression"
-									}
-								}
-							}
-						},
-						{
 							"name": "Create standardised table",
 							"type": "SynapseNotebook",
 							"dependsOn": [
 								{
-									"activity": "Record checking data on service bus",
+									"activity": "Set_Pipeline_Start_Time_By_Entity",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -311,7 +184,7 @@
 							"type": "SynapseNotebook",
 							"dependsOn": [
 								{
-									"activity": "Record checking data on service bus",
+									"activity": "Set_Pipeline_Start_Time_By_Entity",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -406,7 +279,7 @@
 							"type": "SynapseNotebook",
 							"dependsOn": [
 								{
-									"activity": "Record checking data on service bus",
+									"activity": "Set_Pipeline_Start_Time_By_Entity",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -1307,6 +1180,23 @@
 										}
 									}
 								]
+							}
+						},
+						{
+							"name": "Set_Pipeline_Start_Time_By_Entity",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Service_bus_Pipeline_Start_Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
 							}
 						}
 					]
