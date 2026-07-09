@@ -45,12 +45,16 @@ def assert_dataframes_equal(expected: DataFrame, actual: DataFrame):
     if schema_mismatch:
         expected_schema = json.dumps(json.loads(expected.schema.json()), indent=4)
         actual_schema = json.dumps(json.loads(actual.schema.json()), indent=4)
+        extra_in_expected = schema_mismatch.difference(set(actual.schema))
+        extra_in_actual = schema_mismatch.difference(set(expected.schema))
         exception_message = (
             "Schema mismatch between expected and actual dataframes\n"
             "Expected dataframe schema\n"
             f"{expected_schema}"
             "\nActual dataframe schema\n"
-            f"{actual_schema}"
+            f"{actual_schema}\n"
+            f"Columns in expected but not actual: {extra_in_expected}\n"
+            f"Columns in actual but not expected: {extra_in_actual}\n"
         )
     assert not schema_mismatch, exception_message
     rows_to_show = 20

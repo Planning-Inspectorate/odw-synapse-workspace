@@ -338,15 +338,18 @@ class NsipS51AdviceHarmonisationProcess(HarmonisationProcess):
             F.col("IsActive"),
         )
 
-        joined = base.join(
-            calcs_renamed,
-            (base["adviceId"] == calcs_renamed["calc_adviceId"])
-            & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
-        ).select(columns)
+        joined = (
+            base.join(
+                calcs_renamed,
+                (base["adviceId"] == calcs_renamed["calc_adviceId"])
+                & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+            )
+            .select(columns)
+            .distinct()
+        )
 
         # Apply RowID
         final_df = joined.withColumn("RowID", row_id_expr)
-        final_df = final_df.dropDuplicates()
 
         # Step 8: Apply Horizon delete logic
         deleted_ids = [row[0] for row in horizon_deleted.collect()]
