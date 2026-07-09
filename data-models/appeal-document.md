@@ -56,7 +56,7 @@ classDiagram
     namespace Harmonised {
 
         class sb_appeal_document_hrm {
-            documentId: int
+            documentId
         }
 
         class aie_document_data_hrm {
@@ -64,8 +64,13 @@ classDiagram
         }
 
         class appeal_document_hrm {
-            AppealsDocumentMetadataID: bigint
-            documentId: int
+
+            TEMP_PK
+            documentId
+            filename
+            version
+            documentURI
+
         }
     }
 
