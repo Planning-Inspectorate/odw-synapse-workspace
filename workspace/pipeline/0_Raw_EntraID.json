@@ -81,13 +81,30 @@
 				}
 			},
 			{
-				"name": "Log 0_Raw_EntraID Failure",
+				"name": "Set variable Start Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "StartTime",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record completed 0_Raw_EntraID",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
 						"activity": "Copy AAD Users",
 						"dependencyConditions": [
-							"Failed"
+							"Completed"
 						]
 					}
 				],
@@ -102,7 +119,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"Stage": "Fail",
+						"Stage": {
+							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), 'Success', 'Failed')",
+							"type": "Expression"
+						},
 						"PipelineName": {
 							"value": "@pipeline().Pipeline",
 							"type": "Expression"
@@ -112,15 +132,21 @@
 							"type": "Expression"
 						},
 						"StartTime": {
-							"value": "@activity('Copy AAD Users').ExecutionEndTime",
+							"value": "@variables('StartTime')",
 							"type": "Expression"
 						},
 						"EndTime": {
 							"value": "@utcNow()",
 							"type": "Expression"
 						},
-						"ErrorMessage": "Failed to copy 0_Raw_EntraID. See logs for individual files to see error details.",
-						"StatusMessage": "Failed",
+						"ErrorMessage": {
+							"value": "@coalesce(activity('Copy AAD Users')?.Error?.message, '')",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), 'Successfully copied Entra ID users', 'Failed to copy Entra ID users')",
+							"type": "Expression"
+						},
 						"PipelineTriggerID": {
 							"value": "@pipeline().TriggerId",
 							"type": "Expression"
@@ -141,77 +167,38 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
-						"ActivityType": "Pipeline",
-						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs"
-					}
-				}
-			},
-			{
-				"name": "Log 0_Raw_EntraID Success",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "Copy AAD Users",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "pln_log_to_appins",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"Stage": "Completion",
-						"StartTime": {
-							"value": "@activity('Copy AAD Users').ExecutionStartTime",
-							"type": "Expression"
-						},
-						"EndTime": {
-							"value": "@activity('Copy AAD Users').ExecutionEndTime",
-							"type": "Expression"
-						},
-						"StatusMessage": {
-							"value": "@concat('Copied Entra Id data succesfully: ')",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineName": {
-							"value": "@activity('Copy AAD Users').PipelineName",
-							"type": "Expression"
-						},
-						"PipelineTriggeredbyPipelineRunID": {
-							"value": "@activity('Copy AAD Users').PipelineRunId",
-							"type": "Expression"
-						},
 						"PipelineExecutionTimeInSec": {
-							"value": "@activity('Copy AAD Users').Duration",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
 							"type": "Expression"
 						},
-						"ActivityType": {
-							"value": "@activity('Copy AAD Users').ActivityType",
-							"type": "Expression"
-						},
+						"ActivityType": "Copy AAD Users Activity",
 						"DurationSeconds": {
-							"value": "@activity('Copy AAD Users').Duration",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), '200', '500')",
 							"type": "Expression"
 						},
 						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
-						"StatusCode": {
-							"value": "@activity('Copy AAD Users').StatusCode",
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
 					}
 				}
 			}
 		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string"
+			}
+		},
 		"variables": {
 			"env": {
+				"type": "String"
+			},
+			"StartTime": {
 				"type": "String"
 			}
 		},
