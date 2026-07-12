@@ -8,7 +8,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Set Environment",
+						"activity": "Lookup-LogStart",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -64,23 +64,6 @@
 				]
 			},
 			{
-				"name": "Set Environment",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "env",
-					"value": {
-						"value": "@if(\n    equals(\n        pipeline().DataFactory,\n        'pins-synw-odw-prod-uks'\n    ),\n    'PROD',\n    if(\n        equals(\n            pipeline().DataFactory,\n            'pins-synw-odw-test-uks'\n        ),\n        'TEST',\n        if(\n            equals(\n                pipeline().DataFactory,\n                'pins-synw-odw-build-uks'\n            ),\n            'BUILD',\n            'DEV'\n        )\n    )\n)",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Set variable Start Time",
 				"type": "SetVariable",
 				"dependsOn": [],
@@ -102,9 +85,10 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Copy AAD Users",
+						"activity": "Sp_log_success",
 						"dependencyConditions": [
-							"Completed"
+							"Skipped",
+							"Succeeded"
 						]
 					}
 				],
@@ -120,7 +104,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), 'Success', 'Failed')",
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('Copy AAD Users')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed',\n    'Success'\n)",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -139,12 +123,16 @@
 							"value": "@utcNow()",
 							"type": "Expression"
 						},
+						"Inserts": {
+							"value": "@if(\n    empty(activity('Copy AAD Users')?.Error?.Message),\n    activity('Copy AAD Users')?.output?.rowsCopied,\n    0\n)",
+							"type": "Expression"
+						},
 						"ErrorMessage": {
-							"value": "@coalesce(activity('Copy AAD Users')?.Error?.message, '')",
+							"value": "@concat(\n    coalesce(activity('Lookup-LogStart')?.Error?.message, ''),\n    coalesce(activity('Copy AAD Users')?.Error?.message, ''),\n    coalesce(activity('Sp_log_success')?.Error?.message, '')\n)",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), 'Successfully copied Entra ID users', 'Failed to copy Entra ID users')",
+							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('Copy AAD Users')?.Error?.Message))\n        ),\n        not(empty(activity('Sp_log_success')?.Error?.Message))\n    ),\n    'Failed to copy Entra ID users',\n    'Successfully copied Entra ID users'\n)",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -176,16 +164,144 @@
 							"value": "@div(sub(ticks(utcNow()), ticks(variables('StartTime'))), 10000000)",
 							"type": "Expression"
 						},
+						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
 						"StatusCode": {
-							"value": "@if(empty(activity('Copy AAD Users')?.Error?.Message), '200', '500')",
+							"value": "@if(\n    empty(activity('Copy AAD Users')?.Error?.Message), \n    '200', \n    '500'\n)",
 							"type": "Expression"
 						},
-						"AppInsCustomEventName": "ODW_Master_Pipeline_Logs",
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
 						}
 					}
+				}
+			},
+			{
+				"name": "Lookup-LogStart",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set variable Start Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
+						"storedProcedureParameters": {
+							"Description": {
+								"type": "String",
+								"value": "0_Raw_EntraID_pipeline_started"
+							},
+							"ErrorMessage": {
+								"type": "String",
+								"value": null
+							},
+							"LogType": {
+								"type": "String",
+								"value": "1"
+							},
+							"Param1Value": {
+								"type": "String",
+								"value": null
+							},
+							"RowCount": {
+								"type": "Int32",
+								"value": null
+							},
+							"RunId": {
+								"type": "Int32",
+								"value": null
+							},
+							"Source": {
+								"type": "String",
+								"value": "0_Raw_EntraID"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Lookup_LogStart",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Sp_log_success",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Copy AAD Users",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.02:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[Audit].[usp_addETLLog]",
+					"storedProcedureParameters": {
+						"Description": {
+							"value": "0_Raw_EntraID_pipeline_completed",
+							"type": "String"
+						},
+						"ErrorMessage": {
+							"value": {
+								"value": "@if(\n    empty(concat(\n        coalesce(activity('Lookup-LogStart').Error?.message, ''),\n        coalesce(activity('Copy AAD Users').Error?.message, '')\n    )),\n    null,\n    concat(\n        coalesce(activity('Lookup-LogStart').Error?.message, ''),\n        coalesce(activity('Copy AAD Users').Error?.message, '')\n    )\n)",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"LogType": {
+							"value": "2",
+							"type": "String"
+						},
+						"Param1Value": {
+							"value": null,
+							"type": "String"
+						},
+						"RowCount": {
+							"value": {
+								"value": "@if(\n    and(\n        not(equals(activity('Copy AAD Users')?.Error?.Message, '')),\n        not(equals(activity('Copy AAD Users')?.Error?.Message, null))\n    ),\n    0,\n    activity('Copy AAD Users').output.rowsCopied\n)",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"RunId": {
+							"value": {
+								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"Source": {
+							"value": "0_Raw_EntraID",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_mipins",
+					"type": "LinkedServiceReference"
 				}
 			}
 		],
