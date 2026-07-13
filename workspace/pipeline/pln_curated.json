@@ -1449,7 +1449,14 @@
 						{
 							"name": "Read Batch File",
 							"type": "Lookup",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set variable Listed building Start Time_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "0.1:00:00",
 								"retry": 3,
@@ -1516,6 +1523,117 @@
 										"type": "Expression"
 									},
 									"topic_name": "listed-building"
+								}
+							}
+						},
+						{
+							"name": "Record completed event to odw to mipins data load_copy1",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Publish Batch to Service Bus",
+									"dependencyConditions": [
+										"Failed",
+										"Skipped"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": {
+										"value": "@if( equals(activity('Get Batch Files').Status, 'Failed'),'Failed','Success')",
+										"type": "Expression"
+									},
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Set_ListedBuilding_Start_Time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@coalesce(activity('Get Batch Files')?.Error?.message, '')\n\n",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@if(equals(activity('Get Batch Files').Status, 'Failed'),  'Failed Get Batch Files from listed_building', 'Successfully Get Batch Files from listed_building')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)\n",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "copy_service_user_curated_mipins Activity",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": {
+										"value": "@if(\n    empty(activity('Get Batch Files')?.Error?.Message),\n    '200',\n    '500'\n)\n",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set variable Listed building Start Time_copy1",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Set_ListedBuilding_Publish_Start_Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
 								}
 							}
 						}
@@ -2395,6 +2513,99 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "Record completed Listed building data load",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Process Each Batch",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if( equals(activity('Get Batch Files').Status, 'Failed'),'Failed','Success')",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('Set_ListedBuilding_Start_Time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@coalesce(activity('Get Batch Files')?.Error?.message, '')\n\n",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(equals(activity('Get Batch Files').Status, 'Failed'),  'Failed Get Batch Files from listed_building', 'Successfully Get Batch Files from listed_building')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)\n",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "copy_service_user_curated_mipins Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    empty(activity('Get Batch Files')?.Error?.Message),\n    '200',\n    '500'\n)\n",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
 			}
 		],
 		"parameters": {
@@ -2410,6 +2621,9 @@
 				"type": "String"
 			},
 			"Set_Notebooks_Start_Time": {
+				"type": "String"
+			},
+			"Set_ListedBuilding_Publish_Start_Time": {
 				"type": "String"
 			}
 		},
