@@ -1527,7 +1527,24 @@
 							}
 						},
 						{
-							"name": "Record completed event to odw to mipins data load_copy1",
+							"name": "Set variable Listed building Start Time_copy1",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Set_ListedBuilding_Publish_Start_Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record completed Listed building publishe",
 							"type": "ExecutePipeline",
 							"dependsOn": [
 								{
@@ -1550,7 +1567,7 @@
 								"waitOnCompletion": true,
 								"parameters": {
 									"Stage": {
-										"value": "@if( equals(activity('Get Batch Files').Status, 'Failed'),'Failed','Success')",
+										"value": "Failed",
 										"type": "Expression"
 									},
 									"PipelineName": {
@@ -1562,7 +1579,7 @@
 										"type": "Expression"
 									},
 									"StartTime": {
-										"value": "@variables('Set_ListedBuilding_Start_Time')",
+										"value": "@variables('Set_ListedBuilding_Publish_Start_Time')",
 										"type": "Expression"
 									},
 									"EndTime": {
@@ -1570,11 +1587,11 @@
 										"type": "Expression"
 									},
 									"ErrorMessage": {
-										"value": "@coalesce(activity('Get Batch Files')?.Error?.message, '')\n\n",
+										"value": "@if( or(not(empty(activity('Read Batch File').Error.Message)), not(empty(activity('Publish Batch to Service Bus').Error.Message))),   'Failed',null)",
 										"type": "Expression"
 									},
 									"StatusMessage": {
-										"value": "@if(equals(activity('Get Batch Files').Status, 'Failed'),  'Failed Get Batch Files from listed_building', 'Successfully Get Batch Files from listed_building')",
+										"value": "@if( or(not(empty(activity('Read Batch File').Error.Message)), not(empty(activity('Publish Batch to Service Bus').Error.Message))),   'Failed Get Batch Files from listed_building to service bus',null)",
 										"type": "Expression"
 									},
 									"PipelineTriggerID": {
@@ -1598,7 +1615,7 @@
 										"type": "Expression"
 									},
 									"PipelineExecutionTimeInSec": {
-										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)\n",
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Publish_Start_Time'))), 10000000)",
 										"type": "Expression"
 									},
 									"ActivityType": {
@@ -1606,34 +1623,17 @@
 										"type": "Expression"
 									},
 									"DurationSeconds": {
-										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Start_Time'))), 10000000)",
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_ListedBuilding_Publish_Start_Time'))), 10000000)",
 										"type": "Expression"
 									},
 									"StatusCode": {
-										"value": "@if(\n    empty(activity('Get Batch Files')?.Error?.Message),\n    '200',\n    '500'\n)\n",
+										"value": "500",
 										"type": "Expression"
 									},
 									"AppInsIKey": {
 										"value": "@pipeline().parameters.apps_insights_ikey",
 										"type": "Expression"
 									}
-								}
-							}
-						},
-						{
-							"name": "Set variable Listed building Start Time_copy1",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"policy": {
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "Set_ListedBuilding_Publish_Start_Time",
-								"value": {
-									"value": "@utcNow()",
-									"type": "Expression"
 								}
 							}
 						}
