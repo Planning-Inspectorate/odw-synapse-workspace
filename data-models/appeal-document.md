@@ -11,26 +11,26 @@ classDiagram
     namespace Sources {
 
         class appeal_document_sb_src {
-            documentId: int
+            documentId
         }
 
         class Horizon_ODW_vw_DocumentMetadataAppeals_src {
-            documentId: int
+            documentId
         }
 
         class AIEDocumentData_src {
-            documentId: int
+            documentId
         }
     }
 
     namespace Raw {
 
         class appeal_document_sb_raw {
-            odw-raw/ServiceBus/appeal-document/
+            odw-raw/ServiceBus/appeal-document/appeal-document_YYYY-MM-DDTHH_MM_SS.ffffff+0000.json
         }
 
-        class HorizonAppealsDocumentMetadata_raw {
-            HorizonAppealsDocumentMetadata.csv
+        class HorizonAppealsDocumentMetadata.csv {
+            documentId
         }
 
         class AIEDocumentData_raw {
@@ -41,15 +41,15 @@ classDiagram
     namespace Standardised {
 
         class sb_appeal_document {
-            documentId: int
+            documentId
         }
 
         class horizon_appeals_document_metadata {
-            documentId: int
+            documentId
         }
 
         class aie_document_data_std {
-            documentId: int
+            documentId
         }
     }
 
@@ -60,7 +60,7 @@ classDiagram
         }
 
         class aie_document_data_hrm {
-            documentId: int
+            documentId
         }
 
         class appeal_document_hrm {
@@ -77,7 +77,7 @@ classDiagram
     namespace Curated {
 
         class appeal_document {
-            documentId: int
+            documentId
         }
     }
 
@@ -85,9 +85,8 @@ classDiagram
     appeal_document_sb_raw --> sb_appeal_document
     sb_appeal_document --> sb_appeal_document_hrm
 
-    Horizon_ODW_vw_DocumentMetadataAppeals_src --> HorizonAppealsDocumentMetadata_raw
-    HorizonAppealsDocumentMetadata_raw --> horizon_appeals_document_metadata
-
+    Horizon_ODW_vw_DocumentMetadataAppeals_src --> HorizonAppealsDocumentMetadata.csv
+    HorizonAppealsDocumentMetadata.csv --> horizon_appeals_document_metadata
     AIEDocumentData_src --> AIEDocumentData_raw
     AIEDocumentData_raw --> aie_document_data_std
     aie_document_data_std --> aie_document_data_hrm
