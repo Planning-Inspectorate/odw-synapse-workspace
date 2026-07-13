@@ -1451,7 +1451,7 @@
 							"type": "Lookup",
 							"dependsOn": [
 								{
-									"activity": "Set variable Listed building Start Time_copy1",
+									"activity": "Set variable Listed building Publish Start Time",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -1527,7 +1527,7 @@
 							}
 						},
 						{
-							"name": "Set variable Listed building Start Time_copy1",
+							"name": "Set variable Listed building Publish Start Time",
 							"type": "SetVariable",
 							"dependsOn": [],
 							"policy": {
@@ -2390,7 +2390,14 @@
 						{
 							"name": "Read Batch File Inspector",
 							"type": "Lookup",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Set variable Inspector Publish Start Time",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "0.1:00:00",
 								"retry": 3,
@@ -2457,6 +2464,117 @@
 										"type": "Expression"
 									},
 									"topic_name": "pins-inspector"
+								}
+							}
+						},
+						{
+							"name": "Record completed inspector publishe",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Publish Batch to ODW Service Bus Inspector",
+									"dependencyConditions": [
+										"Skipped",
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": {
+										"value": "Failed",
+										"type": "Expression"
+									},
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Set_Inspector_Publish_Start_Time')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"ErrorMessage": {
+										"value": "@if( or(not(empty(activity('Read Batch File Inspector').Error.Message)), not(empty(activity('Publish Batch to ODW Service Bus Inspector').Error.Message))),   'Failed',null)",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@if( or(not(empty(activity('Read Batch File Inspector').Error.Message)), not(empty(activity('Publish Batch to ODW Service Bus Inspector').Error.Message))),   'Failed Get Batch Files from inspector to service bus',null)\n",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().TriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().TriggerName",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().TriggerType",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_Inspector_Publish_Start_Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "copy_service_user_curated_mipins Activity",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_Inspector_Publish_Start_Time'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": {
+										"value": "500",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Set variable Inspector Publish Start Time",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Set_Inspector_Publish_Start_Time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
 								}
 							}
 						}
@@ -2609,7 +2727,7 @@
 				}
 			},
 			{
-				"name": "Record completed  Inspector data load",
+				"name": "Record completed Inspector data load",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
@@ -2719,6 +2837,9 @@
 				"type": "String"
 			},
 			"Set_ListedBuilding_Publish_Start_Time": {
+				"type": "String"
+			},
+			"Set_Inspector_Publish_Start_Time": {
 				"type": "String"
 			}
 		},
