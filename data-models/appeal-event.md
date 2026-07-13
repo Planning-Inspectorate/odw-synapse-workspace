@@ -24,11 +24,11 @@ classDiagram
     namespace Raw {
 
         class appeal_event_sb_raw {
-            odw-raw/ServiceBus/appeal-event/
+            odw-raw/ServiceBus/appeal-event/appeal-event_YYYY-MM-DDTHH_MM_SS.ffffff+0000.json
         }
 
-        class HorizonAppealsEvent_raw {
-            HorizonAppealsEvent.csv
+        class HorizonAppealsEvent.csv {
+            eventId
         }
     }
 
@@ -73,8 +73,8 @@ classDiagram
     appeal_event_sb_raw --> sb_appeal_event
     sb_appeal_event --> sb_appeal_event_hrm
 
-    Horizon_ODW_vw_event_src --> HorizonAppealsEvent_raw
-    HorizonAppealsEvent_raw --> horizon_appeals_event
+    Horizon_ODW_vw_event_src --> HorizonAppealsEvent.csv
+    HorizonAppealsEvent.csv --> horizon_appeals_event
 
     sb_appeal_event_hrm --> appeal_event_hrm
     horizon_appeals_event --> appeal_event_hrm
