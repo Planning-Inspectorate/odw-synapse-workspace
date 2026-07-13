@@ -1,3 +1,4 @@
+
 #### ODW Data Model
  
 ##### entity: appeal-event-estimate
@@ -19,7 +20,8 @@ classDiagram
     namespace Raw {
 
         class appeal_event_estimate_sb_raw {
-            odw-raw/ServiceBus/appeal-event-estimate/
+            odw-raw/ServiceBus/appeal-event-estimate/appeal-event-estimate_YYYY-MM-DDTHH_MM_SS.ffffff+0000.json
+``
         }
     }
 
