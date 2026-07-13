@@ -51,13 +51,9 @@ stages:
       dependsOn:
       - DetectODWPackageChanges
       condition: |
-        and(
-          not(or(failed(), canceled())),
-          or(
-            ne(variables['Build.Reason'], 'PullRequest'),
-            ${{ parameters.forceRunTests }},
-            eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
-          )
+        or(
+          ${{ parameters.forceRunTests }},
+          eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
         )
   - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/jobs/run-odw-package-integrationtests.yaml
     parameters:
@@ -66,13 +62,9 @@ stages:
       dependsOn:
       - DetectODWPackageChanges
       condition: |
-        and(
-          not(or(failed(), canceled())),
-          or(
-            ne(variables['Build.Reason'], 'PullRequest'),
-            ${{ parameters.forceRunTests }},
-            eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
-          )
+        or(
+          ${{ parameters.forceRunTests }},
+          eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
         )
   - job: CombineAndPublishCoverage
     pool: ${{ parameters.agentPool }}
@@ -80,15 +72,6 @@ stages:
     - DetectODWPackageChanges
     - RunODWPackageUnitTestsJob
     - RunODWPackageIntegrationTestsJob
-    condition: |
-      and(
-        not(or(failed(), canceled())),
-        or(
-          ne(variables['Build.Reason'], 'PullRequest'),
-          ${{ parameters.forceRunTests }},
-          eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
-        )
-      )
     steps:
     - checkout: self
       clean: true
