@@ -22,38 +22,58 @@ classDiagram
 
     namespace Raw {
 
-        class case_involvement_raw {
-            CaseInvolvement.csv
+        class CaseInvolvement.csv {
+
+            ContactId
+            case_number
+            serviceUserType
         }
 
         class service_user_raw {
-            service-user
+            id
+            caseReference
+            serviceUserType
+
         }
     }
 
     namespace Standardised {
 
         class horizon_case_involvement {
-            horizon_case_involvement
+            ContactId
+            case_number
+            serviceUserType
+
         }
         
         class horizon_nsip_data {
-            horizon_nsip_data
+            caseNodeId
+            CaseReference
+            serviceUserType
         }
 
         class horizon_nsip_relevant_representation {
-            horizon_nsip_relevant_representation
+            ContactId
+            AgentContactId
+            CaseReference
+            serviceUserType
         }
         
         class sb_service_user {
-            sb_service_user
+            id
+            caseReference
+            serviceUserType
+
         }
     }
 
     namespace Harmonised {
 
         class service_user {
-            TEMP_PK
+            ServiceUserID
+            id
+            caseReference
+            serviceUserType
         }
     }
 
@@ -71,8 +91,8 @@ classDiagram
         }
     }
 
-    horizon_odw_vw_serviceuser --> case_involvement_raw
-    case_involvement_raw --> horizon_case_involvement
+    horizon_odw_vw_serviceuser --> CaseInvolvement.csv
+    CaseInvolvement.csv --> horizon_case_involvement
     service_bus --> service_user_raw
     service_user_raw --> sb_service_user
     horizon_case_involvement --> service_user
@@ -80,7 +100,9 @@ classDiagram
     horizon_nsip_relevant_representation --> service_user
     sb_service_user --> service_user
     service_user --> appeal_service_user
-    appeal_service_user --> appeal_service_user_curated_mipins
+    sb_service_user --> appeal_service_user_curated_mipins
+    service_user --> appeal_service_user_curated_mipins
+
 ```
 
 ### Tables and views
