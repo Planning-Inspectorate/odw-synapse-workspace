@@ -18,35 +18,35 @@ classDiagram
 
     namespace Raw {
 
-        class horizon_appeals_folder_raw {
-            HorizonAppealsFolder.csv
+        class HorizonAppealsFolder.csv {
+            Id
         }
     }
 
     namespace Standardised {
 
         class horizon_appeals_folder_std {
-            Id: int
+            Id
         }
     }
 
     namespace Harmonised {
 
         class appeals_folder_hrm {
-            HorizonAppealFolderId: int
+            HorizonAppealFolderId
         }
     }
 
     namespace Curated {
 
         class appeal_folder {
-            Id: int
+            Id
         }
     }
 
-    horizon_appeals_folder_src --> horizon_appeals_folder_raw
+    horizon_appeals_folder_src --> HorizonAppealsFolder.csv
 
-    horizon_appeals_folder_raw --> horizon_appeals_folder_std
+    HorizonAppealsFolder.csv --> horizon_appeals_folder_std
 
     horizon_appeals_folder_std --> appeals_folder_hrm
 
