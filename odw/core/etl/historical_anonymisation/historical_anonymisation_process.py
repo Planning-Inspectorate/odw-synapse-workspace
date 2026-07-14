@@ -455,7 +455,6 @@ class HistoricalAnonymisationProcess(ETLProcess):
             if x not in cols_to_revert_to_raw
         ] + [F.col(f"raw_data.{x}") for x in cols_to_revert_to_raw]
         standardised_data_cleaned = joined.select(*cols_to_keep)
-        # cols_to_anonymise = AnonymisationEngine().get_cols_to_anonymise(entity_name, source_folder=entity_category)
         anonymised_data = AnonymisationEngine().apply_from_purview(
             standardised_data_cleaned,
             entity_name=entity_name,
