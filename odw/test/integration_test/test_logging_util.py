@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
 from odw.test.util.config import TEST_CONFIG
 from azure.identity import AzureCliCredential

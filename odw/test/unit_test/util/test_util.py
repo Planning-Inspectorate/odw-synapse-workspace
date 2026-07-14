@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils
 from odw.core.util.util import Util
 import mock
 
