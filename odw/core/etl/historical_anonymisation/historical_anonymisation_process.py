@@ -411,7 +411,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         raw_blob_paths = [
             x.replace(prefix, "")
             for x in self.get_all_files_in_directory(raw_blob_path_cleaned)
-            if x.endswith(".csv")
+            if x.endswith(f".{raw_blob_format}") and entity_name in x
         ]
         raw_data = SynapseFileDataIO().read(
             spark=self.spark,
