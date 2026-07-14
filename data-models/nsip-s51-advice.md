@@ -18,6 +18,7 @@ classDiagram
             adviceNodeId: int
             caseId: int
         }
+    }
 
     }
 
@@ -26,11 +27,21 @@ classDiagram
         class sb_s51_advice_std {
             adviceId: int
         }
+    }
+
+    namespace Standardised {
 
         class horizon_nsip_advice {
             adviceNodeId: int
+        class sb_s51_advice {
+            odw_standardised_db
+            adviceId: int
         }
 
+        class horizon_nsip_advice {
+            odw_standardised_db
+            CaseID: int
+        }
     }
 
     namespace Harmonised {
