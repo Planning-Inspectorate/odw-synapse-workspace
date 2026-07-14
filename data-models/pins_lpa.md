@@ -51,8 +51,7 @@ classDiagram
 ### Orchestration and lineage
 
 - Notebooks and SQL scripts
-  - ingest_horizon / ingest_adhoc (loads DaRT_LPA.csv into odw_standardised_db.pins_lpa)
-  - Purview-driven anonymisation (masks classified PII fields before loading)
+  - py_horizon_raw_to_std (loads DaRT_LPA.csv into odw_standardised_db.pins_lpa)
   - pins_lpa (builds odw_harmonised_db.pins_lpa from odw_standardised_db.pins_lpa using MD5 hash-based change detection and SCD Type 2 processing)
 
-**Key Point:** `pins_lpa` is a Horizon-only entity sourced from DaRT_LPA.csv, automatically anonymised using Purview classifications, and maintained in the Harmonised layer using SCD Type 2 history management.
+**Key Point:** `pins_lpa` is a Horizon-only entity sourced from DaRT_LPA.csv and maintained in the Harmonised layer using SCD Type 2 history management.
