@@ -1,8 +1,12 @@
 from odw.core.etl.etl_process import ETLProcess
+from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
+from odw.core.anonymisation.engine import AnonymisationEngine
 from pyspark.sql import DataFrame
+import pyspark.sql.functions as F
 from typing import Dict
+from datetime import datetime
 
 
 class HistoricalAnonymisationProcess(ETLProcess):
@@ -116,6 +120,8 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "json",
             "standardised_blob_path": "",
             "category": "entraid",
+            "primary_keys": ["id"],
+            "cols_to_revert_to_raw": ["userPrincipalName"],
         },  # From py_raw_to_std
         "SpecialistCaseDates": {
             "raw_blob_path": "",
@@ -418,14 +424,65 @@ class HistoricalAnonymisationProcess(ETLProcess):
         return {"standardised_data": standardised_data, "raw_data": raw_data}
 
     def process(self, **kwargs):
+        start_exec_time = datetime.now()
         entity_name = kwargs.get("entity_name", "")
         if not entity_name:
             raise ValueError(
                 f"HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
             )
+        entity_config = self._ENTITY_CONFIG.get(entity_name, None)
+        if not entity_config:
+            raise ValueError(
+                f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
+            )
+        entity_category = entity_config.get("category")
+        standardised_blob_path = entity_config.get("standardised_blob_path", "")
+        primary_keys = entity_config.get("primary_keys")
+        if not primary_keys:
+            raise ValueError(f"No primary keys specified")
+        cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw", [])
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         standardised_data: DataFrame = self.load_parameter(
             "standardised_data", source_data
         )
         raw_data: DataFrame = self.load_parameter("raw_data", source_data)
-        return super().process(**kwargs)
+        joined = standardised_data.alias("standardised_data").join(
+            raw_data.alias("raw_data"), on=primary_keys, how="left"
+        )
+        cols_to_keep = [
+            F.col(f"standardised_data.{x}")
+            for x in standardised_data.columns
+            if x not in cols_to_revert_to_raw
+        ] + [F.col(f"raw_data.{x}") for x in cols_to_revert_to_raw]
+        standardised_data_cleaned = joined.select(*cols_to_keep)
+        # cols_to_anonymise = AnonymisationEngine().get_cols_to_anonymise(entity_name, source_folder=entity_category)
+        anonymised_data = AnonymisationEngine().apply_from_purview(
+            standardised_data_cleaned,
+            entity_name=entity_name,
+            source_folder=entity_category,
+        )
+        end_exec_time = datetime.now()
+        data_to_write = {
+            entity_name: {
+                "data": anonymised_data,
+                "storage_kind": "ADLSG2-File",
+                "storage_endpoint": Util.get_storage_account(),
+                "container_name": "odw-standardised",
+                "blob_path": f"anonymised/{standardised_blob_path}",
+                "file_format": "parquet",
+                "write_mode": "overwrite",
+                "write_options": {},
+            }
+        }
+        return data_to_write, ETLSuccessResult(
+            metadata=ETLResult.ETLResultMetadata(
+                start_execution_time=start_exec_time,
+                end_execution_time=end_exec_time,
+                table_name=entity_name,
+                insert_count=0,
+                update_count=standardised_data_cleaned.count(),
+                delete_count=0,
+                activity_type=self.__class__.__name__,
+                duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
+            )
+        )
