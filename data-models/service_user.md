@@ -130,13 +130,68 @@ classDiagram
 
 ### Orchestration and lineage
 
-- Notebooks and SQL scripts
-  - py_sb_horizon_harmonised_service_user
-  - service_user
-  - appeal_service_user
-  - appeal_service_user_curated_mipins
-  - py_sb_horizon_harmonised_nsip_project
-  - py_sb_horizon_harmonised_nsip_representation
-  - py_sb_horizon_harmonised_nsip_s51_advice
+#### Standardised Layer
 
-**Key Point:** `service_user` is the master consolidated service-user entity. It combines Service Bus and Horizon-derived service users, applies deduplication using names, telephone numbers, email addresses and address matching, and publishes the unified result to curated. `appeal_service_user` and `appeal_service_user_curated_mipins` are downstream curated views built using different filtering and aggregation rules.
+- Service Bus ingestion
+  - Service User messages
+    - `service-user.json`
+    - → `odw_standardised_db.sb_service_user`
+
+- Horizon ingestion
+  - `Horizon_ODW_vw_ServiceUser`
+    - → `odw_standardised_db.horizon_case_involvement`
+  - `Horizon_ODW_vw_NSIPProject`
+    - → `odw_standardised_db.horizon_nsip_data`
+  - `Horizon_ODW_vw_RelevantReps`
+    - → `odw_standardised_db.horizon_nsip_relevant_representation`
+
+#### Harmonised Layer
+
+- `py_sb_horizon_harmonised_service_user`
+  - Combines Service Bus and Horizon service-user datasets
+  - Creates:
+    - `odw_harmonised_db.sb_service_user`
+    - `odw_harmonised_db.service_user`
+
+- Supporting NSIP notebooks
+  - `py_sb_horizon_harmonised_nsip_project`
+    - → `odw_harmonised_db.nsip_project`
+  - `py_sb_horizon_harmonised_nsip_representation`
+    - → `odw_harmonised_db.nsip_representation`
+  - `py_sb_horizon_harmonised_nsip_s51_advice`
+    - → `odw_harmonised_db.nsip_s51_advice`
+
+- `service_user`
+  - Deduplicates and consolidates records from:
+    - `sb_service_user`
+    - `casework_case_involvement_dim`
+    - `nsip_project`
+    - `nsip_representation`
+    - `nsip_s51_advice`
+  - Produces:
+    - `odw_harmonised_db.curated_service_user`
+
+#### Curated Layer
+
+- `service_user`
+  - `odw_harmonised_db.curated_service_user`
+  - → `odw_curated_db.service_user`
+
+- `appeal_service_user`
+  - `odw_harmonised_db.service_user`
+  - → `odw_curated_db.appeal_service_user`
+  - Filters:
+    - `sourceSystem = 'back-office-appeals'`
+    - OR `serviceUserType = 'Appellant'`
+
+- `appeal_service_user_curated_mipins`
+  - `odw_harmonised_db.service_user`
+  - + `odw_harmonised_db.sb_service_user`
+  - → `odw_curated_db.appeal_service_user_curated_mipins`
+
+- `nsip_service_user`
+  - `odw_curated_db.service_user`
+  - + `odw_harmonised_db.nsip_project`
+  - → `odw_curated_db.nsip_service_user` (view)
+
+**Key Point:** The master processing path is `Service Bus/Horizon → service_user (Harmonised) → curated_service_user → service_user (Curated)`. The `appeal_service_user` and `appeal_service_user_curated_mipins` datasets are specialised curated outputs built from the same underlying service-user data using different filtering rules.
