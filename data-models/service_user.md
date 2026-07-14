@@ -2,7 +2,7 @@
 
 ##### entity: service_user
 
-Data model for service_user entity showing Service Bus and Horizon data flow from source to curated. This entity consolidates service user records from multiple Service Bus and Horizon sources and performs deduplication before publishing to curated. [1](https://pinso365.sharepoint.com/sites/OperationalDataWarehouseService/_layouts/15/Doc.aspx?sourcedoc=%7B119D5D22-F3D4-444F-971D-BFAA0268D66D%7D&file=Service%20User%20Models.vsdx&action=default&mobileredirect=true&DefaultItemOpen=1)
+Data model for service_user entity showing Service Bus and Horizon data flow from source to curated. This entity consolidates service user records from multiple Service Bus and Horizon sources and performs deduplication before publishing to curated.
 
 ```mermaid
 classDiagram
@@ -139,4 +139,4 @@ classDiagram
   - py_sb_horizon_harmonised_nsip_representation
   - py_sb_horizon_harmonised_nsip_s51_advice
 
-**Key Point:** `service_user` is the master consolidated service-user entity. It combines Service Bus and Horizon-derived service users, applies deduplication using names, telephone numbers, email addresses and address matching, and publishes the unified result to curated. `appeal_service_user` and `appeal_service_user_curated_mipins` are downstream curated views built using different filtering and aggregation rules. [1](https://pinso365.sharepoint.com/sites/OperationalDataWarehouseService/_layouts/15/Doc.aspx?sourcedoc=%7B119D5D22-F3D4-444F-971D-BFAA0268D66D%7D&file=Service%20User%20Models.vsdx&action=default&mobileredirect=true&DefaultItemOpen=1)
+**Key Point:** `service_user` is the master consolidated service-user entity. It combines Service Bus and Horizon-derived service users, applies deduplication using names, telephone numbers, email addresses and address matching, and publishes the unified result to curated. `appeal_service_user` and `appeal_service_user_curated_mipins` are downstream curated views built using different filtering and aggregation rules.
