@@ -2,7 +2,7 @@
 
 ##### entity: service_user
 
-Data model for service_user entity showing Service Bus and Horizon data flow from source to curated. This entity consolidates service user records from multiple Service Bus and Horizon sources and performs deduplication before publishing to curated.
+Data model for service_user entity showing Service Bus and Horizon data flow from source to curated. This entity consolidates service user records from multiple Service Bus and Horizon sources and performs deduplication before publishing to curated.[1](https://pinso365.sharepoint.com/sites/OperationalDataWarehouseService/_layouts/15/Doc.aspx?sourcedoc=%7B119D5D22-F3D4-444F-971D-BFAA0268D66D%7D&file=Service%20User%20Models.vsdx&action=default&mobileredirect=true&DefaultItemOpen=1)
 
 ```mermaid
 classDiagram
