@@ -149,17 +149,35 @@ classDiagram
     }
 
     namespace Curated {
-
+<br>
         class pins_inspector_cu {
-            entraId: string
-            sapId: string
-            firstName: string
-            lastName: string
-            email: string
-            specialisms: array
-            address: struct
+            entraId      : string
+            sapId        : string
+            firstName    : string
+            lastName     : string
+            email        : string
+            specialisms  : array
+            address      : struct
         }
-    }
+<br>
+}
+                           |
+                           | Publish
+                           V
+namespace Appeal_Service_Bus {
+<br>
+        class pins_inspector_topic {
+            entraId      : string
+            sapId        : string
+            firstName    : string
+            lastName     : string
+            email        : string
+            specialisms  : array
+            address      : struct
+        }
+<br>
+}
+
 
 %% SAP HR Flow
 `sap_hr_monthly_src` --> `sap_hr_monthly`
@@ -215,6 +233,8 @@ classDiagram
    - `sap_hr_inspector_specialisms` (aggregated as array)
    - `sap_hr_inspector_address` (structured as nested object)
 4. **Harmonised → Curated**: `pins_inspector` notebook filters active records (IsActive='Y')
+5. - Service Bus publication
+  - Curated pins_inspector records are batch processed and published to the Appeals Back Office Service Bus.
 
 #### Horizon-based horizon_pins_inspector (Separate Entity)
 1. **Raw → Standardised**: Horizon legacy system data ingested
