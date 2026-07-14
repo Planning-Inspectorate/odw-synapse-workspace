@@ -70,11 +70,19 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             json.dump(data, file)
 
     def test__historical_anonymisation__load_data__horizon_data(self):
+        """
+        Tests that raw data spread over many files for a specific entity are loaded correctly (For horizon data in csv format)
+
+        - Given I have a horizon entity in a folder structure similar to the raw horizon data, and similar data for the standardised layer
+        - When I call HistoricalAnonymisationProcess.load_data
+        - Then them only the raw and standardised data for the specific entity should be read
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
         warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
-        subfolder = "t_ha_ld_hd"
+        subfolder = "t_ha_ld_hd"  # For the "real" data this will be set to "Horizon" - this is set differently here to prevent conflicts
         entity_name = "t_ha_ld_hd__main"
         other_entity_name = "t_ha_ld_hd__other"
+        # Create some csv files that represent the historical horizon data
         raw_data_a = [
             {"id": 1, "name": "Picard", "email": "myemail@someorg.co.uk"},
         ]
@@ -89,11 +97,13 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             raw_data_b,
             ("odw-raw", subfolder, "2025-01-02", entity_name, "raw_data_b.csv"),
         )
+        # Create a csv file for a different horizon entity - this one shouldn't be loaded by the ETL process
         other_entity_data = [{"id": 1, "name": "Locutus", "email": "locutus@borg.com"}]
         self.write_csv(
             other_entity_data,
             ("odw-raw", subfolder, "2025-01-01", other_entity_name, "raw_data_a.csv"),
         )
+        # Create standardised data that aligns with the corresponding raw data
         standardised_data_base_path = "odw-standardised/"
         standardised_data_main_a: DataFrame = spark.createDataFrame(
             [
@@ -121,6 +131,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         standardised_data_main_b.write.format("parquet").mode("append").save(
             f"{warehouse_name}/{standardised_data_base_path}{entity_name}"
         )
+        # Create standardised data for the "other" entity which should be ignored by the ETLProcess
         standardised_data_other_a: DataFrame = spark.createDataFrame(
             [
                 {
@@ -134,6 +145,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         standardised_data_other_a.write.format("parquet").mode("overwrite").save(
             f"{warehouse_name}/{standardised_data_base_path}/{other_entity_name}"
         )
+        # Expect the full raw/standardised data to be loaded (with the "other" entity excluded)
         expected_raw_data = spark.createDataFrame(
             [
                 {"id": "1", "name": "Picard", "email": "myemail@someorg.co.uk"},
@@ -158,7 +170,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         )
         override_config = {
             entity_name: {
-                "raw_blob_path": subfolder,
+                "raw_blob_path": subfolder,  # For the "real" data this will be set to "Horizon" - this is set differently here to prevent conflicts
                 "raw_blob_format": "csv",
                 "standardised_blob_path": entity_name,
                 "category": "Horizon",
@@ -182,10 +194,18 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             assert_dataframes_equal(expected_raw_data, actual_raw_data)
 
     def test__historical_anonymisation__load_data__entraid_aiedocument_data(self):
+        """
+        Tests that raw data spread over many files for a specific entity are loaded correctly (for entraid and aiedocument data)
+
+        - Given I have an entity with raw data in a similar structure to the raw entraid and aiedocument data, and some similar standardised data
+        - When I call HistoricalAnonymisationProcess.load_data
+        - Then them only the raw and standardised data for the specific entity should be read
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
         warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
         entity_name = "t_ha_ld_ead"
         raw_data_base_path = ("odw-raw", entity_name)
+        # Create the raw data
         raw_data_a = [
             {"id": 1, "name": "Picard", "email": "myemail@someorg.co.uk"},
         ]
@@ -198,6 +218,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         self.write_csv(
             raw_data_b, raw_data_base_path + ("2025-01-02", "raw_data_b.csv")
         )
+        # Create the standardised data
 
         standardised_data_base_path = f"odw-standardised/{entity_name}"
         standardised_data_a: DataFrame = spark.createDataFrame(
@@ -226,7 +247,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         standardised_data_b.write.format("parquet").mode("append").save(
             f"{warehouse_name}/{standardised_data_base_path}"
         )
-
+        # Expect the raw and standardised data to be loaded
         expected_raw_data = spark.createDataFrame(
             [
                 {"id": "1", "name": "Picard", "email": "myemail@someorg.co.uk"},
@@ -275,11 +296,19 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             assert_dataframes_equal(expected_raw_data, actual_raw_data)
 
     def test__historical_anonymisation__load_data__service_bus(self):
+        """
+        Tests that raw data spread over many files for a specific entity are loaded correctly (For service bus data)
+
+        - Given I have a service bus entity in a folder structure similar to the raw horizon data, and similar data for the standardised layer
+        - When I call HistoricalAnonymisationProcess.load_data
+        - Then them only the raw and standardised data for the specific entity should be read
+        """
         spark = PytestSparkSessionUtil().get_spark_session()
         warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
-        subfolder = "t_ha_ld_sb"
+        subfolder = "t_ha_ld_sb"  # For the "real" data this will be set to "ServiceBus" - this is set differently here to prevent conflicts
         entity_name = "t_ha_ld_sb__main"
         other_entity_name = "t_ha_ld_hb__other"
+        # Create some raw data for the service bus entity
         raw_data_a = [
             {"id": 1, "name": "Picard", "email": "myemail@someorg.co.uk"},
         ]
@@ -294,6 +323,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             raw_data_b,
             ("odw-raw", subfolder, "2025-01-02", entity_name, "raw_data_b.json"),
         )
+        # Can have many files in the same folder
         raw_data_c = [
             {"id": 3, "name": "Sisko", "email": "bensisko@someorg.co.uk"},
         ]
@@ -301,11 +331,13 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             raw_data_c,
             ("odw-raw", subfolder, "2025-01-01", entity_name, "raw_data_c.json"),
         )
+        # Create a separate entity, which shouldn't be loaded by the ETLProcess
         other_entity_data = [{"id": 1, "name": "Locutus", "email": "locutus@borg.com"}]
         self.write_json(
             other_entity_data,
             ("odw-raw", subfolder, "2025-01-01", other_entity_name, "raw_data_a.json"),
         )
+        # Create standardised data
         standardised_data_base_path = f"odw-standardised/sb_{entity_name}"
         standardised_data_a: DataFrame = spark.createDataFrame(
             [
@@ -339,6 +371,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         standardised_data_b.write.format("parquet").mode("append").save(
             f"{warehouse_name}/{standardised_data_base_path}"
         )
+        # Expect all of the raw and standardised data to be loaded
         expected_raw_data = spark.createDataFrame(
             [
                 {"id": 1, "name": "Picard", "email": "myemail@someorg.co.uk"},
@@ -370,7 +403,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         )
         override_config = {
             entity_name: {
-                "raw_blob_path": subfolder,
+                "raw_blob_path": subfolder,  # For the "real" data this will be set to "ServiceBus" - this is set differently here to prevent conflicts
                 "raw_blob_format": "json",
                 "standardised_blob_path": f"sb_{entity_name}",
                 "category": "ServiceBus",
