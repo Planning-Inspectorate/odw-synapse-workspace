@@ -1,43 +1,38 @@
 #### ODW Data Model
 
-##### entity: nsip-s51-advice
+##### entity: nsip_s51_advice
 
-Data model for nsip-s51-advice entity showing data flow from source to curated.
+Data model for nsip_s51_advice entity showing Service Bus and Horizon data flow from source to curated.
 
 ```mermaid
-
 classDiagram
-
     direction LR
 
     namespace Sources {
 
-        class nsip_s51_advice_sb_src {
-            ODT Service Bus
-            entity: s51-advice
+        class ServiceBus_nsip_s51_advice {
+            adviceId: int
         }
 
-        class Horizon_NSIPAdvice_src {
-            Horizon DB
-            NSIP_Advice
+        class Horizon_NSIP_Advice {
+            adviceNodeId: int
+            caseId: int
         }
     }
 
-    namespace Raw {
+    }
 
-        class nsip_s51_advice_raw {
-            odw-raw/ServiceBus
-            s51-advice/
-        }
+    namespace Standardised {
 
-        class horizon_nsip_advice_raw {
-            odw-raw/Horizon
-            NSIPAdvice/
+        class sb_s51_advice_std {
+            adviceId: int
         }
     }
 
     namespace Standardised {
 
+        class horizon_nsip_advice {
+            adviceNodeId: int
         class sb_s51_advice {
             odw_standardised_db
             adviceId: int
@@ -52,72 +47,59 @@ classDiagram
     namespace Harmonised {
 
         class sb_s51_advice_hrm {
-            odw_harmonised_db
-            sb_s51_advice staging
             adviceId: int
         }
 
         class nsip_s51_advice_hrm {
-            odw_harmonised_db
-            nsip_s51_advice
+            NSIPAdviceID: int
             adviceId: int
+            RowID: varchar
+            IsActive: string
         }
+
     }
 
     namespace Curated {
 
-        class s51_advice_cur {
-            odw_curated_db
-            s51_advice
-            NSIPAdviceID: int
+        class s51_advice {
+            adviceId: int
+            caseId: int
         }
+
     }
 
-`nsip_s51_advice_sb_src` --> `nsip_s51_advice_raw` : pln_trigger_function_app
-`Horizon_NSIPAdvice_src` --> `horizon_nsip_advice_raw` : 0_Raw_Horizon_NSIP_Advice
+    `ServiceBus_nsip_s51_advice` --> `sb_s51_advice_std`
+    `sb_s51_advice_std` --> `sb_s51_advice_hrm`
 
-`nsip_s51_advice_raw` --> `sb_s51_advice` : py_sb_raw_to_std
-`horizon_nsip_advice_raw` --> `horizon_nsip_advice` : py_raw_to_std
+    `Horizon_NSIP_Advice` --> `horizon_nsip_advice`
 
-`sb_s51_advice` --> `sb_s51_advice_hrm` : py_sb_std_to_hrm
+    `sb_s51_advice_hrm` --> `nsip_s51_advice_hrm`
+    `horizon_nsip_advice` --> `nsip_s51_advice_hrm`
 
-`sb_s51_advice_hrm` --> `nsip_s51_advice_hrm` : py_sb_horizon_harmonised_nsip_s51_advice
-`horizon_nsip_advice` --> `nsip_s51_advice_hrm` : py_sb_horizon_harmonised_nsip_s51_advice
-
-`nsip_s51_advice_hrm` --> `s51_advice_cur` : nsip_s51_advice notebook
-
+    `nsip_s51_advice_hrm` --> `s51_advice`
 ```
 
-Tables and views
-- Raw (Azure Data Lake odw-raw)
-  - odw-raw/ServiceBus/s51-advice/ (service bus messages landed by function app)
-  - odw-raw/Horizon/NSIPAdvice/ (Horizon NSIP advice extract)
+### Tables and views
+
 - Standardised
-  - odw_standardised_db.sb_s51_advice (service bus messages)
-  - odw_standardised_db.horizon_nsip_advice (Horizon NSIP advice data)
+  - odw_standardised_db.sb_s51_advice
+  - odw_standardised_db.horizon_nsip_advice
+
 - Harmonised
-  - odw_harmonised_db.sb_s51_advice (service bus staging — output of py_sb_std_to_hrm)
-  - odw_harmonised_db.nsip_s51_advice (merged harmonised table)
+  - odw_harmonised_db.sb_s51_advice
+  - odw_harmonised_db.nsip_s51_advice
+
 - Curated
-  - odw_curated_db.s51_advice (external curated table)
-- MiPINS
-  - No MiPINS curated step for this entity
+  - odw_curated_db.s51_advice
 
+### Orchestration and lineage
 
-Orchestration and lineage
-- Pipelines
-  - workspace/pipeline/pln_service_bus_nsip_s51_advice.json
-    - Src to Raw: pln_trigger_function_app → odw-raw/ServiceBus/s51-advice/
-    - Raw to Std: py_sb_raw_to_std → odw_standardised_db.sb_s51_advice
-    - Std to Hrm: py_sb_std_to_hrm → odw_harmonised_db.sb_s51_advice (staging)
-  - workspace/pipeline/pln_horizon_nsip_s51_advice.json
-    - Src to Raw: 0_Raw_Horizon_NSIP_Advice → odw-raw/Horizon/NSIPAdvice/
-    - Raw to Std: py_raw_to_std → odw_standardised_db.horizon_nsip_advice
-- Notebooks
-  - workspace/notebook/py_sb_horizon_harmonised_nsip_s51_advice.json
-    - Reads: odw_harmonised_db.sb_s51_advice + odw_standardised_db.horizon_nsip_advice
-    - Writes: odw_harmonised_db.nsip_s51_advice
-    - Only referenced in release pipeline (rel_1273_s51)
-  - workspace/notebook/nsip_s51_advice.json
-    - Reads: odw_harmonised_db.nsip_s51_advice
-    - Writes: odw_curated_db.s51_advice
+- `py_sb_horizon_harmonised_nsip_s51_advice`
+  - Merges Service Bus (`sb_s51_advice`) and Horizon (`horizon_nsip_advice`) data
+  - Creates `odw_harmonised_db.nsip_s51_advice`
+
+- `s51_advice`
+  - Filters active records (`IsActive = 'Y'`)
+  - Creates `odw_curated_db.s51_advice`
+
+**Key Point:** Service Bus and Horizon advice data are combined in Harmonised and only active records are published to Curated.
