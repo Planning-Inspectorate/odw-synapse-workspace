@@ -37,7 +37,8 @@
 							"type": "AzureBlobFSWriteSettings"
 						},
 						"formatSettings": {
-							"type": "JsonWriteSettings"
+							"type": "JsonWriteSettings",
+							"filePattern": "arrayOfObjects"
 						}
 					},
 					"enableStaging": false
@@ -114,7 +115,7 @@
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Lookup-LogStart",
+						"activity": "Set_Pipeline_Start_Time",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -134,69 +135,7 @@
 				}
 			},
 			{
-				"name": "Lookup-LogStart",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Set variable Start Time",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderStoredProcedureName": "[Audit].[usp_addETLLog]",
-						"storedProcedureParameters": {
-							"Description": {
-								"type": "String",
-								"value": "0_Listed_Buildings_API_to_RAW_pipeline_started"
-							},
-							"ErrorMessage": {
-								"type": "String",
-								"value": null
-							},
-							"LogType": {
-								"type": "String",
-								"value": "1"
-							},
-							"Param1Value": {
-								"type": "String",
-								"value": null
-							},
-							"RowCount": {
-								"type": "Int32",
-								"value": null
-							},
-							"RunId": {
-								"type": "Int32",
-								"value": null
-							},
-							"Source": {
-								"type": "String",
-								"value": "0_Listed_Buildings_API_to_RAW"
-							}
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "Lookup_LogStart",
-						"type": "DatasetReference"
-					}
-				}
-			},
-			{
-				"name": "Set variable Start Time",
+				"name": "Set_Pipeline_Start_Time",
 				"type": "SetVariable",
 				"dependsOn": [],
 				"policy": {
@@ -213,84 +152,11 @@
 				}
 			},
 			{
-				"name": "Sp_log_success",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "ListedBuildingOutline",
-						"dependencyConditions": [
-							"Completed",
-							"Skipped"
-						]
-					},
-					{
-						"activity": "ListedBuilding",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.02:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[Audit].[usp_addETLLog]",
-					"storedProcedureParameters": {
-						"Description": {
-							"value": "0_Listed_Buildings_API_to_RAW_pipeline_completed",
-							"type": "String"
-						},
-						"ErrorMessage": {
-							"value": {
-								"value": "@if(\n    empty(\n        concat(\n            coalesce(activity('Lookup-LogStart').Error?.message, ''),\n            coalesce(activity('ListedBuilding').Error?.message, ''),\n            coalesce(activity('ListedBuildingOutline').Error?.message, '')\n        )\n    ),\n    null,\n    concat(\n        coalesce(activity('Lookup-LogStart').Error?.message, ''),\n        coalesce(activity('ListedBuilding').Error?.message, ''),\n        coalesce(activity('ListedBuildingOutline').Error?.message, '')\n    )\n)",
-								"type": "Expression"
-							},
-							"type": "String"
-						},
-						"LogType": {
-							"value": "2",
-							"type": "String"
-						},
-						"Param1Value": {
-							"value": null,
-							"type": "String"
-						},
-						"RowCount": {
-							"value": {
-								"value": "@if(\n    or(\n        equals(activity('ListedBuilding')?.Error?.Message, ''),\n        equals(activity('ListedBuilding')?.Error?.Message, null)\n    ),\n    activity('ListedBuilding').output.rowsCopied,\n    0\n)",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"RunId": {
-							"value": {
-								"value": "@activity('Lookup-LogStart').output.firstRow.RunId",
-								"type": "Expression"
-							},
-							"type": "Int32"
-						},
-						"Source": {
-							"value": "0_Listed_Buildings_API_to_RAW",
-							"type": "String"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "ls_sql_mipins",
-					"type": "LinkedServiceReference"
-				}
-			},
-			{
-				"name": "Record completed",
+				"name": "Record ListedBuilding Logs",
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "Sp_log_success",
+						"activity": "ListedBuilding",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -308,7 +174,7 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"Stage": {
-							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('ListedBuilding')?.Error?.Message))\n        ),\n        or(\n            not(empty(activity('ListedBuildingOutline')?.Error?.Message)),\n            not(empty(activity('Sp_log_success')?.Error?.Message))\n        )\n    ),\n    'Failed',\n    'Success'\n)",
+							"value": "@if(\n    or(\n        equals(activity('ListedBuilding')?.Error?.Message, ''),\n        equals(activity('ListedBuilding')?.Error?.Message, null)\n    ),\n    'Success',\n    'Failed'\n)",
 							"type": "Expression"
 						},
 						"PipelineName": {
@@ -328,15 +194,15 @@
 							"type": "Expression"
 						},
 						"Inserts": {
-							"value": "@if(\n    empty(activity('ListedBuilding')?.Error?.Message),\n    activity('ListedBuilding').output.rowsCopied,\n    0\n)",
+							"value": "@if(or(equals(activity('ListedBuilding')?.Error?.Message,''),equals(activity('ListedBuilding')?.Error?.Message,null)),activity('ListedBuilding').output.rowsCopied,0)",
 							"type": "Expression"
 						},
 						"ErrorMessage": {
-							"value": "@replace(\n    concat(\n        coalesce(activity('Lookup-LogStart')?.Error?.message, ''),\n        coalesce(activity('ListedBuilding')?.Error?.message, ''),\n        coalesce(activity('ListedBuildingOutline')?.Error?.message, ''),\n        coalesce(activity('Sp_log_success')?.Error?.message, '')\n    ),\n    '\"',\n    ''\n)",
+							"value": "@replace(\n    if(\n        or(\n            equals(activity('ListedBuilding')?.Error?.Message, ''),\n            equals(activity('ListedBuilding')?.Error?.Message, null)\n        ),\n        '',\n        activity('ListedBuilding')?.Error?.Message\n    ),\n    '\"',\n    ''\n)\n",
 							"type": "Expression"
 						},
 						"StatusMessage": {
-							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('ListedBuilding')?.Error?.Message))\n        ),\n        or(\n            not(empty(activity('ListedBuildingOutline')?.Error?.Message)),\n            not(empty(activity('Sp_log_success')?.Error?.Message))\n        )\n    ),\n    'Failed copying Listed Buildings data',\n    'Successfully copied Listed Buildings data'\n)",
+							"value": "@if(\n    or(\n        equals(activity('ListedBuilding')?.Error?.Message, ''),\n        equals(activity('ListedBuilding')?.Error?.Message, null)\n    ),\n    'Successfully copied Data from listed-building.json to raw_listed_building.json',\n    'Failed to copy data from listed-building.json to raw_listed_building.json'\n)",
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
@@ -359,20 +225,109 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
-						"PipelineExecutionTimeInSec": {
-							"value": "@div(sub(ticks(utcNow()), ticks(variables('ListedBuilding_Start_Time'))), 10000000)",
-							"type": "Expression"
-						},
 						"ActivityType": {
-							"value": "0_Listed_Buildings_API_to_RAW Activity",
+							"value": "Copy Activity",
 							"type": "Expression"
 						},
 						"DurationSeconds": {
-							"value": "@div(\n    sub(\n        ticks(utcNow()),\n        ticks(variables('ListedBuilding_Start_Time'))\n    ),\n    10000000\n)",
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('ListedBuilding_Start_Time'))), 10000000)",
 							"type": "Expression"
 						},
 						"StatusCode": {
-							"value": "@if(\n    or(\n        or(\n            not(empty(activity('Lookup-LogStart')?.Error?.Message)),\n            not(empty(activity('ListedBuilding')?.Error?.Message))\n        ),\n        or(\n            not(empty(activity('ListedBuildingOutline')?.Error?.Message)),\n            not(empty(activity('Sp_log_success')?.Error?.Message))\n        )\n    ),\n    '500',\n    '200'\n)",
+							"value": "@if(\n    or(\n        equals(activity('ListedBuilding')?.Error?.Message, ''),\n        equals(activity('ListedBuilding')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record ListedBuildingOutline Logs",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "ListedBuildingOutline",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n    or(\n        equals(activity('ListedBuildingOutline')?.Error?.Message, ''),\n        equals(activity('ListedBuildingOutline')?.Error?.Message, null)\n    ),\n    'Success',\n    'Failed'\n) ",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('ListedBuilding_Start_Time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@if(or(equals(activity('ListedBuildingOutline')?.Error?.Message,''),equals(activity('ListedBuildingOutline')?.Error?.Message,null)),activity('ListedBuildingOutline').output.rowsCopied,0)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@replace(\n    if(\n        or(\n            equals(activity('ListedBuildingOutline')?.Error?.Message, ''),\n            equals(activity('ListedBuildingOutline')?.Error?.Message, null)\n        ),\n        '',\n        activity('ListedBuildingOutline')?.Error?.Message\n    ),\n    '\"',\n    ''\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\n    or(\n        equals(activity('ListedBuildingOutline')?.Error?.Message, ''),\n        equals(activity('ListedBuildingOutline')?.Error?.Message, null)\n    ),\n    'Successfully copied Data from listed-building.json to raw_listed_building.json',\n    'Failed to copy data from listed-building.json to raw_listed_building.json'\n)",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "Copy Activity",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('ListedBuilding_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    or(\n        equals(activity('ListedBuildingOutline')?.Error?.Message, ''),\n        equals(activity('ListedBuildingOutline')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n) ",
 							"type": "Expression"
 						},
 						"AppInsIKey": {
