@@ -441,6 +441,11 @@ class HistoricalAnonymisationProcess(ETLProcess):
         if not primary_keys:
             raise ValueError(f"No primary keys specified")
         cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw", [])
+        horizon_file_name = entity_config.get("horizon_file_name", None)
+        if entity_category == "Horizon" and not horizon_file_name:
+            raise ValueError(
+                f"For Horizon entities, the config must have a 'horizon_file_name' entry"
+            )
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         standardised_data: DataFrame = self.load_parameter(
             "standardised_data", source_data
@@ -451,14 +456,16 @@ class HistoricalAnonymisationProcess(ETLProcess):
         )
         cols_to_keep = [
             F.col(f"standardised_data.{x}")
-            for x in standardised_data.columns
             if x not in cols_to_revert_to_raw
-        ] + [F.col(f"raw_data.{x}") for x in cols_to_revert_to_raw]
+            else F.col(f"raw_data.{x}")
+            for x in standardised_data.columns
+        ]
         standardised_data_cleaned = joined.select(*cols_to_keep)
         anonymised_data = AnonymisationEngine().apply_from_purview(
             standardised_data_cleaned,
             entity_name=entity_name,
             source_folder=entity_category,
+            file_name=horizon_file_name,
         )
         end_exec_time = datetime.now()
         data_to_write = {

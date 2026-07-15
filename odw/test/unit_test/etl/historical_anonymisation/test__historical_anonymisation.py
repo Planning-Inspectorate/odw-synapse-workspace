@@ -49,8 +49,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
 
     def write_csv(self, data: Any, path: List[str]):
         directories = path[:-1]
-        print(f"directories: '{directories}'")
-        print(f"path: '{path}'")
         warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
         os.makedirs(os.path.join(warehouse_name, *directories), exist_ok=True)
         with open(os.path.join(warehouse_name, *path), "w+", newline="") as file:
@@ -175,6 +173,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "standardised_blob_path": entity_name,
                 "category": "Horizon",
                 "raw_blob_read_options": {"header": "true"},
+                "horizon_file_name": entity_name,
             }
         }
         with mock.patch.object(
@@ -275,7 +274,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_path": entity_name,
                 "raw_blob_format": "csv",
                 "standardised_blob_path": entity_name,
-                "category": "Horizon",
+                "category": "entraid",
                 "raw_blob_read_options": {"header": "true"},
             }
         }
@@ -438,6 +437,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_read_options": {"header": "true"},
                 "primary_keys": ["id"],
                 "cols_to_revert_to_raw": ["email"],
+                "horizon_file_name": entity_name,
             }
         }
         raw_data = spark.createDataFrame(
