@@ -105,6 +105,13 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
             json.dump(data, file)
 
     def test__historical_anonymisation__run__horizon(self):
+        """
+        - Given
+            - I have some raw and standardised Horizon data (In this case, we have mimicked the 'DaRT Inspectors' data)
+            - The standardised data rows being a mix of unanonymised, anonymised with old format, or anonymised with new format
+        - When I call HistoricalAnonymisationProcess
+        - Then the data should be re-anonymised with the new format, with any old-format anonymisations corrected
+        """
         entity_name = "t_ha_r_h"
         subfolder = "t_ha_r_h"
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -351,7 +358,7 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 spark,
             ).run(
                 entity_name=entity_name,
-                orchestration_run_id="t_ha_r_h",
+                orchestration_run_id=entity_name,
                 orchestration_entity_name=entity_name,
                 orchestration_stage_name="historical_anonymisation",
             )
@@ -362,7 +369,164 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
             assert_dataframes_equal(expected_anonymised_data, actual_anonymised_data)
 
     def test__historical_anonymisation__run__entraid_aiedocument(self):
-        pass
+        entity_name = "t_ha_r_ea"
+        subfolder = "t_ha_r_ea"
+        spark = PytestSparkSessionUtil().get_spark_session()
+        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
+        entraid_raw = [
+            {
+                "id": "1",
+                "employeeId": "1",
+                "givenName": "Elim",
+                "surname": "Garak",
+                "userPrincipalName": "eg@ds9.com",
+            },
+            {
+                "id": "2",
+                "employeeId": "2",
+                "givenName": "Worf",
+                "surname": "Rozhenko",
+                "userPrincipalName": "wr@ds9.com",
+            },
+            {
+                "id": "3",
+                "employeeId": "3",
+                "givenName": "Miles",
+                "surname": "Obrien",
+                "userPrincipalName": "mo@ds9.com",
+            },
+        ]
+        self.write_json(
+            entraid_raw,
+            ("odw-raw", subfolder, "2025-01-01", f"users.json"),
+        )
+        standardised_data = create_standardised_dataframe(
+            [
+                {  # Unanonymised
+                    "id": "1",
+                    "employeeId": "1",
+                    "givenName": "Elim",
+                    "surname": "Garak",
+                    "userPrincipalName": "eg@ds9.com",
+                },
+                {  # Anonymised with the old format
+                    "id": "2",
+                    "employeeId": "2",
+                    "givenName": "W***",
+                    "surname": "R******",
+                    "userPrincipalName": "w*********",
+                },
+                {  # Anonymised with the new format
+                    "id": "3",
+                    "employeeId": "3",
+                    "givenName": "REDACTED",
+                    "surname": "REDACTED",
+                    "userPrincipalName": hashlib.sha256(
+                        "mo@ds9.com".encode("utf-8")
+                    ).hexdigest(),
+                },
+            ],
+            T.StructType(
+                [
+                    T.StructField("id", T.StringType(), True),
+                    T.StructField("employeeId", T.StringType(), True),
+                    T.StructField("givenName", T.StringType(), True),
+                    T.StructField("surname", T.StringType(), True),
+                    T.StructField("userPrincipalName", T.StringType(), True),
+                ]
+            ),
+        )
+        standardised_data.write.format("parquet").mode("overwrite").save(
+            f"{warehouse_name}/odw-standardised/{entity_name}"
+        )
+        expected_anonymised_data = create_standardised_dataframe(
+            [
+                {  # Unanonymised
+                    "id": "1",
+                    "employeeId": "1",
+                    "givenName": "REDACTED",
+                    "surname": "REDACTED",
+                    "userPrincipalName": hashlib.sha256(
+                        "eg@ds9.com".encode("utf-8")
+                    ).hexdigest(),
+                },
+                {  # Anonymised with the old format
+                    "id": "2",
+                    "employeeId": "2",
+                    "givenName": "REDACTED",
+                    "surname": "REDACTED",
+                    "userPrincipalName": hashlib.sha256(
+                        "wr@ds9.com".encode("utf-8")
+                    ).hexdigest(),
+                },
+                {  # Anonymised with the new format
+                    "id": "3",
+                    "employeeId": "3",
+                    "givenName": "REDACTED",
+                    "surname": "REDACTED",
+                    "userPrincipalName": hashlib.sha256(
+                        "mo@ds9.com".encode("utf-8")
+                    ).hexdigest(),
+                },
+            ],
+            T.StructType(
+                [
+                    T.StructField("id", T.StringType(), True),
+                    T.StructField("employeeId", T.StringType(), True),
+                    T.StructField("givenName", T.StringType(), True),
+                    T.StructField("surname", T.StringType(), True),
+                    T.StructField("userPrincipalName", T.StringType(), True),
+                ]
+            ),
+        )
+        override_config = {
+            entity_name: {
+                "raw_blob_path": subfolder,  # For the "real" data this will be set to "entraid" - this is set differently here to prevent conflicts
+                "raw_blob_format": "json",
+                "standardised_blob_path": entity_name,
+                "category": "entraid",
+                "raw_blob_read_options": {"multiline": "true"},
+                "primary_keys": "id",
+                "cols_to_revert_to_raw": [
+                    "userPrincipalName",
+                ],
+            }
+        }
+        mocked_purview_cols = [
+            {"column_name": "id", "classifications": []},
+            {"column_name": "employeeId", "classifications": []},
+            {
+                "column_name": "givenName",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+            {"column_name": "surname", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
+            {
+                "column_name": "userPrincipalName",
+                "classifications": ["MICROSOFT.PERSONAL.EMAIL"],
+            },
+        ]
+        with (
+            mock.patch.object(
+                HistoricalAnonymisationProcess, "_ENTITY_CONFIG", override_config
+            ),
+            mock.patch(
+                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                return_value=mocked_purview_cols,
+            ),
+        ):
+            etl_result = HistoricalAnonymisationProcess(
+                spark,
+            ).run(
+                entity_name=entity_name,
+                orchestration_run_id=entity_name,
+                orchestration_entity_name=entity_name,
+                orchestration_stage_name="historical_anonymisation",
+            )
+            assert_etl_result_successful(etl_result)
+            actual_anonymised_data = spark.read.format("parquet").load(
+                f"{warehouse_name}/odw-standardised/anonymised/{entity_name}"
+            )
+            assert_dataframes_equal(expected_anonymised_data, actual_anonymised_data)
 
     def test__historical_anonymisation__run__service_bus(self):
         pass
