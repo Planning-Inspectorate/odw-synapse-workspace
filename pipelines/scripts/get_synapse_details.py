@@ -27,7 +27,7 @@ class NameFactory():
                     "mpesc_resource_group": f"pins-rg-data-odw-{env}-uks",
                     "mpesc_storage_name": f"pinsstmpesc{env}uks"
                     "s62a_resource_group": f"pins-rg-data-odw-{env}-uks",
-                    "s62a_storage_name": f"pinssts62a{env}ukseftkl",
+                    "s62a_storage_name": f"pinssts62a{env}uks"
                 }
             }
         return {
@@ -42,7 +42,7 @@ class NameFactory():
                 "mpesc_resource_group": f"pins-rg-data-odw-{env}-uks",
                 "mpesc_storage_name": f"pinsstmpesc{env}uks",
                 "s62a_resource_group": f"pins-rg-data-odw-{env}-uks",
-                "s62a_storage_name": f"pinssts62a{env}ukseftkl"
+                "s62a_storage_name": f"pinssts62a{env}uks"
             }
         }
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         "mpesc_storage_endpoint": (mpesc_datalake["primaryEndpoints"]["blob"]
                                     if mpesc_datalake
                                     else ""),
-        "s62a_storage_endpoint": (s62a_datalake["primaryEndpoints"]["dfs"]
+        "s62a_storage_endpoint": (s62a_datalake["primaryEndpoints"]["blob"]
                                     if s62a_datalake
                                     else ""),
     }
