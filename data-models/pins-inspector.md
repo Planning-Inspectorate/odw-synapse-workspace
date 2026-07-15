@@ -160,6 +160,19 @@ classDiagram
             address: struct
         }
     }
+     namespace Appeal_Service_Bus {
+
+        class pins_inspector_topic {
+            entraId      : string
+            sapId        : string
+            firstName    : string
+            lastName     : string
+            email        : string
+            specialisms  : array
+            address      : struct
+        }
+
+      }
 
 %% SAP HR Flow
 `sap_hr_monthly_src` --> `sap_hr_monthly`
@@ -191,6 +204,9 @@ classDiagram
 %% Harmonised to Curated
 `pins_inspector` --> `pins_inspector_cu`
 
+%% Curated to Service Bus
+`pins_inspector_cu` --> `pins_inspector_topic`
+
 %% Horizon Flow (Separate Path)
 `horizon_pins_inspector_src` --> `horizon_pins_inspector_std`
 `horizon_pins_inspector_std` --> `horizon_pins_inspector`
@@ -215,7 +231,7 @@ classDiagram
    - `sap_hr_inspector_specialisms` (aggregated as array)
    - `sap_hr_inspector_address` (structured as nested object)
 4. **Harmonised → Curated**: `pins_inspector` notebook filters active records (IsActive='Y')
-
+5. Curated → Service Bus: pins_inspector_cu is published to the pins_inspector_topic topic in the Appeal_Service_Bus namespace for downstream consumers.
 #### Horizon-based horizon_pins_inspector (Separate Entity)
 1. **Raw → Standardised**: Horizon legacy system data ingested
 2. **Standardised → Harmonised**: `horizon_pins_inspector` notebook implements SCD Type 2 pattern
