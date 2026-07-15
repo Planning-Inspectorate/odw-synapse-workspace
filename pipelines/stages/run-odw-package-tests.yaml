@@ -1,6 +1,8 @@
 parameters:
   agentPool: ''
   env: ''
+  overallCoverageThreshold: 80
+  forceRunTests: false
 
 ##
 # Run tests for the odw python package.
@@ -12,12 +14,86 @@ stages:
   condition: |
     and(not(or(failed(), canceled())), eq('${{ parameters.env }}', 'build'))
   jobs:
+  - job: DetectODWPackageChanges
+    displayName: 'Detect changes in the ODW package'
+    pool: ${{ parameters.agentPool }}
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 0
+    - bash: |
+        set -euo pipefail
+
+        if [ "$(Build.Reason)" != "PullRequest" ]; then
+          echo "##vso[task.setvariable variable=odwPackageChanged;isOutput=true]true"
+          exit 0
+        fi
+
+        target_branch="$(System.PullRequest.TargetBranch)"
+        target_ref="${target_branch#refs/heads/}"
+
+        git fetch origin "+refs/heads/${target_ref}:refs/remotes/origin/${target_ref}"
+
+        if git diff --name-only "origin/${target_ref}...HEAD" | grep -q '^odw/'; then
+          changed=true
+        else
+          changed=false
+        fi
+
+        echo "ODW package changed: ${changed}"
+        echo "##vso[task.setvariable variable=odwPackageChanged;isOutput=true]${changed}"
+      displayName: 'Detect ODW package changes'
+      name: DetectOdwPackageChanges
   - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/jobs/run-odw-package-unittests.yaml
     parameters:
       agentPool: ${{ parameters.agentPool }}
       env: ${{ parameters.env }}
+      dependsOn:
+      - DetectODWPackageChanges
+      condition: |
+        or(
+          ${{ parameters.forceRunTests }},
+          eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
+        )
   - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/jobs/run-odw-package-integrationtests.yaml
     parameters:
       agentPool: ${{ parameters.agentPool }}
       env: ${{ parameters.env }}
-
+      dependsOn:
+      - DetectODWPackageChanges
+      condition: |
+        or(
+          ${{ parameters.forceRunTests }},
+          eq(dependencies.DetectODWPackageChanges.outputs['DetectOdwPackageChanges.odwPackageChanged'], 'true')
+        )
+  - job: CombineAndPublishCoverage
+    pool: ${{ parameters.agentPool }}
+    dependsOn:
+    - DetectODWPackageChanges
+    - RunODWPackageUnitTestsJob
+    - RunODWPackageIntegrationTestsJob
+    steps:
+    - checkout: self
+      clean: true
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        targetPath: '$(System.DefaultWorkingDirectory)/coverageDump'
+    - script: |
+        set -e
+        cd $(System.DefaultWorkingDirectory)/coverageDump
+        find . -type f -name "**.coverage.*" -exec cp {} $(System.DefaultWorkingDirectory)/ \;
+        cd $(System.DefaultWorkingDirectory)
+        python3 -m pip install coverage
+        python3 -m coverage combine
+        python3 -m coverage xml
+        python3 -m coverage html -d .
+        python3 -m coverage report --fail-under=${{ parameters.overallCoverageThreshold }}
+      displayName: 'Combine coverage reports'
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish test coverage'
+      condition: succeededOrFailed()
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: coverage.xml
+        reportDirectory: $(System.DefaultWorkingDirectory)

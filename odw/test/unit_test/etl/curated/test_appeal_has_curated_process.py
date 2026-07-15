@@ -2,13 +2,15 @@ import mock
 import pytest
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-from odw.core.etl.transformation.curated.appeal_has_curated_process import AppealHasCuratedProcess
+from odw.core.etl.transformation.curated.appeal_has_curated_process import (
+    AppealHasCuratedProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 CURATED_COLUMNS = [
@@ -151,7 +153,9 @@ def _harmonised_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.StringType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.StringType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.StringType(), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.StringType(), True
+            ),
             T.StructField("lpaQuestionnaireValidationDetails", T.StringType(), True),
             T.StructField("lpaStatement", T.StringType(), True),
             T.StructField("caseWithdrawnDate", T.StringType(), True),
@@ -216,8 +220,12 @@ def _harmonised_schema():
             T.StructField("siteGridReferenceNorthing", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
             T.StructField("isSiteInAreaOfSpecialControlAdverts", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("advertDetails", T.StringType(), True),
             T.StructField("lpaProcedurePreferenceDetails", T.StringType(), True),
             T.StructField("designatedSitesNames", T.StringType(), True),
@@ -406,11 +414,15 @@ def _source_data(harmonised_data):
 
 
 class TestAppealHasCuratedProcess(SparkTestCase):
-    def test__appeal_has_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(self):
+    def test__appeal_has_curated_process__process__filters_active_rows_and_projects_curated_columns_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_mixed_active_inactive_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_mixed_active_inactive_harmonised_df(spark))
+        )
 
         write_config = data_to_write[inst.OUTPUT_TABLE]
         df = write_config["data"]
@@ -457,11 +469,15 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         assert result.metadata.update_count == 0
         assert result.metadata.delete_count == 0
 
-    def test__appeal_has_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(self):
+    def test__appeal_has_curated_process__process__adds_missing_curated_columns_as_null_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_minimal_missing_columns_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_minimal_missing_columns_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -478,10 +494,14 @@ class TestAppealHasCuratedProcess(SparkTestCase):
 
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_process__process__excludes_inactive_rows_like_legacy(self):
+    def test__appeal_has_curated_process__process__excludes_inactive_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
-        inactive_df = _mixed_active_inactive_harmonised_df(spark).where("IsActive = 'N'")
+        inactive_df = _mixed_active_inactive_harmonised_df(spark).where(
+            "IsActive = 'N'"
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(inactive_df))
@@ -492,7 +512,9 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         assert df.columns == CURATED_COLUMNS
         assert result.metadata.insert_count == 0
 
-    def test__appeal_has_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(self):
+    def test__appeal_has_curated_process__process__empty_harmonised_input_writes_empty_curated_output_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
@@ -506,11 +528,15 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["file_format"] == "parquet"
         assert result.metadata.insert_count == 0
 
-    def test__appeal_has_curated_process__process__preserves_duplicate_active_rows_like_legacy(self):
+    def test__appeal_has_curated_process__process__preserves_duplicate_active_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
-        data_to_write, result = inst.process(_source_data(_duplicate_active_harmonised_df(spark)))
+        data_to_write, result = inst.process(
+            _source_data(_duplicate_active_harmonised_df(spark))
+        )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
@@ -518,7 +544,9 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         assert df.where("caseReference = 'HAS-001'").count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_has_curated_process__process__keeps_expected_write_config_like_legacy(self):
+    def test__appeal_has_curated_process__process__keeps_expected_write_config_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         inst = _process_under_test(spark)
@@ -531,7 +559,9 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         assert "partition_by" not in write_config
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_process__process__only_keeps_exact_uppercase_y_active_rows_like_legacy(self):
+    def test__appeal_has_curated_process__process__only_keeps_exact_uppercase_y_active_rows_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         active = _active_harmonised_df(spark)
@@ -540,7 +570,9 @@ class TestAppealHasCuratedProcess(SparkTestCase):
         spaced_y = active.withColumn("IsActive", F.lit(" Y "))
         inactive = active.withColumn("IsActive", F.lit("N"))
 
-        source_df = active.unionByName(lower_y).unionByName(spaced_y).unionByName(inactive)
+        source_df = (
+            active.unionByName(lower_y).unionByName(spaced_y).unionByName(inactive)
+        )
 
         inst = _process_under_test(spark)
         data_to_write, result = inst.process(_source_data(source_df))

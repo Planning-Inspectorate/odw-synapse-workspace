@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import PinsInspectorHarmonisationProcess
+from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import (
+    PinsInspectorHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -73,11 +75,22 @@ def _hist_hr_schema():
     )
 
 
-def _source_data(spark, live_dim_rows, entraid_rows=None, specialisms_rows=None, address_rows=None, hist_hr_rows=None):
+def _source_data(
+    spark,
+    live_dim_rows,
+    entraid_rows=None,
+    specialisms_rows=None,
+    address_rows=None,
+    hist_hr_rows=None,
+):
     return {
-        "live_dim": spark.createDataFrame(live_dim_rows or [], schema=_live_dim_schema()),
+        "live_dim": spark.createDataFrame(
+            live_dim_rows or [], schema=_live_dim_schema()
+        ),
         "entraid": spark.createDataFrame(entraid_rows or [], schema=_entraid_schema()),
-        "specialisms": spark.createDataFrame(specialisms_rows or [], schema=_specialisms_schema()),
+        "specialisms": spark.createDataFrame(
+            specialisms_rows or [], schema=_specialisms_schema()
+        ),
         "address": spark.createDataFrame(address_rows or [], schema=_address_schema()),
         "hist_hr": spark.createDataFrame(hist_hr_rows or [], schema=_hist_hr_schema()),
     }
@@ -85,7 +98,7 @@ def _source_data(spark, live_dim_rows, entraid_rows=None, specialisms_rows=None,
 
 def _inst(spark):
     with mock.patch(
-        "odw.core.etl.transformation.harmonised.harmonsation_process.HarmonisationProcess.__init__",
+        "odw.core.etl.transformation.harmonised.harmonisation_process.HarmonisationProcess.__init__",
         return_value=None,
     ):
         inst = PinsInspectorHarmonisationProcess(spark)
@@ -145,7 +158,9 @@ class TestDedupSpecialisms(SparkTestCase):
 class TestPadEntraid(SparkTestCase):
     def test__pad_entraid__short_id_gets_00_prefix(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        df = spark.createDataFrame([("entra-1", "123456", "Y")], schema=_entraid_schema())
+        df = spark.createDataFrame(
+            [("entra-1", "123456", "Y")], schema=_entraid_schema()
+        )
 
         result = _inst(spark)._pad_entraid(df).collect()
 
@@ -154,7 +169,9 @@ class TestPadEntraid(SparkTestCase):
 
     def test__pad_entraid__eight_char_id_unchanged(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        df = spark.createDataFrame([("entra-1", "12345678", "Y")], schema=_entraid_schema())
+        df = spark.createDataFrame(
+            [("entra-1", "12345678", "Y")], schema=_entraid_schema()
+        )
 
         result = _inst(spark)._pad_entraid(df).collect()
 
@@ -177,8 +194,24 @@ class TestDedupAddress(SparkTestCase):
     def test__dedup_address__latest_by_ingestion_date_kept(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         rows = [
-            ("00010001", "2024-01-01", "1 New St", "Floor 2", "London", "GL", "EC1A 1BB"),
-            ("00010001", "2023-01-01", "1 Old St", "Floor 1", "London", "GL", "EC1A 1AA"),
+            (
+                "00010001",
+                "2024-01-01",
+                "1 New St",
+                "Floor 2",
+                "London",
+                "GL",
+                "EC1A 1BB",
+            ),
+            (
+                "00010001",
+                "2023-01-01",
+                "1 Old St",
+                "Floor 1",
+                "London",
+                "GL",
+                "EC1A 1AA",
+            ),
         ]
         df = spark.createDataFrame(rows, schema=_address_schema())
 
@@ -189,7 +222,17 @@ class TestDedupAddress(SparkTestCase):
 
     def test__dedup_address__2nd_address_line_renamed(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        rows = [("00010001", "2024-01-01", "1 Main St", "Suite 5", "London", "GL", "EC1A 1AA")]
+        rows = [
+            (
+                "00010001",
+                "2024-01-01",
+                "1 Main St",
+                "Suite 5",
+                "London",
+                "GL",
+                "EC1A 1AA",
+            )
+        ]
         df = spark.createDataFrame(rows, schema=_address_schema())
 
         result = _inst(spark)._dedup_address(df)
@@ -215,8 +258,28 @@ class TestLatestHr(SparkTestCase):
     def test__latest_hr__most_recent_per_person_kept(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         rows = [
-            ("00010001", "Inspector", "1.0", "NE", "Planning", "Group A", "Manager X", "SAP", "2024-06-01"),
-            ("00010001", "Trainee", "0.5", "SW", "Transport", "Group B", "Manager Y", "SAP", "2023-01-01"),
+            (
+                "00010001",
+                "Inspector",
+                "1.0",
+                "NE",
+                "Planning",
+                "Group A",
+                "Manager X",
+                "SAP",
+                "2024-06-01",
+            ),
+            (
+                "00010001",
+                "Trainee",
+                "0.5",
+                "SW",
+                "Transport",
+                "Group B",
+                "Manager Y",
+                "SAP",
+                "2023-01-01",
+            ),
         ]
         df = spark.createDataFrame(rows, schema=_hist_hr_schema())
 
@@ -227,7 +290,19 @@ class TestLatestHr(SparkTestCase):
 
     def test__latest_hr__selects_expected_columns_only(self):
         spark = PytestSparkSessionUtil().get_spark_session()
-        rows = [("00010001", "Inspector", "1.0", "NE", "Planning", "Group A", "Manager X", "SAP", "2024-06-01")]
+        rows = [
+            (
+                "00010001",
+                "Inspector",
+                "1.0",
+                "NE",
+                "Planning",
+                "Group A",
+                "Manager X",
+                "SAP",
+                "2024-06-01",
+            )
+        ]
         df = spark.createDataFrame(rows, schema=_hist_hr_schema())
 
         result = _inst(spark)._latest_hr(df)
@@ -248,11 +323,33 @@ class TestLatestHr(SparkTestCase):
 class TestJoinInspectors(SparkTestCase):
     def _make_frames(self, spark):
         live_dim = spark.createDataFrame(
-            [("00010001", "alice@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            [
+                (
+                    "00010001",
+                    "alice@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
             schema=_live_dim_schema(),
         )
         spec_dedup = spark.createDataFrame(
-            [Row(sapId="00010001", specialisms=[Row(name="Planning", proficiency="Expert", validFrom="2020-01-01")])],
+            [
+                Row(
+                    sapId="00010001",
+                    specialisms=[
+                        Row(
+                            name="Planning",
+                            proficiency="Expert",
+                            validFrom="2020-01-01",
+                        )
+                    ],
+                )
+            ],
             schema=T.StructType(
                 [
                     T.StructField("sapId", T.StringType(), True),
@@ -281,7 +378,18 @@ class TestJoinInspectors(SparkTestCase):
             schema=_address_schema(),
         ).withColumnRenamed("2ndAddressLine", "addressLine2")
         hr = spark.createDataFrame(
-            [("00010001", "Inspector", "1.0", "NE", "Planning", "Group A", "Manager X", "SAP")],
+            [
+                (
+                    "00010001",
+                    "Inspector",
+                    "1.0",
+                    "NE",
+                    "Planning",
+                    "Group A",
+                    "Manager X",
+                    "SAP",
+                )
+            ],
             schema=T.StructType(
                 [
                     T.StructField("PersNo", T.StringType(), True),
@@ -301,8 +409,26 @@ class TestJoinInspectors(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         live_dim = spark.createDataFrame(
             [
-                ("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE"),
-                ("00010002", "b@pins.gov.uk", "Bob", "Jones", "2021-01-01", "G6", "N", "NON-ACTIVE"),
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                ),
+                (
+                    "00010002",
+                    "b@pins.gov.uk",
+                    "Bob",
+                    "Jones",
+                    "2021-01-01",
+                    "G6",
+                    "N",
+                    "NON-ACTIVE",
+                ),
             ],
             schema=_live_dim_schema(),
         )
@@ -328,7 +454,9 @@ class TestJoinInspectors(SparkTestCase):
             ),
         )
         empty_eid = spark.createDataFrame([], _entraid_schema())
-        empty_addr = spark.createDataFrame([], _address_schema()).withColumnRenamed("2ndAddressLine", "addressLine2")
+        empty_addr = spark.createDataFrame([], _address_schema()).withColumnRenamed(
+            "2ndAddressLine", "addressLine2"
+        )
         empty_hr = spark.createDataFrame(
             [],
             T.StructType(
@@ -345,7 +473,9 @@ class TestJoinInspectors(SparkTestCase):
             ),
         )
 
-        result = _inst(spark)._join_inspectors(live_dim, empty_spec, empty_eid, empty_addr, empty_hr)
+        result = _inst(spark)._join_inspectors(
+            live_dim, empty_spec, empty_eid, empty_addr, empty_hr
+        )
 
         sap_ids = {r["sapId"] for r in result.collect()}
         assert "00010001" in sap_ids
@@ -355,7 +485,9 @@ class TestJoinInspectors(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         live_dim, spec_dedup, entraid_padded, hr, addr = self._make_frames(spark)
 
-        result = _inst(spark)._join_inspectors(live_dim, spec_dedup, entraid_padded, addr, hr)
+        result = _inst(spark)._join_inspectors(
+            live_dim, spec_dedup, entraid_padded, addr, hr
+        )
 
         expected_cols = {
             "entraId",
@@ -382,7 +514,11 @@ class TestJoinInspectors(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         live_dim, spec_dedup, entraid_padded, hr, addr = self._make_frames(spark)
 
-        result = _inst(spark)._join_inspectors(live_dim, spec_dedup, entraid_padded, addr, hr).collect()
+        result = (
+            _inst(spark)
+            ._join_inspectors(live_dim, spec_dedup, entraid_padded, addr, hr)
+            .collect()
+        )
 
         assert len(result) == 1
         assert result[0]["specialisms"][0]["name"] == "Planning"
@@ -399,18 +535,40 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.Util.is_non_production_environment",
                 return_value=False,
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = PinsInspectorHarmonisationProcess(spark)
             return inst.process(source_data=source_data)
 
-    def test__pins_inspector_harmonisation_process__process__excludes_non_active_inspectors(self):
+    def test__pins_inspector_harmonisation_process__process__excludes_non_active_inspectors(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
             live_dim_rows=[
-                ("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE"),
-                ("00010002", "b@pins.gov.uk", "Bob", "Jones", "2021-01-01", "G6", "N", "NON-ACTIVE"),
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                ),
+                (
+                    "00010002",
+                    "b@pins.gov.uk",
+                    "Bob",
+                    "Jones",
+                    "2021-01-01",
+                    "G6",
+                    "N",
+                    "NON-ACTIVE",
+                ),
             ],
         )
         data_to_write, result = self._run(spark, source)
@@ -422,7 +580,9 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert "00010002" not in sap_ids
         assert result.metadata.insert_count == 1
 
-    def test__pins_inspector_harmonisation_process__process__pads_short_entraid_employee_ids(self):
+    def test__pins_inspector_harmonisation_process__process__pads_short_entraid_employee_ids(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         # SAP number in live_dim is "0012345" (7 chars).
         # EntraID "entra-match" stores the old short form "12345" (5 chars, < 8).
@@ -430,10 +590,29 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         # EntraID "entra-no-match" stores "0012345" (7 chars); padded becomes "000012345" — no match.
         source = _source_data(
             spark,
-            live_dim_rows=[("0012345", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "0012345",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
             entraid_rows=[
-                ("entra-match", "12345", "Y"),  # short → padded "0012345" → matches live_dim
-                ("entra-no-match", "0012345", "Y"),  # 7 chars → padded "000012345" → no match
+                (
+                    "entra-match",
+                    "12345",
+                    "Y",
+                ),  # short → padded "0012345" → matches live_dim
+                (
+                    "entra-no-match",
+                    "0012345",
+                    "Y",
+                ),  # 7 chars → padded "000012345" → no match
             ],
         )
         data_to_write, _ = self._run(spark, source)
@@ -443,11 +622,24 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert len(rows) == 1
         assert rows[0]["entraId"] == "entra-match"
 
-    def test__pins_inspector_harmonisation_process__process__deduplicates_specialisms_per_qualification(self):
+    def test__pins_inspector_harmonisation_process__process__deduplicates_specialisms_per_qualification(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
             specialisms_rows=[
                 # Same qualification, two dates — only latest should survive
                 ("00010001", "Planning", "Expert", "2023-01-01", 1),
@@ -473,14 +665,43 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         planning = next(s for s in specialisms if s["name"] == "Planning")
         assert planning["proficiency"] == "Expert"  # latest
 
-    def test__pins_inspector_harmonisation_process__process__deduplicates_address_keeps_latest(self):
+    def test__pins_inspector_harmonisation_process__process__deduplicates_address_keeps_latest(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
             address_rows=[
-                ("00010001", "2024-01-01", "1 New St", "Floor 2", "London", "Greater London", "EC1A 1BB"),
-                ("00010001", "2023-01-01", "1 Old St", "Floor 1", "London", "Greater London", "EC1A 1AA"),
+                (
+                    "00010001",
+                    "2024-01-01",
+                    "1 New St",
+                    "Floor 2",
+                    "London",
+                    "Greater London",
+                    "EC1A 1BB",
+                ),
+                (
+                    "00010001",
+                    "2023-01-01",
+                    "1 Old St",
+                    "Floor 1",
+                    "London",
+                    "Greater London",
+                    "EC1A 1AA",
+                ),
             ],
         )
         data_to_write, _ = self._run(spark, source)
@@ -491,14 +712,47 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert rows[0]["address"]["addressLine1"] == "1 New St"
         assert rows[0]["address"]["postcode"] == "EC1A 1BB"
 
-    def test__pins_inspector_harmonisation_process__process__hr_keeps_latest_record_per_person(self):
+    def test__pins_inspector_harmonisation_process__process__hr_keeps_latest_record_per_person(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
             hist_hr_rows=[
-                ("00010001", "Inspector", "1.0", "NE", "Planning", "Group A", "Manager X", "SAP", "2024-06-01"),
-                ("00010001", "Senior Inspector", "0.8", "SW", "Transport", "Group B", "Manager Y", "SAP", "2023-01-01"),
+                (
+                    "00010001",
+                    "Inspector",
+                    "1.0",
+                    "NE",
+                    "Planning",
+                    "Group A",
+                    "Manager X",
+                    "SAP",
+                    "2024-06-01",
+                ),
+                (
+                    "00010001",
+                    "Senior Inspector",
+                    "0.8",
+                    "SW",
+                    "Transport",
+                    "Group B",
+                    "Manager Y",
+                    "SAP",
+                    "2023-01-01",
+                ),
             ],
         )
         data_to_write, _ = self._run(spark, source)
@@ -509,11 +763,24 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert rows[0]["title"] == "Inspector"
         assert rows[0]["unit"] == "NE"
 
-    def test__pins_inspector_harmonisation_process__process__appends_iso_suffix_to_valid_from(self):
+    def test__pins_inspector_harmonisation_process__process__appends_iso_suffix_to_valid_from(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-03-15", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-03-15",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
         )
         data_to_write, _ = self._run(spark, source)
         df = data_to_write[PinsInspectorHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -522,11 +789,24 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert len(rows) == 1
         assert rows[0]["validFrom"] == "2020-03-15T00:00:00.000Z"
 
-    def test__pins_inspector_harmonisation_process__process__null_valid_from_stays_null(self):
+    def test__pins_inspector_harmonisation_process__process__null_valid_from_stays_null(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", None, "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    None,
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
         )
         data_to_write, _ = self._run(spark, source)
         df = data_to_write[PinsInspectorHarmonisationProcess.OUTPUT_TABLE]["data"]
@@ -535,11 +815,24 @@ class TestPinsInspectorHarmonisationProcess(SparkTestCase):
         assert len(rows) == 1
         assert rows[0]["validFrom"] is None
 
-    def test__pins_inspector_harmonisation_process__process__empty_specialisms_defaults_to_empty_array(self):
+    def test__pins_inspector_harmonisation_process__process__empty_specialisms_defaults_to_empty_array(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         source = _source_data(
             spark,
-            live_dim_rows=[("00010001", "a@pins.gov.uk", "Alice", "Smith", "2020-01-01", "G7", "Y", "ACTIVE")],
+            live_dim_rows=[
+                (
+                    "00010001",
+                    "a@pins.gov.uk",
+                    "Alice",
+                    "Smith",
+                    "2020-01-01",
+                    "G7",
+                    "Y",
+                    "ACTIVE",
+                )
+            ],
         )
         data_to_write, _ = self._run(spark, source)
         df = data_to_write[PinsInspectorHarmonisationProcess.OUTPUT_TABLE]["data"]

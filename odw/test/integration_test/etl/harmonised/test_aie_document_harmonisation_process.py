@@ -2,10 +2,15 @@ from datetime import datetime
 import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
-from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import AieDocumentHarmonisationProcess
+from odw.core.etl.transformation.harmonised.aie_document_harmonisation_process import (
+    AieDocumentHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 
 
 _HORIZON_SCHEMA = T.StructType(
@@ -54,7 +59,9 @@ _HORIZON_SCHEMA = T.StructType(
 )
 
 
-def _horizon_row(temp_pk, document_id, filename, version, ingestion_date, file_md5="abc123"):
+def _horizon_row(
+    temp_pk, document_id, filename, version, ingestion_date, file_md5="abc123"
+):
     """Build a row matching the schema produced by AieDocumentHarmonisationProcess._load_horizon_data()."""
     return (
         temp_pk,
@@ -190,7 +197,9 @@ def _harmonised_row(**overrides):
 
 
 class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
-    def test__aie_document_harmonisation_process__run__single_record_writes_active_row_with_expected_metadata(self):
+    def test__aie_document_harmonisation_process__run__single_record_writes_active_row_with_expected_metadata(
+        self,
+    ):
         test_case = "t_adhp_r_srwarwem"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -199,7 +208,15 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
             _HORIZON_SCHEMA,
         )
         horizon_data_table = f"{test_case}_aie_document_data"
-        self.write_existing_table(spark, horizon_data, horizon_data_table, "odw_standardised_db", "odw-standardised", horizon_data_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_data_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_data_table,
+            "overwrite",
+        )
         aie_table = f"{test_case}_aie_document_data"
 
         with (
@@ -207,12 +224,22 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.aie_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(AieDocumentHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_data_table}"),
-            mock.patch.object(AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess,
+                "HORIZON_TABLE",
+                f"odw_standardised_db.{horizon_data_table}",
+            ),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table
+            ),
         ):
             inst = AieDocumentHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="aie_document", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="aie_document",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         df = spark.table(f"odw_harmonised_db.{aie_table}")
@@ -225,19 +252,43 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
         assert rows[0]["RowID"] is not None and len(rows[0]["RowID"]) == 32
         assert "TEMP_PK" not in df.columns
 
-    def test__aie_document_harmonisation_process__run__same_pk_across_ingestion_dates_produces_scd2_history(self):
+    def test__aie_document_harmonisation_process__run__same_pk_across_ingestion_dates_produces_scd2_history(
+        self,
+    ):
         test_case = "t_adhp_r_spaidpsh"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         horizon_data = spark.createDataFrame(
             [
-                _horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 1, 1), file_md5="old-md5"),
-                _horizon_row("pk1", "1", "file1.pdf", "1", datetime(2024, 2, 1), file_md5="new-md5"),
+                _horizon_row(
+                    "pk1",
+                    "1",
+                    "file1.pdf",
+                    "1",
+                    datetime(2024, 1, 1),
+                    file_md5="old-md5",
+                ),
+                _horizon_row(
+                    "pk1",
+                    "1",
+                    "file1.pdf",
+                    "1",
+                    datetime(2024, 2, 1),
+                    file_md5="new-md5",
+                ),
             ],
             _HORIZON_SCHEMA,
         )
         horizon_data_table = f"{test_case}_aie_document_data"
-        self.write_existing_table(spark, horizon_data, horizon_data_table, "odw_standardised_db", "odw-standardised", horizon_data_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_data_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_data_table,
+            "overwrite",
+        )
         aie_table = f"{test_case}_aie_document_data"
 
         with (
@@ -245,20 +296,38 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.aie_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(AieDocumentHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_data_table}"),
-            mock.patch.object(AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess,
+                "HORIZON_TABLE",
+                f"odw_standardised_db.{horizon_data_table}",
+            ),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table
+            ),
         ):
             inst = AieDocumentHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="aie_document", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="aie_document",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         expected_df = spark.createDataFrame(
             (
                 _harmonised_row(),
-                _harmonised_row(fileMD5="old-md5", RowID="2f5731906a6583d9870434e1214b1ab8"),
+                _harmonised_row(
+                    fileMD5="old-md5", RowID="2f5731906a6583d9870434e1214b1ab8"
+                ),
                 _harmonised_row(AIEDocumentDataID=1, ValidTo=None, IsActive="Y"),
-                _harmonised_row(AIEDocumentDataID=1, fileMD5="old-md5", ValidTo=None, RowID="2f5731906a6583d9870434e1214b1ab8", IsActive="Y"),
+                _harmonised_row(
+                    AIEDocumentDataID=1,
+                    fileMD5="old-md5",
+                    ValidTo=None,
+                    RowID="2f5731906a6583d9870434e1214b1ab8",
+                    IsActive="Y",
+                ),
             ),
             _harmonise_schema(),
         )
@@ -266,13 +335,23 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
         df = spark.table(f"odw_harmonised_db.{aie_table}")
         assert_dataframes_equal(expected_df, df)
 
-    def test__aie_document_harmonisation_process__run__empty_source_writes_empty_output(self):
+    def test__aie_document_harmonisation_process__run__empty_source_writes_empty_output(
+        self,
+    ):
         test_case = "t_adhp_r_esweo"
         spark = PytestSparkSessionUtil().get_spark_session()
 
         horizon_data = spark.createDataFrame([], _HORIZON_SCHEMA)
         horizon_data_table = f"{test_case}_aie_document_data"
-        self.write_existing_table(spark, horizon_data, horizon_data_table, "odw_standardised_db", "odw-standardised", horizon_data_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_data_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_data_table,
+            "overwrite",
+        )
         aie_table = f"{test_case}_aie_document_data"
 
         with (
@@ -280,12 +359,22 @@ class TestAieDocumentHarmonisationProcessIntegration(ETLTestCase):
                 "odw.core.etl.transformation.harmonised.aie_document_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(AieDocumentHarmonisationProcess, "HORIZON_TABLE", f"odw_standardised_db.{horizon_data_table}"),
-            mock.patch.object(AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess,
+                "HORIZON_TABLE",
+                f"odw_standardised_db.{horizon_data_table}",
+            ),
+            mock.patch.object(
+                AieDocumentHarmonisationProcess, "OUTPUT_TABLE", aie_table
+            ),
         ):
             inst = AieDocumentHarmonisationProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="aie_document", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="aie_document",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         df = spark.table(f"odw_harmonised_db.{aie_table}")

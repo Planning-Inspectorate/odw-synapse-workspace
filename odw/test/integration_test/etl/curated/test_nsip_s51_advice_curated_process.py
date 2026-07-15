@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import NsipS51AdviceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_s51_advice_curated_process import (
+    NsipS51AdviceCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -86,7 +88,13 @@ class TestNSIPS51AdviceCurated(ETLTestCase):
         )
         harmonised_s51_advice_table = f"{test_case}_nsip_s51_advice"
         self.write_existing_table(
-            spark, harmonised_s51_advice, harmonised_s51_advice_table, "odw_harmonised_db", "odw-harmonised", harmonised_s51_advice_table, "overwrite"
+            spark,
+            harmonised_s51_advice,
+            harmonised_s51_advice_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            harmonised_s51_advice_table,
+            "overwrite",
         )
 
         s51_advice_table = f"{test_case}_s51_advice"
@@ -96,17 +104,29 @@ class TestNSIPS51AdviceCurated(ETLTestCase):
                 "odw.core.etl.transformation.curated.nsip_s51_advice_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipS51AdviceCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_s51_advice_table}"),
-            mock.patch.object(NsipS51AdviceCuratedProcess, "OUTPUT_TABLE", s51_advice_table),
+            mock.patch.object(
+                NsipS51AdviceCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_s51_advice_table}",
+            ),
+            mock.patch.object(
+                NsipS51AdviceCuratedProcess, "OUTPUT_TABLE", s51_advice_table
+            ),
         ):
             inst = NsipS51AdviceCuratedProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_s51_advice", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_s51_advice",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{s51_advice_table}")
 
-        rows = {row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["adviceId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
 

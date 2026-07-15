@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -104,13 +106,17 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         - Source system fact table (main_sourcesystem_fact)
         - Distinct representationIds from service bus (for Migrated flag)
         """
-        LoggingUtil().log_info(f"Loading service bus data from {self.SERVICE_BUS_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading service bus data from {self.SERVICE_BUS_TABLE}"
+        )
         service_bus_data = self._load_service_bus_data()
 
         LoggingUtil().log_info(f"Loading Horizon data from {self.HORIZON_TABLE}")
         horizon_data = self._load_horizon_data()
 
-        LoggingUtil().log_info(f"Loading source system data from {self.SOURCE_SYSTEM_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading source system data from {self.SOURCE_SYSTEM_TABLE}"
+        )
         source_system_data = self._load_source_system_data()
 
         sb_representation_ids = self._load_service_bus_representation_ids()
@@ -292,19 +298,29 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
-        source_system_data: DataFrame = self.load_parameter("source_system_data", source_data)
-        sb_representation_ids: DataFrame = self.load_parameter("sb_representation_ids", source_data)
+        source_system_data: DataFrame = self.load_parameter(
+            "source_system_data", source_data
+        )
+        sb_representation_ids: DataFrame = self.load_parameter(
+            "sb_representation_ids", source_data
+        )
 
         # Step 1: Join Horizon with source_system_fact and align to SB schema
-        LoggingUtil().log_info("Joining Horizon with source system data and aligning to SB schema")
+        LoggingUtil().log_info(
+            "Joining Horizon with source system data and aligning to SB schema"
+        )
         horizon_joined = (
             horizon_data.alias("Horizon")
             .join(source_system_data.alias("source"), how="inner")
             .select(
                 F.lit(None).cast("long").alias("NSIPRepresentationID"),
-                F.col("Horizon.relevantrepid").cast("integer").alias("representationId"),
+                F.col("Horizon.relevantrepid")
+                .cast("integer")
+                .alias("representationId"),
                 F.concat(
                     F.coalesce(F.col("Horizon.casereference"), F.lit("")),
                     F.lit("-"),
@@ -315,13 +331,18 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
                 F.col("Horizon.casenodeid").cast("integer").alias("caseId"),
                 F.col("Horizon.RelevantRepStatus").alias("status"),
                 F.col("Horizon.representationoriginal").alias("originalRepresentation"),
-                F.col("Horizon.representationredacted").isNotNull().cast("boolean").alias("redacted"),
+                F.col("Horizon.representationredacted")
+                .isNotNull()
+                .cast("boolean")
+                .alias("redacted"),
                 F.col("Horizon.representationredacted").alias("redactedRepresentation"),
                 F.col("Horizon.redactedBy"),
                 F.col("Horizon.notes").alias("redactedNotes"),
                 F.col("Horizon.RelRepOnBehalfOf").alias("representationFrom"),
                 F.col("Horizon.contactId").cast("string").alias("representedId"),
-                F.col("Horizon.agentcontactid").cast("string").alias("representativeId"),
+                F.col("Horizon.agentcontactid")
+                .cast("string")
+                .alias("representativeId"),
                 F.col("Horizon.RelRepOnBehalfOf").alias("registerFor"),
                 F.col("Horizon.RelRepOrganisation").alias("representationType"),
                 F.col("Horizon.dateReceived"),
@@ -375,25 +396,39 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
         # Step 2: Aggregate Horizon attachmentIds per representationId
         # to match the legacy notebook behaviour
-        horizon_attachment_ids = horizon_joined.groupBy("representationId").agg(F.collect_list("attachmentIds").alias("attachmentIds"))
+        horizon_attachment_ids = horizon_joined.groupBy("representationId").agg(
+            F.collect_list("attachmentIds").alias("attachmentIds")
+        )
 
-        horizon_joined = horizon_joined.drop("attachmentIds").join(horizon_attachment_ids, on="representationId", how="inner")
+        horizon_joined = horizon_joined.drop("attachmentIds").join(
+            horizon_attachment_ids, on="representationId", how="inner"
+        )
 
         # Step 3: Align Horizon columns to SB and union
-        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
+        LoggingUtil().log_info(
+            f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}"
+        )
         horizon_joined = horizon_joined.select(service_bus_data.columns)
         combined = service_bus_data.union(horizon_joined)
 
         # Step 3: Window-function calculations
-        win_per_rep_desc = Window.partitionBy("representationId").orderBy(F.col("IngestionDate").desc())
-        win_global_asc = Window.orderBy(F.col("IngestionDate").asc(), F.col("representationId").asc())
+        win_per_rep_desc = Window.partitionBy("representationId").orderBy(
+            F.col("IngestionDate").desc()
+        )
+        win_global_asc = Window.orderBy(
+            F.col("IngestionDate").asc(), F.col("representationId").asc()
+        )
 
         combined = (
-            combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_per_rep_desc))
+            combined.withColumn(
+                "ReverseOrderProcessed", F.row_number().over(win_per_rep_desc)
+            )
             .withColumn("NSIPRepresentationID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",
-                F.when(F.row_number().over(win_per_rep_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
+                F.when(
+                    F.row_number().over(win_per_rep_desc) == 1, F.lit("Y")
+                ).otherwise(F.lit("N")),
             )
         )
 
@@ -404,29 +439,52 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
         calcs = current.join(
             next_row,
             (F.col("CurrentRow.representationId") == F.col("NextRow.representationId"))
-            & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
+            & (
+                F.col("CurrentRow.ReverseOrderProcessed") - 1
+                == F.col("NextRow.ReverseOrderProcessed")
+            ),
             "left_outer",
         ).select(
             F.col("CurrentRow.NSIPRepresentationID").alias("NSIPRepresentationID"),
             F.col("CurrentRow.representationId").alias("representationId"),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
-                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(F.col("CurrentRow.ValidTo")),
+                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(
+                    F.col("CurrentRow.ValidTo")
+                ),
                 F.col("NextRow.IngestionDate"),
             ).alias("ValidTo"),
             F.col("CurrentRow.IsActive").alias("IsActive"),
         )
 
         # Step 5: Derive Migrated flag (1 if representationId exists in SB, else 0)
-        sb_ids = sb_representation_ids.withColumnRenamed("representationId", "sb_representationId")
+        sb_ids = sb_representation_ids.withColumnRenamed(
+            "representationId", "sb_representationId"
+        )
         calcs = (
-            calcs.join(sb_ids, calcs["representationId"] == sb_ids["sb_representationId"], "left_outer")
-            .withColumn("Migrated", F.when(F.col("sb_representationId").isNotNull(), F.lit("1")).otherwise(F.lit("0")))
+            calcs.join(
+                sb_ids,
+                calcs["representationId"] == sb_ids["sb_representationId"],
+                "left_outer",
+            )
+            .withColumn(
+                "Migrated",
+                F.when(F.col("sb_representationId").isNotNull(), F.lit("1")).otherwise(
+                    F.lit("0")
+                ),
+            )
             .drop("sb_representationId")
         )
 
         # Step 6: Compute RowID via MD5 hash
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _REPRESENTATION_ROW_ID_COLUMNS]))
+        row_id_expr = F.md5(
+            F.concat(
+                *[
+                    F.coalesce(F.col(c).cast("string"), F.lit("."))
+                    for c in _REPRESENTATION_ROW_ID_COLUMNS
+                ]
+            )
+        )
 
         # Step 7: Rejoin calculations back onto the combined dataset
         all_columns = [c for c in combined.columns if c != "ReverseOrderProcessed"]
@@ -445,7 +503,8 @@ class NsipRepresentationHarmonisationProcess(HarmonisationProcess):
 
         joined = base.join(
             calcs_renamed,
-            (base["representationId"] == calcs_renamed["calc_representationId"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+            (base["representationId"] == calcs_renamed["calc_representationId"])
+            & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
         ).select(columns)
 
         # Step 8: Apply RowID, set Migrated to 0 (matching notebook final SELECT), drop duplicates

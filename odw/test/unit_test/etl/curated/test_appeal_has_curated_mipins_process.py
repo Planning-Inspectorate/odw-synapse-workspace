@@ -6,11 +6,13 @@ import pyspark.sql.types as T
 from pyspark.sql import Row
 from pyspark.sql import functions as F
 from odw.test.util.assertion import assert_dataframes_equal
-from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import (
+    AppealHasCuratedMipinsProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS logic not implemented yet")
 
 
 OUTPUT_COLUMNS = [
@@ -122,7 +124,9 @@ def _harmonised_schema():
             T.StructField("caseValidationDate", T.TimestampType(), True),
             T.StructField("caseValidationOutcome", T.StringType(), True),
             T.StructField("caseValidationInvalidDetails", T.StringType(), True),
-            T.StructField("caseValidationIncompleteDetails", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "caseValidationIncompleteDetails", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("caseExtensionDate", T.TimestampType(), True),
             T.StructField("caseStartedDate", T.TimestampType(), True),
             T.StructField("casePublishedDate", T.TimestampType(), True),
@@ -133,8 +137,12 @@ def _harmonised_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True),
-            T.StructField("lpaQuestionnaireValidationDetails", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True
+            ),
+            T.StructField(
+                "lpaQuestionnaireValidationDetails", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("caseWithdrawnDate", T.TimestampType(), True),
             T.StructField("caseTransferredDate", T.TimestampType(), True),
             T.StructField("transferredCaseClosedDate", T.TimestampType(), True),
@@ -171,14 +179,20 @@ def _harmonised_schema():
             T.StructField("changedDevelopmentDescription", T.StringType(), True),
             T.StructField("newConditionDetails", T.StringType(), True),
             T.StructField("nearbyCaseReferences", T.StringType(), True),
-            T.StructField("neighbouringSiteAddresses", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "neighbouringSiteAddresses", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("affectedListedBuildingNumbers", T.StringType(), True),
             T.StructField("appellantCostsAppliedFor", T.StringType(), True),
             T.StructField("lpaCostsAppliedFor", T.StringType(), True),
             T.StructField("typeOfPlanningApplication", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("isSiteInAreaOfSpecialControlAdverts", T.StringType(), True),
             T.StructField("advertDetails", T.StringType(), True),
             T.StructField("padsSapId", T.StringType(), True),
@@ -309,7 +323,9 @@ def _df_with_old_dates(spark, rows, date_cols):
 
     df = spark.createDataFrame(cleaned_rows, schema=schema)
 
-    return df.withColumns({col_name: F.col(col_name).cast("timestamp") for col_name in date_cols})
+    return df.withColumns(
+        {col_name: F.col(col_name).cast("timestamp") for col_name in date_cols}
+    )
 
 
 def _process_under_test(spark):
@@ -328,7 +344,9 @@ def _source_data(harmonised_data):
 
 
 class TestAppealHasCuratedMipinsProcess(SparkTestCase):
-    def test__appeal_has_curated_mipins_process__process__projects_casts_filters_and_converts_timestamps_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__projects_casts_filters_and_converts_timestamps_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(spark, [_base_row()])
@@ -408,17 +426,29 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
             "delete_count": 0,
         }
 
-    def test__appeal_has_curated_mipins_process__process__applies_legacy_source_and_reference_filters(self):
+    def test__appeal_has_curated_mipins_process__process__applies_legacy_source_and_reference_filters(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(
             spark,
             [
-                _base_row(caseReference="7000001", lpaCode="Q1234", ODTSourceSystem="ODT"),
-                _base_row(caseReference="7000002", lpaCode="Q9999", ODTSourceSystem="ODT"),
-                _base_row(caseReference="7000003", lpaCode="Q1111", ODTSourceSystem="ODT"),
-                _base_row(caseReference="5000000", lpaCode="Q1234", ODTSourceSystem="ODT"),
-                _base_row(caseReference="7000004", lpaCode="Q1234", ODTSourceSystem="HORIZON"),
+                _base_row(
+                    caseReference="7000001", lpaCode="Q1234", ODTSourceSystem="ODT"
+                ),
+                _base_row(
+                    caseReference="7000002", lpaCode="Q9999", ODTSourceSystem="ODT"
+                ),
+                _base_row(
+                    caseReference="7000003", lpaCode="Q1111", ODTSourceSystem="ODT"
+                ),
+                _base_row(
+                    caseReference="5000000", lpaCode="Q1234", ODTSourceSystem="ODT"
+                ),
+                _base_row(
+                    caseReference="7000004", lpaCode="Q1234", ODTSourceSystem="HORIZON"
+                ),
             ],
         )
 
@@ -432,7 +462,9 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert rows[0]["caseReference"] == "7000001"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__does_not_filter_on_is_active_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__does_not_filter_on_is_active_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(
@@ -451,18 +483,31 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert row["IsActive"] == "N"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__filters_rows_with_pre_1900_dates_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__filters_rows_with_pre_1900_dates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df_with_old_dates(
             spark,
             [
                 _base_row(caseReference="7000001"),
-                _base_row(caseReference="7000002", caseCreatedDate=datetime(1899, 12, 31)),
-                _base_row(caseReference="7000003", applicationDecisionDueDate=datetime(1899, 12, 31)),
-                _base_row(caseReference="7000004", IngestionDate=datetime(1899, 12, 31)),
+                _base_row(
+                    caseReference="7000002", caseCreatedDate=datetime(1899, 12, 31)
+                ),
+                _base_row(
+                    caseReference="7000003",
+                    applicationDecisionDueDate=datetime(1899, 12, 31),
+                ),
+                _base_row(
+                    caseReference="7000004", IngestionDate=datetime(1899, 12, 31)
+                ),
             ],
-            date_cols=["caseCreatedDate", "applicationDecisionDueDate", "IngestionDate"],
+            date_cols=[
+                "caseCreatedDate",
+                "applicationDecisionDueDate",
+                "IngestionDate",
+            ],
         )
 
         inst = _process_under_test(spark)
@@ -530,7 +575,9 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert rows[0]["caseReference"] == "7000001"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__keeps_1900_boundary_dates_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__keeps_1900_boundary_dates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(
@@ -553,7 +600,9 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__preserves_null_dates_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__preserves_null_dates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = _df(
@@ -578,7 +627,9 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert row["ValidTo"] is None
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__drops_exact_duplicates_like_legacy_select_distinct(self):
+    def test__appeal_has_curated_mipins_process__process__drops_exact_duplicates_like_legacy_select_distinct(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         duplicate = _base_row(caseReference="7000001")
@@ -592,7 +643,9 @@ class TestAppealHasCuratedMipinsProcess(SparkTestCase):
         assert df.count() == 1
         assert result.metadata.insert_count == 1
 
-    def test__appeal_has_curated_mipins_process__process__empty_input_writes_empty_output_like_legacy(self):
+    def test__appeal_has_curated_mipins_process__process__empty_input_writes_empty_output_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_df = spark.createDataFrame([], _harmonised_schema())

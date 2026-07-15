@@ -55,19 +55,33 @@ class SynapseDeltaIO(SynapseDataIO):
         container_name = kwargs.get("container_name", None)
         blob_path = kwargs.get("blob_path", None)
         if not spark:
-            raise ValueError("SynapseDeltaIO.read requires a spark to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.read requires a spark to be provided, but was missing"
+            )
         if not (storage_name or storage_endpoint):
-            raise ValueError("SynapseDeltaIO.read expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError(
+                "SynapseDeltaIO.read expected one of 'storage_name' or 'storage_endpoint' to be provided"
+            )
         if storage_name and storage_endpoint:
-            raise ValueError("SynapseDeltaIO.read expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError(
+                "SynapseDeltaIO.read expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both"
+            )
         if not container_name:
-            raise ValueError("SynapseDeltaIO.read requires a container_name to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.read requires a container_name to be provided, but was missing"
+            )
         if not blob_path:
-            raise ValueError("SynapseDeltaIO.read requires a blob_path to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.read requires a blob_path to be provided, but was missing"
+            )
         if storage_name:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_name=storage_name
+            )
         else:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_endpoint=storage_endpoint
+            )
         return DeltaTable.forPath(spark, data_path).toDF()
 
     def write(self, data: DataFrame, **kwargs):
@@ -99,32 +113,60 @@ class SynapseDeltaIO(SynapseDataIO):
         columns_to_update = kwargs.get("columns_to_update", [])
         partition_by_cols = kwargs.get("partition_by_cols", [])
         if not spark:
-            raise ValueError("SynapseDeltaIO.read requires spark to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.read requires spark to be provided, but was missing"
+            )
         if not (storage_name or storage_endpoint):
-            raise ValueError("SynapseDeltaIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided")
+            raise ValueError(
+                "SynapseDeltaIO.write expected one of 'storage_name' or 'storage_endpoint' to be provided"
+            )
         if storage_name and storage_endpoint:
-            raise ValueError("SynapseDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both")
+            raise ValueError(
+                "SynapseDeltaIO.write expected only one of 'storage_name' or 'storage_endpoint' to be provided, not both"
+            )
         if not container_name:
-            raise ValueError("SynapseDeltaIO.write requires a container_name to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.write requires a container_name to be provided, but was missing"
+            )
         if not blob_path:
-            raise ValueError("SynapseDeltaIO.write requires a blob_path to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.write requires a blob_path to be provided, but was missing"
+            )
         if bool(database_name) ^ bool(table_name):
-            raise ValueError("SynapseTableDataIO.write requires both database_name and table_name to be provided, or neither")
+            raise ValueError(
+                "SynapseTableDataIO.write requires both database_name and table_name to be provided, or neither"
+            )
         if not merge_keys:
-            raise ValueError("SynapseDeltaIO.write requires a merge_keys to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.write requires a merge_keys to be provided, but was missing"
+            )
         if not update_key_col:
-            raise ValueError("SynapseDeltaIO.write requires a update_key_col to be provided, but was missing")
+            raise ValueError(
+                "SynapseDeltaIO.write requires a update_key_col to be provided, but was missing"
+            )
         if storage_name:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_name=storage_name)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_name=storage_name
+            )
         else:
-            data_path = self._format_to_adls_path(container_name, blob_path, storage_endpoint=storage_endpoint)
+            data_path = self._format_to_adls_path(
+                container_name, blob_path, storage_endpoint=storage_endpoint
+            )
         try:
             target_delta_table = DeltaTable.forPath(spark, data_path)
         except AnalysisException:
             delta_builder = (
                 DeltaTable.createIfNotExists(spark)
                 .tableName(f"{database_name}.{table_name}")
-                .addColumns(StructType([field for field in data.schema.fields if field.name != update_key_col]))
+                .addColumns(
+                    StructType(
+                        [
+                            field
+                            for field in data.schema.fields
+                            if field.name != update_key_col
+                        ]
+                    )
+                )
                 .location(data_path)
             )
             if partition_by_cols:
@@ -134,7 +176,10 @@ class SynapseDeltaIO(SynapseDataIO):
         delta_table_schema = target_delta_table.toDF().schema
         delta_table_cols = set(delta_table_schema.names)
         new_data_cols = set(data.schema.names)
-        if not (all(x in delta_table_cols for x in merge_keys) and all(x in new_data_cols for x in merge_keys)):
+        if not (
+            all(x in delta_table_cols for x in merge_keys)
+            and all(x in new_data_cols for x in merge_keys)
+        ):
             missing_in_delta = [x for x in merge_keys if x not in delta_table_cols]
             missing_in_new_data = [x for x in merge_keys if x not in new_data_cols]
             raise ValueError(
@@ -144,7 +189,9 @@ class SynapseDeltaIO(SynapseDataIO):
                 f"The primary keys {missing_in_new_data} were missing in the new data which has columns {new_data_cols}"
             )
         if update_key_col not in new_data_cols:
-            raise ValueError(f"The data is expected to have a '{update_key_col}' column")
+            raise ValueError(
+                f"The data is expected to have a '{update_key_col}' column"
+            )
         create_strings = ("create", "created")
         update_strings = ("update", "updated")
         delete_strings = ("delete", "deleted")
@@ -152,9 +199,13 @@ class SynapseDeltaIO(SynapseDataIO):
         # Convert update_key_col to lower case for consistency
         data = data.withColumn(update_key_col, F.lower(F.col(update_key_col)))
         # Ensure all values in the update_key_col are valid before proceeding
-        invalid_update_key_rows = data.filter(~F.col(update_key_col).isin(*all_search_strings))
+        invalid_update_key_rows = data.filter(
+            ~F.col(update_key_col).isin(*all_search_strings)
+        )
         if invalid_update_key_rows.count() > 0:
-            raise ValueError(f"Some of the rows in the data's '{update_key_col}' column do not match one of '{all_search_strings}'")
+            raise ValueError(
+                f"Some of the rows in the data's '{update_key_col}' column do not match one of '{all_search_strings}'"
+            )
         target_delta_table.alias("t").merge(
             data.alias("s"), " AND ".join(f"t.{key} = s.{key}" for key in merge_keys)
         ).whenMatchedUpdate(  # Update existing records
@@ -162,13 +213,18 @@ class SynapseDeltaIO(SynapseDataIO):
             set={
                 col_name: F.expr(f"s.{col_name}")
                 for col_name in data.schema.names
-                if col_name != update_key_col and (not columns_to_update or col_name in columns_to_update)
+                if col_name != update_key_col
+                and (not columns_to_update or col_name in columns_to_update)
             },
         ).whenMatchedDelete(  # Delete records
             condition=f"s.{update_key_col} IN {delete_strings}"
         ).whenNotMatchedInsert(  # Insert new records
             condition=f"s.{update_key_col} IN {create_strings}",
-            values={col_name: F.expr(f"s.{col_name}") for col_name in data.schema.names if col_name != update_key_col},
+            values={
+                col_name: F.expr(f"s.{col_name}")
+                for col_name in data.schema.names
+                if col_name != update_key_col
+            },
         ).execute()
         if database_name:
             # Create a table out of the delta file if table details are specified

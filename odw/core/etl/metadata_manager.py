@@ -2,7 +2,13 @@ from odw.core.etl.etl_result import ETLResult
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
 from odw.core.util.util import Util
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.types import StructType, StructField, StringType, TimestampType, BooleanType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    TimestampType,
+    BooleanType,
+)
 from pyspark.sql.window import Window
 import pyspark.sql.functions as F
 from delta.exceptions import ConcurrentAppendException
@@ -23,12 +29,21 @@ class MetadataManager:
     METADATA_TABLE = "odw_execution_history"
     METADATA_SCHEMA = StructType(
         [
-            StructField("run_id", StringType(), False, metadata={"comment": "The id of the master pipeline that triggered the ETL process"}),
+            StructField(
+                "run_id",
+                StringType(),
+                False,
+                metadata={
+                    "comment": "The id of the master pipeline that triggered the ETL process"
+                },
+            ),
             StructField(
                 "entity_name",
                 StringType(),
                 False,
-                metadata={"comment": "The name of the entity, which aligns with orchestration_transform_dependencies.yaml"},
+                metadata={
+                    "comment": "The name of the entity, which aligns with orchestration_transform_dependencies.yaml"
+                },
             ),
             StructField(
                 "stage_name",
@@ -38,19 +53,33 @@ class MetadataManager:
                     "comment": "The stage name of the entity that is being executed, which aligns with orchestration_transform_dependencies.yaml"
                 },
             ),
-            StructField("execution_parameters", StringType(), True, metadata={"comment": "The parameters passed to the ETL Process"}),
-            StructField("execution_start_time", TimestampType(), False, metadata={"comment": "When the entry was added to the metadata table"}),
+            StructField(
+                "execution_parameters",
+                StringType(),
+                True,
+                metadata={"comment": "The parameters passed to the ETL Process"},
+            ),
+            StructField(
+                "execution_start_time",
+                TimestampType(),
+                False,
+                metadata={"comment": "When the entry was added to the metadata table"},
+            ),
             StructField(
                 "execution_finish_time",
                 TimestampType(),
                 True,
-                metadata={"comment": "When the entry was updated with either success or failure details"},
+                metadata={
+                    "comment": "When the entry was updated with either success or failure details"
+                },
             ),
             StructField(
                 "successful",
                 BooleanType(),
                 True,
-                metadata={"comment": "If the complete pipeline was finished or not. If null, then the process has not finished"},
+                metadata={
+                    "comment": "If the complete pipeline was finished or not. If null, then the process has not finished"
+                },
             ),
             StructField(
                 "result_text",
@@ -60,12 +89,19 @@ class MetadataManager:
                     "comment": "String form of the result. This will either be an ETLResult (in json format), or the error message depending on the value of the 'successful' column"
                 },
             ),
-            StructField("_update_key_col", StringType(), False),  # Not included in the table, used for handling the delta merge logic
+            StructField(
+                "_update_key_col", StringType(), False
+            ),  # Not included in the table, used for handling the delta merge logic
         ]
     )
 
     def __init__(
-        self, spark: SparkSession, run_id: str, entity_name: str = None, stage_name: str = None, execution_parameters: Dict[str, Any] = None
+        self,
+        spark: SparkSession,
+        run_id: str,
+        entity_name: str = None,
+        stage_name: str = None,
+        execution_parameters: Dict[str, Any] = None,
     ):
         """
         :param spark SparkSession: The underlying pyspark session
@@ -92,7 +128,9 @@ class MetadataManager:
         }
 
     @retry(
-        retry=retry_if_exception(lambda exception: isinstance(exception, ConcurrentAppendException)),
+        retry=retry_if_exception(
+            lambda exception: isinstance(exception, ConcurrentAppendException)
+        ),
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(10),
         reraise=True,
@@ -134,7 +172,9 @@ class MetadataManager:
             )
         if not self._created_entry:
             self._created_entry = True
-            data_to_create = self._spark.createDataFrame([self._entry], schema=self.METADATA_SCHEMA)
+            data_to_create = self._spark.createDataFrame(
+                [self._entry], schema=self.METADATA_SCHEMA
+            )
             self._write(data_to_create)
 
     def update(self, etl_result: ETLResult):
@@ -145,9 +185,13 @@ class MetadataManager:
         entity_name = self._entry.get("entity_name", None)
         stage_name = self._entry.get("stage_name", None)
         if not (run_id and entity_name and stage_name):
-            raise ValueError("Must supply run_id, entity_name, and stage_name when updating an entry, but some of these were missing")
+            raise ValueError(
+                "Must supply run_id, entity_name, and stage_name when updating an entry, but some of these were missing"
+            )
         if self._updated_entry or not self._created_entry:
-            raise RuntimeError("Cannot update the metadata entry before the entry has been created")
+            raise RuntimeError(
+                "Cannot update the metadata entry before the entry has been created"
+            )
         if self._created_entry and not self._updated_entry:
             self._updated_entry = True
             result_metadata: ETLResult.ETLResultMetadata = etl_result.metadata
@@ -159,15 +203,26 @@ class MetadataManager:
                 "result_text": etl_result.model_dump_json(indent=4),
                 "_update_key_col": "update",
             }
-            data_to_update = self._spark.createDataFrame([self._entry], schema=self.METADATA_SCHEMA)
+            data_to_update = self._spark.createDataFrame(
+                [self._entry], schema=self.METADATA_SCHEMA
+            )
             self._write(data_to_update)
 
     def get_for_run_id(self):
         """
         Return all entries for the run_id
         """
+        if not self._spark.catalog.tableExists(
+            f"{self.METADATA_DB}.{self.METADATA_TABLE}"
+        ):
+            data_to_create = self._spark.createDataFrame(
+                [], schema=self.METADATA_SCHEMA
+            )
+            self._write(data_to_create)
         run_id = self._entry.get("run_id", None)
-        return self._spark.sql(f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}'")
+        return self._spark.sql(
+            f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}'"
+        )
 
     def get_most_recent_for_run_id(self):
         """
@@ -176,8 +231,16 @@ class MetadataManager:
         entries = self.get_for_run_id()
         partition_cols = ["run_id", "entity_name", "stage_name"]
         return (
-            entries.withColumn("execution_order", F.row_number().over(Window.partitionBy(partition_cols).orderBy("execution_start_time")))
-            .withColumn("max_execution_order", F.max("execution_order").over(Window.partitionBy(partition_cols)))
+            entries.withColumn(
+                "execution_order",
+                F.row_number().over(
+                    Window.partitionBy(partition_cols).orderBy("execution_start_time")
+                ),
+            )
+            .withColumn(
+                "max_execution_order",
+                F.max("execution_order").over(Window.partitionBy(partition_cols)),
+            )
             .filter(F.col("execution_order") == F.col("max_execution_order"))
             .drop("execution_order", "max_execution_order")
         )
@@ -190,7 +253,9 @@ class MetadataManager:
         entity_name = self._entry.get("entity_name", None)
         if not (run_id and entity_name):
             raise RuntimeError("Requires run_id and entity_name to be provided")
-        return self._spark.sql(f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}' and entity_name = '{entity_name}'")
+        return self._spark.sql(
+            f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}' and entity_name = '{entity_name}'"
+        )
 
     def get_for_entity_stage(self):
         """
@@ -200,7 +265,9 @@ class MetadataManager:
         entity_name = self._entry.get("entity_name", None)
         stage_name = self._entry.get("stage_name", None)
         if not (run_id and entity_name and stage_name):
-            raise RuntimeError("Requires run_id, entity_name and stage_name to be provided")
+            raise RuntimeError(
+                "Requires run_id, entity_name and stage_name to be provided"
+            )
         return self._spark.sql(
             f"select * from {self.METADATA_DB}.{self.METADATA_TABLE} where run_id = '{run_id}' and entity_name = '{entity_name}' and stage_name = '{stage_name}'"
         )

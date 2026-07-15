@@ -20,7 +20,12 @@ class PytestSparkSessionUtil(metaclass=Singleton):
     - `PytestSparkSessionUtil().get_spark_warehouse_name()`
     """
 
-    DATABASE_NAMES = ["odw_standardised_db", "odw_harmonised_db", "odw_curated_db", "odw_meta_db"]
+    DATABASE_NAMES = [
+        "odw_standardised_db",
+        "odw_harmonised_db",
+        "odw_curated_db",
+        "odw_meta_db",
+    ]
 
     def __init__(self, *args, **kwargs):
         self._THREAD_ID = str(uuid4())[:8]
@@ -30,9 +35,13 @@ class PytestSparkSessionUtil(metaclass=Singleton):
             SparkSession.builder.master("local[1]")
             .appName(f"pytest-spark-{self.get_thread_id()}")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
             .config("spark.sql.warehouse.dir", self.get_spark_warehouse_name())
             .config("spark.ui.enabled", False)
+            .config("spark.ui.showConsoleProgress", False)
             .config("spark.driver.memory", "1g")
             .config("spark.sql.shuffle.partitions", "4")
             .config("spark.default.parallelism", "2")
@@ -63,7 +72,11 @@ class PytestSparkSessionUtil(metaclass=Singleton):
         os.mkdir(test_output_folder)
 
     def teardown_all_file_systems(self):
-        file_systems = [entry for entry in os.listdir(".") if entry.startswith("spark-warehouse") and os.path.isdir(entry)]
+        file_systems = [
+            entry
+            for entry in os.listdir(".")
+            if entry.startswith("spark-warehouse") and os.path.isdir(entry)
+        ]
         for file_system in file_systems:
             shutil.rmtree(file_system, ignore_errors=True)
 
@@ -75,14 +88,23 @@ class PytestSparkSessionUtil(metaclass=Singleton):
                 pass
 
     def _create_empty_orchestration_file(self):
-        orchestration_path = os.path.join(self.get_spark_warehouse_name(), "odw-config", "orchestration")
+        orchestration_path = os.path.join(
+            self.get_spark_warehouse_name(), "odw-config", "orchestration"
+        )
         os.makedirs(orchestration_path, exist_ok=True)
         with open(os.path.join(orchestration_path, "orchestration.json"), "w") as f:
             content = {"definitions": []}
             json.dump(content, f, indent=4)
 
     def _create_main_source_system_fact_table(self, spark: SparkSession):
-        shutil.rmtree(os.path.join(self.get_spark_warehouse_name(), "odw_harmonised_db.db", "main_sourcesystem_fact"), ignore_errors=True)
+        shutil.rmtree(
+            os.path.join(
+                self.get_spark_warehouse_name(),
+                "odw_harmonised_db.db",
+                "main_sourcesystem_fact",
+            ),
+            ignore_errors=True,
+        )
 
         data = spark.createDataFrame(
             (("1", "Casework", "", None, "", "Y"),),

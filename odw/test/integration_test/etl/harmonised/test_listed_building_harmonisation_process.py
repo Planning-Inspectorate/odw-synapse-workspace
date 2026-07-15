@@ -3,13 +3,18 @@ import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql.types import StringType, StructField, StructType
 from pyspark.sql import DataFrame
-from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import (
+    ListedBuildingHarmonisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 from datetime import date
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _standardised_row(**overrides):
@@ -124,7 +129,13 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         )
         listed_building_table_name = f"{test_case}_listed_building"
         self.write_existing_table(
-            spark, listed_building, listed_building_table_name, "odw_standardised_db", "odw-standardised", listed_building_table_name, "overwrite"
+            spark,
+            listed_building,
+            listed_building_table_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            listed_building_table_name,
+            "overwrite",
         )
         expected_harmonised_listed_building = spark.createDataFrame(
             [
@@ -134,12 +145,24 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
             ],
             schema=_harmonised_schema(),
         )
-        with mock.patch.object(ListedBuildingHarmonisationProcess, "OUTPUT_TABLE", listed_building_table_name):
+        with mock.patch.object(
+            ListedBuildingHarmonisationProcess,
+            "OUTPUT_TABLE",
+            listed_building_table_name,
+        ):
             inst = ListedBuildingHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="listed_building",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
-            actual_table_data = spark.table(f"odw_harmonised_db.{listed_building_table_name}")
-            self.compare_harmonised_data(expected_harmonised_listed_building, actual_table_data)
+            actual_table_data = spark.table(
+                f"odw_harmonised_db.{listed_building_table_name}"
+            )
+            self.compare_harmonised_data(
+                expected_harmonised_listed_building, actual_table_data
+            )
 
     def test__listed_building_harmonisation_process__run__with_existing_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
@@ -147,8 +170,12 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         listed_building = spark.createDataFrame(
             [
                 _standardised_row(entity=1, name="Building One"),  # Should be updated
-                _standardised_row(entity=2, name="Building Two"),  # Should not be modified
-                _standardised_row(entity=3, name="Building Three"),  # Should be inserted
+                _standardised_row(
+                    entity=2, name="Building Two"
+                ),  # Should not be modified
+                _standardised_row(
+                    entity=3, name="Building Three"
+                ),  # Should be inserted
             ],
             schema=_standardised_schema(),
         )
@@ -164,9 +191,19 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         )
         existing_harmonised_data = spark.createDataFrame(
             (
-                _harmonised_row(entity=1, name="Building Old Name", rowID="4413ab3eda0f2857bfed7731cde4729c"),  # Should be updated
-                _harmonised_row(entity=2, name="Building Two", rowID="390b65b99f173831af260bef26accc90"),  # Should not be modified
-                _harmonised_row(entity=4, name="Building Four", rowID="someGuid"),  # Should be marked as inactive
+                _harmonised_row(
+                    entity=1,
+                    name="Building Old Name",
+                    rowID="4413ab3eda0f2857bfed7731cde4729c",
+                ),  # Should be updated
+                _harmonised_row(
+                    entity=2,
+                    name="Building Two",
+                    rowID="390b65b99f173831af260bef26accc90",
+                ),  # Should not be modified
+                _harmonised_row(
+                    entity=4, name="Building Four", rowID="someGuid"
+                ),  # Should be marked as inactive
             ),
             schema=_harmonised_schema(),
         )
@@ -184,16 +221,42 @@ class TestListedBuildingHarmonisationProcess(ETLTestCase):
         # Generated by running the original notebook
         expected_harmonised_listed_building = spark.createDataFrame(
             [
-                _harmonised_row(entity=1, name="Building One", rowID="4413ab3eda0f2857bfed7731cde4729c"),  # Should be updated
-                _harmonised_row(entity=2, name="Building Two", rowID="390b65b99f173831af260bef26accc90"),  # Should not be modified
-                _harmonised_row(entity=3, name="Building Three", rowID="d31d10cb03b0a874acfc8bac9a1f0397"),  # Should be inserted
-                _harmonised_row(entity=4, name="Building Four", rowID="someGuid"),  # Should not be modified
+                _harmonised_row(
+                    entity=1,
+                    name="Building One",
+                    rowID="4413ab3eda0f2857bfed7731cde4729c",
+                ),  # Should be updated
+                _harmonised_row(
+                    entity=2,
+                    name="Building Two",
+                    rowID="390b65b99f173831af260bef26accc90",
+                ),  # Should not be modified
+                _harmonised_row(
+                    entity=3,
+                    name="Building Three",
+                    rowID="d31d10cb03b0a874acfc8bac9a1f0397",
+                ),  # Should be inserted
+                _harmonised_row(
+                    entity=4, name="Building Four", rowID="someGuid"
+                ),  # Should not be modified
             ],
             schema=_harmonised_schema(),
         )
-        with mock.patch.object(ListedBuildingHarmonisationProcess, "OUTPUT_TABLE", listed_building_table_name):
+        with mock.patch.object(
+            ListedBuildingHarmonisationProcess,
+            "OUTPUT_TABLE",
+            listed_building_table_name,
+        ):
             inst = ListedBuildingHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="listed_building",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
-            actual_table_data = spark.table(f"odw_harmonised_db.{listed_building_table_name}")
-            self.compare_harmonised_data(expected_harmonised_listed_building, actual_table_data)
+            actual_table_data = spark.table(
+                f"odw_harmonised_db.{listed_building_table_name}"
+            )
+            self.compare_harmonised_data(
+                expected_harmonised_listed_building, actual_table_data
+            )

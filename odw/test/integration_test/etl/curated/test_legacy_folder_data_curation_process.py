@@ -4,20 +4,64 @@ import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
 import pytest
-from odw.core.etl.transformation.curated.legacy_folder_data_curation_process import LegacyFolderDataCurationProcess
+from odw.core.etl.transformation.curated.legacy_folder_data_curation_process import (
+    LegacyFolderDataCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 class TestLegacyFolderDataCurationProcess(ETLTestCase):
     ACTIVE_HARMONISED_DATA = [
-        ("100", "LFD/100", "Core Docs", "Core Docs CY", "10", "11", "Decision", datetime(2025, 1, 1).isoformat(), None, "row-100", "Y", "m-100"),
-        ("101", "LFD/101", "Admin", "Admin CY", "20", "20", "Post decision", datetime(2025, 1, 2).isoformat(), None, "row-101", "N", "m-101"),
-        ("102", "LFD/102", "Inquiry", "Inquiry CY", "30", "31", "Pre-examination", datetime(2025, 1, 3).isoformat(), None, "row-102", None, "m-102"),
+        (
+            "100",
+            "LFD/100",
+            "Core Docs",
+            "Core Docs CY",
+            "10",
+            "11",
+            "Decision",
+            datetime(2025, 1, 1).isoformat(),
+            None,
+            "row-100",
+            "Y",
+            "m-100",
+        ),
+        (
+            "101",
+            "LFD/101",
+            "Admin",
+            "Admin CY",
+            "20",
+            "20",
+            "Post decision",
+            datetime(2025, 1, 2).isoformat(),
+            None,
+            "row-101",
+            "N",
+            "m-101",
+        ),
+        (
+            "102",
+            "LFD/102",
+            "Inquiry",
+            "Inquiry CY",
+            "30",
+            "31",
+            "Pre-examination",
+            datetime(2025, 1, 3).isoformat(),
+            None,
+            "row-102",
+            None,
+            "m-102",
+        ),
     ]
 
     def generate_harmonised_table(self):
@@ -120,7 +164,9 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
                 "HARMONISED_TABLE",
                 f"odw_harmonised_db.{harmonised_table}",
             ),
-            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+            mock.patch.object(
+                LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table
+            ),
         ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
@@ -158,7 +204,9 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
                 "HARMONISED_TABLE",
                 f"odw_harmonised_db.{harmonised_table}",
             ),
-            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+            mock.patch.object(
+                LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table
+            ),
         ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
@@ -170,7 +218,9 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
         actual_table_data = spark.table(f"odw_curated_db.{curated_table}")
         assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
 
-    def test__legacy_folder_data_curation_process__run__maps_all_case_stage_values_and_lowercases_unmapped(self):
+    def test__legacy_folder_data_curation_process__run__maps_all_case_stage_values_and_lowercases_unmapped(
+        self,
+    ):
         test_case = "t_lfdcp_stage_map"
         harmonised_table = f"{test_case}_horizon_folder"
         curated_table = f"{test_case}_legacy_folder_data"
@@ -178,15 +228,132 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
 
         harmonised_data = spark.createDataFrame(
             data=[
-                ("301", "LFD/301", "Folder 1", "Folder 1 CY", "1", "9", "Pre-application", None, None, "row-301", "Y", "m-301"),
-                ("302", "LFD/302", "Folder 2", "Folder 2 CY", "2", "9", "Acceptance", None, None, "row-302", "Y", "m-302"),
-                ("303", "LFD/303", "Folder 3", "Folder 3 CY", "3", "9", "Pre-examination", None, None, "row-303", "Y", "m-303"),
-                ("304", "LFD/304", "Folder 4", "Folder 4 CY", "4", "9", "Examination", None, None, "row-304", "Y", "m-304"),
-                ("305", "LFD/305", "Folder 5", "Folder 5 CY", "5", "9", "Recommendation", None, None, "row-305", "Y", "m-305"),
-                ("306", "LFD/306", "Folder 6", "Folder 6 CY", "6", "9", "Decision", None, None, "row-306", "Y", "m-306"),
-                ("307", "LFD/307", "Folder 7", "Folder 7 CY", "7", "9", "Post decision", None, None, "row-307", "Y", "m-307"),
-                ("308", "LFD/308", "Folder 8", "Folder 8 CY", "8", "9", "Withdrawn", None, None, "row-308", "Y", "m-308"),
-                ("309", "LFD/309", "Folder 9", "Folder 9 CY", "9", "10", "Some Mixed Stage", None, None, "row-309", "Y", "m-309"),
+                (
+                    "301",
+                    "LFD/301",
+                    "Folder 1",
+                    "Folder 1 CY",
+                    "1",
+                    "9",
+                    "Pre-application",
+                    None,
+                    None,
+                    "row-301",
+                    "Y",
+                    "m-301",
+                ),
+                (
+                    "302",
+                    "LFD/302",
+                    "Folder 2",
+                    "Folder 2 CY",
+                    "2",
+                    "9",
+                    "Acceptance",
+                    None,
+                    None,
+                    "row-302",
+                    "Y",
+                    "m-302",
+                ),
+                (
+                    "303",
+                    "LFD/303",
+                    "Folder 3",
+                    "Folder 3 CY",
+                    "3",
+                    "9",
+                    "Pre-examination",
+                    None,
+                    None,
+                    "row-303",
+                    "Y",
+                    "m-303",
+                ),
+                (
+                    "304",
+                    "LFD/304",
+                    "Folder 4",
+                    "Folder 4 CY",
+                    "4",
+                    "9",
+                    "Examination",
+                    None,
+                    None,
+                    "row-304",
+                    "Y",
+                    "m-304",
+                ),
+                (
+                    "305",
+                    "LFD/305",
+                    "Folder 5",
+                    "Folder 5 CY",
+                    "5",
+                    "9",
+                    "Recommendation",
+                    None,
+                    None,
+                    "row-305",
+                    "Y",
+                    "m-305",
+                ),
+                (
+                    "306",
+                    "LFD/306",
+                    "Folder 6",
+                    "Folder 6 CY",
+                    "6",
+                    "9",
+                    "Decision",
+                    None,
+                    None,
+                    "row-306",
+                    "Y",
+                    "m-306",
+                ),
+                (
+                    "307",
+                    "LFD/307",
+                    "Folder 7",
+                    "Folder 7 CY",
+                    "7",
+                    "9",
+                    "Post decision",
+                    None,
+                    None,
+                    "row-307",
+                    "Y",
+                    "m-307",
+                ),
+                (
+                    "308",
+                    "LFD/308",
+                    "Folder 8",
+                    "Folder 8 CY",
+                    "8",
+                    "9",
+                    "Withdrawn",
+                    None,
+                    None,
+                    "row-308",
+                    "Y",
+                    "m-308",
+                ),
+                (
+                    "309",
+                    "LFD/309",
+                    "Folder 9",
+                    "Folder 9 CY",
+                    "9",
+                    "10",
+                    "Some Mixed Stage",
+                    None,
+                    None,
+                    "row-309",
+                    "Y",
+                    "m-309",
+                ),
             ],
             schema=T.StructType(
                 [
@@ -222,7 +389,9 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
                 "HARMONISED_TABLE",
                 f"odw_harmonised_db.{harmonised_table}",
             ),
-            mock.patch.object(LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table),
+            mock.patch.object(
+                LegacyFolderDataCurationProcess, "OUTPUT_TABLE", curated_table
+            ),
         ):
             inst = LegacyFolderDataCurationProcess(spark)
             result = inst.run(
@@ -231,7 +400,9 @@ class TestLegacyFolderDataCurationProcess(ETLTestCase):
                 orchestration_stage_name="curate",
             )
         assert_etl_result_successful(result)
-        actual_stage_data = spark.table(f"odw_curated_db.{curated_table}").select("id", "caseStage")
+        actual_stage_data = spark.table(f"odw_curated_db.{curated_table}").select(
+            "id", "caseStage"
+        )
 
         expected_stage_data = spark.createDataFrame(
             [

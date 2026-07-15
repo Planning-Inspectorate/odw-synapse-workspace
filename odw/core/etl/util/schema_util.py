@@ -29,7 +29,9 @@ class SchemaUtil:
                 data = response.json()
                 return data
             else:
-                LoggingUtil().log_info("Failed to fetch data from URL. Status code:", response.status_code)
+                LoggingUtil().log_info(
+                    "Failed to fetch data from URL. Status code:", response.status_code
+                )
         except requests.exceptions.RequestException as e:
             LoggingUtil().log_error("Error fetching data:", e)
 
@@ -70,7 +72,12 @@ class SchemaUtil:
         if self.db_name == self.DB_NAME_STANDARDISED:
             data_model["fields"].extend(
                 [
-                    {"metadata": {}, "name": col_name, "type": col_type, "nullable": nullable}
+                    {
+                        "metadata": {},
+                        "name": col_name,
+                        "type": col_type,
+                        "nullable": nullable,
+                    }
                     for col_name, col_type, nullable in (
                         ("ingested_datetime", "timestamp", False),
                         ("expected_from", "timestamp", False),
@@ -84,10 +91,23 @@ class SchemaUtil:
 
         elif self.db_name == self.DB_NAME_HARMONISED:
             if self.incremental_key:
-                data_model["fields"].insert(0, {"metadata": {}, "name": self.incremental_key, "type": "string", "nullable": False})
+                data_model["fields"].insert(
+                    0,
+                    {
+                        "metadata": {},
+                        "name": self.incremental_key,
+                        "type": "string",
+                        "nullable": False,
+                    },
+                )
             data_model["fields"].extend(
                 [
-                    {"metadata": {}, "name": col_name, "type": col_type, "nullable": nullable}
+                    {
+                        "metadata": {},
+                        "name": col_name,
+                        "type": col_type,
+                        "nullable": nullable,
+                    }
                     for col_name, col_type, nullable in (
                         ("Migrated", "string", False),
                         ("ODTSourceSystem", "string", True),
@@ -116,7 +136,9 @@ class SchemaUtil:
         }
         try:
             json_type = field_schema.get("type")
-            LoggingUtil().log_info(f"Processing type: {json_type} | schema: {field_schema}")
+            LoggingUtil().log_info(
+                f"Processing type: {json_type} | schema: {field_schema}"
+            )
 
             # Try resolving $ref if type is missing
             if json_type is None and "$ref" in field_schema:
@@ -145,7 +167,9 @@ class SchemaUtil:
             LoggingUtil().log_exception(e)
             raise
 
-    def _transform_service_bus_schema(self, schema: dict, definitions: dict) -> T.StructType:
+    def _transform_service_bus_schema(
+        self, schema: dict, definitions: dict
+    ) -> T.StructType:
         """
         Copied as-is from py_create_spark_schema
         """
@@ -153,7 +177,9 @@ class SchemaUtil:
             T.StructField(
                 field_name,
                 self._get_spark_type(field_schema, definitions),
-                "null" in field_schema.get("type", []) if isinstance(field_schema.get("type"), list) else False,
+                "null" in field_schema.get("type", [])
+                if isinstance(field_schema.get("type"), list)
+                else False,
             )
             for field_name, field_schema in schema["properties"].items()
             if field_schema != {}
@@ -194,7 +220,9 @@ class SchemaUtil:
         all_fields: list = schema.fields + standardised_fields.fields
         return T.StructType(all_fields)
 
-    def _add_harmonised_columns_to_schema(self, schema: T.StructType, incremental_key_field: T.StructType) -> T.StructType:
+    def _add_harmonised_columns_to_schema(
+        self, schema: T.StructType, incremental_key_field: T.StructType
+    ) -> T.StructType:
         """
         Add columns for the Harmonised layer
         """
@@ -270,11 +298,15 @@ class SchemaUtil:
         LoggingUtil().log_info(f"Reading schema from {url}")
         schema = self._get_schema_from_url(url)
         if not schema:
-            raise RuntimeError(f"Could not get schema for entity '{entity_name}' at url '{url}'")
+            raise RuntimeError(
+                f"Could not get schema for entity '{entity_name}' at url '{url}'"
+            )
         definitions = schema.get("$defs", {})
         if self.incremental_key:
             LoggingUtil().log_info("Adding incremental key")
-            incremental_key_field = T.StructType([T.StructField(self.incremental_key, T.LongType(), False)])
+            incremental_key_field = T.StructType(
+                [T.StructField(self.incremental_key, T.LongType(), False)]
+            )
         else:
             incremental_key_field = None
         cleaned_schema = self._resolve_refs(schema, definitions)
@@ -282,5 +314,7 @@ class SchemaUtil:
         if self.db_name == self.DB_NAME_STANDARDISED:
             return self._add_standardised_columns_to_schema(cleaned_schema)
         if self.db_name == self.DB_NAME_HARMONISED:
-            return self._add_harmonised_columns_to_schema(cleaned_schema, incremental_key_field)
+            return self._add_harmonised_columns_to_schema(
+                cleaned_schema, incremental_key_field
+            )
         return cleaned_schema

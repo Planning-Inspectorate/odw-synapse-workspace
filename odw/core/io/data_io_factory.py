@@ -1,5 +1,8 @@
 from odw.core.io.data_io import DataIO
-from odw.core.exceptions import DuplicateDataIONameException, DataIONameNotFoundException
+from odw.core.exceptions import (
+    DuplicateDataIONameException,
+    DataIONameNotFoundException,
+)
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_delta_io import SynapseDeltaIO
@@ -16,7 +19,12 @@ class DataIOFactory:
     data_io_class = DataIOFactory().get("my_io_name")
     """
 
-    DATA_IO_CLASSES: Set[Type[DataIO]] = {SynapseFileDataIO, SynapseTableDataIO, SynapseDeltaIO, SynapseLegacyDeltaIO}
+    DATA_IO_CLASSES: Set[Type[DataIO]] = {
+        SynapseFileDataIO,
+        SynapseTableDataIO,
+        SynapseDeltaIO,
+        SynapseLegacyDeltaIO,
+    }
 
     @classmethod
     def _validate_data_io_classes(cls):
@@ -41,5 +49,7 @@ class DataIOFactory:
     def get(cls, data_io_name: str) -> Type[DataIO]:
         data_io_map = cls._validate_data_io_classes()
         if data_io_name not in data_io_map:
-            raise DataIONameNotFoundException(f"No DataIO class could be found for dataio name '{data_io_name}'")
+            raise DataIONameNotFoundException(
+                f"No DataIO class could be found for dataio name '{data_io_name}'"
+            )
         return data_io_map[data_io_name]

@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -8,7 +10,13 @@ from pyspark.sql.window import Window
 from datetime import datetime
 from typing import Dict, Tuple
 
-_ENTRAID_ROW_ID_COLUMNS = ["id", "employeeId", "givenName", "surname", "userPrincipalName"]
+_ENTRAID_ROW_ID_COLUMNS = [
+    "id",
+    "employeeId",
+    "givenName",
+    "surname",
+    "userPrincipalName",
+]
 
 
 class EntraIdHarmonisationProcess(HarmonisationProcess):
@@ -46,7 +54,9 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         Load the latest EntraID records from the standardised table, the current
         harmonised table, and the source system fact table.
         """
-        LoggingUtil().log_info(f"Loading EntraID standardised data from {self.STD_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading EntraID standardised data from {self.STD_TABLE}"
+        )
         std_data = self.spark.sql(f"""
             SELECT DISTINCT
                 id,
@@ -63,7 +73,9 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info(f"Loading current harmonised data from {self.HRM_TABLE}")
         hrm_data = self.spark.sql(f"SELECT * FROM {self.HRM_TABLE}")
 
-        LoggingUtil().log_info(f"Loading source system fact from {self.SOURCE_SYSTEM_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading source system fact from {self.SOURCE_SYSTEM_TABLE}"
+        )
         # EntraID has no dedicated row in main_sourcesystem_fact; it shares the SAP HR
         # SourceSystemID because EntraID users are resolved against SAP HR employee records
         # (via employeeId). ODTSourceSystem is still set to 'EntraID' to record the actual
@@ -103,10 +115,19 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         source_system: DataFrame = self.load_parameter("source_system", source_data)
 
         source_system_rows = source_system.collect()
-        source_system_id = source_system_rows[0]["SourceSystemID"] if source_system_rows else None
+        source_system_id = (
+            source_system_rows[0]["SourceSystemID"] if source_system_rows else None
+        )
 
         # Step 1: Compute RowID for standardised records
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _ENTRAID_ROW_ID_COLUMNS]))
+        row_id_expr = F.md5(
+            F.concat(
+                *[
+                    F.coalesce(F.col(c).cast("string"), F.lit("."))
+                    for c in _ENTRAID_ROW_ID_COLUMNS
+                ]
+            )
+        )
         std_with_row_id = std_data.withColumn("RowID", row_id_expr)
 
         hrm_active = hrm_data.filter(F.col("IsActive") == "Y")
@@ -115,8 +136,14 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Identifying new and changed EntraID records")
         candidates = (
             std_with_row_id.alias("std")
-            .join(hrm_active.select("id", "RowID", "IsActive").alias("hrm"), F.col("std.id") == F.col("hrm.id"), "left")
-            .filter(F.col("hrm.id").isNull() | (F.col("std.RowID") != F.col("hrm.RowID")))
+            .join(
+                hrm_active.select("id", "RowID", "IsActive").alias("hrm"),
+                F.col("std.id") == F.col("hrm.id"),
+                "left",
+            )
+            .filter(
+                F.col("hrm.id").isNull() | (F.col("std.RowID") != F.col("hrm.RowID"))
+            )
             .select(
                 F.col("std.id"),
                 F.col("std.employeeId"),
@@ -165,18 +192,27 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
 
         # Step 4: Close old versions of changed records
         LoggingUtil().log_info("Closing old versions of changed records")
-        changed = candidates.filter(F.col("HistoricIsActive") == "Y").select("id", F.col("IngestionDate").alias("new_IngestionDate"))
+        changed = candidates.filter(F.col("HistoricIsActive") == "Y").select(
+            "id", F.col("IngestionDate").alias("new_IngestionDate")
+        )
         old_versions = (
             hrm_active.join(changed, "id")
             .withColumn("IsActive", F.lit("N"))
-            .withColumn("ValidTo", F.to_timestamp(F.date_sub(F.col("new_IngestionDate"), 1)).cast("string"))
+            .withColumn(
+                "ValidTo",
+                F.to_timestamp(F.date_sub(F.col("new_IngestionDate"), 1)).cast(
+                    "string"
+                ),
+            )
             .drop("new_IngestionDate")
             .select(*output_cols)
         )
 
         # Step 5: Unchanged active records (active in hrm, not in candidates)
         candidate_ids = candidates.select("id")
-        unchanged = hrm_active.join(candidate_ids, "id", "left_anti").select(*output_cols)
+        unchanged = hrm_active.join(candidate_ids, "id", "left_anti").select(
+            *output_cols
+        )
 
         # All inactive historical records stay as-is
         historical = hrm_data.filter(F.col("IsActive") == "N").select(*output_cols)
@@ -185,7 +221,10 @@ class EntraIdHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Reassigning EmployeeEntraId via ROW_NUMBER")
         win = Window.orderBy(F.col("EmployeeEntraId").asc_nulls_last())
         final_df = (
-            new_rows.unionByName(old_versions).unionByName(unchanged).unionByName(historical).withColumn("EmployeeEntraId", F.row_number().over(win))
+            new_rows.unionByName(old_versions)
+            .unionByName(unchanged)
+            .unionByName(historical)
+            .withColumn("EmployeeEntraId", F.row_number().over(win))
         )
 
         insert_count = final_df.count()

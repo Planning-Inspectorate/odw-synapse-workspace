@@ -1,16 +1,20 @@
 import pytest
-from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import AppealAttributeMatrixHarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process import (
+    AppealAttributeMatrixHarmonisationProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 from pyspark.sql import functions as F
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
-    def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__trims_all_string_columns_and_normalises_attribute(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -20,9 +24,13 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "appealReference", "s78", "ODTSourceSystem", "IsActive"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
-            data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+            data_to_write, result = inst.process(
+                source_data={"standardised_data": std_data}
+            )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
         row = df.collect()[0]
@@ -34,7 +42,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
         assert row["IsActive"] == "Y"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__generates_temp_pk_using_legacy_sha256_formula(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__generates_temp_pk_using_legacy_sha256_formula(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -46,11 +56,15 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
 
         expected_hash = (
             spark.createDataFrame([("housing need",)], ["attribute"])
-            .select(F.sha2(F.to_json(F.struct(F.col("attribute"))), 256).alias("TEMP_PK"))
+            .select(
+                F.sha2(F.to_json(F.struct(F.col("attribute"))), 256).alias("TEMP_PK")
+            )
             .collect()[0]["TEMP_PK"]
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -59,7 +73,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
 
         assert actual_hash == expected_hash
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__adds_default_columns_when_missing(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__adds_default_columns_when_missing(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -69,7 +85,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -80,7 +98,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
         assert row["IsActive"] == "Y"
         assert row["IngestionDate"] is not None
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__preserves_existing_odt_source_system_and_isactive_when_present(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__preserves_existing_odt_source_system_and_isactive_when_present(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -90,7 +110,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "ODTSourceSystem", "IsActive"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -100,7 +122,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
         assert row["ODTSourceSystem"] == "ManualLoad"
         assert row["IsActive"] == "N"
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing_ingestion_date_to_timestamp(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__casts_existing_ingestion_date_to_timestamp(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -110,7 +134,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "IngestionDate"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -118,7 +144,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
 
         assert dict(df.dtypes)["IngestionDate"] == "timestamp"
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original_column_order_and_appends_extras(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original_column_order_and_appends_extras(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -128,7 +156,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "appealReference"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -143,7 +173,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             "IsActive",
         ]
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original_column_order_when_ingestion_date_exists_in_source(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__keeps_original_column_order_when_ingestion_date_exists_in_source(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -153,7 +185,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "appealReference", "IngestionDate"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -168,7 +202,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             "IsActive",
         ]
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__casts_s78_to_string_if_present(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__casts_s78_to_string_if_present(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -178,7 +214,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute", "s78"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
             data_to_write, _ = inst.process(source_data={"standardised_data": std_data})
 
@@ -186,7 +224,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
 
         assert dict(df.dtypes)["s78"] == "string"
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__preserves_duplicates_like_legacy(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__preserves_duplicates_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -197,16 +237,22 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
-            data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+            data_to_write, result = inst.process(
+                source_data={"standardised_data": std_data}
+            )
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
         assert df.count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_attribute_matrix_harmonisation_process__process__uses_overwrite_write_mode(self):
+    def test__appeal_attribute_matrix_harmonisation_process__process__uses_overwrite_write_mode(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -216,14 +262,20 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixHarmonisationProcess(spark)
-            data_to_write, result = inst.process(source_data={"standardised_data": std_data})
+            data_to_write, result = inst.process(
+                source_data={"standardised_data": std_data}
+            )
 
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_harmonisation_process__run__end_to_end_matches_legacy(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__end_to_end_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -240,7 +292,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
 
         expected_hash = (
             spark.createDataFrame([("housing need",)], ["attribute"])
-            .select(F.sha2(F.to_json(F.struct(F.col("attribute"))), 256).alias("TEMP_PK"))
+            .select(
+                F.sha2(F.to_json(F.struct(F.col("attribute"))), 256).alias("TEMP_PK")
+            )
             .collect()[0]["TEMP_PK"]
         )
 
@@ -250,7 +304,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -282,7 +338,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 2
 
-    def test__appeal_attribute_matrix_harmonisation_process__run__handles_missing_optional_columns(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__handles_missing_optional_columns(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -302,7 +360,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -351,7 +411,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -379,7 +441,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_harmonisation_process__run__preserves_duplicates_and_column_order_like_legacy(self):
+    def test__appeal_attribute_matrix_harmonisation_process__run__preserves_duplicates_and_column_order_like_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         std_data = spark.createDataFrame(
@@ -400,7 +464,9 @@ class TestRefAppealAttributeMatrixHarmonisationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.appeal_attribute_matrix_harmonisation_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()

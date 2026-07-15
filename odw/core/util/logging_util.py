@@ -49,7 +49,9 @@ class LoggingUtil:
         self.LOGGER_PROVIDER = LoggerProvider()
         self._LOGGING_INITIALISED = False
         self.pipelinejobid = (
-            mssparkutils.runtime.context["pipelinejobid"] if mssparkutils.runtime.context.get("isForPipeline", False) else uuid.uuid4()
+            mssparkutils.runtime.context["pipelinejobid"]
+            if mssparkutils.runtime.context.get("isForPipeline", False)
+            else uuid.uuid4()
         )
         self.logger = logging.getLogger()
         for h in list(self.logger.handlers):
@@ -89,7 +91,10 @@ class LoggingUtil:
             "name": "Microsoft.ApplicationInsights.Event",
             "time": datetime.now(timezone.utc).isoformat() + "Z",
             "iKey": self.instrumentation_key,
-            "data": {"baseType": "EventData", "baseData": {"name": event_name, "properties": safe_properties}},
+            "data": {
+                "baseType": "EventData",
+                "baseData": {"name": event_name, "properties": safe_properties},
+            },
         }
         try:
             response = requests.post(endpoint, json=body)
@@ -97,7 +102,12 @@ class LoggingUtil:
         except Exception as e:
             self.log_info(f"Failed to send telemetry: {e}")
 
-    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_delay(20), reraise=True, before_sleep=before_sleep_nothing)
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_delay(20),
+        reraise=True,
+        before_sleep=before_sleep_nothing,
+    )
     def setup_logging(self, force=False):
         """
         Initialise logging to Azure App Insights
@@ -108,7 +118,9 @@ class LoggingUtil:
         key = None
         load_credential_exception = None
         try:
-            key = mssparkutils.credentials.getSecretWithLS("ls_kv", "application-insights-connection-string")
+            key = mssparkutils.credentials.getSecretWithLS(
+                "ls_kv", "application-insights-connection-string"
+            )
         except Exception as e:
             load_credential_exception = e
         if not key:
@@ -123,7 +135,9 @@ class LoggingUtil:
 
         set_logger_provider(self.LOGGER_PROVIDER)
         exporter = AzureMonitorLogExporter.from_connection_string(conn_string)
-        self.LOGGER_PROVIDER.add_log_record_processor(BatchLogRecordProcessor(exporter, schedule_delay_millis=5000))
+        self.LOGGER_PROVIDER.add_log_record_processor(
+            BatchLogRecordProcessor(exporter, schedule_delay_millis=5000)
+        )
 
         if not any(isinstance(h, LoggingHandler) for h in self.logger.handlers):
             self.logger.addHandler(LoggingHandler())
@@ -177,7 +191,9 @@ class LoggingUtil:
             logging_util = LoggingUtil()
             args_repr = [repr(a) for a in args]
             kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]
-            logging_util.log_info(f"Function {func.__name__} called with args: {', '.join(args_repr + kwargs_repr)}")
+            logging_util.log_info(
+                f"Function {func.__name__} called with args: {', '.join(args_repr + kwargs_repr)}"
+            )
             try:
                 return func(*args, **kwargs)
             except mssparkutils.handlers.notebookHandler.NotebookExit as e:

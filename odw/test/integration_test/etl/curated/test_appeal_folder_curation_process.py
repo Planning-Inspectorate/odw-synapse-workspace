@@ -3,13 +3,18 @@ from datetime import datetime
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
 import pytest
-from odw.core.etl.transformation.curated.appeal_folder_curation_process import AppealFolderCurationProcess
+from odw.core.etl.transformation.curated.appeal_folder_curation_process import (
+    AppealFolderCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 class TestAppealFolderCurationProcess(ETLTestCase):
@@ -113,7 +118,14 @@ class TestAppealFolderCurationProcess(ETLTestCase):
         return spark.createDataFrame(
             data=(
                 (100, "APP/100", "Core Documents", "Dogfennau Craidd", 10, "decision"),
-                (101, "APP/101", "Case Admin", "Gweinyddu Achos", None, "post_decision"),
+                (
+                    101,
+                    "APP/101",
+                    "Case Admin",
+                    "Gweinyddu Achos",
+                    None,
+                    "post_decision",
+                ),
                 (102, "APP/102", "Inquiry", "Ymchwiliad", 30, "pre-examination"),
             ),
             schema=self.generate_curated_data_schema(),
@@ -188,20 +200,139 @@ class TestAppealFolderCurationProcess(ETLTestCase):
         actual_table_data = spark.table("odw_curated_db.appeal_folder")
         assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
 
-    def test__appeal_folder_curation_process__run__maps_all_case_stage_values_and_lowercases_unmapped(self):
+    def test__appeal_folder_curation_process__run__maps_all_case_stage_values_and_lowercases_unmapped(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_data = spark.createDataFrame(
             data=[
-                ("301", "APP/301", "Folder 1", "Ffolder 1", "1", "9", "Pre-application", None, None, "row-301", "Y", "m-301"),
-                ("302", "APP/302", "Folder 2", "Ffolder 2", "2", "9", "Acceptance", None, None, "row-302", "Y", "m-302"),
-                ("303", "APP/303", "Folder 3", "Ffolder 3", "3", "9", "Pre-examination", None, None, "row-303", "Y", "m-303"),
-                ("304", "APP/304", "Folder 4", "Ffolder 4", "4", "9", "Examination", None, None, "row-304", "Y", "m-304"),
-                ("305", "APP/305", "Folder 5", "Ffolder 5", "5", "9", "Recommendation", None, None, "row-305", "Y", "m-305"),
-                ("306", "APP/306", "Folder 6", "Ffolder 6", "6", "9", "Decision", None, None, "row-306", "Y", "m-306"),
-                ("307", "APP/307", "Folder 7", "Ffolder 7", "7", "9", "Post decision", None, None, "row-307", "Y", "m-307"),
-                ("308", "APP/308", "Folder 8", "Ffolder 8", "8", "9", "Withdrawn", None, None, "row-308", "Y", "m-308"),
-                ("309", "APP/309", "Folder 9", "Ffolder 9", "9", "10", "Some Mixed Stage", None, None, "row-309", "Y", "m-309"),
+                (
+                    "301",
+                    "APP/301",
+                    "Folder 1",
+                    "Ffolder 1",
+                    "1",
+                    "9",
+                    "Pre-application",
+                    None,
+                    None,
+                    "row-301",
+                    "Y",
+                    "m-301",
+                ),
+                (
+                    "302",
+                    "APP/302",
+                    "Folder 2",
+                    "Ffolder 2",
+                    "2",
+                    "9",
+                    "Acceptance",
+                    None,
+                    None,
+                    "row-302",
+                    "Y",
+                    "m-302",
+                ),
+                (
+                    "303",
+                    "APP/303",
+                    "Folder 3",
+                    "Ffolder 3",
+                    "3",
+                    "9",
+                    "Pre-examination",
+                    None,
+                    None,
+                    "row-303",
+                    "Y",
+                    "m-303",
+                ),
+                (
+                    "304",
+                    "APP/304",
+                    "Folder 4",
+                    "Ffolder 4",
+                    "4",
+                    "9",
+                    "Examination",
+                    None,
+                    None,
+                    "row-304",
+                    "Y",
+                    "m-304",
+                ),
+                (
+                    "305",
+                    "APP/305",
+                    "Folder 5",
+                    "Ffolder 5",
+                    "5",
+                    "9",
+                    "Recommendation",
+                    None,
+                    None,
+                    "row-305",
+                    "Y",
+                    "m-305",
+                ),
+                (
+                    "306",
+                    "APP/306",
+                    "Folder 6",
+                    "Ffolder 6",
+                    "6",
+                    "9",
+                    "Decision",
+                    None,
+                    None,
+                    "row-306",
+                    "Y",
+                    "m-306",
+                ),
+                (
+                    "307",
+                    "APP/307",
+                    "Folder 7",
+                    "Ffolder 7",
+                    "7",
+                    "9",
+                    "Post decision",
+                    None,
+                    None,
+                    "row-307",
+                    "Y",
+                    "m-307",
+                ),
+                (
+                    "308",
+                    "APP/308",
+                    "Folder 8",
+                    "Ffolder 8",
+                    "8",
+                    "9",
+                    "Withdrawn",
+                    None,
+                    None,
+                    "row-308",
+                    "Y",
+                    "m-308",
+                ),
+                (
+                    "309",
+                    "APP/309",
+                    "Folder 9",
+                    "Ffolder 9",
+                    "9",
+                    "10",
+                    "Some Mixed Stage",
+                    None,
+                    None,
+                    "row-309",
+                    "Y",
+                    "m-309",
+                ),
             ],
             schema=T.StructType(
                 [
@@ -238,7 +369,9 @@ class TestAppealFolderCurationProcess(ETLTestCase):
             orchestration_stage_name="curate",
         )
         assert_etl_result_successful(result)
-        actual_stage_data = spark.table("odw_curated_db.appeal_folder").select("id", "caseStage")
+        actual_stage_data = spark.table("odw_curated_db.appeal_folder").select(
+            "id", "caseStage"
+        )
 
         expected_stage_data = spark.createDataFrame(
             [

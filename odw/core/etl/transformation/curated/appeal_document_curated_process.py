@@ -38,7 +38,9 @@ class AppealDocumentCuratedProcess(CurationProcess):
         Load source data, selecting only the columns needed downstream.
         """
 
-        LoggingUtil().log_info(f"Loading harmonised Appeal Document data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Document data from {self.HARMONISED_TABLE}"
+        )
 
         harmonised_appeal_docs = self.spark.sql(f"""
             SELECT DISTINCT
@@ -84,7 +86,9 @@ class AppealDocumentCuratedProcess(CurationProcess):
 
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_appeal_docs: DataFrame = self.load_parameter("harmonised_appeal_docs", source_data)
+        harmonised_appeal_docs: DataFrame = self.load_parameter(
+            "harmonised_appeal_docs", source_data
+        )
 
         # Apply curated column transformations and SELECT DISTINCT
         df = harmonised_appeal_docs.select(
@@ -105,11 +109,21 @@ class AppealDocumentCuratedProcess(CurationProcess):
             F.col("datePublished"),
             F.col("lastModified"),
             # caseType mapping
-            F.when(F.col("caseType") == "Planning Listed Building and Conservation Area Appeal (Y)", F.lit("Y"))
-            .when(F.col("caseType") == "Lawful Development Certificate Appeal", F.lit("X"))
+            F.when(
+                F.col("caseType")
+                == "Planning Listed Building and Conservation Area Appeal (Y)",
+                F.lit("Y"),
+            )
+            .when(
+                F.col("caseType") == "Lawful Development Certificate Appeal", F.lit("X")
+            )
             .when(F.col("caseType") == "Planning Obligation Appeal", F.lit("Q"))
             .when(F.col("caseType") == "Commercial (CAS) Appeal", F.lit("Z"))
-            .when(F.col("caseType") == "Enforcement Listed Building and Conservation Area Appeal", F.lit("F"))
+            .when(
+                F.col("caseType")
+                == "Enforcement Listed Building and Conservation Area Appeal",
+                F.lit("F"),
+            )
             .when(F.col("caseType") == "Advertisement Appeal", F.lit("H"))
             .when(F.col("caseType") == "Planning Appeal (A)", F.lit("W"))
             .when(F.col("caseType") == "Enforcement Notice Appeal", F.lit("C"))
@@ -117,7 +131,9 @@ class AppealDocumentCuratedProcess(CurationProcess):
             .when(F.col("caseType") == "Community Infrastructure Levy", F.lit("L"))
             .when(F.col("caseType") == "Planning Appeal (W)", F.lit("W"))
             .when(F.col("caseType") == "Call-In Application", F.lit("V"))
-            .when(F.col("caseType") == "Affordable Housing Obligation Appeal", F.lit("S"))
+            .when(
+                F.col("caseType") == "Affordable Housing Obligation Appeal", F.lit("S")
+            )
             .when(F.col("caseType") == "Householder (HAS) Appeal", F.lit("D"))
             .otherwise(F.col("caseType"))
             .alias("caseType"),

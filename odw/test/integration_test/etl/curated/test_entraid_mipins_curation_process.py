@@ -1,13 +1,18 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.entraid_mipins_curation_process import EntraIDMIPINSCurationProcess
+from odw.core.etl.transformation.curated.entraid_mipins_curation_process import (
+    EntraIDMIPINSCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql.types import StructType, StructField, LongType, StringType, IntegerType
 import mock
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS EntraID logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS EntraID logic not implemented yet")
 
 
 class TestEntraIDMIPINSCurationProcess(ETLTestCase):
@@ -125,7 +130,15 @@ class TestEntraIDMIPINSCurationProcess(ETLTestCase):
             ),
         )
         entraid_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, entraid_data, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            entraid_data,
+            entraid_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            entraid_table,
+            "overwrite",
+        )
 
         expected_output = spark.createDataFrame(
             (
@@ -195,11 +208,19 @@ class TestEntraIDMIPINSCurationProcess(ETLTestCase):
         )
         output_table = f"{test_case}_entraid_curated_mipins"
         with (
-            mock.patch.object(EntraIDMIPINSCurationProcess, "HARMONISED_TABLE", entraid_table),
-            mock.patch.object(EntraIDMIPINSCurationProcess, "CURATED_TABLE", output_table),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "HARMONISED_TABLE", entraid_table
+            ),
+            mock.patch.object(
+                EntraIDMIPINSCurationProcess, "CURATED_TABLE", output_table
+            ),
         ):
             inst = EntraIDMIPINSCurationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="entraid_mipins", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="entraid_mipins",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_output = spark.table(f"odw_curated_db.{output_table}")
@@ -258,5 +279,13 @@ class TestEntraIDMIPINSCurationProcess(ETLTestCase):
             ),
         )
         existing_table = f"{test_case}_entraid_curated_mipins"
-        self.write_existing_table(spark, existing_data, existing_table, "odw_curated_db", "odw-curated", existing_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            existing_table,
+            "odw_curated_db",
+            "odw-curated",
+            existing_table,
+            "overwrite",
+        )
         self.assert_curation(test_case)

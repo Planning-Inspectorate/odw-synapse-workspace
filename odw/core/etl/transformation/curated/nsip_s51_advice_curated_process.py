@@ -35,7 +35,9 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
         Filters are applied here for performance (IsActive = 'Y').
         No joins or transformations are applied here – only reads.
         """
-        LoggingUtil().log_info(f"Loading harmonised NSIP S51 Advice data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP S51 Advice data from {self.HARMONISED_TABLE}"
+        )
         harmonised_s51_advice = self.spark.sql(f"""
             SELECT
                 adviceId,
@@ -74,22 +76,30 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_s51_advice: DataFrame = self.load_parameter("harmonised_s51_advice", source_data)
+        harmonised_s51_advice: DataFrame = self.load_parameter(
+            "harmonised_s51_advice", source_data
+        )
 
         # Apply curated column transformations and SELECT DISTINCT
         df = harmonised_s51_advice.select(
             F.col("adviceId"),
             F.col("adviceReference"),
             # caseId: 'None' -> -1 (INT), else keep
-            F.when(F.col("caseId") == "None", F.lit(-1).cast("int")).otherwise(F.col("caseId")).alias("caseId"),
+            F.when(F.col("caseId") == "None", F.lit(-1).cast("int"))
+            .otherwise(F.col("caseId"))
+            .alias("caseId"),
             F.col("caseReference"),
             F.col("title"),
             F.col("titleWelsh"),
             F.col("`from`"),
             # agent: LOWER = 'none' -> NULL, else keep
-            F.when(F.lower(F.col("agent")) == "none", F.lit(None)).otherwise(F.col("agent")).alias("agent"),
+            F.when(F.lower(F.col("agent")) == "none", F.lit(None))
+            .otherwise(F.col("agent"))
+            .alias("agent"),
             # method: LOWER = 'none' -> NULL, else LOWER
-            F.when(F.lower(F.col("method")) == "none", F.lit(None)).otherwise(F.lower(F.col("method"))).alias("method"),
+            F.when(F.lower(F.col("method")) == "none", F.lit(None))
+            .otherwise(F.lower(F.col("method")))
+            .alias("method"),
             F.col("enquiryDate"),
             F.col("enquiryDetails"),
             F.col("enquiryDetailsWelsh"),
@@ -98,7 +108,10 @@ class NsipS51AdviceCuratedProcess(CurationProcess):
             F.col("adviceDetails"),
             F.col("adviceDetailsWelsh"),
             # status mapping
-            F.when(F.col("status").isin("Not Checked", "unchecked", "Depublished"), F.lit("unchecked"))
+            F.when(
+                F.col("status").isin("Not Checked", "unchecked", "Depublished"),
+                F.lit("unchecked"),
+            )
             .when(F.col("status") == "Do Not Publish", F.lit("donotpublish"))
             .otherwise(F.lower(F.col("status")))
             .alias("status"),

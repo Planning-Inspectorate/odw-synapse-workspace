@@ -1,6 +1,8 @@
 from typing import Any
 
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 
 
 class ServiceUserHarmonisationProcess(HarmonisationProcess):
@@ -16,7 +18,11 @@ class ServiceUserHarmonisationProcess(HarmonisationProcess):
         return "Service User Harmonisation Process"
 
     def load_data(self, **kwargs) -> dict[str, Any]:
-        raise NotImplementedError("ServiceUserHarmonisationProcess.load_data() has not been implemented yet.")
+        raise NotImplementedError(
+            "ServiceUserHarmonisationProcess.load_data() has not been implemented yet."
+        )
 
     def process(self, source_data: dict[str, Any], **kwargs):
-        raise NotImplementedError("ServiceUserHarmonisationProcess.process() has not been implemented yet.")
+        raise NotImplementedError(
+            "ServiceUserHarmonisationProcess.process() has not been implemented yet."
+        )

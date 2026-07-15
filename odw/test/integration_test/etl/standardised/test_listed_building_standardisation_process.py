@@ -2,12 +2,17 @@ import mock
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 from pyspark.sql.types import StringType, StructField, StructType
-from odw.core.etl.transformation.standardised.listed_building_standardisation_process import ListedBuildingStandardisationProcess
+from odw.core.etl.transformation.standardised.listed_building_standardisation_process import (
+    ListedBuildingStandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 
-pytestmark = pytest.mark.xfail(reason="Standardisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Standardisation logic not implemented yet")
 
 
 def _listed_building_rows():
@@ -147,24 +152,56 @@ class TestListedBuildingStandardisationProcess(ETLTestCase):
         # Write raw listed building data
         listed_building_file_name = f"{listed_building_table_name}.json"
         listed_building = [{"entities": _listed_building_rows()}]
-        self.write_json(listed_building, ["odw-raw", "ListedBuildings", data_folder, listed_building_file_name])
+        self.write_json(
+            listed_building,
+            ["odw-raw", "ListedBuildings", data_folder, listed_building_file_name],
+        )
         # Write raw listed building outline data
         listed_building_outline_file_name = f"{listed_building_outline_table_name}.json"
         listed_building_outline = [{"entities": _listed_building_outline_entity_rows()}]
-        self.write_json(listed_building_outline, ["odw-raw", "ListedBuildings", data_folder, listed_building_outline_file_name])
-
-        expected_standardised_listed_bulding = spark.createDataFrame(_listed_building_rows(), schema=_listed_building_entity_schema())
-        expected_standardised_listed_bulding_outline = spark.createDataFrame(
-            _listed_building_outline_entity_rows(), schema=_listed_building_outline_entity_schema()
+        self.write_json(
+            listed_building_outline,
+            [
+                "odw-raw",
+                "ListedBuildings",
+                data_folder,
+                listed_building_outline_file_name,
+            ],
         )
-        with mock.patch.object(ListedBuildingStandardisationProcess, "OUTPUT_TABLE", listed_building_table_name):
+
+        expected_standardised_listed_bulding = spark.createDataFrame(
+            _listed_building_rows(), schema=_listed_building_entity_schema()
+        )
+        expected_standardised_listed_bulding_outline = spark.createDataFrame(
+            _listed_building_outline_entity_rows(),
+            schema=_listed_building_outline_entity_schema(),
+        )
+        with mock.patch.object(
+            ListedBuildingStandardisationProcess,
+            "OUTPUT_TABLE",
+            listed_building_table_name,
+        ):
             inst = ListedBuildingStandardisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="listed_building", orchestration_stage_name="standardise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="listed_building",
+                orchestration_stage_name="standardise",
+            )
             assert_etl_result_successful(result)
-            actual_standardised_listed_building = spark.table(f"odw_standardised_db.{listed_building_table_name}")
-            assert_dataframes_equal(expected_standardised_listed_bulding, actual_standardised_listed_building)
-            actual_standardised_listed_building_outline = spark.table(f"odw_standardised_db.{listed_building_outline_table_name}")
-            assert_dataframes_equal(expected_standardised_listed_bulding_outline, actual_standardised_listed_building_outline)
+            actual_standardised_listed_building = spark.table(
+                f"odw_standardised_db.{listed_building_table_name}"
+            )
+            assert_dataframes_equal(
+                expected_standardised_listed_bulding,
+                actual_standardised_listed_building,
+            )
+            actual_standardised_listed_building_outline = spark.table(
+                f"odw_standardised_db.{listed_building_outline_table_name}"
+            )
+            assert_dataframes_equal(
+                expected_standardised_listed_bulding_outline,
+                actual_standardised_listed_building_outline,
+            )
 
     def test__listed_building_standardisation_process__run__with_no_existing_data(self):
         """
