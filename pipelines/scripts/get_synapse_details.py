@@ -25,7 +25,7 @@ class NameFactory():
                     "service_bus_resource_group": f"pins-rg-ingestion-odw-{env}-ukw",
                     "devops_agent_pool_resource_group_name": f"pins-rg-devops-odw-{env}-ukw",
                     "mpesc_resource_group": f"pins-rg-data-odw-{env}-uks",
-                    "mpesc_storage_name": f"pinsstmpesc{env}uks"
+                    "mpesc_storage_name": f"pinsstmpesc{env}uks",
                     "s62a_resource_group": f"pins-rg-data-odw-{env}-uks",
                     "s62a_storage_name": f"pinssts62a{env}uks"
                 }
