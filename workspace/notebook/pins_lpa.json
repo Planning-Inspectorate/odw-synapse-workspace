@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5d95b0c7-a78e-4ae1-b3e9-e2446afd348f"
+				"spark.autotune.trackingId": "12b2bc83-11b8-4727-ba6d-600fd6318bf0"
 			}
 		},
 		"metadata": {
@@ -80,7 +80,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 25
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
@@ -98,14 +98,14 @@
 					"error_message=''\n",
 					"end_exec_time = None"
 				],
-				"execution_count": 26
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 27
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -142,7 +142,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"8f348011-cb68-43f7-9873-f332d19e\""
 				],
-				"execution_count": 28
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -172,7 +172,7 @@
 					"    logError(f\"Error occurred: {error_message}\")\n",
 					"    end_exec_time=datetime.utcnow()"
 				],
-				"execution_count": 29
+				"execution_count": 104
 			},
 			{
 				"cell_type": "markdown",
@@ -288,7 +288,7 @@
 					"        logError(f\"Error occurred: {error_message}\")\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 30
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -395,7 +395,7 @@
 					"        logError(f\"Error creating pins_lpa_new temporary view: {error_message}\")\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 31
+				"execution_count": 106
 			},
 			{
 				"cell_type": "markdown",
@@ -502,7 +502,7 @@
 					"        logError(f\"Error creating pins_lpa_changed_rows temporary view: {error_message}\")\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 32
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -569,7 +569,7 @@
 					"        logError(f\"Error creating final temporary views: {error_message}\")\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 33
+				"execution_count": 108
 			},
 			{
 				"cell_type": "markdown",
@@ -603,77 +603,188 @@
 				},
 				"source": [
 					"if not error_message:\n",
+					"\n",
 					"    try:\n",
+					"\n",
+					"\n",
+					"        # Capture UPDATE count (records that will match and be updated)\n",
+					"\n",
+					"        update_count = spark.sql(\"\"\"\n",
+					"\n",
+					"            SELECT COUNT(*)\n",
+					"\n",
+					"            FROM pins_lpa_changed_rows_final S\n",
+					"\n",
+					"            INNER JOIN odw_harmonised_db.pins_lpa T\n",
+					"\n",
+					"                ON S.LPAId = T.LPAId\n",
+					"\n",
+					"            WHERE T.IsActive = 'Y'\n",
+					"\n",
+					"        \"\"\").collect()[0][0]\n",
+					"\n",
+					"\n",
+					"        # Capture INSERT count (records that do not have an active match)\n",
+					"\n",
+					"        insert_count = spark.sql(\"\"\"\n",
+					"\n",
+					"            SELECT COUNT(*)\n",
+					"\n",
+					"            FROM pins_lpa_changed_rows_final S\n",
+					"\n",
+					"            LEFT JOIN odw_harmonised_db.pins_lpa T\n",
+					"\n",
+					"                ON S.LPAId = T.LPAId\n",
+					"\n",
+					"                AND T.IsActive = 'Y'\n",
+					"\n",
+					"            WHERE T.LPAId IS NULL\n",
+					"\n",
+					"        \"\"\").collect()[0][0]\n",
+					"\n",
+					"\n",
+					"        logInfo(f\"Update count identified: {update_count}\")\n",
+					"\n",
+					"        logInfo(f\"Insert count identified: {insert_count}\")\n",
+					"\n",
+					"\n",
 					"        spark.sql(\"\"\"\n",
+					"\n",
 					"        -- Merge into dimension table\n",
 					"\n",
+					"\n",
 					"        MERGE INTO odw_harmonised_db.pins_lpa AS Target\n",
+					"\n",
 					"        USING pins_lpa_changed_rows_final AS Source\n",
 					"\n",
+					"\n",
 					"        ON Source.LPAId = Target.LPAId\n",
+					"\n",
 					"           AND Target.IsActive = 'Y'\n",
 					"\n",
+					"\n",
 					"        WHEN MATCHED\n",
+					"\n",
 					"        THEN UPDATE SET\n",
+					"\n",
 					"            Target.ValidTo = to_timestamp(Source.ClosingDate),\n",
+					"\n",
 					"            Target.IsActive = 'N'\n",
 					"\n",
+					"\n",
 					"        WHEN NOT MATCHED\n",
+					"\n",
 					"        THEN INSERT (\n",
+					"\n",
 					"            LPAId,\n",
+					"\n",
 					"            lpaName,\n",
+					"\n",
 					"            organisationType,\n",
+					"\n",
 					"            pinsLpaCode,\n",
+					"\n",
 					"            poBox,\n",
+					"\n",
 					"            address1,\n",
+					"\n",
 					"            address2,\n",
+					"\n",
 					"            city,\n",
+					"\n",
 					"            county,\n",
+					"\n",
 					"            postcode,\n",
+					"\n",
 					"            country,\n",
+					"\n",
 					"            telephoneNumber,\n",
+					"\n",
 					"            fax,\n",
+					"\n",
 					"            emailAddress,\n",
+					"\n",
 					"            Migrated,\n",
+					"\n",
 					"            ODTSourceSystem,\n",
+					"\n",
 					"            IngestionDate,\n",
+					"\n",
 					"            ValidTo,\n",
+					"\n",
 					"            RowID,\n",
+					"\n",
 					"            IsActive\n",
+					"\n",
 					"        )\n",
+					"\n",
 					"        VALUES (\n",
+					"\n",
 					"            Source.LPAId,\n",
+					"\n",
 					"            Source.lpaName,\n",
+					"\n",
 					"            Source.organisationType,\n",
+					"\n",
 					"            Source.pinsLpaCode,\n",
+					"\n",
 					"            Source.poBox,\n",
+					"\n",
 					"            Source.address1,\n",
+					"\n",
 					"            Source.address2,\n",
+					"\n",
 					"            Source.city,\n",
+					"\n",
 					"            Source.county,\n",
+					"\n",
 					"            Source.postcode,\n",
+					"\n",
 					"            Source.country,\n",
+					"\n",
 					"            Source.telephoneNumber,\n",
+					"\n",
 					"            Source.fax,\n",
+					"\n",
 					"            Source.emailAddress,\n",
+					"\n",
 					"            Source.Migrated,\n",
+					"\n",
 					"            Source.ODTSourceSystem,\n",
+					"\n",
 					"            Source.IngestionDate,\n",
+					"\n",
 					"            Source.ValidTo,\n",
+					"\n",
 					"            Source.RowID,\n",
+					"\n",
 					"            Source.IsActive\n",
+					"\n",
 					"        )\n",
+					"\n",
 					"        \"\"\")\n",
 					"\n",
-					"        logInfo(\"MERGE completed successfully for odw_harmonised_db.pins_lpa.\")\n",
+					"\n",
+					"        logInfo(\n",
+					"\n",
+					"            f\"MERGE completed successfully for odw_harmonised_db.pins_lpa. \"\n",
+					"\n",
+					"            f\"Inserts: {insert_count}, Updates: {update_count}\"\n",
+					"\n",
+					"        )\n",
+					"\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = str(e)[:800]\n",
+					"\n",
+					"        error_message = f\"Error during MERGE into odw_harmonised_db.pins_lpa: {str(e)[:800]}\"\n",
+					"\n",
 					"        print(error_message)\n",
-					"        logError(f\"Error during MERGE into odw_harmonised_db.pins_lpa: {error_message}\")\n",
+					"\n",
+					"        logError(error_message)\n",
+					"\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 34
+				"execution_count": 109
 			},
 			{
 				"cell_type": "markdown",
@@ -741,7 +852,6 @@
 					"\n",
 					"        logInfo(\"INSERT OVERWRITE completed successfully for odw_harmonised_db.pins_lpa.\")\n",
 					"        logInfo(f\"{db_name}.{table_name} populated\")\n",
-					"        insert_count = spark.sql(\"\"\"  SELECT COUNT(DISTINCT lpaName)FROM pins_lpa_new\"\"\").collect()[0][0]\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = str(e)[:800]\n",
@@ -749,7 +859,7 @@
 					"        logError(f\"Error during INSERT OVERWRITE on odw_harmonised_db.pins_lpa: {error_message}\")\n",
 					"        end_exec_time = datetime.utcnow()"
 				],
-				"execution_count": 35
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -803,7 +913,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 36
+				"execution_count": 111
 			}
 		]
 	}
