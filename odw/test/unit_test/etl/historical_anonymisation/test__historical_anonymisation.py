@@ -172,7 +172,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_format": "csv",
                 "standardised_blob_path": entity_name,
                 "category": "Horizon",
-                "raw_blob_read_options": {"header": "true"},
                 "horizon_file_name": entity_name,
             }
         }
@@ -275,7 +274,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_format": "csv",
                 "standardised_blob_path": entity_name,
                 "category": "entraid",
-                "raw_blob_read_options": {"header": "true"},
             }
         }
         with mock.patch.object(
@@ -406,7 +404,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_format": "json",
                 "standardised_blob_path": f"sb_{entity_name}",
                 "category": "ServiceBus",
-                "raw_blob_read_options": {"multiline": "true"},
             }
         }
         with mock.patch.object(
@@ -434,7 +431,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_format": "csv",
                 "standardised_blob_path": entity_name,
                 "category": "Horizon",
-                "raw_blob_read_options": {"header": "true"},
                 "primary_keys": ["id"],
                 "cols_to_revert_to_raw": ["email"],
                 "horizon_file_name": entity_name,
