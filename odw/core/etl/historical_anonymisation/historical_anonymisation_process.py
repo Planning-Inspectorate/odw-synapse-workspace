@@ -5,8 +5,11 @@ from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.anonymisation.engine import AnonymisationEngine
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
+import pyspark.sql.types as T
 from typing import Dict
 from datetime import datetime
+from typing import List
+from functools import reduce
 
 
 class HistoricalAnonymisationProcess(ETLProcess):
@@ -205,7 +208,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "DaRT_Inspectors": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "",
-            "standardised_blob_path": "Horizon/pins_inspector",  # double check this one
+            "standardised_blob_path": "Horizon/horizon_pins_inspector",  # double check this one
             "category": "Horizon",
             "cols_to_revert_to_raw": ["firstName", "lastName", "salutation", "email"],
         },  # Horizon
@@ -450,7 +453,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         entity_name = kwargs.get("entity_name", "")
         if not entity_name:
             raise ValueError(
-                f"HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
+                "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
             )
         entity_config = self._ENTITY_CONFIG.get(entity_name, None)
         if not entity_config:
@@ -498,7 +501,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         entity_name = kwargs.get("entity_name", "")
         if not entity_name:
             raise ValueError(
-                f"HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
+                "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
             )
         entity_config = self._ENTITY_CONFIG.get(entity_name, None)
         if not entity_config:
@@ -511,7 +514,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         horizon_file_name = entity_config.get("horizon_file_name", None)
         if entity_category == "Horizon" and not horizon_file_name:
             raise ValueError(
-                f"For Horizon entities, the config must have a 'horizon_file_name' entry"
+                "For Horizon entities, the config must have a 'horizon_file_name' entry"
             )
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         standardised_data: DataFrame = self.load_parameter(
@@ -591,3 +594,38 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 duration_seconds=(end_exec_time - start_exec_time).total_seconds(),
             )
         )
+
+    def validate_all_anonymised_data(self, entities_to_check: List[str]):
+        storage_endpoint = Util.get_storage_account()
+        for entity_name in entities_to_check:
+            entity_config = self._ENTITY_CONFIG.get(entity_name, None)
+            if not entity_config:
+                raise ValueError(
+                    f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
+                )
+            standardised_blob_path = entity_config.get("standardised_blob_path", "")
+            standardised_data = SynapseFileDataIO().read(
+                spark=self.spark,
+                storage_endpoint=storage_endpoint,
+                container_name="odw-standardised",
+                blob_path=standardised_blob_path,
+                file_format="parquet",
+            )
+            entity_category = entity_config.get("category")
+            horizon_file_name = entity_config.get("horizon_file_name", None)
+            if entity_category == "Horizon" and not horizon_file_name:
+                raise ValueError(
+                    "For Horizon entities, the config must have a 'horizon_file_name' entry"
+                )
+            cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw")
+            # We can only practically verify the columns that are of string type, since non-strings get converted to random values
+            conditions = [
+                F.col(c).isNotNull() & F.col(c).contains("*")
+                for c in cols_to_revert_to_raw
+                if isinstance(standardised_data.schema[c].dataType, T.StringType)
+            ]
+            invalid_data = standardised_data.filter(
+                reduce(lambda x, y: x & y, conditions)
+            )
+            if invalid_data.count() > 0:
+                Util.display_dataframe(invalid_data)

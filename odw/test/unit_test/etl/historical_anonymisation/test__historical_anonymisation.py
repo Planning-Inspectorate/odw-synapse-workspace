@@ -14,9 +14,10 @@ from odw.core.etl.historical_anonymisation.historical_anonymisation_process impo
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.io.synapse_data_io import SynapseDataIO
+from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.anonymisation.engine import AnonymisationEngine
 from pyspark.sql import DataFrame
-from typing import List, Dict, Any
+from typing import List, Any
 import json
 import csv
 import os
@@ -514,3 +515,102 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             assert_dataframes_equal(
                 expected_data_to_anonymise, data_that_was_anonymised
             )
+
+    def test__historical_anonymisation__validate_all_anonymised_data__with_invalid_rows(
+        self,
+    ):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        entity_name = "t_ha_vaad_wir"
+        override_config = {
+            entity_name: {
+                "raw_blob_path": entity_name,
+                "raw_blob_format": "csv",
+                "standardised_blob_path": entity_name,
+                "category": "ServiceBus",
+                "primary_keys": [
+                    "id",
+                    "minionCount",
+                ],  # minionCount should be ignored from the comparison because it is not a string
+                "cols_to_revert_to_raw": ["name"],
+                "horizon_file_name": entity_name,
+            }
+        }
+        standardised_data = spark.createDataFrame(
+            [
+                {"id": 1, "name": "Walter White", "job": "Teacher", "minionCount": 1},
+                {
+                    "id": 2,
+                    "name": "j***********",  # Anonymised with bad format
+                    "job": "Lawyer",
+                    "minionCount": 2,
+                },
+            ]
+        )
+        expected_filtered_data = spark.createDataFrame(
+            [
+                {
+                    "id": 2,
+                    "name": "j***********",  # Anonymised with bad format
+                    "job": "Lawyer",
+                    "minionCount": 2,
+                }
+            ]
+        )
+        with (
+            mock.patch.object(
+                HistoricalAnonymisationProcess, "_ENTITY_CONFIG", override_config
+            ),
+            mock.patch.object(
+                SynapseFileDataIO, "read", return_value=standardised_data
+            ),
+            mock.patch.object(Util, "display_dataframe", return_value=None),
+        ):
+            HistoricalAnonymisationProcess(spark).validate_all_anonymised_data(
+                [entity_name]
+            )
+            actual_filtered_data = Util.display_dataframe.call_args.args[0]
+            assert_dataframes_equal(expected_filtered_data, actual_filtered_data)
+
+    def test__historical_anonymisation__validate_all_anonymised_data__with_all_valid_rows(
+        self,
+    ):
+        spark = PytestSparkSessionUtil().get_spark_session()
+        entity_name = "t_ha_vaad_wavr"
+        override_config = {
+            entity_name: {
+                "raw_blob_path": entity_name,
+                "raw_blob_format": "csv",
+                "standardised_blob_path": entity_name,
+                "category": "ServiceBus",
+                "primary_keys": [
+                    "id",
+                    "minionCount",
+                ],  # minionCount should be ignored from the comparison because it is not a string
+                "cols_to_revert_to_raw": ["name"],
+                "horizon_file_name": entity_name,
+            }
+        }
+        standardised_data = spark.createDataFrame(
+            [
+                {"id": 1, "name": "Walter White", "job": "Teacher", "minionCount": 1},
+                {
+                    "id": 2,
+                    "name": "Jimmy Mcgill",  # Anonymised with bad format
+                    "job": "Lawyer",
+                    "minionCount": 2,
+                },
+            ]
+        )
+        with (
+            mock.patch.object(
+                HistoricalAnonymisationProcess, "_ENTITY_CONFIG", override_config
+            ),
+            mock.patch.object(
+                SynapseFileDataIO, "read", return_value=standardised_data
+            ),
+            mock.patch.object(Util, "display_dataframe", return_value=None),
+        ):
+            HistoricalAnonymisationProcess(spark).validate_all_anonymised_data(
+                [entity_name]
+            )
+            assert not Util.display_dataframe.called
