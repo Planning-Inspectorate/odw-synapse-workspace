@@ -37,6 +37,10 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
+						"StartTime": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
 						"EndTime": {
 							"value": "@utcnow()",
 							"type": "Expression"
@@ -69,7 +73,16 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
+						"PipelineExecutionTimeInSec": "@string(\n    div(\n        sub(\n            ticks(utcNow()),\n            ticks(variables('start_time'))\n        ),\n        10000000\n    )\n)",
 						"ActivityType": "Pipeline",
+						"DurationSeconds": {
+							"value": "@string(\n    div(\n        sub(\n            ticks(utcNow()),\n            ticks(variables('start_time'))\n        ),\n        10000000\n    )\n)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    equals(\n        if(\n            and(\n                equals(\n                    trim(\n                        concat(\n                            activity('Lookup_orchestration_file')?.Error?.message,\n                            activity('Filter_Horizon_Table')?.Error?.message,\n                            activity('Horizon Raw to Std')?.Error?.message,\n                            activity('Filter_Harmonised_NoteBook')?.Error?.message\n                        )\n                    ),\n                    ''\n                ),\n                equals(length(variables('HrmNotebookErrorArray')),0)\n            ),\n            'Success',\n            'Failed'\n        ),\n        'Success'\n    ),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
 						"AppInsIKey": {
 							"value": "@pipeline().parameters.apps_insights_ikey",
 							"type": "Expression"
