@@ -17,25 +17,21 @@ parameters:
 - name: fullDeployment
   type: boolean
   default: false
+- name: forceRunODWPackageTests
+  type: boolean
+  default: false
 
 # Run when Pull Request raised to the main branch
 pr:
 - main
 
-# Run when merged into main
+# Run CI for GitHub merge queue synthetic branches
 trigger:
- branches:
-  include:
-  - main
-
-schedules:
-- cron: '0 9 * * 1-5' # cron syntax defining a schedule. At 9am every week day
-  displayName: Daily main branch run against the build env
   branches:
     include:
-    - main
-  always: true
-  batch: false
+    - gh-readonly-queue/main/*
+
+schedules:
 - cron: '0 10 * * 1-5' # cron syntax defining a schedule. At 10am every week day
   displayName: Daily main branch deployment to the test env
   branches:
@@ -95,6 +91,7 @@ stages:
     parameters:
       agentPool: ${{ variables.agentPool }}
       env: ${{ variables.env }}
+      forceRunTests: ${{ parameters.forceRunODWPackageTests }}
 
 - template: stages/deploy-synapse-stage.yaml
   parameters:
