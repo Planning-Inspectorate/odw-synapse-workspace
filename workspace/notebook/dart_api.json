@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "536319ff-28fa-4aff-8085-01c92173ece1"
+				"spark.autotune.trackingId": "84a9d5fb-d280-45d9-bda3-cd645a1895bb"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -88,9 +88,10 @@
 					"from pyspark.sql import DataFrame\r\n",
 					"import json\r\n",
 					"from delta.tables import DeltaTable\r\n",
-					"from datetime import datetime"
+					"from datetime import datetime\r\n",
+					"from pyspark.sql import functions as F, types as T"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "markdown",
@@ -110,7 +111,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "markdown",
@@ -135,7 +136,20 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 54
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# PipelineName = \"pln_horizon_to_odw\"\r\n",
+					"# PipelineRunID = \"13adc308-1e01-4c98-b44f-5e5c0f7edbe3\"\r\n",
+					"# PipelineTriggerID = \"9faf4b5d-c185-452a-a65f-97e9cea2af67\"\r\n",
+					"# PipelineTriggerName = \"9faf4b5d-c185-452a-a65f-97e9cea2af67\"\r\n",
+					"# PipelineTriggerType = \"PipelineActivity\"\r\n",
+					"# PipelineTriggeredbyPipelineName = \"pln_master\"\r\n",
+					"# PipelineTriggeredbyPipelineRunID = \"8f348011-cb68-43f7-9873-f332d19e\""
+				],
+				"execution_count": 55
 			},
 			{
 				"cell_type": "markdown",
@@ -315,71 +329,81 @@
 					"    end_exec_time = datetime.now()\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F, types as T\r\n",
-					"\r\n",
-					"clean = F.col(\"applicationReference\").cast(\"string\")\r\n",
-					"clean = F.regexp_replace(clean, r\"[.]+\\s*$\", \"\")\r\n",
-					"clean = F.regexp_replace(clean, r\"\\s+$\", \"\")\r\n",
-					"df = df.withColumn(\r\n",
-					"    \"applicationReference\",\r\n",
-					"    F.when(clean.isNull() | (F.trim(clean) == \"\"), F.lit(\"UNKNOWN\")).otherwise(clean)\r\n",
-					")\r\n",
-					"\r\n",
-					"for c in [\"enforcementNotice\",\"isCorrectAppealType\",\"appellantCostsAppliedFor\",\"lpaCostsAppliedFor\",\"changedDevelopmentDescription\"]:\r\n",
-					"    if c in df.columns:\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        clean = F.col(\"applicationReference\").cast(\"string\")\r\n",
+					"        clean = F.regexp_replace(clean, r\"[.]+\\s*$\", \"\")\r\n",
+					"        clean = F.regexp_replace(clean, r\"\\s+$\", \"\")\r\n",
 					"        df = df.withColumn(\r\n",
-					"            c,\r\n",
-					"            F.when(F.upper(F.col(c)).isin(\"Y\",\"YES\",\"TRUE\",\"T\",\"1\"), True)\r\n",
-					"             .when(F.upper(F.col(c)).isin(\"N\",\"NO\",\"FALSE\",\"F\",\"0\"), False)\r\n",
-					"             .otherwise(F.lit(None).cast(\"boolean\"))\r\n",
-					"        )"
+					"            \"applicationReference\",\r\n",
+					"            F.when(clean.isNull() | (F.trim(clean) == \"\"), F.lit(\"UNKNOWN\")).otherwise(clean)\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        for c in [\"enforcementNotice\",\"isCorrectAppealType\",\"appellantCostsAppliedFor\",\"lpaCostsAppliedFor\",\"changedDevelopmentDescription\"]:\r\n",
+					"            if c in df.columns:\r\n",
+					"                df = df.withColumn(\r\n",
+					"                    c,\r\n",
+					"                    F.when(F.upper(F.col(c)).isin(\"Y\",\"YES\",\"TRUE\",\"T\",\"1\"), True)\r\n",
+					"                    .when(F.upper(F.col(c)).isin(\"N\",\"NO\",\"FALSE\",\"F\",\"0\"), False)\r\n",
+					"                    .otherwise(F.lit(None).cast(\"boolean\"))\r\n",
+					"                )\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = str(e)[:800]\r\n",
+					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"t = spark.table(\"odw_curated_db.dart_api\")\r\n",
-					"t_types = {f.name: f.dataType for f in t.schema}\r\n",
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        t = spark.table(\"odw_curated_db.dart_api\")\r\n",
+					"        t_types = {f.name: f.dataType for f in t.schema}\r\n",
 					"\r\n",
-					"# Here we either create a missing column set it to none and to the right type\r\n",
-					"#If it already matches then we leave it untouched\r\n",
-					"# for c in t.columns:\r\n",
-					"#     if c not in df.columns:\r\n",
-					"#         df = df.withColumn(c, F.lit(None).cast(t_types[c]))\r\n",
+					"        # Here we either create a missing column set it to none and to the right type\r\n",
+					"        #If it already matches then we leave it untouched\r\n",
+					"        # for c in t.columns:\r\n",
+					"        #     if c not in df.columns:\r\n",
+					"        #         df = df.withColumn(c, F.lit(None).cast(t_types[c]))\r\n",
 					"\r\n",
-					"#if the column exists but is the wrong type we cast it based on the curated schema\r\n",
-					"# select([F.col(c).cast(t_types[c]).alias(c) for c in t.columns]) \\\r\n",
-					"df = df.dropDuplicates([\"caseReference\",\"applicationReference\"])\r\n",
+					"        #if the column exists but is the wrong type we cast it based on the curated schema\r\n",
+					"        # select([F.col(c).cast(t_types[c]).alias(c) for c in t.columns]) \\\r\n",
+					"        df = df.dropDuplicates([\"caseReference\",\"applicationReference\"])\r\n",
 					"\r\n",
-					"# Physically cluster by caseReference at write time to enable Parquet stats-based pruning.\r\n",
-					"# This avoids a post-write OPTIMIZE/Z-ORDER full-table scan.\r\n",
-					"spark.conf.set(\"spark.sql.shuffle.partitions\", \"128\")\r\n",
-					"df = df.repartitionByRange(\"applicationReference\").sortWithinPartitions(\"caseReference\")"
+					"        # Physically cluster by caseReference at write time to enable Parquet stats-based pruning.\r\n",
+					"        # This avoids a post-write OPTIMIZE/Z-ORDER full-table scan.\r\n",
+					"        spark.conf.set(\"spark.sql.shuffle.partitions\", \"128\")\r\n",
+					"        df = df.repartitionByRange(\"applicationReference\").sortWithinPartitions(\"caseReference\")\r\n",
+					"    \r\n",
+					"    except Exception as e:\r\n",
+					"            error_message = str(e)[:800]\r\n",
+					"            end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"try:\r\n",
-					"    bad_cnt = df.filter(\r\n",
-					"        F.col(\"applicationReference\").rlike(r\"[.]\\s*$\") |\r\n",
-					"        F.col(\"applicationReference\").rlike(r\"\\s+$\") |\r\n",
-					"        F.col(\"applicationReference\").isNull() |\r\n",
-					"        (F.trim(F.col(\"applicationReference\")) == \"\")\r\n",
-					"    ).count()\r\n",
-					"    assert bad_cnt == 0, f\"Found {bad_cnt} bad partition values\"\r\n",
-					"except AssertionError as e:\r\n",
-					"    error_message = str(e)\r\n",
-					"    end_exec_time = datetime.now()"
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        bad_cnt = df.filter(\r\n",
+					"            F.col(\"applicationReference\").rlike(r\"[.]\\s*$\") |\r\n",
+					"            F.col(\"applicationReference\").rlike(r\"\\s+$\") |\r\n",
+					"            F.col(\"applicationReference\").isNull() |\r\n",
+					"            (F.trim(F.col(\"applicationReference\")) == \"\")\r\n",
+					"        ).count()\r\n",
+					"        assert bad_cnt == 0, f\"Found {bad_cnt} bad partition values\"\r\n",
+					"    except AssertionError as e:\r\n",
+					"        error_message = str(e)\r\n",
+					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "markdown",
@@ -439,7 +463,7 @@
 					"        except Exception:\r\n",
 					"            pass"
 				],
-				"execution_count": null
+				"execution_count": 60
 			},
 			{
 				"cell_type": "markdown",
@@ -467,6 +491,12 @@
 					")\r\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
 					"\r\n",
+					"print(f\"Stage = {stage}\")\r\n",
+					"print(f\"Status Code = {status_code}\")\r\n",
+					"print(f\"Error Message = {error_message}\")\r\n",
+					"print(f\"Status Message = {status_message}\")\r\n",
+					"\r\n",
+					"\r\n",
 					"log_telemetry_and_exit(\r\n",
 					"    stage,\r\n",
 					"    start_exec_time,\r\n",
@@ -489,7 +519,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 61
 			}
 		]
 	}
