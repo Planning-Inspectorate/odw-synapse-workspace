@@ -3,6 +3,7 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.anonymisation.engine import AnonymisationEngine
+from odw.core.util.logging_util import LoggingUtil
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
@@ -10,6 +11,7 @@ from typing import Dict
 from datetime import datetime
 from typing import List
 from functools import reduce
+import json
 
 
 class HistoricalAnonymisationProcess(ETLProcess):
@@ -92,7 +94,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "json",
             "standardised_blob_path": "sb_nsip_subscription",
             "category": "ServiceBus",
-            "primary_keys": ["subscriptionId"],
+            "primary_keys": ["subscriptionId", "message_enqueued_time_utc"],
             "cols_to_revert_to_raw": ["emailAddress"],
         },  # Service bus
         # "appeal-event-estimate": {  # OUT OF SCOPE
@@ -133,8 +135,9 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "AIEDocumentData": {
             "raw_blob_path": "",
             "raw_blob_format": "",
-            "standardised_blob_path": "AIEDocumentData",
+            "standardised_blob_path": "AIEDocumentData/aie_document_data",
             "category": "AIEDocumentData",
+            "cols_to_revert_to_raw": ["path"],
         },  # From py_raw_to_std
         "entraid": {
             "raw_blob_path": "entraid",
@@ -158,11 +161,18 @@ class HistoricalAnonymisationProcess(ETLProcess):
         # },  # Horizon
         "InspectorCases": {
             "raw_blob_path": "Horizon",
-            "raw_blob_format": "",
+            "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/horizon_inspector_cases",
             "category": "Horizon",
+            "horizon_file_name": "InspectorCases",
+            "primary_keys": [
+                "appealrefnumber",
+                "casereference",
+                "contactid",
+                "parentkeyid",
+            ],
             "cols_to_revert_to_raw": [
-                "InspectorName",
+                "InspectorName",  # Seems to be missing from standardised
                 "FirstName",
                 "LastName",
                 "Email",
@@ -207,10 +217,18 @@ class HistoricalAnonymisationProcess(ETLProcess):
         # },  # Horizon
         "DaRT_Inspectors": {
             "raw_blob_path": "Horizon",
-            "raw_blob_format": "",
+            "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/horizon_pins_inspector",  # double check this one
             "category": "Horizon",
             "cols_to_revert_to_raw": ["firstName", "lastName", "salutation", "email"],
+            "primary_keys": [
+                "horizonId",
+                "postName",
+                "organisationName",
+                "title",
+                "qualifications",
+            ],
+            "horizon_file_name": "DaRT_Inspectors",
         },  # Horizon
         # "vw_case_dates": { # OUT OF SCOPE
         #     "raw_blob_path": "Horizon",
@@ -320,8 +338,15 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "DaRT_LPA": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
-            "standardised_blob_path": "Horizon/pins_lpa",
+            "standardised_blob_path": "pins_lpa",
             "category": "Horizon",
+            "primary_keys": [
+                "lpaName",
+                "organisationType",
+                "pinsLpaCode",
+                "poBox",
+                "county",
+            ],
             "cols_to_revert_to_raw": [
                 "address1",
                 "address2",
@@ -428,21 +453,21 @@ class HistoricalAnonymisationProcess(ETLProcess):
     }
     """
     The below entities need to be re-anonymised
-    - appeal-has
-    - nsip-subscription
-    - AIEDocumentData
-    - entraid
-    - InspectorCases
-    - CaseDates
-    - DaRT_Inspectors
-    - S62AViewCases
-    - CaseInvolvement
-    - DaRT_LPA
-    - HorizonCases_s78
-    - NSIPReleventRepresentation
-    - HorizonCases_Has
-    - DocumentMetaData
-    - CaseSiteStrings
+    - appeal-has  # OK
+    - nsip-subscription  # Invalid data  - valid after reanonymisation
+    - AIEDocumentData  # OK
+    - entraid  # OK
+    - InspectorCases  # Invalid data  - valid after reanonymisation
+    - CaseDates  # OK
+    - DaRT_Inspectors # Invalid data  - valid after reanonymisation
+    - S62AViewCases  # No metadata in purview
+    - CaseInvolvement  # OK
+    - DaRT_LPA  # Invalid data  - valid after reanonymisation
+    - HorizonCases_s78  # OK
+    - NSIPReleventRepresentation  # OK
+    - HorizonCases_Has  # OK
+    - DocumentMetaData  # OK
+    - CaseSiteStrings  # OK
     """
 
     @classmethod
@@ -460,14 +485,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             raise ValueError(
                 f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
             )
-        raw_blob_path = entity_config.get("raw_blob_path", "")
-        raw_blob_format = entity_config.get("raw_blob_format", "")
-        read_options_map = {"csv": {"header": "true"}, "json": {"multiline": "true"}}
-        raw_blob_read_options = read_options_map.get(raw_blob_format, None)
-        if not raw_blob_read_options:
-            raise ValueError(
-                f"No read options defined for file format '{raw_blob_format}'"
-            )
+        # Load all of the standardised data for the entity
         standardised_blob_path = entity_config.get("standardised_blob_path", "")
         storage_endpoint = Util.get_storage_account()
         standardised_data = SynapseFileDataIO().read(
@@ -477,15 +495,26 @@ class HistoricalAnonymisationProcess(ETLProcess):
             blob_path=standardised_blob_path,
             file_format="parquet",
         )
+        raw_blob_path = entity_config.get("raw_blob_path", "")
+        raw_blob_format = entity_config.get("raw_blob_format", "")
+        read_options_map = {"csv": {"header": "true"}, "json": {"multiline": "true"}}
+        raw_blob_read_options = read_options_map.get(raw_blob_format, None)
+        if not raw_blob_read_options:
+            raise ValueError(
+                f"No read options defined for file format '{raw_blob_format}'"
+            )
         raw_blob_path_cleaned = SynapseFileDataIO()._format_to_adls_path(
             "odw-raw", raw_blob_path, storage_endpoint=storage_endpoint
         )
+        # Get the adlsg2 prefix (i.e. "abds://<container>@<storage_endpoint>"")
         prefix = raw_blob_path_cleaned.replace(raw_blob_path, "")
+        # Generate a list of raw files to be extracted
         raw_blob_paths = [
             x.replace(prefix, "")
             for x in self.get_all_files_in_directory(raw_blob_path_cleaned)
             if x.endswith(f".{raw_blob_format}") and entity_name in x
         ]
+        # Load all of the found raw data files
         raw_data = SynapseFileDataIO().read(
             spark=self.spark,
             storage_endpoint=storage_endpoint,
@@ -503,6 +532,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             raise ValueError(
                 "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
             )
+        # Load the entity config
         entity_config = self._ENTITY_CONFIG.get(entity_name, None)
         if not entity_config:
             raise ValueError(
@@ -513,6 +543,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw", [])
         horizon_file_name = entity_config.get("horizon_file_name", None)
         if entity_category == "Horizon" and not horizon_file_name:
+            # The anonymisation engine requires a filename to be specified - this is the underlying name of the csv file that gets ingested into the ODW
             raise ValueError(
                 "For Horizon entities, the config must have a 'horizon_file_name' entry"
             )
@@ -522,47 +553,35 @@ class HistoricalAnonymisationProcess(ETLProcess):
         )
         raw_data: DataFrame = self.load_parameter("raw_data", source_data)
         standardised_data_count = standardised_data.count()
-        raw_data_count = raw_data.count()
-        if standardised_data_count != raw_data_count:
-            raise ValueError(
-                f"The row count between the raw and standardised layers is different: raw has {raw_data_count} rows, standardised has {standardised_data_count} rows"
-            )
         primary_keys = entity_config.get("primary_keys")
         if not primary_keys:
-            # Join on composite keys
-            standardised_cols = set(standardised_data.columns)
-            raw_cols = set(raw_data.columns)
-            standardised_cols_without_cols_to_revert = standardised_cols.difference(
-                set(cols_to_revert_to_raw)
-            )
-            raw_cols_without_cols_to_revert = raw_cols.difference(
-                set(cols_to_revert_to_raw)
-            )
-            primary_keys = list(
-                standardised_cols_without_cols_to_revert.intersection(
-                    raw_cols_without_cols_to_revert
-                )
-            )
-        duplicate_raw_keys = raw_data.groupBy(primary_keys).count().filter("count > 1")
-        if duplicate_raw_keys.count() > 0:
             raise ValueError(
-                f"Found rows with duplicate keys for the key '{primary_keys}'"
+                f"Require a primary_key field to be populated for the entry '{entity_name}'"
             )
+        # Most data sources ingest updates to the data as rows with duplicate PKs. It's basically impossible to determine which
+        # value to keep, and the end value doesn't really matter in the grand scheme of things since it will be replaced by an anonymised value anyway,
+        # so we just drop the duplicates and let pyspark choose the row to keep
+        raw_data_cleaned = raw_data.dropDuplicates(primary_keys)
+        # Join the standardised data back with the raw data
         joined = standardised_data.alias("standardised_data").join(
-            raw_data.alias("raw_data"), on=primary_keys, how="inner"
+            raw_data_cleaned.alias("raw_data"), on=primary_keys, how="left"
         )
+        # Detect join explosion - there should be exactly one value per row
         joined_data_count = joined.count()
         if joined_data_count != standardised_data_count:
             raise ValueError(
                 f"The row count of the joined data is different to the standardised data - please check the primary key is unique. Standardised has {standardised_data_count} rows, the joined data has {joined_data_count} rows"
             )
+        # Replace the specified columns with the raw version of the column
+        cols_to_revert_to_raw_lower = [x.lower() for x in cols_to_revert_to_raw]
         cols_to_keep = [
             F.col(f"standardised_data.{x}")
-            if x not in cols_to_revert_to_raw
+            if x.lower() not in cols_to_revert_to_raw_lower
             else F.col(f"raw_data.{x}")
             for x in standardised_data.columns
         ]
         standardised_data_cleaned = joined.select(*cols_to_keep)
+        # Reanonymise the data
         anonymised_data = AnonymisationEngine().apply_from_purview(
             standardised_data_cleaned,
             entity_name=entity_name,
@@ -595,37 +614,42 @@ class HistoricalAnonymisationProcess(ETLProcess):
             )
         )
 
-    def validate_all_anonymised_data(self, entities_to_check: List[str]):
+    def validate_all_anonymised_data(self, entity_name: str, path_prefix: str = ""):
+        """
+        Verify if the given entity has been correctly anonymised. If there is a validation error, then the invalid rows are displayed and returned.
+
+        :param entity_name str: The entity to verify. Must align with an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG
+        :param path_prefix str: Override prefix to add to the standardised path. This is useful for annymised data written in the "anonymised/" folder
+        :return Union[DataFrame|None]: The unanonymised data, or none if the data is anonymised correctly
+        """
         storage_endpoint = Util.get_storage_account()
-        for entity_name in entities_to_check:
-            entity_config = self._ENTITY_CONFIG.get(entity_name, None)
-            if not entity_config:
-                raise ValueError(
-                    f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
-                )
-            standardised_blob_path = entity_config.get("standardised_blob_path", "")
-            standardised_data = SynapseFileDataIO().read(
-                spark=self.spark,
-                storage_endpoint=storage_endpoint,
-                container_name="odw-standardised",
-                blob_path=standardised_blob_path,
-                file_format="parquet",
+        entity_config = self._ENTITY_CONFIG.get(entity_name, None)
+        if not entity_config:
+            raise ValueError(
+                f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
             )
-            entity_category = entity_config.get("category")
-            horizon_file_name = entity_config.get("horizon_file_name", None)
-            if entity_category == "Horizon" and not horizon_file_name:
-                raise ValueError(
-                    "For Horizon entities, the config must have a 'horizon_file_name' entry"
-                )
-            cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw")
-            # We can only practically verify the columns that are of string type, since non-strings get converted to random values
-            conditions = [
-                F.col(c).isNotNull() & F.col(c).contains("*")
-                for c in cols_to_revert_to_raw
-                if isinstance(standardised_data.schema[c].dataType, T.StringType)
-            ]
-            invalid_data = standardised_data.filter(
-                reduce(lambda x, y: x & y, conditions)
-            )
-            if invalid_data.count() > 0:
-                Util.display_dataframe(invalid_data)
+        standardised_blob_path = entity_config.get("standardised_blob_path", "")
+        if path_prefix:
+            standardised_blob_path = f"{path_prefix}/{standardised_blob_path}"
+        standardised_data = SynapseFileDataIO().read(
+            spark=self.spark,
+            storage_endpoint=storage_endpoint,
+            container_name="odw-standardised",
+            blob_path=standardised_blob_path,
+            file_format="parquet",
+        )
+        cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw")
+        # We can only practically verify the columns that are of string type, since non-strings get converted to random values
+        standardised_schema = {
+            field.name.lower(): field.dataType for field in standardised_data.schema
+        }
+        conditions = [
+            F.col(c).isNotNull() & F.col(c).rlike("^[A-Za-z\d_-]\*+")
+            for c in cols_to_revert_to_raw
+            if isinstance(standardised_schema[c.lower()], T.StringType)
+        ]
+        invalid_data = standardised_data.filter(reduce(lambda x, y: x | y, conditions))
+        if invalid_data.count() > 0:
+            Util.display_dataframe(invalid_data)
+            return invalid_data
+        return None
