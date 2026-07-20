@@ -1,0 +1,542 @@
+{
+	"name": "nb_sb_write_manifest_and_watermark",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f7fee443-a99b-4177-8905-ad0eb688f02d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Write Service Bus manifest + watermark\n",
+					"\n",
+					"Called by `service_bus` inside the **If has new data** gate, after `Std to Hrm` and any\n",
+					"custom harmonised notebooks succeed.\n",
+					"\n",
+					"It:\n",
+					"1. Builds and writes a `manifest.json` under the entity run folder\n",
+					"2. Upserts a row into `odw_meta_db.service_bus_watermarks` with:\n",
+					"   - `last_ingest_time` = `lastIngestTime` (the `max_message_enqueued_time_utc` from `py_sb_raw_to_std`)\n",
+					"   - `updated_at` = UTC timestamp at notebook execution time\n",
+					"3. Returns `{ manifestPath, records, filesWritten, status }` via `mssparkutils.notebook.exit()`\n",
+					"\n",
+					"## Parameters\n",
+					"- `entity_name` (required) — Service Bus entity name (e.g. `appeal-has`)\n",
+					"- `lastIngestTime` (required when run from pipeline) — `max_message_enqueued_time_utc` from `py_sb_raw_to_std`\n",
+					"- `status` (default `Succeeded`)\n",
+					"- `runContextJson` (default `{}`)\n",
+					"- `recordsIngested` (default `0`)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Imports\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import Row\n",
+					"import json\n",
+					"from datetime import datetime, date\n",
+					"# import datetime\n",
+					"import uuid\n",
+					"from delta.exceptions import ConcurrentAppendException\n",
+					"import time"
+				],
+				"execution_count": 173
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Parameters"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"entity_name = ''\n",
+					"lastIngestTime = ''\n",
+					"status = 'Succeeded'\n",
+					"runContextJson = '{}'\n",
+					"recordsIngested = 0\n",
+					"start_exec_time = datetime.now()\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''\n",
+					"table_name='service_bus_watermarks'"
+				],
+				"execution_count": 174
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\n",
+					"entity_name = \"appeal-event\"\n",
+					"lastIngestTime = \"2026-07-17T07:40:30.965+00:00\"\n",
+					"status = \"Succeeded\"\n",
+					"recordsIngested = \"95\""
+				],
+				"execution_count": 175
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_service_bus\"\n",
+					"PipelineRunID = \"13adc308-1e01-4c98-b44f-5e5c0f7edbe3\"\n",
+					"PipelineTriggerID = \"9faf4b5d-c185-452a-a65f-97e9cea2af67\"\n",
+					"PipelineTriggerName = \"9faf4b5d-c185-452a-a65f-97e9cea2af67\"\n",
+					"PipelineTriggerType = \"PipelineActivity\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"8f348011-cb68-43f7-9873-f332d19\""
+				],
+				"execution_count": 176
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 177
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Validate"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    entity_name = (entity_name or '').strip()\n",
+					"    assert entity_name, 'Missing required param: entity_name'\n",
+					"\n",
+					"    lastIngestTime = (lastIngestTime or '').strip()\n",
+					"    if not lastIngestTime:\n",
+					"        print(\n",
+					"            'WARNING: lastIngestTime is empty — watermark upsert will be skipped. '\n",
+					"            'When called from pln_service_bus this should always be set to max_message_enqueued_time_utc.'\n",
+					"        )\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error validating input parameters: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()"
+				],
+				"execution_count": 178
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Helpers"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def _to_dict(x):\n",
+					"    \"\"\"\n",
+					"    Parse runContextJson tolerating:\n",
+					"    - dict\n",
+					"    - JSON string\n",
+					"    - double escaped JSON string\n",
+					"    \"\"\"\n",
+					"    global error_message, end_exec_time\n",
+					"\n",
+					"    if not error_message:\n",
+					"        try:\n",
+					"            if isinstance(x, dict):\n",
+					"                return x\n",
+					"\n",
+					"            if not x:\n",
+					"                return {}\n",
+					"\n",
+					"            try:\n",
+					"                return json.loads(x)\n",
+					"            except Exception:\n",
+					"                return json.loads(bytes(x, \"utf-8\").decode(\"unicode_escape\"))\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            error_message = f\"Error parsing runContextJson: {str(e)[:800]}\"\n",
+					"            end_exec_time = datetime.now()\n",
+					"            return {}\n",
+					"\n",
+					"    return {}\n",
+					"\n",
+					"\n",
+					"def _utc_now_iso():\n",
+					"    global error_message, end_exec_time\n",
+					"\n",
+					"    if not error_message:\n",
+					"        try:\n",
+					"            return datetime.utcnow().strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            error_message = f\"Error generating UTC ISO timestamp: {str(e)[:800]}\"\n",
+					"            end_exec_time = datetime.now()\n",
+					"            return None\n",
+					"\n",
+					"    return None\n",
+					"\n",
+					"\n",
+					"def _utc_now_ts():\n",
+					"    global error_message, end_exec_time\n",
+					"\n",
+					"    if not error_message:\n",
+					"        try:\n",
+					"            return datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S\")\n",
+					"\n",
+					"        except Exception as e:\n",
+					"            error_message = f\"Error generating UTC timestamp: {str(e)[:800]}\"\n",
+					"            end_exec_time = datetime.now()\n",
+					"            return None\n",
+					"\n",
+					"    return None"
+				],
+				"execution_count": 179
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Config / Context"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        ctx = _to_dict(runContextJson)\n",
+					"        run_id = ctx.get(\"runId\", str(uuid.uuid4()))\n",
+					"        env_name = ctx.get(\"environment\", \"\")\n",
+					"\n",
+					"        # Derive RAW base if not provided\n",
+					"        raw_base_root = (ctx.get(\"rawBasePath\") or \"\").rstrip(\"/\")\n",
+					"\n",
+					"        if not raw_base_root:\n",
+					"            storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account') or \"\"\n",
+					"            storage_account = (\n",
+					"                storage_account.strip()\n",
+					"                .replace(\"https://\", \"\")\n",
+					"                .replace(\"http://\", \"\")\n",
+					"                .strip(\"/\")\n",
+					"            )\n",
+					"\n",
+					"            raw_base_root = f\"abfss://odw-raw@{storage_account}/ServiceBus\"\n",
+					"\n",
+					"        source = \"service-bus\"\n",
+					"        ingest_date = ctx.get(\"ingestDate\") or datetime.utcnow().strftime(\"%Y-%m-%d\")\n",
+					"\n",
+					"        entity_root = f\"{raw_base_root}/{entity_name}\"\n",
+					"        run_dir = f\"{entity_root}/runs/ingest_date={ingest_date}/run_id={run_id}\"\n",
+					"        manifest_path = f\"{run_dir}/manifest.json\"\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error building Service Bus paths: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 180
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Core Logic (Write Manifest)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        manifest = {\n",
+					"            \"entity\": entity_name,\n",
+					"            \"source\": source,\n",
+					"            \"runId\": run_id,\n",
+					"            \"engEnvironment\": env_name,\n",
+					"            \"ingestDate\": ingest_date,\n",
+					"            \"writtenAt\": _utc_now_iso(),\n",
+					"            \"recordsIngested\": int(recordsIngested),\n",
+					"            \"filesWritten\": 0,  # filled below\n",
+					"            \"status\": status,\n",
+					"        }\n",
+					"\n",
+					"        mssparkutils.fs.mkdirs(run_dir)\n",
+					"\n",
+					"        # Count parquet files created by upstream ingestion (if any)\n",
+					"        try:\n",
+					"            files = mssparkutils.fs.ls(run_dir)\n",
+					"            files_written = sum(1 for f in files if f.name.endswith(\".parquet\"))\n",
+					"        except Exception:\n",
+					"            files_written = 0\n",
+					"\n",
+					"        manifest[\"filesWritten\"] = int(files_written)\n",
+					"\n",
+					"        mssparkutils.fs.put(\n",
+					"            manifest_path,\n",
+					"            json.dumps(manifest),\n",
+					"            True\n",
+					"        )\n",
+					"\n",
+					"        print(\n",
+					"            f\"manifest written: {manifest_path} \"\n",
+					"            f\"(records={recordsIngested}, files={files_written})\"\n",
+					"        )\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error creating manifest file: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 181
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Core Logic (Watermark Upsert)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        if not lastIngestTime:\n",
+					"            print('Skipping watermark upsert — lastIngestTime not set (debug run)')\n",
+					"        else:\n",
+					"            spark.sql('USE odw_meta_db')\n",
+					"\n",
+					"            spark.sql(\"\"\"\n",
+					"            CREATE TABLE IF NOT EXISTS service_bus_watermarks (\n",
+					"              entity            STRING,\n",
+					"              source            STRING,\n",
+					"              last_ingest_time  TIMESTAMP,\n",
+					"              ingest_date       STRING,\n",
+					"              run_id            STRING,\n",
+					"              records_ingested  BIGINT,\n",
+					"              status            STRING,\n",
+					"              updated_at        TIMESTAMP\n",
+					"            )\n",
+					"            USING DELTA\n",
+					"            PARTITIONED BY (entity, source, ingest_date)\n",
+					"            \"\"\")\n",
+					"\n",
+					"            now_ts = _utc_now_ts()\n",
+					"\n",
+					"            wm_df = spark.createDataFrame([\n",
+					"                Row(\n",
+					"                    entity=entity_name,\n",
+					"                    source=source,\n",
+					"                    last_ingest_time=lastIngestTime,\n",
+					"                    ingest_date=ingest_date,\n",
+					"                    run_id=run_id,\n",
+					"                    records_ingested=int(recordsIngested),\n",
+					"                    status=status,\n",
+					"                    updated_at=now_ts\n",
+					"                )\n",
+					"            ]).selectExpr(\n",
+					"                'entity',\n",
+					"                'source',\n",
+					"                'to_timestamp(last_ingest_time) as last_ingest_time',\n",
+					"                'ingest_date',\n",
+					"                'run_id',\n",
+					"                'cast(records_ingested as bigint) as records_ingested',\n",
+					"                'status',\n",
+					"                'to_timestamp(updated_at) as updated_at'\n",
+					"            )\n",
+					"\n",
+					"            wm_df.createOrReplaceTempView('wm_upd')\n",
+					"\n",
+					"            spark.sql(\"\"\"\n",
+					"                MERGE INTO odw_meta_db.service_bus_watermarks AS tgt\n",
+					"                USING wm_upd AS src\n",
+					"                ON  tgt.entity = src.entity\n",
+					"                AND tgt.source = src.source\n",
+					"                WHEN MATCHED THEN UPDATE SET\n",
+					"                  tgt.last_ingest_time = src.last_ingest_time,\n",
+					"                  tgt.ingest_date      = src.ingest_date,\n",
+					"                  tgt.run_id           = src.run_id,\n",
+					"                  tgt.records_ingested = src.records_ingested,\n",
+					"                  tgt.status           = src.status,\n",
+					"                  tgt.updated_at       = src.updated_at\n",
+					"                WHEN NOT MATCHED THEN INSERT (\n",
+					"                  entity, source, last_ingest_time, ingest_date, run_id,\n",
+					"                  records_ingested, status, updated_at\n",
+					"                )\n",
+					"                VALUES (\n",
+					"                  src.entity, src.source, src.last_ingest_time, src.ingest_date,\n",
+					"                  src.run_id, src.records_ingested, src.status, src.updated_at\n",
+					"                )\n",
+					"            \"\"\")\n",
+					"\n",
+					"            print(f'Watermark upserted for {entity_name} / {ingest_date} / {run_id}')\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error upserting watermark record: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 182
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Exit / Return Value"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        result = json.dumps({\n",
+					"            \"manifestPath\": manifest_path,\n",
+					"            \"records\": int(recordsIngested),\n",
+					"            \"filesWritten\": int(files_written),\n",
+					"            \"status\": status\n",
+					"        })\n",
+					"    except Exception as e:\n",
+					"        error_message = str(e)\n",
+					"\n",
+					"if not error_message:\n",
+					"    mssparkutils.notebook.exit(result)"
+				],
+				"execution_count": 184
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if end_exec_time is None:end_exec_time = datetime.utcnow()\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']}{entity_name} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {table_name} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {table_name} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    recordsIngested,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": 185
+			}
+		]
+	}
+}
