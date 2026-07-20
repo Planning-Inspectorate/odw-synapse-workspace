@@ -133,14 +133,14 @@ class HistoricalAnonymisationProcess(ETLProcess):
         #     "category": "ServiceBus",
         #     "primary_keys": ["representationId"]
         # },  # Service bus
-        "AIEDocumentData": {
-            "raw_blob_path": "AIEDocumentData",
-            "raw_blob_format": "csv",
-            "standardised_blob_path": "AIEDocumentData/aie_document_data",
-            "category": "AIEDocumentData",
-            "primary_keys": ["documentId", "filename", "documentURI", "dateCreated"],
-            "cols_to_revert_to_raw": ["path"],
-        },  # From py_raw_to_std
+        # "AIEDocumentData": {  # OUT OF SCOPE
+        #     "raw_blob_path": "AIEDocumentData",
+        #     "raw_blob_format": "csv",
+        #     "standardised_blob_path": "AIEDocumentData/aie_document_data",
+        #     "category": "AIEDocumentData",
+        #     "primary_keys": ["documentId", "filename", "documentURI", "dateCreated"],
+        #     "cols_to_revert_to_raw": ["path"],
+        # },  # From py_raw_to_std
         "entraid": {
             "raw_blob_path": "entraid",
             "raw_blob_format": "json",
@@ -198,15 +198,15 @@ class HistoricalAnonymisationProcess(ETLProcess):
         #    "standardised_blob_path": "Horizon/horizon_s62a_view_case_officers",
         #    "category": "Horizon",
         # },  # Horizon
-        "CaseDates": {
-            "raw_blob_path": "Horizon",
-            "raw_blob_format": "",
-            "standardised_blob_path": "Horizon/horizon_case_dates",
-            "category": "Horizon",
-            "primary_keys": [],
-            "horizon_file_name": "CaseDates.csv",
-            "cols_to_revert_to_raw": ["ValidityStatusDate"],  # todo check
-        },  # Horizon
+        # "CaseDates": { # OUT OF SCOPE
+        #     "raw_blob_path": "Horizon",
+        #     "raw_blob_format": "",
+        #     "standardised_blob_path": "Horizon/horizon_case_dates",
+        #     "category": "Horizon",
+        #     "primary_keys": [],
+        #     "horizon_file_name": "CaseDates.csv",
+        #     "cols_to_revert_to_raw": ["ValidityStatusDate"],  # todo check
+        # },  # Horizon
         # "Horizon_NoticeDates": { # OUT OF SCOPE
         #     "raw_blob_path": "Horizon",
         #     "raw_blob_format": "",
@@ -270,12 +270,12 @@ class HistoricalAnonymisationProcess(ETLProcess):
         #     "standardised_blob_path": "Horizon/horizon_nsip_advice",
         #     "category": "Horizon",
         # },  # Horizon
-        "S62AViewCases": {  # todo check Name col
-            "raw_blob_path": "Horizon",
-            "raw_blob_format": "",
-            "standardised_blob_path": "Horizon/horizon_s62a_view_cases",
-            "category": "Horizon",
-        },  # Horizon
+        # "S62AViewCases": {  # OUT OF SCOPE
+        #     "raw_blob_path": "Horizon",
+        #     "raw_blob_format": "",
+        #     "standardised_blob_path": "Horizon/horizon_s62a_view_cases",
+        #     "category": "Horizon",
+        # },  # Horizon
         # "S62AViewCaseExtendedData": { # OUT OF SCOPE
         #     "raw_blob_path": "Horizon",
         #     "raw_blob_format": "",
@@ -488,24 +488,6 @@ class HistoricalAnonymisationProcess(ETLProcess):
         #     "category": "Horizon",
         # },  # Horizon
     }
-    """
-    The below entities need to be re-anonymised
-    - appeal-has  # Way too much historical data to reanonymise
-    - nsip-subscription  # Done
-    - AIEDocumentData  # Way too much historical data to reanonymise
-    - entraid  # TODO need to use the more specific concrete class
-    - InspectorCases  # Done
-    - CaseDates  # Nothing to anonymise
-    - DaRT_Inspectors # Done
-    - S62AViewCases  # No metadata in purview
-    - CaseInvolvement  # Way too much historical data to reanonymise
-    - DaRT_LPA  # Done
-    - HorizonCases_s78  # Done
-    - NSIPReleventRepresentation  # OK
-    - HorizonCases_Has  # Done
-    - DocumentMetaData  # Way too much historical data to reanonymise
-    - CaseSiteStrings  # Done
-    """
 
     @classmethod
     def get_name(cls):
