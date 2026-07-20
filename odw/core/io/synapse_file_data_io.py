@@ -1,5 +1,7 @@
 from odw.core.io.synapse_data_io import SynapseDataIO
+from odw.core.util.logging_util import LoggingUtil
 from pyspark.sql import DataFrame, SparkSession
+import json
 
 
 class SynapseFileDataIO(SynapseDataIO):
@@ -105,6 +107,9 @@ class SynapseFileDataIO(SynapseDataIO):
                 )
                 for blob_path in blob_paths
             ]
+        LoggingUtil().log_info(
+            f"Reading the following data ({len(data_paths)} files): {json.dumps(data_paths, indent=4)}"
+        )
         reader = spark.read.format(file_format)
         for option_name, option_value in read_options.items():
             reader.option(option_name, option_value)

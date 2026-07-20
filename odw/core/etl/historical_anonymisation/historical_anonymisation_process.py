@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import List
 from functools import reduce
 import json
+import os
 
 
 class HistoricalAnonymisationProcess(ETLProcess):
@@ -133,10 +134,11 @@ class HistoricalAnonymisationProcess(ETLProcess):
         #     "primary_keys": ["representationId"]
         # },  # Service bus
         "AIEDocumentData": {
-            "raw_blob_path": "",
-            "raw_blob_format": "",
+            "raw_blob_path": "AIEDocumentData",
+            "raw_blob_format": "csv",
             "standardised_blob_path": "AIEDocumentData/aie_document_data",
             "category": "AIEDocumentData",
+            "primary_keys": ["documentId", "filename", "documentURI", "dateCreated"],
             "cols_to_revert_to_raw": ["path"],
         },  # From py_raw_to_std
         "entraid": {
@@ -164,7 +166,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/horizon_inspector_cases",
             "category": "Horizon",
-            "horizon_file_name": "InspectorCases",
+            "horizon_file_name": "InspectorCases.csv",
             "primary_keys": [
                 "appealrefnumber",
                 "casereference",
@@ -201,6 +203,8 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "",
             "standardised_blob_path": "Horizon/horizon_case_dates",
             "category": "Horizon",
+            "primary_keys": [],
+            "horizon_file_name": "CaseDates.csv",
             "cols_to_revert_to_raw": ["ValidityStatusDate"],  # todo check
         },  # Horizon
         # "Horizon_NoticeDates": { # OUT OF SCOPE
@@ -228,7 +232,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "title",
                 "qualifications",
             ],
-            "horizon_file_name": "DaRT_Inspectors",
+            "horizon_file_name": "DaRT_Inspectors.csv",
         },  # Horizon
         # "vw_case_dates": { # OUT OF SCOPE
         #     "raw_blob_path": "Horizon",
@@ -313,6 +317,8 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/horizon_case_involvement",
             "category": "Horizon",
+            "primary_keys": ["case_number", "case_created_date", "POBox", "Fax"],
+            "horizon_file_name": "CaseInvolvement.csv",
             "cols_to_revert_to_raw": [
                 "FirstName",
                 "LastName",
@@ -340,6 +346,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "pins_lpa",
             "category": "Horizon",
+            "horizon_file_name": "DaRT_LPA.csv",
             "primary_keys": [
                 "lpaName",
                 "organisationType",
@@ -366,6 +373,13 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/HorizonCases_s78",
             "category": "Horizon",
+            "primary_keys": [
+                "CaseNodeId",
+                "Abbreviation",
+                "caseReference",
+                "caseUniqueId",
+            ],
+            "horizon_file_name": "HorizonCases_s78.csv",
             "cols_to_revert_to_raw": ["caseOfficerName", "coEmailAddress"],
         },  # Horizon
         # "ExaminationTimetable": { # OUT OF SCOPE
@@ -385,6 +399,13 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/horizon_nsip_relevant_representation",
             "category": "Horizon",
+            "primary_keys": [
+                "CaseReference",
+                "CaseNodeId",
+                "CaseUniqueId",
+                "ContactID",
+            ],
+            "horizon_file_name": "NSIPReleventRepresentation.csv",
             "cols_to_revert_to_raw": ["FullName", "EmailAddress"],
         },  # Horizon
         # "BIS_CaseSiteCategoryAdditionalStr": { # OUT OF SCOPE
@@ -398,6 +419,13 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/HorizonCases_Has",
             "category": "Horizon",
+            "primary_keys": [
+                "CaseNodeId",
+                "caseReference",
+                "caseUniqueId",
+                "caseOfficerId",
+            ],
+            "horizon_file_name": "HorizonCases_Has.csv",
             "cols_to_revert_to_raw": ["caseOfficerName", "coEmailAddress"],
         },  # Horizon
         # "TypeOfProcedure": { # OUT OF SCOPE
@@ -410,6 +438,13 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/document_meta_data",
+            "primary_keys": [
+                "VersionID",
+                "CaseNodeId",
+                "caseReference",
+                "documentReference",
+            ],
+            "horizon_file_name": "DocumentMetaData.csv",
             "category": "Horizon",
             "cols_to_revert_to_raw": ["representative"],
         },  # Horizon
@@ -423,6 +458,8 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
             "standardised_blob_path": "Horizon/CaseSiteStrings",
+            "horizon_file_name": "CaseSiteStrings.csv",
+            "primary_keys": ["CaseNodeId", "AreaOfSite", "County"],
             "category": "Horizon",
             "cols_to_revert_to_raw": ["LandUse", "Town"],
         },  # Horizon
@@ -453,21 +490,21 @@ class HistoricalAnonymisationProcess(ETLProcess):
     }
     """
     The below entities need to be re-anonymised
-    - appeal-has  # OK
-    - nsip-subscription  # Invalid data  - valid after reanonymisation
-    - AIEDocumentData  # OK
-    - entraid  # OK
-    - InspectorCases  # Invalid data  - valid after reanonymisation
-    - CaseDates  # OK
-    - DaRT_Inspectors # Invalid data  - valid after reanonymisation
+    - appeal-has  # Way too much historical data to reanonymise
+    - nsip-subscription  # Done
+    - AIEDocumentData  # Way too much historical data to reanonymise
+    - entraid  # TODO need to use the more specific concrete class
+    - InspectorCases  # Done
+    - CaseDates  # Nothing to anonymise
+    - DaRT_Inspectors # Done
     - S62AViewCases  # No metadata in purview
-    - CaseInvolvement  # OK
-    - DaRT_LPA  # Invalid data  - valid after reanonymisation
-    - HorizonCases_s78  # OK
+    - CaseInvolvement  # Way too much historical data to reanonymise
+    - DaRT_LPA  # Done
+    - HorizonCases_s78  # Done
     - NSIPReleventRepresentation  # OK
-    - HorizonCases_Has  # OK
-    - DocumentMetaData  # OK
-    - CaseSiteStrings  # OK
+    - HorizonCases_Has  # Done
+    - DocumentMetaData  # Way too much historical data to reanonymise
+    - CaseSiteStrings  # Done
     """
 
     @classmethod
@@ -512,7 +549,9 @@ class HistoricalAnonymisationProcess(ETLProcess):
         raw_blob_paths = [
             x.replace(prefix, "")
             for x in self.get_all_files_in_directory(raw_blob_path_cleaned)
-            if x.endswith(f".{raw_blob_format}") and entity_name in x
+            if x.endswith(f".{raw_blob_format}")
+            and entity_name
+            in os.path.splitext(os.path.basename(x.replace(prefix, "")))[0]
         ]
         # Load all of the found raw data files
         raw_data = SynapseFileDataIO().read(
@@ -558,6 +597,12 @@ class HistoricalAnonymisationProcess(ETLProcess):
             raise ValueError(
                 f"Require a primary_key field to be populated for the entry '{entity_name}'"
             )
+        LoggingUtil().log_info(
+            f"The raw data contains the following columns: {json.dumps(raw_data.columns, indent=4)}"
+        )
+        LoggingUtil().log_info(
+            f"The standardised data contains the following columns: {json.dumps(standardised_data.columns, indent=4)}"
+        )
         # Most data sources ingest updates to the data as rows with duplicate PKs. It's basically impossible to determine which
         # value to keep, and the end value doesn't really matter in the grand scheme of things since it will be replaced by an anonymised value anyway,
         # so we just drop the duplicates and let pyspark choose the row to keep
@@ -596,7 +641,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-standardised",
                 "blob_path": f"anonymised/{standardised_blob_path}",
-                "file_format": "parquet",
+                "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {},
             }

@@ -97,6 +97,9 @@ from odw.core.etl.transformation.curated.nsip_project_curated_process import (
 from odw.core.etl.historical_anonymisation.historical_anonymisation_process import (
     HistoricalAnonymisationProcess,
 )
+from odw.core.etl.historical_anonymisation.entraid_historical_anonymisation_process import (
+    EntraIDHistoricalAnonymisationProcess,
+)
 from typing import Dict, List, Set, Type
 import json
 
@@ -135,6 +138,8 @@ class ETLProcessFactory:
         NsipInvoiceHarmonisationProcess,
         NsipInvoiceCuratedProcess,
         NsipProjectCuratedProcess,
+        HistoricalAnonymisationProcess,
+        EntraIDHistoricalAnonymisationProcess,
     }
 
     @classmethod
