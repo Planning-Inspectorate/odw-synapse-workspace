@@ -22,6 +22,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "appeal-has": {
             "raw_blob_path": "ServiceBus/appeal-has",
             "raw_blob_format": "json",
+            "raw_blob_file_name_starts_with": "appeal-has",
             "standardised_blob_path": "sb_appeal_has",
             "category": "ServiceBus",
             "primary_keys": ["caseReference"],
@@ -30,6 +31,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "nsip-subscription": {
             "raw_blob_path": "ServiceBus/nsip-subscription",
             "raw_blob_format": "json",
+            "raw_blob_file_name_starts_with": "nsip-subscription",
             "standardised_blob_path": "sb_nsip_subscription",
             "category": "ServiceBus",
             "primary_keys": ["subscriptionId", "message_enqueued_time_utc"],
@@ -38,6 +40,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "entraid": {
             "raw_blob_path": "entraid",
             "raw_blob_format": "json",
+            "raw_blob_file_name_starts_with": "users",
             "standardised_blob_path": "entraid",
             "category": "entraid",
             "primary_keys": ["id"],
@@ -46,6 +49,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "InspectorCases": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "InspectorCases",
             "standardised_blob_path": "Horizon/horizon_inspector_cases",
             "category": "Horizon",
             "horizon_file_name": "InspectorCases.csv",
@@ -65,6 +69,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "DaRT_Inspectors": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "DaRT_Inspectors",
             "standardised_blob_path": "Horizon/horizon_pins_inspector",  # double check this one
             "category": "Horizon",
             "cols_to_revert_to_raw": ["firstName", "lastName", "salutation", "email"],
@@ -80,6 +85,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "CaseInvolvement": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "CaseInvolvement",
             "standardised_blob_path": "Horizon/horizon_case_involvement",
             "category": "Horizon",
             "primary_keys": ["case_number", "case_created_date", "POBox", "Fax"],
@@ -97,6 +103,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "DaRT_LPA": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "DaRT_LPA",
             "standardised_blob_path": "pins_lpa",
             "category": "Horizon",
             "horizon_file_name": "DaRT_LPA.csv",
@@ -118,6 +125,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "HorizonCases_s78": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "HorizonCases_s78",
             "standardised_blob_path": "Horizon/HorizonCases_s78",
             "category": "Horizon",
             "primary_keys": [
@@ -132,6 +140,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "NSIPReleventRepresentation": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "NSIPReleventRepresentation",
             "standardised_blob_path": "Horizon/horizon_nsip_relevant_representation",
             "category": "Horizon",
             "primary_keys": [
@@ -146,6 +155,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "HorizonCases_Has": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "HorizonCases_Has",
             "standardised_blob_path": "Horizon/HorizonCases_Has",
             "category": "Horizon",
             "primary_keys": [
@@ -160,6 +170,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "DocumentMetaData": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "DocumentMetaData",
             "standardised_blob_path": "Horizon/document_meta_data",
             "primary_keys": [
                 "VersionID",
@@ -174,6 +185,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
         "CaseSiteStrings": {
             "raw_blob_path": "Horizon",
             "raw_blob_format": "csv",
+            "raw_blob_file_name_starts_with": "CaseSiteStrings",
             "standardised_blob_path": "Horizon/CaseSiteStrings",
             "horizon_file_name": "CaseSiteStrings.csv",
             "primary_keys": ["CaseNodeId", "AreaOfSite", "County"],
@@ -209,6 +221,9 @@ class HistoricalAnonymisationProcess(ETLProcess):
         )
         raw_blob_path = entity_config.get("raw_blob_path", "")
         raw_blob_format = entity_config.get("raw_blob_format", "")
+        raw_blob_file_name_starts_with = entity_config.get(
+            "raw_blob_file_name_starts_with", entity_name
+        )
         read_options_map = {"csv": {"header": "true"}, "json": {"multiline": "true"}}
         raw_blob_read_options = read_options_map.get(raw_blob_format, None)
         if not raw_blob_read_options:
@@ -225,9 +240,10 @@ class HistoricalAnonymisationProcess(ETLProcess):
             x.replace(prefix, "")
             for x in self.get_all_files_in_directory(raw_blob_path_cleaned)
             if x.endswith(f".{raw_blob_format}")
-            and entity_name
+            and raw_blob_file_name_starts_with
             in os.path.splitext(os.path.basename(x.replace(prefix, "")))[0]
         ]
+        print(f"raw_blob_paths: {raw_blob_paths}")
         # Load all of the found raw data files
         raw_data = SynapseFileDataIO().read(
             spark=self.spark,

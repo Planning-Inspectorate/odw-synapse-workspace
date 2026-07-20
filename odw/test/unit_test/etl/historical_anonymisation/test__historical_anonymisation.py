@@ -87,20 +87,20 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         ]
         self.write_csv(
             raw_data_a,
-            ("odw-raw", subfolder, "2025-01-01", entity_name, "raw_data_a.csv"),
+            ("odw-raw", subfolder, "2025-01-01", f"{entity_name}_a.csv"),
         )
         raw_data_b = [
             {"id": 2, "name": "Janeway", "email": "otherEmail@someorg.co.uk"},
         ]
         self.write_csv(
             raw_data_b,
-            ("odw-raw", subfolder, "2025-01-02", entity_name, "raw_data_b.csv"),
+            ("odw-raw", subfolder, "2025-01-02", f"{entity_name}_b.csv"),
         )
         # Create a csv file for a different horizon entity - this one shouldn't be loaded by the ETL process
         other_entity_data = [{"id": 1, "name": "Locutus", "email": "locutus@borg.com"}]
         self.write_csv(
             other_entity_data,
-            ("odw-raw", subfolder, "2025-01-01", other_entity_name, "raw_data_a.csv"),
+            ("odw-raw", subfolder, "2025-01-01", f"{other_entity_name}_a.csv"),
         )
         # Create standardised data that aligns with the corresponding raw data
         standardised_data_base_path = "odw-standardised/"
@@ -273,6 +273,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             entity_name: {
                 "raw_blob_path": entity_name,
                 "raw_blob_format": "csv",
+                "raw_blob_file_name_starts_with": "raw_data",
                 "standardised_blob_path": entity_name,
                 "category": "entraid",
             }
@@ -312,14 +313,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         ]
         self.write_json(
             raw_data_a,
-            ("odw-raw", subfolder, "2025-01-01", entity_name, "raw_data_a.json"),
+            ("odw-raw", subfolder, entity_name, "2025-01-01", f"{entity_name}_a.json"),
         )
         raw_data_b = [
             {"id": 2, "name": "Janeway", "email": "otherEmail@someorg.co.uk"},
         ]
         self.write_json(
             raw_data_b,
-            ("odw-raw", subfolder, "2025-01-02", entity_name, "raw_data_b.json"),
+            ("odw-raw", subfolder, entity_name, "2025-01-02", f"{entity_name}_b.json"),
         )
         # Can have many files in the same folder
         raw_data_c = [
@@ -327,13 +328,19 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         ]
         self.write_json(
             raw_data_c,
-            ("odw-raw", subfolder, "2025-01-01", entity_name, "raw_data_c.json"),
+            ("odw-raw", subfolder, entity_name, "2025-01-01", f"{entity_name}_c.json"),
         )
         # Create a separate entity, which shouldn't be loaded by the ETLProcess
         other_entity_data = [{"id": 1, "name": "Locutus", "email": "locutus@borg.com"}]
         self.write_json(
             other_entity_data,
-            ("odw-raw", subfolder, "2025-01-01", other_entity_name, "raw_data_a.json"),
+            (
+                "odw-raw",
+                subfolder,
+                other_entity_name,
+                "2025-01-01",
+                f"{other_entity_name}_a.json",
+            ),
         )
         # Create standardised data
         standardised_data_base_path = f"odw-standardised/sb_{entity_name}"
@@ -566,7 +573,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             mock.patch.object(Util, "display_dataframe", return_value=None),
         ):
             HistoricalAnonymisationProcess(spark).validate_all_anonymised_data(
-                [entity_name]
+                entity_name
             )
             actual_filtered_data = Util.display_dataframe.call_args.args[0]
             assert_dataframes_equal(expected_filtered_data, actual_filtered_data)
@@ -611,6 +618,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             mock.patch.object(Util, "display_dataframe", return_value=None),
         ):
             HistoricalAnonymisationProcess(spark).validate_all_anonymised_data(
-                [entity_name]
+                entity_name
             )
             assert not Util.display_dataframe.called
