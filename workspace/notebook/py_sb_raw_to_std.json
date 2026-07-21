@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8480c675-9fe8-4e76-85cb-ab013d672eec"
+				"spark.autotune.trackingId": "3b71f733-4d1e-4216-9023-e3c86634728f"
 			}
 		},
 		"metadata": {
@@ -123,7 +123,8 @@
 					"entity_name = 'appeal-has'\n",
 					"raw_entity_path = ''\n",
 					"standardised_table = ''\n",
-					"watermark_column = 'message_enqueued_time_utc'\n"
+					"watermark_column = 'message_enqueued_time_utc'\n",
+					""
 				],
 				"execution_count": null
 			},
@@ -133,7 +134,7 @@
 					"import json\n",
 					"from pyspark.sql import SparkSession\n",
 					"from notebookutils import mssparkutils\n",
-					"from datetime import datetime\n",
+					"from datetime import datetime, timedelta\n",
 					"from pyspark.sql import DataFrame\n",
 					"from pyspark.sql.types import StructType\n",
 					"import pyspark.sql.functions as F\n",
@@ -234,9 +235,12 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"def read_raw_messages(source_path: str) -> DataFrame:\n",
+					"def read_raw_messages(source_path: str, last_ingest_time: str = None) -> DataFrame:\n",
 					"    \"\"\"\n",
-					"    Reads all service bus messages stored as JSON files under the entity raw path.\n",
+					"    Reads service bus messages stored as JSON files under the entity raw path.\n",
+					"    When a watermark (last_ingest_time) is provided and the entity is in the\n",
+					"    rollout list, uses Spark's modifiedAfter option to skip reading historical\n",
+					"    files at the storage level before parsing any JSON.\n",
 					"    Returns an empty DataFrame (with schema if provided) when no files exist.\n",
 					"    \"\"\"\n",
 					"    reader = (\n",
@@ -244,6 +248,27 @@
 					"        .option(\"multiline\", \"true\")\n",
 					"        .option(\"recursiveFileLookup\", \"true\")\n",
 					"    )\n",
+					"\n",
+					"    # ── PHASED ROLLOUT GUARD ──────────────────────────────────────────\n",
+					"    # Phase 1: Only appeal-document uses file-level filtering\n",
+					"    # Phase 2: Add more entities to the list after validation\n",
+					"    # Phase 3: Set to None to enable for ALL entities\n",
+					"    # Phase 4: Remove the guard entirely and keep only the modifiedAfter logic\n",
+					"    ENABLE_FILE_FILTER_ENTITIES = [\"appeal-document\"]\n",
+					"\n",
+					"    if last_ingest_time:\n",
+					"        if ENABLE_FILE_FILTER_ENTITIES is None or entity_name in ENABLE_FILE_FILTER_ENTITIES:\n",
+					"            try:\n",
+					"                wm_dt = datetime.strptime(last_ingest_time[:19], \"%Y-%m-%d %H:%M:%S\")\n",
+					"                buffer_dt = wm_dt - timedelta(days=1)\n",
+					"                modified_after_str = buffer_dt.strftime(\"%Y-%m-%dT%H:%M:%S\")\n",
+					"                reader = reader.option(\"modifiedAfter\", modified_after_str)\n",
+					"                logInfo(f\"modifiedAfter filter applied: only reading files modified after {modified_after_str}\")\n",
+					"            except Exception as parse_err:\n",
+					"                logInfo(f\"Could not parse watermark for modifiedAfter, reading all files: {parse_err}\")\n",
+					"        else:\n",
+					"            logInfo(f\"modifiedAfter filter NOT applied for {entity_name} (not in rollout list)\")\n",
+					"\n",
 					"    if spark_schema:\n",
 					"        reader = reader.schema(spark_schema)\n",
 					"\n",
@@ -257,16 +282,15 @@
 					"            else spark.createDataFrame([], StructType())\n",
 					"        )\n",
 					"\n",
-					"    df = (\n",
-					"        df.withColumn(\"expected_from\", F.current_timestamp())\n",
-					"          .withColumn(\"expected_to\", F.expr(\"current_timestamp() + INTERVAL 1 DAY\"))\n",
-					"          .withColumn(\"ingested_datetime\", F.to_timestamp(watermark_column))\n",
-					"          .withColumn(\"input_file\", F.input_file_name())\n",
-					"    )\n",
+					"    df = df.withColumns({\n",
+					"        \"expected_from\": F.current_timestamp(),\n",
+					"        \"expected_to\": F.expr(\"current_timestamp() + INTERVAL 1 DAY\"),\n",
+					"        \"ingested_datetime\": F.to_timestamp(watermark_column),\n",
+					"        \"input_file\": F.input_file_name()\n",
+					"    })\n",
 					"\n",
-					"    logInfo(f\"Read {df.count()} rows from {source_path}\")\n",
-					"    return df\n",
-					""
+					"    logInfo(f\"Read rows from {source_path} (file-level filter active: {last_ingest_time is not None and (ENABLE_FILE_FILTER_ENTITIES is None or entity_name in ENABLE_FILE_FILTER_ENTITIES)})\")\n",
+					"    return df"
 				],
 				"execution_count": null
 			},
@@ -295,7 +319,8 @@
 					"        a deduped DataFrame\n",
 					"    \"\"\"\n",
 					"    # Handle empty or missing DataFrame\n",
-					"    if df is None or df.rdd.isEmpty():\n",
+					"    # Using head(1) instead of rdd.isEmpty() to avoid expensive RDD materialisation\n",
+					"    if df is None or not df.head(1):\n",
 					"        logInfo(\"No rows found. Skipping dedupe step\")\n",
 					"        return df\n",
 					"    # removing duplicates while ignoring the ingestion dates columns\n",
@@ -367,17 +392,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"df = run_step(\n",
-					"    \"Read raw messages from source path\",\n",
-					"    lambda: read_raw_messages(source_path=source_path)\n",
-					")\n",
-					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"last_ingest_time = None\n",
 					"try:\n",
 					"    wm_row = spark.sql(\n",
@@ -391,7 +405,17 @@
 					"    else:\n",
 					"        logInfo(f\"No watermark found for {entity_name} — all RAW records will be processed\")\n",
 					"except Exception as e:\n",
-					"    logInfo(f\"Watermark table not accessible, processing all RAW records: {str(e)[:200]}\")\n",
+					"    logInfo(f\"Watermark table not accessible, processing all RAW records: {str(e)[:200]}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df = run_step(\n",
+					"    \"Read raw messages from source path\",\n",
+					"    lambda: read_raw_messages(source_path=source_path, last_ingest_time=last_ingest_time)\n",
+					")\n",
 					""
 				],
 				"execution_count": null
@@ -405,7 +429,9 @@
 					"    )\n",
 					"    logInfo(f\"Watermark filter applied ({watermark_column} > {last_ingest_time})\")\n",
 					"\n",
-					"if df.count() == 0:\n",
+					"# Using head(1) instead of count() == 0 to avoid a full DataFrame scan\n",
+					"first_row = df.head(1)\n",
+					"if not first_row:\n",
 					"    logInfo(\"No new records after watermark filter — exiting gracefully.\")\n",
 					"    mssparkutils.notebook.exit(json.dumps({\n",
 					"        \"hasNewData\": False,\n",
@@ -451,6 +477,10 @@
 					"\n",
 					"    df = dedupe_dataframe(df=df)\n",
 					"\n",
+					"    # Cache the DataFrame — avoids re-reading from storage on subsequent actions\n",
+					"    # (append, anonymisation, count). Since we now read only recent files,\n",
+					"    # the cached DataFrame is small (~8,000 rows) and fits comfortably in memory.\n",
+					"    df.cache()\n",
 					"    rows_to_append = df.count()\n",
 					"    logInfo(f\"Rows to append: {rows_to_append}\")\n",
 					"\n",
@@ -521,11 +551,18 @@
 				"cell_type": "code",
 				"source": [
 					"def step_append_df_to_table():\n",
-					"    \n",
+					" \n",
 					"    logInfo(f\"Appending new rows to table {target_table}\")\n",
 					"    append_df_to_table(df=df, target_table=target_table)\n",
 					"    end_exec_time = datetime.now()\n",
 					"    logInfo(\"Done appending rows to table\")\n",
+					"\n",
+					"    # Release cached DataFrame to free Spark memory\n",
+					"    try:\n",
+					"        df.unpersist()\n",
+					"    except Exception:\n",
+					"        pass\n",
+					"\n",
 					"    return spark.table(target_table).count()\n",
 					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
 				],

@@ -45,8 +45,12 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
         return "Appeal Event Estimate MIPINS Curation Process"
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}")
-        harmonised_appeal_event_estimate = self.spark.sql(f"SELECT * FROM {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised Appeal Event Estimate data from {self.HARMONISED_TABLE}"
+        )
+        harmonised_appeal_event_estimate = self.spark.sql(
+            f"SELECT * FROM {self.HARMONISED_TABLE}"
+        )
 
         return {
             "harmonised_appeal_event_estimate": harmonised_appeal_event_estimate,
@@ -59,7 +63,9 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        df: DataFrame = self.load_parameter("harmonised_appeal_event_estimate", source_data)
+        df: DataFrame = self.load_parameter(
+            "harmonised_appeal_event_estimate", source_data
+        )
 
         cutoff = F.lit("1900-01-01").cast("timestamp")
         df = (
@@ -83,7 +89,9 @@ class AppealEventEstimateCuratedMipinsProcess(CurationProcess):
         )
 
         insert_count = df.count()
-        LoggingUtil().log_info(f"Curated Appeal Event Estimate MIPINS row count: {insert_count}")
+        LoggingUtil().log_info(
+            f"Curated Appeal Event Estimate MIPINS row count: {insert_count}"
+        )
 
         end_exec_time = datetime.now()
         data_to_write = {

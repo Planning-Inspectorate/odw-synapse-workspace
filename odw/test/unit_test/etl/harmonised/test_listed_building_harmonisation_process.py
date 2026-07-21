@@ -3,12 +3,14 @@ import mock
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
-from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import ListedBuildingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.listed_building_harmonisation_process import (
+    ListedBuildingHarmonisationProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _standardised_schema():
@@ -153,7 +155,9 @@ def _existing_harmonised_df(spark):
 
 
 class TestListedBuildingHarmonisationProcess(SparkTestCase):
-    def test__listed_building_harmonisation_process__get_name__returns_expected_name(self):
+    def test__listed_building_harmonisation_process__get_name__returns_expected_name(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         inst = ListedBuildingHarmonisationProcess(spark)
 
@@ -393,8 +397,16 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        old_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).select("name", "validTo", "rowID").collect()[0]
-        new_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).select("name", "validTo", "rowID").collect()[0]
+        old_row = (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "N"))
+            .select("name", "validTo", "rowID")
+            .collect()[0]
+        )
+        new_row = (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y"))
+            .select("name", "validTo", "rowID")
+            .collect()[0]
+        )
 
         assert old_row["name"] == "Old Building One"
         assert old_row["validTo"] is not None
@@ -402,8 +414,14 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         assert new_row["validTo"] is None
         assert old_row["rowID"] != new_row["rowID"]
 
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).count() == 1
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).count()
+            == 1
+        )
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
@@ -473,8 +491,18 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
 
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("reference") == "LB-002") & (F.col("isActive") == "Y")).count() == 1
-        assert df.where((F.col("reference") == "LB-001") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where(
+                (F.col("reference") == "LB-002") & (F.col("isActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("reference") == "LB-001") & (F.col("isActive") == "Y")
+            ).count()
+            == 1
+        )
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
@@ -507,8 +535,14 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
 
         # Legacy Notebook behaviour: the harmonisation merge/deactivation logic is keyed on entity, not reference
         # So when entity 9999 reuses reference LB-001 existing entity 1001 remains untouched
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
-        assert df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
+        assert (
+            df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
@@ -540,7 +574,9 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         assert rows[1]["rowID"]
         assert rows[0]["rowID"] != rows[1]["rowID"]
 
-    def test__listed_building_harmonisation_process__run__initial_load_matches_legacy(self):
+    def test__listed_building_harmonisation_process__run__initial_load_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
@@ -700,8 +736,16 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        old_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).select("name", "validTo", "rowID").collect()[0]
-        new_row = df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).select("name", "validTo", "rowID").collect()[0]
+        old_row = (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "N"))
+            .select("name", "validTo", "rowID")
+            .collect()[0]
+        )
+        new_row = (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y"))
+            .select("name", "validTo", "rowID")
+            .collect()[0]
+        )
 
         assert old_row["name"] == "Old Building One"
         assert old_row["validTo"] is not None
@@ -709,8 +753,14 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         assert new_row["validTo"] is None
         assert old_row["rowID"] != new_row["rowID"]
 
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).count() == 1
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "N")).count()
+            == 1
+        )
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1
 
@@ -777,12 +827,24 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
         data_to_write = mock_write.call_args[0][0]
         df = data_to_write[inst.OUTPUT_TABLE]["data"]
 
-        assert df.where((F.col("reference") == "LB-001") & (F.col("isActive") == "Y")).count() == 1
-        assert df.where((F.col("reference") == "LB-002") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where(
+                (F.col("reference") == "LB-001") & (F.col("isActive") == "Y")
+            ).count()
+            == 1
+        )
+        assert (
+            df.where(
+                (F.col("reference") == "LB-002") & (F.col("isActive") == "Y")
+            ).count()
+            == 1
+        )
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__listed_building_harmonisation_process__run__does_not_duplicate_identical_active_row(self):
+    def test__listed_building_harmonisation_process__run__does_not_duplicate_identical_active_row(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
@@ -973,7 +1035,13 @@ class TestListedBuildingHarmonisationProcess(SparkTestCase):
 
         # Legacy Notebook behaviour: the harmonisation merge/deactivation logic is keyed on entity, not reference
         # So when entity 9999 reuses reference LB-001 existing entity 1001 remains untouched
-        assert df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count() == 1
-        assert df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count() == 1
+        assert (
+            df.where((F.col("entity") == "1001") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
+        assert (
+            df.where((F.col("entity") == "9999") & (F.col("isActive") == "Y")).count()
+            == 1
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 1

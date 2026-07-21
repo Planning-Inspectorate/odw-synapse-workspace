@@ -5,7 +5,11 @@ import pytest
 
 
 def sort_key(x: Dict[str, Any]):
-    return str(x.get("entity", "")) + str(x.get("stage", "")) + str(x.get("successful", ""))
+    return (
+        str(x.get("entity", ""))
+        + str(x.get("stage", ""))
+        + str(x.get("successful", ""))
+    )
 
 
 def test__orchestration_util__validate():
@@ -90,7 +94,9 @@ def test__orchestration_util__validate_preprocessing_failures():
             "error": "some preprocessing error",
         }
     ]
-    actual_output = OrchestrationUtil._validate_preprocessing_failures(preprocessing_failures)
+    actual_output = OrchestrationUtil._validate_preprocessing_failures(
+        preprocessing_failures
+    )
     assert actual_output == expected_output
 
 
@@ -144,14 +150,40 @@ def test__orchestration_util__postprocess_orchestration_results__with_failures()
     ]
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "D", "stage": "X", "successful": False, "status": "Fail", "error": "Some error message"},
+            {
+                "entity": "A",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "B",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "C",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "D",
+                "stage": "X",
+                "successful": False,
+                "status": "Fail",
+                "error": "Some error message",
+            },
         ],
         key=sort_key,
     )
-    actual_result = OrchestrationUtil.postprocess_orchestration_results(successes, failures, [])
+    actual_result = OrchestrationUtil.postprocess_orchestration_results(
+        successes, failures, []
+    )
     assert actual_result.get("hasFailure", None)
     actual_result_sorted = sorted(actual_result.get("results", []), key=sort_key)
     assert actual_result_sorted == expected_results
@@ -165,13 +197,33 @@ def test__orchestration_util__postprocess_orchestration_results__with_no_failure
     failures = []
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
+            {
+                "entity": "A",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "B",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "C",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
         ],
         key=sort_key,
     )
-    actual_result = OrchestrationUtil.postprocess_orchestration_results(successes, failures, [])
+    actual_result = OrchestrationUtil.postprocess_orchestration_results(
+        successes, failures, []
+    )
     assert actual_result.get("hasFailure", None) is False
     actual_result_sorted = sorted(actual_result.get("results", []), key=sort_key)
     assert actual_result_sorted == expected_results
@@ -199,14 +251,40 @@ def test__orchestration_util__postprocess_orchestration_results__with_preprocess
     ]
     expected_results = sorted(
         [
-            {"entity": "A", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "B", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "C", "stage": "X", "successful": True, "status": "Success", "error": None},
-            {"entity": "E", "stage": "X", "successful": False, "status": "Fail", "error": "some preprocessing error"},
+            {
+                "entity": "A",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "B",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "C",
+                "stage": "X",
+                "successful": True,
+                "status": "Success",
+                "error": None,
+            },
+            {
+                "entity": "E",
+                "stage": "X",
+                "successful": False,
+                "status": "Fail",
+                "error": "some preprocessing error",
+            },
         ],
         key=sort_key,
     )
-    actual_result = OrchestrationUtil.postprocess_orchestration_results(successes, failures, preprocessing_failures)
+    actual_result = OrchestrationUtil.postprocess_orchestration_results(
+        successes, failures, preprocessing_failures
+    )
     assert actual_result.get("hasFailure", None)
     actual_result_sorted = sorted(actual_result.get("results", []), key=sort_key)
     assert actual_result_sorted == expected_results

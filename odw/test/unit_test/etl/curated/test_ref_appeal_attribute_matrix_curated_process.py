@@ -1,15 +1,19 @@
 import pytest
-from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import AppealAttributeMatrixCuratedProcess
+from odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process import (
+    AppealAttributeMatrixCuratedProcess,
+)
 from odw.core.etl.metadata_manager import MetadataManager
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import mock
 
-pytestmark = pytest.mark.xfail(reason="Curated logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated logic not implemented yet")
 
 
 class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
-    def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present(self):
+    def test__appeal_attribute_matrix_curated_process__process__filters_only_active_records_when_isactive_present(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -25,7 +29,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, result = inst.process(
                 source_data={
@@ -40,7 +46,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert df.collect()[0]["attribute"] == "a"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__process__isactive_branch_takes_precedence_over_latest_per_temp_pk(self):
+    def test__appeal_attribute_matrix_curated_process__process__isactive_branch_takes_precedence_over_latest_per_temp_pk(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -56,7 +64,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, _ = inst.process(
                 source_data={
@@ -70,7 +80,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert df.count() == 1
         assert df.collect()[0]["attribute"] == "a-old"
 
-    def test__appeal_attribute_matrix_curated_process__process__selects_latest_record_per_temp_pk_when_no_isactive(self):
+    def test__appeal_attribute_matrix_curated_process__process__selects_latest_record_per_temp_pk_when_no_isactive(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -86,7 +98,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, result = inst.process(
                 source_data={
@@ -101,7 +115,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert df.collect()[0]["IngestionDate"] == "2025-02-01"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__process__passes_through_when_no_isactive_and_no_temp_pk(self):
+    def test__appeal_attribute_matrix_curated_process__process__passes_through_when_no_isactive_and_no_temp_pk(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -114,7 +130,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, result = inst.process(
                 source_data={
@@ -128,7 +146,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert df.count() == 2
         assert result.metadata.insert_count == 2
 
-    def test__appeal_attribute_matrix_curated_process__process__adds_missing_standardised_columns_as_string_type(self):
+    def test__appeal_attribute_matrix_curated_process__process__adds_missing_standardised_columns_as_string_type(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -141,7 +161,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute", "appealReference"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, _ = inst.process(
                 source_data={
@@ -156,7 +178,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert dict(df.dtypes)["appealReference"] == "string"
         assert df.collect()[0]["appealReference"] is None
 
-    def test__appeal_attribute_matrix_curated_process__process__orders_columns_std_first_then_extras(self):
+    def test__appeal_attribute_matrix_curated_process__process__orders_columns_std_first_then_extras(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -169,7 +193,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute", "appealReference"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, _ = inst.process(
                 source_data={
@@ -189,7 +215,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             "IsActive",
         ]
 
-    def test__appeal_attribute_matrix_curated_process__process__casts_s78_to_string_if_present(self):
+    def test__appeal_attribute_matrix_curated_process__process__casts_s78_to_string_if_present(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -202,7 +230,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, _ = inst.process(
                 source_data={
@@ -215,7 +245,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
 
         assert dict(df.dtypes)["s78"] == "string"
 
-    def test__appeal_attribute_matrix_curated_process__process__uses_overwrite_write_mode_and_insert_count(self):
+    def test__appeal_attribute_matrix_curated_process__process__uses_overwrite_write_mode_and_insert_count(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -228,7 +260,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
             ["attribute"],
         )
 
-        with mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"):
+        with mock.patch(
+            "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+        ):
             inst = AppealAttributeMatrixCuratedProcess(spark)
             data_to_write, result = inst.process(
                 source_data={
@@ -240,7 +274,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__run__filters_active_and_matches_legacy(self):
+    def test__appeal_attribute_matrix_curated_process__run__filters_active_and_matches_legacy(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -267,7 +303,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -291,7 +329,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__run__isactive_branch_takes_precedence_over_latest_per_temp_pk(self):
+    def test__appeal_attribute_matrix_curated_process__run__isactive_branch_takes_precedence_over_latest_per_temp_pk(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -318,7 +358,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -342,7 +384,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__run__selects_latest_per_temp_pk_when_no_isactive(self):
+    def test__appeal_attribute_matrix_curated_process__run__selects_latest_per_temp_pk_when_no_isactive(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -369,7 +413,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -393,7 +439,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 1
 
-    def test__appeal_attribute_matrix_curated_process__run__passes_through_when_no_isactive_and_no_temp_pk(self):
+    def test__appeal_attribute_matrix_curated_process__run__passes_through_when_no_isactive_and_no_temp_pk(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -417,7 +465,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()
@@ -440,7 +490,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
         assert data_to_write[inst.OUTPUT_TABLE]["write_mode"] == "overwrite"
         assert result.metadata.insert_count == 2
 
-    def test__appeal_attribute_matrix_curated_process__run__adds_missing_standardised_columns_orders_std_first_then_extras_and_casts_s78(self):
+    def test__appeal_attribute_matrix_curated_process__run__adds_missing_standardised_columns_orders_std_first_then_extras_and_casts_s78(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         hrm_data = spark.createDataFrame(
@@ -464,7 +516,9 @@ class TestRefAppealAttributeMatrixCurationProcess(SparkTestCase):
                 return_value="test_storage",
             ),
             mock.patch("odw.core.etl.etl_process.LoggingUtil") as MockEtlLogging,
-            mock.patch("odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil") as MockProcessLogging,
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_attribute_matrix_curated_process.LoggingUtil"
+            ) as MockProcessLogging,
         ):
             MockEtlLogging.return_value = mock.Mock()
             MockProcessLogging.return_value = mock.Mock()

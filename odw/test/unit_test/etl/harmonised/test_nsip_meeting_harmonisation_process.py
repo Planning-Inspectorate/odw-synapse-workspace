@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import NsipMeetingHarmonisationProcess
+from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process import (
+    NsipMeetingHarmonisationProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_dataframes_equal
@@ -9,7 +11,9 @@ import mock
 
 
 class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
-    def test__nsip_meeting_harmonisation_process__process__initial_load_overwrites_and_keeps_latest_per_business_key(self):
+    def test__nsip_meeting_harmonisation_process__process__initial_load_overwrites_and_keeps_latest_per_business_key(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -68,7 +72,9 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
             data_to_write, result = inst.process(
@@ -92,7 +98,9 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 0
 
-    def test__nsip_meeting_harmonisation_process__process__incremental_change_expires_old_record_and_inserts_new_version(self):
+    def test__nsip_meeting_harmonisation_process__process__incremental_change_expires_old_record_and_inserts_new_version(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         service_bus_data = spark.createDataFrame(
@@ -177,7 +185,9 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
             data_to_write, result = inst.process(

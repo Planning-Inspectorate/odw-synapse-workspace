@@ -1,6 +1,8 @@
 import mock
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-from odw.core.etl.transformation.curated.appeal_document_curated_process import AppealDocumentCuratedProcess
+from odw.core.etl.transformation.curated.appeal_document_curated_process import (
+    AppealDocumentCuratedProcess,
+)
 from odw.test.util.assertion import assert_dataframes_equal
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
@@ -144,18 +146,30 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _harmonised_row(documentId="doc-1", caseType="Householder (HAS) Appeal", IsActive="Y"),
-            _harmonised_row(documentId="doc-2", caseType="Planning Appeal (A)", IsActive="Y"),
-            _harmonised_row(documentId="doc-3", caseType="Lawful Development Certificate Appeal", IsActive="Y"),
+            _harmonised_row(
+                documentId="doc-1", caseType="Householder (HAS) Appeal", IsActive="Y"
+            ),
+            _harmonised_row(
+                documentId="doc-2", caseType="Planning Appeal (A)", IsActive="Y"
+            ),
+            _harmonised_row(
+                documentId="doc-3",
+                caseType="Lawful Development Certificate Appeal",
+                IsActive="Y",
+            ),
         ]
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -164,7 +178,11 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
             inst = AppealDocumentCuratedProcess(spark)
             data_to_write, _ = inst.process(source_data=source_data)
 
-        actual_df = data_to_write[inst.OUTPUT_TABLE]["data"].select("documentId", "caseType").orderBy("documentId")
+        actual_df = (
+            data_to_write[inst.OUTPUT_TABLE]["data"]
+            .select("documentId", "caseType")
+            .orderBy("documentId")
+        )
 
         expected_df = spark.createDataFrame(
             [
@@ -191,12 +209,16 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -224,12 +246,16 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -257,12 +283,16 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -281,12 +311,16 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame([_harmonised_row()], schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                [_harmonised_row()], schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -334,12 +368,16 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         duplicate_row = _harmonised_row(documentId="doc-dup", IsActive="Y")
 
         source_data = {
-            "harmonised_appeal_docs": spark.createDataFrame([duplicate_row, duplicate_row], schema=_harmonised_schema()),
+            "harmonised_appeal_docs": spark.createDataFrame(
+                [duplicate_row, duplicate_row], schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",
@@ -367,7 +405,9 @@ class TestAppealDocumentCuratedProcess(SparkTestCase):
         }
 
         with (
-            mock.patch("odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.appeal_document_curated_process.LoggingUtil"
+            ),
             mock.patch(
                 "odw.core.etl.transformation.curated.appeal_document_curated_process.Util.get_storage_account",
                 return_value="teststorage",

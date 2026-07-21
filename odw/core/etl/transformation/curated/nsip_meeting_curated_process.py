@@ -36,7 +36,9 @@ class NsipMeetingCuratedProcess(CurationProcess):
         Filters are applied here for performance (IsActive, meetingId IS NOT NULL).
         No joins or transformations are applied here – only reads.
         """
-        LoggingUtil().log_info(f"Loading harmonised NSIP Meeting data from {self.HARMONISED_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading harmonised NSIP Meeting data from {self.HARMONISED_TABLE}"
+        )
         harmonised_meeting = self.spark.sql(f"""
             SELECT
                 caseId,
@@ -62,10 +64,14 @@ class NsipMeetingCuratedProcess(CurationProcess):
         """
         start_exec_time = datetime.now()
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        harmonised_meeting: DataFrame = self.load_parameter("harmonised_meeting", source_data)
+        harmonised_meeting: DataFrame = self.load_parameter(
+            "harmonised_meeting", source_data
+        )
 
         # Deduplicate: keep latest per meetingId by meetingDate DESC
-        window_dedup = Window.partitionBy("meetingId").orderBy(F.col("meetingDate").desc())
+        window_dedup = Window.partitionBy("meetingId").orderBy(
+            F.col("meetingDate").desc()
+        )
         df = (
             harmonised_meeting.withColumn("rn", F.row_number().over(window_dedup))
             .filter(F.col("rn") == 1)

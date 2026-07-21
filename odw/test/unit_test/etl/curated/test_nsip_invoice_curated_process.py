@@ -8,7 +8,9 @@ from pyspark.sql.types import (
     DoubleType,
 )
 
-from odw.core.etl.transformation.curated.nsip_invoice_curated_process import NsipInvoiceCuratedProcess
+from odw.core.etl.transformation.curated.nsip_invoice_curated_process import (
+    NsipInvoiceCuratedProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 
@@ -99,11 +101,18 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
 
         source_rows = [
             _harmonised_row(caseId=2001, invoiceNumber="INV-001", IsActive="Y"),
-            _harmonised_row(caseId=2002, caseReference="EN010002", invoiceNumber="INV-002", IsActive="N"),
+            _harmonised_row(
+                caseId=2002,
+                caseReference="EN010002",
+                invoiceNumber="INV-002",
+                IsActive="N",
+            ),
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -198,7 +207,9 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         source_rows = [
-            _harmonised_row(caseId=2001, invoiceNumber="INV-001", amountDue=100.50, IsActive="Y"),
+            _harmonised_row(
+                caseId=2001, invoiceNumber="INV-001", amountDue=100.50, IsActive="Y"
+            ),
             _harmonised_row(
                 NSIPInvoiceID=2,
                 NSIPProjectInfoInternalID=200,
@@ -210,7 +221,9 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -248,7 +261,9 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 
@@ -277,7 +292,9 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
         ]
 
         source_data = {
-            "source_data": spark.createDataFrame(source_rows, schema=_harmonised_schema()),
+            "source_data": spark.createDataFrame(
+                source_rows, schema=_harmonised_schema()
+            ),
             "target_exists": False,
         }
 

@@ -4,7 +4,9 @@ import mock
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
 
-from odw.core.etl.transformation.standardised.entraid_standardisation_process import EntraIdStandardisationProcess
+from odw.core.etl.transformation.standardised.entraid_standardisation_process import (
+    EntraIdStandardisationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 
@@ -52,18 +54,34 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
                 mock.patch.object(inst, "load_data", return_value=_source_data(raw_df)),
                 mock.patch.object(inst, "write_data") as mock_write,
             ):
-                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="entraid", orchestration_stage_name="standardise")
+                result = inst.run(
+                    orchestration_run_id=test_case,
+                    orchestration_entity_name="entraid",
+                    orchestration_stage_name="standardise",
+                )
 
         data_to_write = mock_write.call_args[0][0]
         return data_to_write, result
 
-    def test__entraid_standardisation_process__run__single_record_writes_expected_data(self):
+    def test__entraid_standardisation_process__run__single_record_writes_expected_data(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = _raw_df(
             spark,
-            [{"id": "u1", "employeeId": "emp1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"}],
+            [
+                {
+                    "id": "u1",
+                    "employeeId": "emp1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
         )
-        data_to_write, result = self._run("t_esp_r_srwed", raw_df, folder_name="2024-01-15")
+        data_to_write, result = self._run(
+            "t_esp_r_srwed", raw_df, folder_name="2024-01-15"
+        )
         write_config = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]
         rows = write_config["data"].collect()
 
@@ -81,9 +99,27 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
         raw_df = _raw_df(
             spark,
             [
-                {"id": "u1", "employeeId": "emp1", "givenName": "Alice", "surname": "Smith", "userPrincipalName": "alice@test.com"},
-                {"id": "u2", "employeeId": "emp2", "givenName": "Bob", "surname": "Jones", "userPrincipalName": "bob@test.com"},
-                {"id": "u3", "employeeId": "emp3", "givenName": "Carol", "surname": "White", "userPrincipalName": "carol@test.com"},
+                {
+                    "id": "u1",
+                    "employeeId": "emp1",
+                    "givenName": "Alice",
+                    "surname": "Smith",
+                    "userPrincipalName": "alice@test.com",
+                },
+                {
+                    "id": "u2",
+                    "employeeId": "emp2",
+                    "givenName": "Bob",
+                    "surname": "Jones",
+                    "userPrincipalName": "bob@test.com",
+                },
+                {
+                    "id": "u3",
+                    "employeeId": "emp3",
+                    "givenName": "Carol",
+                    "surname": "White",
+                    "userPrincipalName": "carol@test.com",
+                },
             ],
         )
         data_to_write, result = self._run("t_esp_r_mraw", raw_df)
@@ -91,23 +127,40 @@ class TestEntraIdStandardisationProcessIntegration(ETLTestCase):
         assert df.count() == 3
         assert result.metadata.insert_count == 3
 
-    def test__entraid_standardisation_process__run__empty_value_array_writes_empty_output(self):
+    def test__entraid_standardisation_process__run__empty_value_array_writes_empty_output(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = spark.createDataFrame([([],)], _raw_entraid_schema())
         data_to_write, result = self._run("t_esp_r_evaweo", raw_df)
         df = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"]
         assert df.count() == 0
-        assert data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["write_mode"] == "overwrite"
+        assert (
+            data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["write_mode"]
+            == "overwrite"
+        )
         assert result.metadata.insert_count == 0
         assert result.metadata.update_count == 0
 
-    def test__entraid_standardisation_process__run__null_optional_fields_preserved(self):
+    def test__entraid_standardisation_process__run__null_optional_fields_preserved(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         raw_df = _raw_df(
             spark,
-            [{"id": "u1", "employeeId": None, "givenName": "Alice", "surname": None, "userPrincipalName": "alice@test.com"}],
+            [
+                {
+                    "id": "u1",
+                    "employeeId": None,
+                    "givenName": "Alice",
+                    "surname": None,
+                    "userPrincipalName": "alice@test.com",
+                }
+            ],
         )
         data_to_write, _ = self._run("t_esp_r_nofp", raw_df)
-        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE]["data"].collect()[0]
+        row = data_to_write[EntraIdStandardisationProcess.OUTPUT_TABLE][
+            "data"
+        ].collect()[0]
         assert row["employeeId"] is None
         assert row["surname"] is None

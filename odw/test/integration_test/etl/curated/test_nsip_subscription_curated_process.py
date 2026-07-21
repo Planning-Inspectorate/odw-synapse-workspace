@@ -1,5 +1,7 @@
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.nsip_subscription_curated_process import NsipSubscriptionCuratedProcess
+from odw.core.etl.transformation.curated.nsip_subscription_curated_process import (
+    NsipSubscriptionCuratedProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.assertion import assert_etl_result_successful
@@ -8,7 +10,9 @@ import mock
 
 
 class TestNSIPSubscriptionCurated(ETLTestCase):
-    def test__nsip_subscription_curated_process__run__selects_and_deduplicates_rows(self):
+    def test__nsip_subscription_curated_process__run__selects_and_deduplicates_rows(
+        self,
+    ):
         test_case = "t_nscp_r_sadr"
         spark = PytestSparkSessionUtil().get_spark_session()
 
@@ -16,7 +20,16 @@ class TestNSIPSubscriptionCurated(ETLTestCase):
             [
                 (1, "EN010001", "a@test.com", "all", "2025-01-01", None, "en", "Y"),
                 (1, "EN010001", "a@test.com", "all", "2025-01-01", None, "en", "Y"),
-                (2, "EN010002", "b@test.com", "documents", "2025-02-01", "2025-03-01", "cy", "Y"),
+                (
+                    2,
+                    "EN010002",
+                    "b@test.com",
+                    "documents",
+                    "2025-02-01",
+                    "2025-03-01",
+                    "cy",
+                    "Y",
+                ),
             ],
             T.StructType(
                 [
@@ -49,12 +62,22 @@ class TestNSIPSubscriptionCurated(ETLTestCase):
                 "odw.core.etl.transformation.curated.nsip_subscription_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipSubscriptionCuratedProcess, "HARMONISED_TABLE", f"odw_harmonised_db.{harmonised_subscriptions_table}"),
-            mock.patch.object(NsipSubscriptionCuratedProcess, "OUTPUT_TABLE", nsip_subscription),
+            mock.patch.object(
+                NsipSubscriptionCuratedProcess,
+                "HARMONISED_TABLE",
+                f"odw_harmonised_db.{harmonised_subscriptions_table}",
+            ),
+            mock.patch.object(
+                NsipSubscriptionCuratedProcess, "OUTPUT_TABLE", nsip_subscription
+            ),
         ):
             inst = NsipSubscriptionCuratedProcess(spark)
 
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_subscription", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_subscription",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_curated_db.{nsip_subscription}")

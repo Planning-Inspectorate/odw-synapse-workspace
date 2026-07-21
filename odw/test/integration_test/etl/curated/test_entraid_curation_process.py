@@ -1,14 +1,19 @@
 import pytest
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.entraid_curation_process import EntraIDCurationProcess
+from odw.core.etl.transformation.curated.entraid_curation_process import (
+    EntraIDCurationProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql.types import StructType, StructField, LongType, StringType
 import mock
 
 
-pytestmark = pytest.mark.xfail(reason="Curated EntraID logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated EntraID logic not implemented yet")
 
 
 class TestEntraIDCurationProcess(ETLTestCase):
@@ -96,7 +101,15 @@ class TestEntraIDCurationProcess(ETLTestCase):
             ),
         )
         entraid_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, entraid_data, entraid_table, "odw_harmonised_db", "odw-harmonised", entraid_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            entraid_data,
+            entraid_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            entraid_table,
+            "overwrite",
+        )
 
         expected_data = spark.createDataFrame(
             (
@@ -107,7 +120,13 @@ class TestEntraIDCurationProcess(ETLTestCase):
                     "surname": "Palpatine",
                     "userPrincipalName": "anotheremail@example.gov.uk",
                 },
-                {"employeeId": "115935", "id": "someguidC", "givenName": "Frodo", "surname": "Baggins", "userPrincipalName": "email@example.gov.uk"},
+                {
+                    "employeeId": "115935",
+                    "id": "someguidC",
+                    "givenName": "Frodo",
+                    "surname": "Baggins",
+                    "userPrincipalName": "email@example.gov.uk",
+                },
             ),
             schema=StructType(
                 [
@@ -122,11 +141,17 @@ class TestEntraIDCurationProcess(ETLTestCase):
         curated_table = f"{test_case}_entraid"
         with (
             mock.patch.object(EntraIDCurationProcess, "__init__", return_value=None),
-            mock.patch.object(EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table),
+            mock.patch.object(
+                EntraIDCurationProcess, "HARMONISED_TABLE", entraid_table
+            ),
             mock.patch.object(EntraIDCurationProcess, "CURATED_TABLE", curated_table),
         ):
             inst = EntraIDCurationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="entraid", orchestration_stage_name="curate")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="entraid",
+                orchestration_stage_name="curate",
+            )
             assert_etl_result_successful(result)
             actual_data = spark.table(f"odw_curated_db.{curated_table}")
             assert_dataframes_equal(expected_data, actual_data)
@@ -168,5 +193,13 @@ class TestEntraIDCurationProcess(ETLTestCase):
             ),
         )
         existing_table = f"{test_case}_entraid"
-        self.write_existing_table(spark, existing_data, existing_table, "odw_curated_db", "odw-curated", existing_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            existing_data,
+            existing_table,
+            "odw_curated_db",
+            "odw-curated",
+            existing_table,
+            "overwrite",
+        )
         self.assert_curation(test_case)

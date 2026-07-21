@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.curated.nsip_meeting_curated_process import NsipMeetingCuratedProcess
+from odw.core.etl.transformation.curated.nsip_meeting_curated_process import (
+    NsipMeetingCuratedProcess,
+)
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 import pyspark.sql.types as T
@@ -6,14 +8,43 @@ import mock
 
 
 class TestNSIPMeetingCurationProcess(SparkTestCase):
-    def test__nsip_meeting_curated_process__process__keeps_latest_row_per_meeting_id(self):
+    def test__nsip_meeting_curated_process__process__keeps_latest_row_per_meeting_id(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
 
         harmonised_meeting = spark.createDataFrame(
             [
-                (100, "EN010001", "agenda-old", "role-1", "M-1", "2025-01-01", "type-a"),
-                (100, "EN010001", "agenda-new", "role-1", "M-1", "2025-01-05", "type-a"),
-                (200, "EN010002", "agenda-2", "role-2", "M-2", "2025-02-01", "type-b"),
+                (
+                    100,
+                    "EN010001",
+                    "agenda-old",
+                    "role-1",
+                    "M-1",
+                    "2025-01-01",
+                    "type-a",
+                    "Y",
+                ),
+                (
+                    100,
+                    "EN010001",
+                    "agenda-new",
+                    "role-1",
+                    "M-1",
+                    "2025-01-05",
+                    "type-a",
+                    "Y",
+                ),
+                (
+                    200,
+                    "EN010002",
+                    "agenda-2",
+                    "role-2",
+                    "M-2",
+                    "2025-02-01",
+                    "type-b",
+                    "Y",
+                ),
             ],
             T.StructType(
                 [
@@ -33,7 +64,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                 "odw.core.etl.transformation.curated.nsip_meeting_curated_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.curated.nsip_meeting_curated_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.curated.nsip_meeting_curated_process.LoggingUtil"
+            ),
         ):
             inst = NsipMeetingCuratedProcess(spark)
             data_to_write, result = inst.process(
@@ -44,7 +77,9 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
         expected_data_entry = f"odw_curated_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[expected_data_entry]["data"]
-        rows = {row["meetingId"]: row.asDict(recursive=True) for row in actual_df.collect()}
+        rows = {
+            row["meetingId"]: row.asDict(recursive=True) for row in actual_df.collect()
+        }
 
         assert actual_df.count() == 2
         assert rows["M-1"]["meetingAgenda"] == "agenda-new"

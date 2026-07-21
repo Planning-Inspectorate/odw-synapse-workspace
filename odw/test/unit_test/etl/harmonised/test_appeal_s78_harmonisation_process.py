@@ -1,15 +1,27 @@
 import mock
 import pytest
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, LongType, DoubleType, TimestampType, IntegerType, BooleanType
+from pyspark.sql.types import (
+    ArrayType,
+    StringType,
+    StructField,
+    StructType,
+    LongType,
+    DoubleType,
+    TimestampType,
+    IntegerType,
+    BooleanType,
+)
 import pyspark.sql.functions as F
-from odw.core.etl.transformation.harmonised.appeal_s78_harmonisation_process import AppealS78HarmonisationProcess
+from odw.core.etl.transformation.harmonised.appeal_s78_harmonisation_process import (
+    AppealS78HarmonisationProcess,
+)
 from odw.test.util.session_util import PytestSparkSessionUtil
 from odw.test.util.test_case import SparkTestCase
 from odw.test.util.assertion import assert_dataframes_equal
 from datetime import datetime
 
 
-pytestmark = pytest.mark.xfail(reason="Harmonisation logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Harmonisation logic not implemented yet")
 
 
 def _raw_service_bus_schema():
@@ -34,8 +46,12 @@ def _raw_service_bus_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -47,7 +63,9 @@ def _raw_service_bus_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -92,13 +110,27 @@ def _raw_service_bus_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -106,8 +138,12 @@ def _raw_service_bus_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -175,8 +211,12 @@ def _raw_service_bus_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -227,12 +267,16 @@ def _raw_service_bus_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -267,12 +311,28 @@ def _raw_service_bus_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -531,8 +591,12 @@ def _cleaned_service_bus_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -544,7 +608,9 @@ def _cleaned_service_bus_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -587,21 +653,39 @@ def _cleaned_service_bus_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
                 ),
                 True,
             ),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("agriculturalHolding", BooleanType(), True),
@@ -668,8 +752,12 @@ def _cleaned_service_bus_schema():
             StructField("planningObligationDueDate", StringType(), True),
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -703,12 +791,16 @@ def _cleaned_service_bus_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -765,13 +857,29 @@ def _cleaned_service_bus_schema():
             StructField("reasonForAppealAppellant", StringType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("listOfDocumentsBeforeDecision", StringType(), True),
@@ -1136,7 +1244,12 @@ def _raw_horizon_schema():
                 "enforcementAppealGroundsDetails",
                 ArrayType(
                     StructType(
-                        [StructField("appealGroundLetter", StringType(), True), StructField("groundForAppealStartDate", TimestampType(), True)]
+                        [
+                            StructField("appealGroundLetter", StringType(), True),
+                            StructField(
+                                "groundForAppealStartDate", TimestampType(), True
+                            ),
+                        ]
                     ),
                     True,
                 ),
@@ -1274,8 +1387,16 @@ def _cleaned_horizon_row(**overrides):
         "RowID": "",
         "IsActive": "N",
         "applicationElbAppealGroundsDetails": [
-            {"appealGroundLetter": " ", "groundForAppealStartDate": None, "groundFacts": None},
-            {"appealGroundLetter": "g", "groundForAppealStartDate": None, "groundFacts": None},
+            {
+                "appealGroundLetter": " ",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
+            {
+                "appealGroundLetter": "g",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
         ],
     }
     return base | overrides
@@ -1706,8 +1827,16 @@ def _cleaned_aggregate_data_row(**overrides):
         "RowID": "1",
         "IsActive": "N",
         "applicationElbAppealGroundsDetails": [
-            {"appealGroundLetter": " ", "groundForAppealStartDate": None, "groundFacts": None},
-            {"appealGroundLetter": "g", "groundForAppealStartDate": None, "groundFacts": None},
+            {
+                "appealGroundLetter": " ",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
+            {
+                "appealGroundLetter": "g",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
         ],
         "state_hash": "e6527d1c24c455ccef9658e5e58ac732f8cf7574dbf696add635b26b5be6b7da",
         "src_priority": 1,
@@ -1742,8 +1871,12 @@ def _aggregate_scd_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -1755,7 +1888,9 @@ def _aggregate_scd_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -1800,13 +1935,27 @@ def _aggregate_scd_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -1814,8 +1963,12 @@ def _aggregate_scd_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
-            StructField("changedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "changedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("preserveGrantLoan", BooleanType(), True),
             StructField("consultHistoricEngland", BooleanType(), True),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
@@ -1883,8 +2036,12 @@ def _aggregate_scd_schema():
             StructField("statementOfCommonGroundDueDate", StringType(), True),
             StructField("planningObligationDueDate", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -1935,12 +2092,16 @@ def _aggregate_scd_schema():
                 True,
             ),
             StructField("applicationMadeAndFeePaid", BooleanType(), True),
-            StructField("noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True),
+            StructField(
+                "noticeRelatesToBuildingEngineeringMiningOther", BooleanType(), True
+            ),
             StructField("changeOfUseRefuseOrWaste", BooleanType(), True),
             StructField("changeOfUseMineralExtraction", BooleanType(), True),
             StructField("changeOfUseMineralStorage", BooleanType(), True),
             StructField("relatesToErectionOfBuildingOrBuildings", BooleanType(), True),
-            StructField("relatesToBuildingWithAgriculturalPurpose", BooleanType(), True),
+            StructField(
+                "relatesToBuildingWithAgriculturalPurpose", BooleanType(), True
+            ),
             StructField("relatesToBuildingSingleDwellingHouse", BooleanType(), True),
             StructField("previousPlanningPermissionGranted", BooleanType(), True),
             StructField("issueDateOfEnforcementNotice", StringType(), True),
@@ -1975,12 +2136,28 @@ def _aggregate_scd_schema():
             StructField("screeningOpinionIndicatesEiaRequired", BooleanType(), True),
             StructField(
                 "significantChangesAffectingApplicationAppellant",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField(
                 "significantChangesAffectingApplicationLpa",
-                ArrayType(StructType([StructField("value", StringType(), True), StructField("comment", StringType(), True)]), True),
+                ArrayType(
+                    StructType(
+                        [
+                            StructField("value", StringType(), True),
+                            StructField("comment", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
                 True,
             ),
             StructField("migrated", StringType(), True),
@@ -2153,8 +2330,16 @@ def _aggregate_scd_row(**overrides):
         "occupancyConditionsMet": None,
         "enforcementAppealGroundsDetails": None,
         "applicationElbAppealGroundsDetails": [
-            {"appealGroundLetter": " ", "groundForAppealStartDate": None, "groundFacts": None},
-            {"appealGroundLetter": "g", "groundForAppealStartDate": None, "groundFacts": None},
+            {
+                "appealGroundLetter": " ",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
+            {
+                "appealGroundLetter": "g",
+                "groundForAppealStartDate": None,
+                "groundFacts": None,
+            },
         ],
         "applicationMadeAndFeePaid": None,
         "noticeRelatesToBuildingEngineeringMiningOther": None,
@@ -2365,8 +2550,12 @@ def _raw_has_schema():
             StructField("caseValidDate", StringType(), True),
             StructField("caseValidationDate", StringType(), True),
             StructField("caseValidationOutcome", StringType(), True),
-            StructField("caseValidationInvalidDetails", ArrayType(StringType(), True), True),
-            StructField("caseValidationIncompleteDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "caseValidationInvalidDetails", ArrayType(StringType(), True), True
+            ),
+            StructField(
+                "caseValidationIncompleteDetails", ArrayType(StringType(), True), True
+            ),
             StructField("caseExtensionDate", StringType(), True),
             StructField("caseStartedDate", StringType(), True),
             StructField("casePublishedDate", StringType(), True),
@@ -2378,7 +2567,9 @@ def _raw_has_schema():
             StructField("lpaQuestionnairePublishedDate", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcome", StringType(), True),
             StructField("lpaQuestionnaireValidationOutcomeDate", StringType(), True),
-            StructField("lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True),
+            StructField(
+                "lpaQuestionnaireValidationDetails", ArrayType(StringType(), True), True
+            ),
             StructField("lpaStatement", StringType(), True),
             StructField("caseWithdrawnDate", StringType(), True),
             StructField("caseTransferredDate", StringType(), True),
@@ -2442,13 +2633,27 @@ def _raw_has_schema():
                 ArrayType(
                     StructType(
                         [
-                            StructField("neighbouringSiteAddressLine1", StringType(), True),
-                            StructField("neighbouringSiteAddressLine2", StringType(), True),
-                            StructField("neighbouringSiteAddressTown", StringType(), True),
-                            StructField("neighbouringSiteAddressCounty", StringType(), True),
-                            StructField("neighbouringSiteAddressPostcode", StringType(), True),
-                            StructField("neighbouringSiteAccessDetails", StringType(), True),
-                            StructField("neighbouringSiteSafetyDetails", StringType(), True),
+                            StructField(
+                                "neighbouringSiteAddressLine1", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressLine2", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressTown", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressCounty", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAddressPostcode", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteAccessDetails", StringType(), True
+                            ),
+                            StructField(
+                                "neighbouringSiteSafetyDetails", StringType(), True
+                            ),
                         ]
                     ),
                     True,
@@ -2456,15 +2661,21 @@ def _raw_has_schema():
                 True,
             ),
             StructField("reasonForNeighbourVisits", StringType(), True),
-            StructField("affectedListedBuildingNumbers", ArrayType(StringType(), True), True),
+            StructField(
+                "affectedListedBuildingNumbers", ArrayType(StringType(), True), True
+            ),
             StructField("appellantCostsAppliedFor", BooleanType(), True),
             StructField("lpaCostsAppliedFor", BooleanType(), True),
             StructField("typeOfPlanningApplication", StringType(), True),
             StructField("siteGridReferenceEasting", StringType(), True),
             StructField("siteGridReferenceNorthing", StringType(), True),
             StructField("hasLandownersPermission", BooleanType(), True),
-            StructField("wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True),
-            StructField("didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True),
+            StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", BooleanType(), True
+            ),
+            StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", BooleanType(), True
+            ),
             StructField("isSiteInAreaOfSpecialControlAdverts", BooleanType(), True),
             StructField(
                 "advertDetails",
@@ -2510,12 +2721,20 @@ def _raw_has_schema():
 
 
 def _cleaned_has_row(**overrides):
-    base = {"caseReference": "12345", "hasTsArr": [datetime(2026, 5, 14, 3, 10, 44, 986000), datetime(2027, 1, 1)]}
+    base = {
+        "caseReference": "12345",
+        "hasTsArr": [datetime(2026, 5, 14, 3, 10, 44, 986000), datetime(2027, 1, 1)],
+    }
     return base | overrides
 
 
 def _cleaned_has_schema():
-    return StructType([StructField("caseReference", StringType(), True), StructField("hasTsArr", ArrayType(TimestampType(), False), False)])
+    return StructType(
+        [
+            StructField("caseReference", StringType(), True),
+            StructField("hasTsArr", ArrayType(TimestampType(), False), False),
+        ]
+    )
 
 
 class TestAppealS78HarmonisationProcess(SparkTestCase):
@@ -2537,8 +2756,18 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             schema=_raw_service_bus_schema(),
         )
         service_bus_table = f"{test_case}_sb_appeal_s78"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._load_service_bus_data()
             assert_dataframes_equal(service_bus_data, actual_data)
@@ -2551,8 +2780,18 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             schema=_raw_horizon_schema(),
         )
         horizon_table = f"{test_case}_horizon_appeal_s78"
-        self.write_existing_table(spark, horizon_data, horizon_table, "odw_standardised_db", "odw-standardised", horizon_table, "overwrite")
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        self.write_existing_table(
+            spark,
+            horizon_data,
+            horizon_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            horizon_table,
+            "overwrite",
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._load_horizon_data()
             assert_dataframes_equal(horizon_data, actual_data)
@@ -2565,8 +2804,18 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             schema=_raw_has_schema(),
         )
         has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, has_data, has_table, "odw_standardised_db", "odw-standardised", has_table, "overwrite")
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        self.write_existing_table(
+            spark,
+            has_data,
+            has_table,
+            "odw_standardised_db",
+            "odw-standardised",
+            has_table,
+            "overwrite",
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._load_appeal_has_data()
             assert_dataframes_equal(has_data, actual_data)
@@ -2580,8 +2829,12 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             ),
             schema=_raw_service_bus_schema(),
         )
-        expected_cleaned_data = spark.createDataFrame((_cleaned_service_bus_row(),), schema=_cleaned_service_bus_schema())
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        expected_cleaned_data = spark.createDataFrame(
+            (_cleaned_service_bus_row(),), schema=_cleaned_service_bus_schema()
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_service_bus_data(service_bus_data)
             assert_dataframes_equal(expected_cleaned_data, actual_data)
@@ -2590,62 +2843,117 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
         spark = PytestSparkSessionUtil().get_spark_session()
         # All of the logic in the notebook is redundant WRT cleaning the caseReference column
         horizon_data = spark.createDataFrame(
-            (_raw_horizon_row(caseReference="12345", IngestionDate="2025-01-01T00:00:00.000000+0000"),), schema=_raw_horizon_schema()
+            (
+                _raw_horizon_row(
+                    caseReference="12345",
+                    IngestionDate="2025-01-01T00:00:00.000000+0000",
+                ),
+            ),
+            schema=_raw_horizon_schema(),
         )
-        expected_cleaned_data = spark.createDataFrame((_cleaned_horizon_row(),), schema=_cleaned_horizon_schema())
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        expected_cleaned_data = spark.createDataFrame(
+            (_cleaned_horizon_row(),), schema=_cleaned_horizon_schema()
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_horizon_data(horizon_data)
             assert_dataframes_equal(expected_cleaned_data, actual_data)
 
-    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_case_reference_col(self):
+    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_case_reference_col(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         # Most of the logic in the notebook is redundant WRT cleaning the caseReference column
-        row = _raw_horizon_row(caseId="12345", IngestionDate="2025-01-01T00:00:00.000000+0000")
+        row = _raw_horizon_row(
+            caseId="12345", IngestionDate="2025-01-01T00:00:00.000000+0000"
+        )
         row.pop("caseReference")
-        schema = StructType([field for field in _raw_horizon_schema().fields if field.name != "caseReference"])
+        schema = StructType(
+            [
+                field
+                for field in _raw_horizon_schema().fields
+                if field.name != "caseReference"
+            ]
+        )
         expected_cleaned_data = spark.createDataFrame(
-            (_cleaned_horizon_row(caseReference="12345", caseId="12345"),), schema=_cleaned_horizon_schema()
+            (_cleaned_horizon_row(caseReference="12345", caseId="12345"),),
+            schema=_cleaned_horizon_schema(),
         )
         horizon_data = spark.createDataFrame((row,), schema=schema)
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_horizon_data(horizon_data)
             assert_dataframes_equal(expected_cleaned_data, actual_data)
 
-    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_case_reference_col_and_missing_case_id_col(self):
+    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_case_reference_col_and_missing_case_id_col(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         row = _raw_horizon_row()
         row.pop("caseReference")
         row.pop("caseId")
-        schema = StructType([field for field in _raw_horizon_schema().fields if field.name not in {"caseReference", "caseId"}])
+        schema = StructType(
+            [
+                field
+                for field in _raw_horizon_schema().fields
+                if field.name not in {"caseReference", "caseId"}
+            ]
+        )
         horizon_data = spark.createDataFrame((row,), schema=schema)
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             with pytest.raises(ValueError):
                 inst = AppealS78HarmonisationProcess()
                 inst._clean_horizon_data(horizon_data)
 
-    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_ingestion_date_col(self):
+    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_ingestion_date_col(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         test_run_time = datetime.now()
         # Most of the logic in the notebook is redundant WRT cleaning the caseReference column
         row = _raw_horizon_row()
         row.pop("IngestionDate", None)
-        schema = StructType([field for field in _raw_horizon_schema().fields if field.name != "IngestionDate"])
+        schema = StructType(
+            [
+                field
+                for field in _raw_horizon_schema().fields
+                if field.name != "IngestionDate"
+            ]
+        )
         horizon_data = spark.createDataFrame((row,), schema=schema)
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_horizon_data(horizon_data)
-            actual_data_ingested_after_test_time = actual_data.filter(F.col("IngestionDate") > test_run_time)
+            actual_data_ingested_after_test_time = actual_data.filter(
+                F.col("IngestionDate") > test_run_time
+            )
             assert actual_data_ingested_after_test_time.count() == 1
 
-    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_enforcement_appeals_grounds_col(self):
+    def test__appeal_s78_harmonisation_process__clean_horizon_data__with_missing_enforcement_appeals_grounds_col(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
         row = _raw_horizon_row()
         row.pop("enforcementAppealGroundsDetails")
-        schema = StructType([field for field in _raw_horizon_schema().fields if field.name != "enforcementAppealGroundsDetails"])
+        schema = StructType(
+            [
+                field
+                for field in _raw_horizon_schema().fields
+                if field.name != "enforcementAppealGroundsDetails"
+            ]
+        )
         horizon_data = spark.createDataFrame((row,), schema=schema)
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             with pytest.raises(ValueError):
                 inst = AppealS78HarmonisationProcess()
                 inst._clean_horizon_data(horizon_data)
@@ -2656,14 +2964,22 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             (
                 _raw_has_row(),
                 _raw_has_row(),  # Dropped by distinct
-                _raw_has_row(caseReference=None),  # Dropped by F.col("caseReference").isNotNull()
-                _raw_has_row(IngestionDate=None),  # Dropped by F.col("hasTs").isNotNull()
+                _raw_has_row(
+                    caseReference=None
+                ),  # Dropped by F.col("caseReference").isNotNull()
+                _raw_has_row(
+                    IngestionDate=None
+                ),  # Dropped by F.col("hasTs").isNotNull()
                 _raw_has_row(IngestionDate=datetime(2027, 1, 1)),
             ),
             schema=_raw_has_schema(),
         )
-        expected_data = spark.createDataFrame((_cleaned_has_row(),), schema=_cleaned_has_schema())
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        expected_data = spark.createDataFrame(
+            (_cleaned_has_row(),), schema=_cleaned_has_schema()
+        )
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_appeal_has_data(appeal_has)
             assert_dataframes_equal(expected_data, actual_data)
@@ -2674,14 +2990,25 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             (
                 {"commonA": "1", "commonB": "2", "commonC": "3", "serviceBusA": "A"},
                 {"commonA": "2", "commonB": "3", "commonC": "4", "serviceBusA": "B"},
-                {"commonA": "2", "commonB": "3", "commonC": "4", "serviceBusA": "C"},  # Duplicate should be dropped
+                {
+                    "commonA": "2",
+                    "commonB": "3",
+                    "commonC": "4",
+                    "serviceBusA": "C",
+                },  # Duplicate should be dropped
             ),
             schema=StructType(
                 [
                     StructField("commonA", StringType(), True),
-                    StructField("commonB", StringType(), True),  # Different data type to the horizon data
-                    StructField("commonC", StringType(), True),  # Same but different case so should override the horizon data
-                    StructField("serviceBusA", StringType(), True),  # Should be added to the horizon data
+                    StructField(
+                        "commonB", StringType(), True
+                    ),  # Different data type to the horizon data
+                    StructField(
+                        "commonC", StringType(), True
+                    ),  # Same but different case so should override the horizon data
+                    StructField(
+                        "serviceBusA", StringType(), True
+                    ),  # Should be added to the horizon data
                 ]
             ),
         )
@@ -2694,15 +3021,37 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                     "horizonA": "XYZ",
                     "caseReference": "1",
                 },  # Duplicate of service bus row but should not be dropped due to missing serviceBusCol
-                {"commonA": "3", "commonB": 4, "commonc": "5", "horizonA": "X", "caseReference": "2"},
-                {"commonA": "6", "commonB": 7, "commonc": "8", "horizonA": "Y", "caseReference": ""},
-                {"commonA": "9", "commonB": 10, "commonc": "11", "horizonA": "Z", "caseReference": None},  # Should be dropped
+                {
+                    "commonA": "3",
+                    "commonB": 4,
+                    "commonc": "5",
+                    "horizonA": "X",
+                    "caseReference": "2",
+                },
+                {
+                    "commonA": "6",
+                    "commonB": 7,
+                    "commonc": "8",
+                    "horizonA": "Y",
+                    "caseReference": "",
+                },
+                {
+                    "commonA": "9",
+                    "commonB": 10,
+                    "commonc": "11",
+                    "horizonA": "Z",
+                    "caseReference": None,
+                },  # Should be dropped
             ),
             schema=StructType(
                 [
                     StructField("commonA", StringType(), True),
-                    StructField("commonB", IntegerType(), True),  # Different data type to the service bus data
-                    StructField("commonc", StringType(), True),  # Same as SB but different case name should by overridden
+                    StructField(
+                        "commonB", IntegerType(), True
+                    ),  # Different data type to the service bus data
+                    StructField(
+                        "commonc", StringType(), True
+                    ),  # Same as SB but different case name should by overridden
                     StructField("horizonA", StringType(), True),
                     StructField("caseReference", StringType(), True),
                 ]
@@ -2728,7 +3077,9 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._aggregate_data(service_bus_data, horizon_data)
             assert_dataframes_equal(expected_data, actual_data)
@@ -2738,21 +3089,49 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
         aggregate_data = spark.createDataFrame(
             (
                 _cleaned_horizon_row(caseReference="12345", RowID="1"),
-                _cleaned_horizon_row(caseReference="23456", ODTSourceSystem="ODT", RowID="1"),
-                _cleaned_horizon_row(caseReference="34567", ODTSourceSystem="HORIZON", RowID="1"),
+                _cleaned_horizon_row(
+                    caseReference="23456", ODTSourceSystem="ODT", RowID="1"
+                ),
+                _cleaned_horizon_row(
+                    caseReference="34567", ODTSourceSystem="HORIZON", RowID="1"
+                ),
                 _cleaned_horizon_row(caseReference="56789", RowID=""),
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2030, 1, 1), ODTSourceSystem="ODT"),  # tie dupe1
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2030, 1, 1), ODTSourceSystem="ODT"),  # tie dupe2
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2030, 1, 1), ODTSourceSystem="ODT"),  # tie dupe3
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2030, 1, 1),
+                    ODTSourceSystem="ODT",
+                ),  # tie dupe1
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2030, 1, 1),
+                    ODTSourceSystem="ODT",
+                ),  # tie dupe2
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2030, 1, 1),
+                    ODTSourceSystem="ODT",
+                ),  # tie dupe3
                 _cleaned_horizon_row(
                     caseReference="678910",
                     IngestionDate=datetime(2030, 1, 1),
                     ODTSourceSystem="ODT",
                     originalDevelopmentDescription="some other description",
                 ),  # semi dupe
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2031, 1, 1), ODTSourceSystem="HORIZON"),  # tie dupe4
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2031, 1, 1), ODTSourceSystem="HORIZON"),  # tie dupe5
-                _cleaned_horizon_row(caseReference="678910", IngestionDate=datetime(2031, 1, 1), ODTSourceSystem="HORIZON"),  # tie dupe6
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2031, 1, 1),
+                    ODTSourceSystem="HORIZON",
+                ),  # tie dupe4
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2031, 1, 1),
+                    ODTSourceSystem="HORIZON",
+                ),  # tie dupe5
+                _cleaned_horizon_row(
+                    caseReference="678910",
+                    IngestionDate=datetime(2031, 1, 1),
+                    ODTSourceSystem="HORIZON",
+                ),  # tie dupe6
                 _cleaned_horizon_row(
                     caseReference="678910",
                     IngestionDate=datetime(2031, 1, 1),
@@ -2831,7 +3210,9 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             ),
             schema=_cleaned_aggregate_data_schema(),
         )
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_data = inst._clean_aggregate_data(aggregate_data)
             assert_dataframes_equal(expected_clean_data, actual_data)
@@ -2841,11 +3222,16 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
         appeal_has_data = spark.createDataFrame(
             (
                 _cleaned_has_row(caseReference="23456"),
-                _cleaned_has_row(caseReference="99999"),  # Extra, should be dropped by left join
                 _cleaned_has_row(
-                    caseReference="34567", hasTsArr=[datetime(2024, 1, 1), datetime(2026, 1, 1)]
+                    caseReference="99999"
+                ),  # Extra, should be dropped by left join
+                _cleaned_has_row(
+                    caseReference="34567",
+                    hasTsArr=[datetime(2024, 1, 1), datetime(2026, 1, 1)],
                 ),  # Older than aggregate row's IngestionDate
-                _cleaned_has_row(caseReference="56789", hasTsArr=[datetime(2027, 1, 1)]),
+                _cleaned_has_row(
+                    caseReference="56789", hasTsArr=[datetime(2027, 1, 1)]
+                ),
             ),
             schema=_cleaned_has_schema(),
         )
@@ -2873,7 +3259,9 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                     normRowID="~",
                     fallback_hash="2cc34a6159b6e64b8954a366bc1dd7a4ab45377089e4752f6076e22fb337759f",
                     IngestionDate=datetime(2025, 1, 1),
-                    ValidTo=datetime(2028, 1, 1),  # (F.col("nextHasTs") < F.col("ValidTo") logic check
+                    ValidTo=datetime(
+                        2028, 1, 1
+                    ),  # (F.col("nextHasTs") < F.col("ValidTo") logic check
                 ),
                 _cleaned_aggregate_data_row(
                     caseReference="678910",
@@ -2927,9 +3315,18 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             (
                 _aggregate_scd_row(),
                 _aggregate_scd_row(caseReference="23456", ODTSourceSystem="ODT"),
-                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2025, 1, 1, 0, 0), ValidTo="2026-01-01 00:00:00", IsActive="N"),
                 _aggregate_scd_row(
-                    caseReference="56789", IngestionDate=datetime(2025, 1, 1, 0, 0), ValidTo="2027-01-01 00:00:00", RowID="", IsActive="N"
+                    caseReference="34567",
+                    IngestionDate=datetime(2025, 1, 1, 0, 0),
+                    ValidTo="2026-01-01 00:00:00",
+                    IsActive="N",
+                ),
+                _aggregate_scd_row(
+                    caseReference="56789",
+                    IngestionDate=datetime(2025, 1, 1, 0, 0),
+                    ValidTo="2027-01-01 00:00:00",
+                    RowID="",
+                    IsActive="N",
                 ),
                 _aggregate_scd_row(
                     caseReference="678910",
@@ -2968,9 +3365,13 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             schema=_aggregate_scd_schema(),
         )
         service_bus_data = spark.createDataFrame([], _raw_service_bus_schema())
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
-            actual_scd = inst._apply_slowly_changing_dimensions(cleaned_aggregate_data, appeal_has_data, service_bus_data)
+            actual_scd = inst._apply_slowly_changing_dimensions(
+                cleaned_aggregate_data, appeal_has_data, service_bus_data
+            )
             assert_dataframes_equal(expected_scd, actual_scd)
 
     def test__appeal_s78_harmonisation_process__generate_new_group_resolver_data(self):
@@ -2983,7 +3384,13 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             schema=_aggregate_scd_schema(),
         )
         expected_group_resolver_rows_to_update = spark.createDataFrame(
-            ({"caseReference": "12345", "currentGroup": "B", "asOfTimestamp": "2026-05-15 11:02:02.63335"},),
+            (
+                {
+                    "caseReference": "12345",
+                    "currentGroup": "B",
+                    "asOfTimestamp": "2026-05-15 11:02:02.63335",
+                },
+            ),
             schema=StructType(
                 [
                     StructField("caseReference", StringType(), True),
@@ -2992,22 +3399,34 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
                 ]
             ),
         )
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_group_resolver = inst._generate_new_group_resolver_data(scd_data)
-            assert_dataframes_equal(expected_group_resolver_rows_to_update, actual_group_resolver)
+            assert_dataframes_equal(
+                expected_group_resolver_rows_to_update, actual_group_resolver
+            )
 
     def test__appeal_s78_harmonisation_process__generate_new_has_data(self):
         spark = PytestSparkSessionUtil().get_spark_session()
         scd_data = spark.createDataFrame(
             (
-                _aggregate_scd_row(caseReference="12345", IngestionDate=datetime(2026, 1, 1)),
-                _aggregate_scd_row(caseReference="99999", IsActive="N"),  # Should be dropped
+                _aggregate_scd_row(
+                    caseReference="12345", IngestionDate=datetime(2026, 1, 1)
+                ),
+                _aggregate_scd_row(
+                    caseReference="99999", IsActive="N"
+                ),  # Should be dropped
                 _aggregate_scd_row(
                     caseReference="23456", IngestionDate=datetime(2024, 1, 1)
                 ),  # F.col("s78HrmActiveTs") >= F.col("hasCurrentActiveTs") logic
-                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2026, 1, 1)),
-                _aggregate_scd_row(caseReference="34567", IngestionDate=datetime(2026, 1, 1)),  # Duplicate should be dropped
+                _aggregate_scd_row(
+                    caseReference="34567", IngestionDate=datetime(2026, 1, 1)
+                ),
+                _aggregate_scd_row(
+                    caseReference="34567", IngestionDate=datetime(2026, 1, 1)
+                ),  # Duplicate should be dropped
             ),
             schema=_aggregate_scd_schema(),
         )
@@ -3015,40 +3434,108 @@ class TestAppealS78HarmonisationProcess(SparkTestCase):
             (
                 _raw_has_row(caseReference="12345", IngestionDate=datetime(2025, 1, 1)),
                 _raw_has_row(caseReference="23456", IngestionDate=datetime(2025, 1, 1)),
-                _raw_has_row(caseReference="34567", IngestionDate=None),  # F.col("hasCurrentActiveTs").isNull() logic
+                _raw_has_row(
+                    caseReference="34567", IngestionDate=None
+                ),  # F.col("hasCurrentActiveTs").isNull() logic
                 _raw_has_row(caseReference="00000", IsActive="N"),
             ),
             schema=_raw_has_schema(),
         )
         expected_has_rows_to_update = spark.createDataFrame(
-            ({"caseReference": "34567", "s78HrmActiveTs": "2026-01-01 00:00:00.00000"},),
-            schema=StructType([StructField("caseReference", StringType(), True), StructField("s78HrmActiveTs", StringType(), False)]),
+            (
+                {
+                    "caseReference": "34567",
+                    "s78HrmActiveTs": "2026-01-01 00:00:00.00000",
+                },
+            ),
+            schema=StructType(
+                [
+                    StructField("caseReference", StringType(), True),
+                    StructField("s78HrmActiveTs", StringType(), False),
+                ]
+            ),
         )
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             actual_has_rows_to_update = inst._generate_new_has_data(scd_data, has_data)
-            assert_dataframes_equal(expected_has_rows_to_update, actual_has_rows_to_update)
+            assert_dataframes_equal(
+                expected_has_rows_to_update, actual_has_rows_to_update
+            )
 
     def test__appeal_s78_harmonisation_process__process(self):
-        source_data = {"service_bus_data": "sb", "horizon_data": "hzn", "harmonised_appeal_has": "has"}
-        with mock.patch.object(AppealS78HarmonisationProcess, "__init__", return_value=None):
+        source_data = {
+            "service_bus_data": "sb",
+            "horizon_data": "hzn",
+            "harmonised_appeal_has": "has",
+        }
+        with mock.patch.object(
+            AppealS78HarmonisationProcess, "__init__", return_value=None
+        ):
             inst = AppealS78HarmonisationProcess()
             with (
-                mock.patch.object(AppealS78HarmonisationProcess, "_clean_service_bus_data", return_value="clean_sb"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_clean_horizon_data", return_value="clean_hzn"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_clean_appeal_has_data", return_value="clean_has"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_aggregate_data", return_value="agg"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_clean_aggregate_data", return_value="clean_agg"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_apply_slowly_changing_dimensions", return_value="scd"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_generate_new_group_resolver_data", return_value="gr_upd"),
-                mock.patch.object(AppealS78HarmonisationProcess, "_generate_new_has_data", return_value="has_upd"),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_clean_service_bus_data",
+                    return_value="clean_sb",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_clean_horizon_data",
+                    return_value="clean_hzn",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_clean_appeal_has_data",
+                    return_value="clean_has",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess, "_aggregate_data", return_value="agg"
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_clean_aggregate_data",
+                    return_value="clean_agg",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_apply_slowly_changing_dimensions",
+                    return_value="scd",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_generate_new_group_resolver_data",
+                    return_value="gr_upd",
+                ),
+                mock.patch.object(
+                    AppealS78HarmonisationProcess,
+                    "_generate_new_has_data",
+                    return_value="has_upd",
+                ),
             ):
                 inst.process(source_datasource_data=source_data)
-                AppealS78HarmonisationProcess._clean_service_bus_data.assert_called_once_with("sb")
-                AppealS78HarmonisationProcess._clean_horizon_data.assert_called_once_with("hzn")
-                AppealS78HarmonisationProcess._clean_appeal_has_data.assert_called_once_with("has")
-                AppealS78HarmonisationProcess._aggregate_data.assert_called_once_with("clean_sb", "clean_hzn")
-                AppealS78HarmonisationProcess._clean_aggregate_data.assert_called_once_with("agg")
-                AppealS78HarmonisationProcess._apply_slowly_changing_dimensions.assert_called_once_with("clean_agg")
-                AppealS78HarmonisationProcess._generate_new_group_resolver_data.assert_called_once_with("scd")
-                AppealS78HarmonisationProcess._generate_new_has_data.assert_called_once_with("scd", "harmonised_appeal_has")
+                AppealS78HarmonisationProcess._clean_service_bus_data.assert_called_once_with(
+                    "sb"
+                )
+                AppealS78HarmonisationProcess._clean_horizon_data.assert_called_once_with(
+                    "hzn"
+                )
+                AppealS78HarmonisationProcess._clean_appeal_has_data.assert_called_once_with(
+                    "has"
+                )
+                AppealS78HarmonisationProcess._aggregate_data.assert_called_once_with(
+                    "clean_sb", "clean_hzn"
+                )
+                AppealS78HarmonisationProcess._clean_aggregate_data.assert_called_once_with(
+                    "agg"
+                )
+                AppealS78HarmonisationProcess._apply_slowly_changing_dimensions.assert_called_once_with(
+                    "clean_agg"
+                )
+                AppealS78HarmonisationProcess._generate_new_group_resolver_data.assert_called_once_with(
+                    "scd"
+                )
+                AppealS78HarmonisationProcess._generate_new_has_data.assert_called_once_with(
+                    "scd", "harmonised_appeal_has"
+                )

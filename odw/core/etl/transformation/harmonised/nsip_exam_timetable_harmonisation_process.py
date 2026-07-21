@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -57,13 +59,17 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
     # ------------------------------------------------------------------
 
     def load_data(self, **kwargs) -> Dict[str, DataFrame]:
-        LoggingUtil().log_info(f"Loading service bus data from {self.SERVICE_BUS_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading service bus data from {self.SERVICE_BUS_TABLE}"
+        )
         service_bus_data = self._load_service_bus_data()
 
         LoggingUtil().log_info(f"Loading Horizon data from {self.HORIZON_TABLE}")
         horizon_data = self._load_horizon_data()
 
-        LoggingUtil().log_info(f"Loading Horizon NSIP data from {self.HORIZON_NSIP_DATA_TABLE}")
+        LoggingUtil().log_info(
+            f"Loading Horizon NSIP data from {self.HORIZON_NSIP_DATA_TABLE}"
+        )
         horizon_nsip_data = self._load_horizon_nsip_data()
 
         sb_case_references = self._load_service_bus_case_references()
@@ -135,25 +141,44 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         start_exec_time = datetime.now()
 
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
-        service_bus_data: DataFrame = self.load_parameter("service_bus_data", source_data)
+        service_bus_data: DataFrame = self.load_parameter(
+            "service_bus_data", source_data
+        )
         horizon_data: DataFrame = self.load_parameter("horizon_data", source_data)
-        horizon_nsip_data: DataFrame = self.load_parameter("horizon_nsip_data", source_data)
-        sb_case_references: DataFrame = self.load_parameter("sb_case_references", source_data)
+        horizon_nsip_data: DataFrame = self.load_parameter(
+            "horizon_nsip_data", source_data
+        )
+        sb_case_references: DataFrame = self.load_parameter(
+            "sb_case_references", source_data
+        )
 
         # Step 1: Explode service bus events into individual rows
         LoggingUtil().log_info("Exploding service bus events into individual rows")
-        service_bus_event_data = service_bus_data.withColumn("event", F.explode("events")).select(
+        service_bus_event_data = service_bus_data.withColumn(
+            "event", F.explode("events")
+        ).select(
             F.col("NSIPExaminationTimetableID"),
             F.col("caseReference"),
             F.col("published"),
             F.col("event.eventId").cast("int").alias("eventId"),
             F.col("event.type").alias("type"),
             F.col("event.eventTitle").alias("eventTitle"),
-            F.when(F.trim(F.col("event.eventTitleWelsh")) == "", F.lit(None)).otherwise(F.col("event.eventTitleWelsh")).alias("eventTitleWelsh"),
-            F.when(F.trim(F.col("event.description")) == "", F.lit(None)).otherwise(F.col("event.description")).alias("description"),
-            F.when(F.trim(F.col("event.descriptionWelsh")) == "", F.lit(None)).otherwise(F.col("event.descriptionWelsh")).alias("descriptionWelsh"),
-            F.date_format(F.to_timestamp(F.col("event.date")), "yyyy-MM-dd HH:mm").alias("eventDate"),
-            F.date_format(F.to_timestamp(F.col("event.eventDeadlineStartDate")), "yyyy-MM-dd HH:mm").alias("eventDeadlineStartDate"),
+            F.when(F.trim(F.col("event.eventTitleWelsh")) == "", F.lit(None))
+            .otherwise(F.col("event.eventTitleWelsh"))
+            .alias("eventTitleWelsh"),
+            F.when(F.trim(F.col("event.description")) == "", F.lit(None))
+            .otherwise(F.col("event.description"))
+            .alias("description"),
+            F.when(F.trim(F.col("event.descriptionWelsh")) == "", F.lit(None))
+            .otherwise(F.col("event.descriptionWelsh"))
+            .alias("descriptionWelsh"),
+            F.date_format(
+                F.to_timestamp(F.col("event.date")), "yyyy-MM-dd HH:mm"
+            ).alias("eventDate"),
+            F.date_format(
+                F.to_timestamp(F.col("event.eventDeadlineStartDate")),
+                "yyyy-MM-dd HH:mm",
+            ).alias("eventDeadlineStartDate"),
             F.col("Migrated"),
             F.col("ODTSourceSystem"),
             F.col("SourceSystemID"),
@@ -164,7 +189,9 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         )
 
         # Step 2: Join Horizon with horizon_nsip_data and align to SB schema
-        LoggingUtil().log_info("Joining Horizon with NSIP data and aligning to SB schema")
+        LoggingUtil().log_info(
+            "Joining Horizon with NSIP data and aligning to SB schema"
+        )
         horizon_joined = (
             horizon_data.alias("Horizon")
             .join(
@@ -175,9 +202,17 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
             .select(
                 F.lit(None).cast("long").alias("NSIPExaminationTimetableID"),
                 F.col("Horizon.CaseReference").alias("caseReference"),
-                F.when(F.col("hnd.ExamTimetablePublishStatus") == "Published", F.lit(True))
-                .when(F.col("hnd.ExamTimetablePublishStatus") == "Not Published", F.lit(False))
-                .when(F.col("hnd.ExamTimetablePublishStatus") == "Ready to Publish", F.lit(False))
+                F.when(
+                    F.col("hnd.ExamTimetablePublishStatus") == "Published", F.lit(True)
+                )
+                .when(
+                    F.col("hnd.ExamTimetablePublishStatus") == "Not Published",
+                    F.lit(False),
+                )
+                .when(
+                    F.col("hnd.ExamTimetablePublishStatus") == "Ready to Publish",
+                    F.lit(False),
+                )
                 .otherwise(F.lit(None).cast("boolean"))
                 .alias("published"),
                 F.col("Horizon.eventId"),
@@ -200,19 +235,33 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         )
 
         # Step 3: Union SB + Horizon
-        LoggingUtil().log_info(f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}")
-        combined = service_bus_event_data.unionByName(horizon_joined, allowMissingColumns=True)
+        LoggingUtil().log_info(
+            f"Combining data for odw_harmonised_db.{self.OUTPUT_TABLE}"
+        )
+        combined = service_bus_event_data.unionByName(
+            horizon_joined, allowMissingColumns=True
+        )
 
         # Step 4: Window-function calculations
-        win_per_case_desc = Window.partitionBy("caseReference").orderBy(F.col("IngestionDate").desc())
-        win_global_asc = Window.orderBy(F.col("IngestionDate").asc(), F.col("caseReference").asc())
+        win_per_case_desc = Window.partitionBy("caseReference").orderBy(
+            F.col("IngestionDate").desc()
+        )
+        win_global_asc = Window.orderBy(
+            F.col("IngestionDate").asc(), F.col("caseReference").asc()
+        )
 
         combined = (
-            combined.withColumn("ReverseOrderProcessed", F.row_number().over(win_per_case_desc))
-            .withColumn("NSIPExaminationTimetableID", F.row_number().over(win_global_asc))
+            combined.withColumn(
+                "ReverseOrderProcessed", F.row_number().over(win_per_case_desc)
+            )
+            .withColumn(
+                "NSIPExaminationTimetableID", F.row_number().over(win_global_asc)
+            )
             .withColumn(
                 "IsActive",
-                F.when(F.row_number().over(win_per_case_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
+                F.when(
+                    F.row_number().over(win_per_case_desc) == 1, F.lit("Y")
+                ).otherwise(F.lit("N")),
             )
         )
 
@@ -223,24 +272,42 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         calcs = current.join(
             next_row,
             (F.col("CurrentRow.caseReference") == F.col("NextRow.caseReference"))
-            & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
+            & (
+                F.col("CurrentRow.ReverseOrderProcessed") - 1
+                == F.col("NextRow.ReverseOrderProcessed")
+            ),
             "left_outer",
         ).select(
-            F.col("CurrentRow.NSIPExaminationTimetableID").alias("NSIPExaminationTimetableID"),
+            F.col("CurrentRow.NSIPExaminationTimetableID").alias(
+                "NSIPExaminationTimetableID"
+            ),
             F.col("CurrentRow.caseReference").alias("caseReference"),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
-                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(F.col("CurrentRow.ValidTo")),
+                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(
+                    F.col("CurrentRow.ValidTo")
+                ),
                 F.col("NextRow.IngestionDate"),
             ).alias("ValidTo"),
             F.col("CurrentRow.IsActive").alias("IsActive"),
         )
 
         # Step 6: Derive Migrated flag
-        sb_refs = sb_case_references.withColumnRenamed("caseReference", "sb_caseReference")
+        sb_refs = sb_case_references.withColumnRenamed(
+            "caseReference", "sb_caseReference"
+        )
         calcs = (
-            calcs.join(sb_refs, calcs["caseReference"] == sb_refs["sb_caseReference"], "left_outer")
-            .withColumn("Migrated", F.when(F.col("sb_caseReference").isNotNull(), F.lit("1")).otherwise(F.lit("0")))
+            calcs.join(
+                sb_refs,
+                calcs["caseReference"] == sb_refs["sb_caseReference"],
+                "left_outer",
+            )
+            .withColumn(
+                "Migrated",
+                F.when(F.col("sb_caseReference").isNotNull(), F.lit("1")).otherwise(
+                    F.lit("0")
+                ),
+            )
             .drop("sb_caseReference")
         )
 
@@ -268,13 +335,17 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         )
 
         # Step 8: Rejoin calculations back onto the combined dataset
-        all_columns = [c for c in combined.columns if c not in {"ReverseOrderProcessed"}]
+        all_columns = [
+            c for c in combined.columns if c not in {"ReverseOrderProcessed"}
+        ]
         columns = all_columns
         base = combined.select(all_columns).dropDuplicates()
         base = base.drop("ValidTo", "Migrated", "IsActive")
 
         calcs_renamed = calcs.select(
-            F.col("NSIPExaminationTimetableID").alias("calc_NSIPExaminationTimetableID"),
+            F.col("NSIPExaminationTimetableID").alias(
+                "calc_NSIPExaminationTimetableID"
+            ),
             F.col("ValidTo"),
             F.col("Migrated"),
             F.col("IsActive"),
@@ -283,7 +354,8 @@ class NsipExamTimetableHarmonisationProcess(HarmonisationProcess):
         joined = (
             base.join(
                 calcs_renamed,
-                base["NSIPExaminationTimetableID"] == calcs_renamed["calc_NSIPExaminationTimetableID"],
+                base["NSIPExaminationTimetableID"]
+                == calcs_renamed["calc_NSIPExaminationTimetableID"],
             )
             .drop("calc_NSIPExaminationTimetableID")
             .select(columns)

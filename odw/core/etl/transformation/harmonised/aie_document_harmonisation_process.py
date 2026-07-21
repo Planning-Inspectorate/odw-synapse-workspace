@@ -1,4 +1,6 @@
-from odw.core.etl.transformation.harmonised.harmonsation_process import HarmonisationProcess
+from odw.core.etl.transformation.harmonised.harmonisation_process import (
+    HarmonisationProcess,
+)
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.util import Util
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
@@ -172,7 +174,14 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         # Step 1: Compute RowID while AIEDocumentDataID is still NULL.
         # This mirrors the notebook, where RowID is generated from the intermediate
         # table before the calcs view is applied.
-        row_id_expr = F.md5(F.concat(*[F.coalesce(F.col(c).cast("string"), F.lit(".")) for c in _AIE_DOCUMENT_ROW_ID_COLUMNS]))
+        row_id_expr = F.md5(
+            F.concat(
+                *[
+                    F.coalesce(F.col(c).cast("string"), F.lit("."))
+                    for c in _AIE_DOCUMENT_ROW_ID_COLUMNS
+                ]
+            )
+        )
         data_with_row_id = horizon_data.withColumn("RowID", row_id_expr)
 
         # Step 2: Window-function calculations (replaces the SQL view pattern from the notebook)
@@ -181,11 +190,15 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
 
         LoggingUtil().log_info("Computing AIEDocumentDataID and IsActive flags")
         combined = (
-            data_with_row_id.withColumn("ReverseOrderProcessed", F.row_number().over(win_pk_desc))
+            data_with_row_id.withColumn(
+                "ReverseOrderProcessed", F.row_number().over(win_pk_desc)
+            )
             .withColumn("AIEDocumentDataID", F.row_number().over(win_global_asc))
             .withColumn(
                 "IsActive",
-                F.when(F.row_number().over(win_pk_desc) == 1, F.lit("Y")).otherwise(F.lit("N")),
+                F.when(F.row_number().over(win_pk_desc) == 1, F.lit("Y")).otherwise(
+                    F.lit("N")
+                ),
             )
         )
 
@@ -198,14 +211,19 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         calcs = current.join(
             next_row,
             (F.col("CurrentRow." + pk) == F.col("NextRow." + pk))
-            & (F.col("CurrentRow.ReverseOrderProcessed") - 1 == F.col("NextRow.ReverseOrderProcessed")),
+            & (
+                F.col("CurrentRow.ReverseOrderProcessed") - 1
+                == F.col("NextRow.ReverseOrderProcessed")
+            ),
             "left_outer",
         ).select(
             F.col("CurrentRow.AIEDocumentDataID").alias("AIEDocumentDataID"),
             F.col("CurrentRow." + pk).alias(pk),
             F.col("CurrentRow.IngestionDate").alias("IngestionDate"),
             F.coalesce(
-                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(F.col("CurrentRow.ValidTo")),
+                F.when(F.col("CurrentRow.ValidTo") == "", F.lit(None)).otherwise(
+                    F.col("CurrentRow.ValidTo")
+                ),
                 F.col("NextRow.IngestionDate"),
             ).alias("ValidTo"),
             F.lit("0").alias("Migrated"),
@@ -231,7 +249,8 @@ class AieDocumentHarmonisationProcess(HarmonisationProcess):
         LoggingUtil().log_info("Merging and de-duplicating data")
         joined = base.join(
             calcs_renamed,
-            (base[pk] == calcs_renamed[f"calc_{pk}"]) & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
+            (base[pk] == calcs_renamed[f"calc_{pk}"])
+            & (base["IngestionDate"] == calcs_renamed["calc_IngestionDate"]),
         ).select(all_columns)
 
         # Step 5: Drop the temporary primary key and deduplicate

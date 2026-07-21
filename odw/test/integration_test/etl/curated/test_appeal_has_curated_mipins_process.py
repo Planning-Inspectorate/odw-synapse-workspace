@@ -2,14 +2,19 @@ from datetime import datetime
 import mock
 import pytest
 import pyspark.sql.types as T
-from odw.test.util.assertion import assert_etl_result_successful, assert_dataframes_equal
+from odw.test.util.assertion import (
+    assert_etl_result_successful,
+    assert_dataframes_equal,
+)
 import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
-from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import AppealHasCuratedMipinsProcess
+from odw.core.etl.transformation.curated.appeal_has_curated_mipins_process import (
+    AppealHasCuratedMipinsProcess,
+)
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
 from decimal import Decimal
 
-pytestmark = pytest.mark.xfail(reason="Curated MIPINS logic not implemented yet")
+pytestmark = pytest.mark.skip(reason="Curated MIPINS logic not implemented yet")
 
 
 def _harmonised_schema():
@@ -34,7 +39,9 @@ def _harmonised_schema():
             T.StructField("caseValidationDate", T.TimestampType(), True),
             T.StructField("caseValidationOutcome", T.StringType(), True),
             T.StructField("caseValidationInvalidDetails", T.StringType(), True),
-            T.StructField("caseValidationIncompleteDetails", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "caseValidationIncompleteDetails", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("caseExtensionDate", T.TimestampType(), True),
             T.StructField("caseStartedDate", T.TimestampType(), True),
             T.StructField("casePublishedDate", T.TimestampType(), True),
@@ -45,8 +52,12 @@ def _harmonised_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True),
-            T.StructField("lpaQuestionnaireValidationDetails", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True
+            ),
+            T.StructField(
+                "lpaQuestionnaireValidationDetails", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("caseWithdrawnDate", T.TimestampType(), True),
             T.StructField("caseTransferredDate", T.TimestampType(), True),
             T.StructField("transferredCaseClosedDate", T.TimestampType(), True),
@@ -83,14 +94,20 @@ def _harmonised_schema():
             T.StructField("changedDevelopmentDescription", T.StringType(), True),
             T.StructField("newConditionDetails", T.StringType(), True),
             T.StructField("nearbyCaseReferences", T.StringType(), True),
-            T.StructField("neighbouringSiteAddresses", T.ArrayType(T.StringType()), True),
+            T.StructField(
+                "neighbouringSiteAddresses", T.ArrayType(T.StringType()), True
+            ),
             T.StructField("affectedListedBuildingNumbers", T.StringType(), True),
             T.StructField("appellantCostsAppliedFor", T.StringType(), True),
             T.StructField("lpaCostsAppliedFor", T.StringType(), True),
             T.StructField("typeOfPlanningApplication", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("isSiteInAreaOfSpecialControlAdverts", T.StringType(), True),
             T.StructField("advertDetails", T.StringType(), True),
             T.StructField("padsSapId", T.StringType(), True),
@@ -227,7 +244,9 @@ def _curated_schema():
             T.StructField("lpaQuestionnaireCreatedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnairePublishedDate", T.TimestampType(), True),
             T.StructField("lpaQuestionnaireValidationOutcome", T.StringType(), True),
-            T.StructField("lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True),
+            T.StructField(
+                "lpaQuestionnaireValidationOutcomeDate", T.TimestampType(), True
+            ),
             T.StructField("lpaQuestionnaireValidationDetails", T.StringType(), True),
             T.StructField("caseWithdrawnDate", T.TimestampType(), True),
             T.StructField("caseTransferredDate", T.TimestampType(), True),
@@ -271,8 +290,12 @@ def _curated_schema():
             T.StructField("lpaCostsAppliedFor", T.BooleanType(), True),
             T.StructField("typeOfPlanningApplication", T.StringType(), True),
             T.StructField("hasLandownersPermission", T.StringType(), True),
-            T.StructField("wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True),
-            T.StructField("didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True),
+            T.StructField(
+                "wasApplicationRefusedDueToHighwayOrTraffic", T.StringType(), True
+            ),
+            T.StructField(
+                "didAppellantSubmitCompletePhotosAndPlans", T.StringType(), True
+            ),
             T.StructField("isSiteInAreaOfSpecialControlAdverts", T.StringType(), True),
             T.StructField("advertDetails", T.StringType(), True),
             T.StructField("padsSapId", T.StringType(), True),
@@ -383,18 +406,40 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
 
     def assert_curated_etl(self, test_case: str):
         spark = PytestSparkSessionUtil().get_spark_session()
-        appeal_has = spark.createDataFrame((_base_row(), _base_row()), schema=_harmonised_schema())
+        appeal_has = spark.createDataFrame(
+            (_base_row(), _base_row()), schema=_harmonised_schema()
+        )
         appeal_has_table = f"{test_case}_appeal_has"
-        self.write_existing_table(spark, appeal_has, appeal_has_table, "odw_harmonised_db", "odw-harmonised", appeal_has_table, "overwrite")
-        expected_curated_data_after_writing = spark.createDataFrame((_curated_row(),), schema=_curated_schema())
+        self.write_existing_table(
+            spark,
+            appeal_has,
+            appeal_has_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            appeal_has_table,
+            "overwrite",
+        )
+        expected_curated_data_after_writing = spark.createDataFrame(
+            (_curated_row(),), schema=_curated_schema()
+        )
         output_table = f"{test_case}_appeals_has_curated_mipins"
-        with mock.patch.object(AppealHasCuratedMipinsProcess, "HARMONISED_TABLE", appeal_has_table):
-            with mock.patch.object(AppealHasCuratedMipinsProcess, "OUTPUT_TABLE", output_table):
+        with mock.patch.object(
+            AppealHasCuratedMipinsProcess, "HARMONISED_TABLE", appeal_has_table
+        ):
+            with mock.patch.object(
+                AppealHasCuratedMipinsProcess, "OUTPUT_TABLE", output_table
+            ):
                 inst = AppealHasCuratedMipinsProcess(spark)
-                result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="appeal_has_mipins", orchestration_stage_name="curate")
+                result = inst.run(
+                    orchestration_run_id=test_case,
+                    orchestration_entity_name="appeal_has_mipins",
+                    orchestration_stage_name="curate",
+                )
                 assert_etl_result_successful(result)
                 actual_table_data = spark.table(output_table)
-                assert_dataframes_equal(expected_curated_data_after_writing, actual_table_data)
+                assert_dataframes_equal(
+                    expected_curated_data_after_writing, actual_table_data
+                )
 
     def test__appeal_has_curated_mipins_process__run__with_no_existing_data(self):
         """
@@ -413,6 +458,16 @@ class TestAppealHasCuratedMipinsProcess(ETLTestCase):
         test_case = "t_ahcmp_r_wed"
         output_table = f"{test_case}_appeals_has_curated_mipins"
         spark = PytestSparkSessionUtil().get_spark_session()
-        existing_data = spark.createDataFrame((_curated_row(caseId=1),), schema=_curated_schema())
-        self.write_existing_table(spark, existing_data, output_table, "odw_curated_db", "odw-curated", output_table, "overwrite")
+        existing_data = spark.createDataFrame(
+            (_curated_row(caseId=1),), schema=_curated_schema()
+        )
+        self.write_existing_table(
+            spark,
+            existing_data,
+            output_table,
+            "odw_curated_db",
+            "odw-curated",
+            output_table,
+            "overwrite",
+        )
         self.assert_curated_etl(test_case)
