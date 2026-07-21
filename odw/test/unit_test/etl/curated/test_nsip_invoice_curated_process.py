@@ -55,7 +55,7 @@ def _curated_schema():
             StructField("paymentDate", StringType(), True),
             StructField("refundCreditNoteNumber", StringType(), True),
             StructField("refundAmount", DoubleType(), True),
-            StructField("IsActive", StringType(), True),
+            StructField("refundIssueDate", StringType(), True),
         ]
     )
 
@@ -158,7 +158,6 @@ class TestNsipInvoiceCuratedProcess(SparkTestCase):
             "refundCreditNoteNumber",
             "refundAmount",
             "refundIssueDate",
-            "IsActive",
         ]
 
     def test__nsip_invoice_curated_process__process__drops_duplicate_active_rows_using_distinct_like_legacy(
