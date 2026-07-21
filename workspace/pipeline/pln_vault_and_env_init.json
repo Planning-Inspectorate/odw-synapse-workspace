@@ -600,7 +600,7 @@
 							"type": "SetVariable",
 							"dependsOn": [
 								{
-									"activity": "Get API feed",
+									"activity": "Filter API feed",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -614,7 +614,30 @@
 							"typeProperties": {
 								"variableName": "api_feed",
 								"value": {
-									"value": "@if(\n  greater(length(pipeline().parameters.apiEntitiesFilter), 0),\n  pipeline().parameters.apiEntitiesFilter,\n  if(\n    and(\n      not(empty(activity('Get API feed').output.value)),\n      not(empty(activity('Get API feed').output.value[0].entities))\n    ),\n    split(activity('Get API feed').output.value[0].entities, ','),\n    json('[]')\n  )\n)\n",
+									"value": "@activity('Filter API feed').output.value",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Filter API feed",
+							"type": "Filter",
+							"dependsOn": [
+								{
+									"activity": "Get API feed",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"items": {
+									"value": "@if(\n    and(\n      not(empty(activity('Get API feed').output.value)),\n      not(empty(activity('Get API feed').output.value[0].entities))\n    ),\n    split(activity('Get API feed').output.value[0].entities, ','),\n    json('[]')\n)",
+									"type": "Expression"
+								},
+								"condition": {
+									"value": "@or(\n    equals(\n        length(pipeline().parameters.apiEntitiesFilter),\n        0\n    ),\n    contains(\n        pipeline().parameters.apiEntitiesFilter,\n        item()\n    )\n)",
 									"type": "Expression"
 								}
 							}
