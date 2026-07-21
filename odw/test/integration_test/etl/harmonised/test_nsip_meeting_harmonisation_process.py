@@ -105,13 +105,24 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
-        rows = actual_df.collect()
+        rows = [row.asDict(recursive=True) for row in actual_df.collect()]
 
-        assert actual_df.count() == 1
-        assert rows[0]["meetingId"] == "M-1"
-        assert rows[0]["meetingAgenda"] == "new"
-        assert rows[0]["IsActive"] == "Y"
-        assert rows[0]["ValidTo"] is None
+        assert len(rows) == 2
+
+        active_rows = [row for row in rows if row["IsActive"] == "Y"]
+        inactive_rows = [row for row in rows if row["IsActive"] == "N"]
+
+        assert len(active_rows) == 1
+        assert len(inactive_rows) == 1
+
+        assert active_rows[0]["meetingId"] == "M-1"
+        assert active_rows[0]["meetingAgenda"] == "new"
+        assert active_rows[0]["ValidTo"] is None
+
+        assert inactive_rows[0]["meetingId"] == "M-1"
+        assert inactive_rows[0]["meetingAgenda"] == "old"
+        assert inactive_rows[0]["ValidTo"] is not None
+        assert str(inactive_rows[0]["ValidTo"]).startswith("2025-01-02")
 
     def test__nsip_meeting_harmonisation_process__run__incremental_change_expires_old_record_and_inserts_new_version(
         self,
@@ -253,6 +264,7 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
 
         assert inactive_rows[0]["meetingAgenda"] == "old"
         assert inactive_rows[0]["ValidTo"] is not None
+        assert str(inactive_rows[0]["ValidTo"]).startswith("2025-01-03")
 
         assert active_rows[0]["meetingAgenda"] == "changed"
         assert active_rows[0]["ValidTo"] is None

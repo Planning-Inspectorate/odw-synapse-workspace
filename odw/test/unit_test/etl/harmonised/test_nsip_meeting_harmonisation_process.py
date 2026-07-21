@@ -86,16 +86,29 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
         expected_data_entry = f"odw_harmonised_db.{inst.OUTPUT_TABLE}"
 
         actual_df = data_to_write[expected_data_entry]["data"]
-        rows = actual_df.collect()
+        rows = [row.asDict(recursive=True) for row in actual_df.collect()]
 
-        assert actual_df.count() == 1
-        assert rows[0]["meetingId"] == "M-1"
-        assert rows[0]["meetingAgenda"] == "new"
-        assert rows[0]["IsActive"] == "Y"
-        assert rows[0]["ValidTo"] is None
+        # Initial load keeps every source version: latest active, older historised.
+        assert len(rows) == 2
+
+        active_rows = [row for row in rows if row["IsActive"] == "Y"]
+        inactive_rows = [row for row in rows if row["IsActive"] == "N"]
+
+        assert len(active_rows) == 1
+        assert len(inactive_rows) == 1
+
+        assert active_rows[0]["meetingId"] == "M-1"
+        assert active_rows[0]["meetingAgenda"] == "new"
+        assert active_rows[0]["ValidTo"] is None
+
+        assert inactive_rows[0]["meetingId"] == "M-1"
+        assert inactive_rows[0]["meetingAgenda"] == "old"
+        # ValidTo of the historical row is the ingestion date of the next message.
+        assert inactive_rows[0]["ValidTo"] is not None
+        assert str(inactive_rows[0]["ValidTo"]).startswith("2025-01-02")
 
         assert data_to_write[expected_data_entry]["write_mode"] == "overwrite"
-        assert result.metadata.insert_count == 1
+        assert result.metadata.insert_count == 2
         assert result.metadata.update_count == 0
 
     def test__nsip_meeting_harmonisation_process__process__incremental_change_expires_old_record_and_inserts_new_version(
@@ -211,6 +224,8 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
 
         assert inactive_rows[0]["meetingAgenda"] == "old"
         assert inactive_rows[0]["ValidTo"] is not None
+        # ValidTo of the expired row is the first incoming source message datetime for the key.
+        assert str(inactive_rows[0]["ValidTo"]).startswith("2025-01-03")
 
         assert active_rows[0]["meetingAgenda"] == "changed"
         assert active_rows[0]["ValidTo"] is None
