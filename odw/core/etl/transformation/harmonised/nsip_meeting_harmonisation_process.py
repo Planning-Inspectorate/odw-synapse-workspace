@@ -24,10 +24,14 @@ _CHANGE_TRACKING_COLS = [
 
 
 def _null_safe_concat_expr(columns) -> F.Column:
-    return F.concat_ws("~", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in columns])
+    return F.concat_ws(
+        "~", *[F.coalesce(F.col(c).cast("string"), F.lit("")) for c in columns]
+    )
 
 
-def _align_source_to_target_schema(source_df: DataFrame, target_df: DataFrame) -> DataFrame:
+def _align_source_to_target_schema(
+    source_df: DataFrame, target_df: DataFrame
+) -> DataFrame:
     """
     Keep all source columns:
     - Columns in both source and target: Cast to target datatype
@@ -156,9 +160,7 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
         all_hash_cols = _BUSINESS_KEY_COLS + _CHANGE_TRACKING_COLS
         source_df = service_bus_exploded.withColumn(
             "business_key", F.sha2(_null_safe_concat_expr(_BUSINESS_KEY_COLS), 256)
-        ).withColumn(
-            "row_hash", F.sha2(_null_safe_concat_expr(all_hash_cols), 256)
-        )
+        ).withColumn("row_hash", F.sha2(_null_safe_concat_expr(all_hash_cols), 256))
 
         # Step 5: Rank all source rows per business_key so that we never lose any source version.
         # Latest version per key -> key_rank_desc == 1. For historical rows, next_msg_ingestion_date
@@ -173,13 +175,11 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             F.col("NSIPProjectInfoInternalID").asc(),
             F.col("row_hash").asc(),
         )
-        source_df_ranked = (
-            source_df
-            .withColumn("key_rank_desc", F.row_number().over(source_rank_window_desc))
-            .withColumn(
-                "next_msg_ingestion_date",
-                F.lead("IngestionDate").over(source_rank_window_asc),
-            )
+        source_df_ranked = source_df.withColumn(
+            "key_rank_desc", F.row_number().over(source_rank_window_desc)
+        ).withColumn(
+            "next_msg_ingestion_date",
+            F.lead("IngestionDate").over(source_rank_window_asc),
         )
         latest_source_per_key = source_df_ranked.filter(F.col("key_rank_desc") == 1)
 
@@ -195,16 +195,20 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                 "business_key", "IngestionDate", "NSIPProjectInfoInternalID", "row_hash"
             )
             initial_load = (
-                source_df_ranked
-                .withColumn("NSIPMeetingId", F.row_number().over(window_spec))
+                source_df_ranked.withColumn(
+                    "NSIPMeetingId", F.row_number().over(window_spec)
+                )
                 .withColumn(
                     "IsActive",
-                    F.when(F.col("key_rank_desc") == 1, F.lit("Y")).otherwise(F.lit("N")),
+                    F.when(F.col("key_rank_desc") == 1, F.lit("Y")).otherwise(
+                        F.lit("N")
+                    ),
                 )
                 .withColumn(
                     "ValidTo",
-                    F.when(F.col("key_rank_desc") == 1, F.lit(None).cast("timestamp"))
-                    .otherwise(F.col("next_msg_ingestion_date").cast("timestamp")),
+                    F.when(
+                        F.col("key_rank_desc") == 1, F.lit(None).cast("timestamp")
+                    ).otherwise(F.col("next_msg_ingestion_date").cast("timestamp")),
                 )
                 .drop("business_key", "key_rank_desc", "next_msg_ingestion_date")
             )
@@ -249,7 +253,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
             new_keys = (
                 latest_source_per_key.alias("source")
                 .join(
-                    current_harmonised_active.select("business_key").distinct().alias("target"),
+                    current_harmonised_active.select("business_key")
+                    .distinct()
+                    .alias("target"),
                     F.col("source.business_key") == F.col("target.business_key"),
                     "left_anti",
                 )
@@ -312,7 +318,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                         F.when(
                             (F.col("expire.business_key").isNotNull())
                             & (F.col("target.IsActive") == F.lit("Y")),
-                            F.col("expire.first_new_msg_ingestion_date").cast("timestamp"),
+                            F.col("expire.first_new_msg_ingestion_date").cast(
+                                "timestamp"
+                            ),
                         )
                         .otherwise(F.col("target.ValidTo"))
                         .alias("ValidTo"),
@@ -340,8 +348,9 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                         "row_hash",
                     )
                     new_versions = (
-                        records_to_insert
-                        .withColumn("temp_row_num", F.row_number().over(window_spec))
+                        records_to_insert.withColumn(
+                            "temp_row_num", F.row_number().over(window_spec)
+                        )
                         .withColumn(
                             "NSIPMeetingId", F.col("temp_row_num") + F.lit(max_id)
                         )
@@ -361,14 +370,18 @@ class NsipMeetingHarmonisationProcess(HarmonisationProcess):
                                 F.col("next_msg_ingestion_date").cast("timestamp")
                             ),
                         )
-                        .drop("business_key", "key_rank_desc", "next_msg_ingestion_date")
+                        .drop(
+                            "business_key", "key_rank_desc", "next_msg_ingestion_date"
+                        )
                     )
 
             # Build final output. Since data_to_write supports a single DataFrame per table
             # and the SCD2 pattern requires overwrite (expired) + append (new), we combine
             # expired_df and new_versions and write via overwrite (matches notebook behavior).
             if expired_df is not None and new_versions is not None:
-                final_df = expired_df.unionByName(new_versions, allowMissingColumns=True)
+                final_df = expired_df.unionByName(
+                    new_versions, allowMissingColumns=True
+                )
                 write_mode = "overwrite"
             elif expired_df is not None:
                 final_df = expired_df

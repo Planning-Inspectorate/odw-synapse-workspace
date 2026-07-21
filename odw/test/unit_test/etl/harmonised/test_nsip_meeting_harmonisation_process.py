@@ -234,9 +234,13 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
         assert result.metadata.insert_count == 1
         assert result.metadata.update_count == 1
 
-    def test__nsip_meeting_harmonisation_process__process__nsip_project_info_reallocation_does_not_create_new_version(self):
+    def test__nsip_meeting_harmonisation_process__process__nsip_project_info_reallocation_does_not_create_new_version(
+        self,
+    ):
         spark = PytestSparkSessionUtil().get_spark_session()
-        matching_row_hash = hashlib.sha256("100~M-1~same~role~type-a~2025-01-01".encode("utf-8")).hexdigest()
+        matching_row_hash = hashlib.sha256(
+            "100~M-1~same~role~type-a~2025-01-01".encode("utf-8")
+        ).hexdigest()
 
         service_bus_data = spark.createDataFrame(
             [
@@ -319,7 +323,9 @@ class TestNSIPMeetingHarmonisationProcess(SparkTestCase):
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch("odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"),
+            mock.patch(
+                "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.LoggingUtil"
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
             data_to_write, result = inst.process(

@@ -4,7 +4,10 @@ from odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process i
 )
 from odw.test.integration_test.etl.etl_test_case import ETLTestCase
 from odw.test.util.session_util import PytestSparkSessionUtil
-from odw.test.util.assertion import assert_dataframes_equal, assert_etl_result_successful
+from odw.test.util.assertion import (
+    assert_dataframes_equal,
+    assert_etl_result_successful,
+)
 from pyspark.sql import Row
 import pyspark.sql.types as T
 import hashlib
@@ -269,10 +272,14 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
         assert active_rows[0]["meetingAgenda"] == "changed"
         assert active_rows[0]["ValidTo"] is None
 
-    def test__nsip_meeting_harmonisation_process__run__nsip_project_info_reallocation_does_not_create_new_version(self):
+    def test__nsip_meeting_harmonisation_process__run__nsip_project_info_reallocation_does_not_create_new_version(
+        self,
+    ):
         test_case = "t_nmhp_r_npiradncnv"
         spark = PytestSparkSessionUtil().get_spark_session()
-        matching_row_hash = hashlib.sha256("100~M-1~same~role~type-a~2025-01-01".encode("utf-8")).hexdigest()
+        matching_row_hash = hashlib.sha256(
+            "100~M-1~same~role~type-a~2025-01-01".encode("utf-8")
+        ).hexdigest()
 
         service_bus_data = spark.createDataFrame(
             [
@@ -351,25 +358,53 @@ class TestNSIPMeetingHarmonisation(ETLTestCase):
         )
 
         service_bus_table = f"{test_case}_sb_nsip_project"
-        self.write_existing_table(spark, service_bus_data, service_bus_table, "odw_harmonised_db", "odw-harmonised", service_bus_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            service_bus_data,
+            service_bus_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            service_bus_table,
+            "overwrite",
+        )
 
         output_table = f"{test_case}_sb_nsip_meeting"
-        self.write_existing_table(spark, target_df, output_table, "odw_harmonised_db", "odw-harmonised", output_table, "overwrite")
+        self.write_existing_table(
+            spark,
+            target_df,
+            output_table,
+            "odw_harmonised_db",
+            "odw-harmonised",
+            output_table,
+            "overwrite",
+        )
 
         with (
             mock.patch(
                 "odw.core.etl.transformation.harmonised.nsip_meeting_harmonisation_process.Util.get_storage_account",
                 return_value="test_storage",
             ),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "SERVICE_BUS_TABLE", f"odw_harmonised_db.{service_bus_table}"),
-            mock.patch.object(NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess,
+                "SERVICE_BUS_TABLE",
+                f"odw_harmonised_db.{service_bus_table}",
+            ),
+            mock.patch.object(
+                NsipMeetingHarmonisationProcess, "OUTPUT_TABLE", output_table
+            ),
         ):
             inst = NsipMeetingHarmonisationProcess(spark)
-            result = inst.run(orchestration_run_id=test_case, orchestration_entity_name="nsip_meeting", orchestration_stage_name="harmonise")
+            result = inst.run(
+                orchestration_run_id=test_case,
+                orchestration_entity_name="nsip_meeting",
+                orchestration_stage_name="harmonise",
+            )
             assert_etl_result_successful(result)
 
         actual_df = spark.table(f"odw_harmonised_db.{output_table}")
         actual_subset_df = actual_df.select("IsActive", "ValidTo", "meetingAgenda")
-        expected_subset_df = spark.createDataFrame([("Y", None, "same")], actual_subset_df.schema)
+        expected_subset_df = spark.createDataFrame(
+            [("Y", None, "same")], actual_subset_df.schema
+        )
 
         assert_dataframes_equal(expected_subset_df, actual_subset_df)
