@@ -23,7 +23,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     "M-1",
                     "2025-01-01",
                     "type-a",
-                    "Y",
                 ),
                 (
                     100,
@@ -33,7 +32,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     "M-1",
                     "2025-01-05",
                     "type-a",
-                    "Y",
                 ),
                 (
                     200,
@@ -43,7 +41,6 @@ class TestNSIPMeetingCurationProcess(SparkTestCase):
                     "M-2",
                     "2025-02-01",
                     "type-b",
-                    "Y",
                 ),
             ],
             T.StructType(
