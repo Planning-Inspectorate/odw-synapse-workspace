@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa: F401
 import pyspark.sql.types as T
 import pytest
 from odw.core.etl.transformation.curated.appeal_folder_curation_process import (

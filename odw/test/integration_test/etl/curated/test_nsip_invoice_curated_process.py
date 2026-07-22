@@ -1,5 +1,5 @@
 import mock
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa: F401
 from odw.test.util.assertion import (
     assert_dataframes_equal,
     assert_etl_result_successful,
@@ -62,7 +62,6 @@ def _curated_schema():
             StructField("refundCreditNoteNumber", StringType(), True),
             StructField("refundAmount", DoubleType(), True),
             StructField("refundIssueDate", StringType(), True),
-            StructField("IsActive", StringType(), True),
         ]
     )
 
@@ -107,7 +106,6 @@ def _curated_row(**overrides):
         "refundCreditNoteNumber": None,
         "refundAmount": None,
         "refundIssueDate": None,
-        "IsActive": "Y",
     }
     row.update(overrides)
     return row
