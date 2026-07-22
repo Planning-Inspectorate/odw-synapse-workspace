@@ -1,7 +1,7 @@
 import mock
 import pyspark.sql.types as T
 from odw.test.util.assertion import assert_etl_result_successful
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.harmonised.pins_inspector_harmonisation_process import (
     PinsInspectorHarmonisationProcess,
 )

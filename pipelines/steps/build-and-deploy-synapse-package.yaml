@@ -1,0 +1,48 @@
+parameters:
+  - name: armServiceConnectionName
+    type: string
+  - name: env
+    type: string
+
+steps:
+  - script: |
+      set -e
+      echo "##[group]GitFetch"
+      # Fetch all previous commits. See https://git-scm.com/docs/shallow
+      git fetch --depth=2147483647
+      echo "##[endgroup]"
+      # Build id set to the most recent commit hash for the odw folder- this is used to work out if the package has already been uploaded to Synapse
+      buildId=$(git rev-list -1 HEAD $(Build.SourcesDirectory)/odw/)
+      echo "Building with build version $buildId"
+      echo "##[group]PoetryBuild"
+      poetry build --config-settings local-version=$buildId
+      echo "##[endgroup]"
+
+      # Determine the produced wheel (pick the most recent in dist/)
+      wheel_path=$(ls -1t dist/odw-*.whl | head -n 1)
+      if [ -z "$wheel_path" ]; then
+        echo "ERROR: No ODW wheel found in dist/ after build"
+        ls -al dist || true
+        exit 1
+      fi
+      wheel_name=$(basename "$wheel_path")
+        
+      echo "##[group]ToolInstall"
+      # Note: Ideally sdkman is pre-installed on the ADO VM. The ADO pipeline uses a different profile to the one used by
+      #       Packer, which means that sdkman can't be found when running this step, and makes this approach tricky.
+      #       Testing pre-installing is time consuming, and to save time sdkman has been installed directly in the step.
+      #       We should move the installation to tools.sh when we have time. (The installation of sdkman/gradle is < 10s)
+      curl -s "https://get.sdkman.io?ci=true" | bash
+      source "$HOME/.sdkman/bin/sdkman-init.sh"
+      sdk version
+      sdk install gradle 9.2.0
+      gradle --version
+      export PATH="$PATH:/home/AzDevOps/.local/bin/"
+      sudo apt-get install -y unixodbc-dev=2.3.9-5ubuntu0.1
+      sudo curl -fsSL https://aka.ms/install-azd.sh | bash
+      echo "##[endgroup]"
+
+      export PYTHONPATH="${PYTHONPATH}:/./"
+      python3 $(Build.SourcesDirectory)/pipelines/scripts/deploy_packages.py -e ${{ parameters.env }} -pn "$wheel_name" --deploy
+    displayName: 'Build and Deploy Synapse packages'
+    name: BuildODWPackage

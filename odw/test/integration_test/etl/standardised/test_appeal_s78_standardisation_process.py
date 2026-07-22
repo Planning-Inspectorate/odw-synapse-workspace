@@ -1,6 +1,6 @@
 import mock
 import pytest
-import odw.test.util.mock.import_mock_notebook_utils  # noqa
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa
 from pyspark.sql.types import (
     ArrayType,
     StringType,
