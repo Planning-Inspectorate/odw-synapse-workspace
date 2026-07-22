@@ -62,8 +62,10 @@ class HorizonStandardisationProcess(StandardisationProcess):
         entity_name = self.load_parameter("entity_name", kwargs, "")
         source_path = Util.get_path_to_file(f"odw-raw/{source_folder}")
         last_modified_folder = self.get_last_modified_folder(source_path)
+        LoggingUtil().log_info(f"Found last modified folder: '{last_modified_folder}'")
         if last_modified_folder:
             source_path += f"/{last_modified_folder}"
+        LoggingUtil().log_info(f"Source path: '{source_path}'")
 
         file_map = dict()
         orchestration_data = SynapseFileDataIO().read(
@@ -81,6 +83,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
 
         # Load new raw data files to add to the existing data
         horizon_files = self.get_file_names_in_directory(source_path)
+        LoggingUtil().log_info(
+            f"Found Horizon files: '{json.dumps(horizon_files, indent=4)}'"
+        )
 
         if entity_name:
             horizon_files = [
