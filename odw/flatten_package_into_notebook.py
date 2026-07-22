@@ -361,7 +361,7 @@ def topological_sort(dag: Dict[str, List[str]]) -> List[str]:
 
 def remove_odw_imports(module_content: str):
     cleaned_module_content = re.sub(
-        r"(from\sodw.[A-Za-z._]*\simport\s[A-Za-z0-9.-]*)",
+        r"(from\sodw.[A-Za-z._\d]*\simport\s[A-Za-z0-9.-]*)(\(\n\s*[A-Za-z_,\s\d]*\))*",
         r"#COMMENTOUT \1",
         module_content,
     )
