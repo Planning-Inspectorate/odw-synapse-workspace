@@ -1,7 +1,7 @@
 import mock
 import pyspark.sql.types as T
 from pyspark.sql import functions as F
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_event_estimate_curated_process import (
     AppealEventEstimateCuratedProcess,
 )

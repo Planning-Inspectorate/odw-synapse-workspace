@@ -10,7 +10,7 @@ from pyspark.sql.types import (
     ArrayType,
     DoubleType,
 )
-import odw.test.util.mock.import_mock_notebook_utils  # noqa: F401
+import odw.test.util.mock_util.import_mock_notebook_utils  # noqa: F401
 from odw.core.etl.transformation.curated.appeal_s78_curation_process import (
     AppealS78CurationProcess,
 )

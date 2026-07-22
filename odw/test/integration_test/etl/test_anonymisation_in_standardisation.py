@@ -14,7 +14,7 @@ The tests are integration-level because they exercise the full pipeline wiring, 
 isolated units.
 """
 
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils  # noqa: F401
 
 import json
 import pytest

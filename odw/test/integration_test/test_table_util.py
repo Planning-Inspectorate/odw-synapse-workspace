@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils
 from odw.core.util.table_util import TableUtil
 from odw.test.util.config import TEST_CONFIG
 from odw.test.util.session_util import PytestSparkSessionUtil

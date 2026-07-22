@@ -1,5 +1,7 @@
 from odw.core.io.synapse_data_io import SynapseDataIO
+from odw.core.util.logging_util import LoggingUtil
 from pyspark.sql import DataFrame, SparkSession
+import json
 
 
 class SynapseFileDataIO(SynapseDataIO):
@@ -83,18 +85,35 @@ class SynapseFileDataIO(SynapseDataIO):
             raise ValueError(
                 f"SynapseFileDataIO.read requires the read_options to be a dictionary of strings, but was a {type(read_options)}"
             )
-        if storage_name:
-            data_path = self._format_to_adls_path(
-                container_name, blob_path, storage_name=storage_name
-            )
+        if isinstance(blob_path, str):
+            blob_paths = [blob_path]
+        elif isinstance(blob_path, list):
+            blob_paths = blob_path
         else:
-            data_path = self._format_to_adls_path(
-                container_name, blob_path, storage_endpoint=storage_endpoint
+            raise ValueError(
+                f"Expected blob_path to be a list or a string, but was a {type(blob_path)}"
             )
+        if storage_name:
+            data_paths = [
+                self._format_to_adls_path(
+                    container_name, blob_path, storage_name=storage_name
+                )
+                for blob_path in blob_paths
+            ]
+        else:
+            data_paths = [
+                self._format_to_adls_path(
+                    container_name, blob_path, storage_endpoint=storage_endpoint
+                )
+                for blob_path in blob_paths
+            ]
+        LoggingUtil().log_info(
+            f"Reading the following data ({len(data_paths)} files): {json.dumps(data_paths, indent=4)}"
+        )
         reader = spark.read.format(file_format)
         for option_name, option_value in read_options.items():
             reader.option(option_name, option_value)
-        return reader.load(data_path)
+        return reader.load(data_paths)
 
     def write(self, data: DataFrame, **kwargs):
         """

@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils  # noqa: F401
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils  # noqa: F401
 from odw.core.io.synapse_data_io import SynapseDataIO
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.util.logging_util import LoggingUtil

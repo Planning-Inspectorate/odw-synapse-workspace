@@ -1,4 +1,4 @@
-from odw.test.util.mock.import_mock_notebook_utils import notebookutils
+from odw.test.util.mock_util.import_mock_notebook_utils import notebookutils
 from odw.core.util.logging_util import LoggingUtil
 from odw.core.util.table_util import TableUtil
 from odw.test.util.test_case import SparkTestCase
