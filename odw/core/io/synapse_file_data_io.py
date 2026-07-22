@@ -91,7 +91,7 @@ class SynapseFileDataIO(SynapseDataIO):
             blob_paths = blob_path
         else:
             raise ValueError(
-                f"Expected blob_path to be a list or a string, but was a {type(blob_paths)}"
+                f"Expected blob_paths to be a list or a string, but was a {type(blob_paths)}"
             )
         if storage_name:
             data_paths = [
