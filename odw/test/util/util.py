@@ -51,6 +51,15 @@ def get_all_files_in_directory(inst, source_path: str):
     return files
 
 
+def get_all_file_names_in_directory(inst, source_path: str):
+    # This wraped around mssparkutils.fs.ls
+    return [
+        x
+        for x in os.listdir(source_path)
+        if os.path.isfile(os.path.join(source_path, x))
+    ]
+
+
 def format_to_adls_path(
     inst,
     container_name: str,
