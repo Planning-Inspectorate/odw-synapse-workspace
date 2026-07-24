@@ -52,5 +52,5 @@ class StandardisationProcess(TransformationProcess):
                 LoggingUtil().log_error(
                     f"Anonymisation failed for {file_name}: {str(e)}"
                 )
-                raise
+                return data
         return data

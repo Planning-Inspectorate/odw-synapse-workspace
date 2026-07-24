@@ -30,12 +30,15 @@ class APIStandardisationProcess(StandardisationProcess):
         return "API Standardisation Process"
 
     def get_file_names_in_directory(self, path: str) -> List[str]:
+        LoggingUtil().log_info(
+            f"Attempting to list the file names of the location: '{path}'"
+        )
         files = mssparkutils.fs.ls(path)
         return [file.name for file in files]
 
     def load_data(self, **kwargs):
         # Note this is left mostly unchanged from the original notebook - further refactoring is possible
-        date_folder = kwargs.get("date_folder", "")
+        date_folder_in = kwargs.get("date_folder", "")
         source_folder = kwargs.get("source_folder", "")  # AIEDocumentData
         source_frequency_folder = kwargs.get("source_frequency_folder", "")
         specific_file = kwargs.get(
@@ -46,11 +49,10 @@ class APIStandardisationProcess(StandardisationProcess):
         storage_account = Util.get_storage_account()
         raw_container = "abfss://odw-raw@" + storage_account
 
-        if date_folder == "":
+        if date_folder_in == "":
             date_folder = datetime.now().date()
-            print(date_folder)
         else:
-            date_folder = datetime.strptime(date_folder, "%Y-%m-%d")
+            date_folder = datetime.strptime(date_folder_in, "%Y-%m-%d")
 
         date_folder_str = date_folder.strftime("%Y-%m-%d")
         source_folder_path = (
@@ -60,18 +62,22 @@ class APIStandardisationProcess(StandardisationProcess):
         )
 
         # Read orchestration data
-        path_to_orchestration_file = (
-            "abfss://odw-config@" + storage_account + "orchestration/orchestration.json"
-        )
-        df = self.spark.read.option("multiline", "true").json(
-            path_to_orchestration_file
+        df = SynapseFileDataIO().read(
+            spark=self.spark,
+            storage_endpoint=Util.get_storage_account(),
+            container_name="odw-config",
+            blob_path="orchestration/orchestration.json",
+            file_format="json",
+            read_options={"multiline": "true"},
         )
         definitions = json.loads(df.toJSON().first())["definitions"]
 
-        source_path = f"{raw_container}{source_folder_path}/{date_folder_str}"
+        source_path = Util.get_path_to_file(
+            f"odw-raw/{source_folder_path}/{date_folder_str}"
+        )
 
         # Detect files to be extracted
-        LoggingUtil.log_info(f"Reading from {source_path}")
+        LoggingUtil().log_info(f"Reading from {source_path}")
         files = self.get_file_names_in_directory(source_path)
 
         json_read_options = {"multiline": True} if is_multiline else dict()
@@ -112,6 +118,9 @@ class APIStandardisationProcess(StandardisationProcess):
                 ),
                 None,
             )
+            LoggingUtil().log_info(
+                f"Found definition for file {file_name}: {definition}"
+            )
 
             if definition:
                 expected_from = date_folder - timedelta(days=1)
@@ -119,16 +128,17 @@ class APIStandardisationProcess(StandardisationProcess):
                 # Try to load the existing standardised table
                 table_name = definition["Standardised_Table_Name"]
                 new_entry_name = f"odw_standardised_db.{table_name}"
-                try:
-                    data = SynapseTableDataIO().read(
-                        spark=self.spark,
-                        database_name="odw_standardised_db",
-                        table_name=table_name,
-                        file_format="delta",
-                    )
-                    source_data[new_entry_name] = data
-                except AnalysisException:
-                    source_data[new_entry_name] = None
+                if new_entry_name not in source_data:
+                    try:
+                        data = SynapseTableDataIO().read(
+                            spark=self.spark,
+                            database_name="odw_standardised_db",
+                            table_name=table_name,
+                            file_format="delta",
+                        )
+                        source_data[new_entry_name] = data
+                    except AnalysisException:
+                        source_data[new_entry_name] = None
                 standardised_table_definition_path = definition.get(
                     "Standardised_Table_Definition"
                 )
@@ -150,11 +160,11 @@ class APIStandardisationProcess(StandardisationProcess):
                     .value
                 )
 
-                LoggingUtil.log_info(f"Ingesting {file_name}")
+                LoggingUtil().log_info(f"Ingesting {file_name}")
                 file_to_read = f"{source_path}/{file_name}"
                 if "csv" in file_name.lower():
                     df = self.spark.read.options(**csv_read_options).csv(file_to_read)
-                if ".json" in file_name.lower():
+                elif ".json" in file_name.lower():
                     df = self.spark.read.options(**json_read_options).json(
                         f"{source_path}/{file_name}"
                     )
@@ -169,7 +179,11 @@ class APIStandardisationProcess(StandardisationProcess):
     def process(self, **kwargs):
         # Note this is left mostly unchanged from the original notebook - further refactoring is possible
         start_exec_time = datetime.now()
-        date_folder = kwargs.get("date_folder", "")
+        date_folder_in = kwargs.get("date_folder", "")
+        if date_folder_in == "":
+            date_folder = datetime.now().date()
+        else:
+            date_folder = datetime.strptime(date_folder_in, "%Y-%m-%d")
         source_folder = kwargs.get("source_folder", "")
         process_name = self.get_name()
         source_data: Dict[str, DataFrame] = kwargs.get("source_data", None)
@@ -182,12 +196,21 @@ class APIStandardisationProcess(StandardisationProcess):
             for k, v in source_data.items()
             if k.endswith("_standardised_table_definition")
         }
+        LoggingUtil().log_info(
+            f"The following standardised table definitions were extracted: {json.dumps(list(standardised_table_definitions.keys()), indent=4)}"
+        )
         raw_data_files = {
             k: v
             for k, v in source_data.items()
             if not k.endswith("_standardised_table_definition")
         }
+        LoggingUtil().log_info(
+            f"The following raw data files were extracted: {json.dumps(list(raw_data_files.keys()), indent=4)}"
+        )
         definitions = source_data.get("definitions")
+        LoggingUtil().log_info(
+            f"The following definitions were loaded: {json.dumps(definitions, indent=4)}"
+        )
         source_frequency_folder = kwargs.get("source_frequency_folder", "")
         specific_file = kwargs.get(
             "specific_file", ""
@@ -212,103 +235,116 @@ class APIStandardisationProcess(StandardisationProcess):
                 ),
                 None,
             )
-            source_filename_start = definition["Source_Filename_Start"]
-            standardised_table_name = definition["Standardised_Table_Name"]
-            processed_tables.append(standardised_table_name)
-            expected_from = date_folder - timedelta(days=1)
-            expected_from = datetime.combine(expected_from, datetime.min.time())
-            expected_to = expected_from + timedelta(
-                days=definition["Expected_Within_Weekdays"]
+            LoggingUtil().log_info(
+                f"Found definition for file {file_name}: {definition}"
             )
-            # Remove redundant cols
-            df_cleaned = df.select(
-                [
-                    col
-                    for col in df.columns
-                    if not (col.startswith("Unnamed") or col.startswith("@odata"))
+            if definition:
+                source_filename_start = definition["Source_Filename_Start"]
+                standardised_table_name = definition["Standardised_Table_Name"]
+                processed_tables.append(standardised_table_name)
+                expected_from = date_folder - timedelta(days=1)
+                expected_from = datetime.combine(expected_from, datetime.min.time())
+                expected_to = expected_from + timedelta(
+                    days=definition["Expected_Within_Weekdays"]
+                )
+                # Remove redundant cols
+                df_cleaned = df.select(
+                    [
+                        col
+                        for col in df.columns
+                        if not (col.startswith("Unnamed") or col.startswith("@odata"))
+                    ]
+                )
+                # Add standardised cols
+                standardised_cols = {
+                    "ingested_datetime": F.current_timestamp(),
+                    "ingested_by_process_name": F.lit(process_name),
+                    "expected_from": F.lit(expected_from),
+                    "expected_to": F.lit(expected_to),
+                    "input_file": F.input_file_name(),
+                    "modified_datetime": F.current_timestamp(),
+                    "modified_by_process_name": F.lit(process_name),
+                    "entity_name": F.lit(source_filename_start),
+                    "file_ID": F.sha2(
+                        F.concat(
+                            F.lit(F.input_file_name()),
+                            F.current_timestamp().cast("string"),
+                        ),
+                        256,
+                    ),
+                }
+                df_cleaned = df_cleaned.withColumns(standardised_cols)
+                # Change any array field to string
+                standardised_schema_json = standardised_table_definitions[file_name]
+                for field in standardised_schema_json["fields"]:
+                    if field["type"] == "array":
+                        field["type"] = "string"
+                standardised_schema = StructType.fromJson(standardised_schema_json)
+                # Remove characters that Delta can't allow in headers and add numbers to repeated column headers
+                cols_orig = df_cleaned.schema.names
+                cols_cleaned = [
+                    re.sub("[^0-9a-zA-Z]+", "_", i).lower().rstrip("_")
+                    for i in cols_orig
                 ]
-            )
-            # Add standardised cols
-            standardised_cols = {
-                "ingested_datetime": F.current_timestamp(),
-                "ingested_by_process_name": F.lit(process_name),
-                "expected_from": F.lit(expected_from),
-                "expected_to": F.lit(expected_to),
-                "input_file": F.input_file_name(),
-                "modified_datetime": F.current_timestamp(),
-                "modified_by_process_name": F.lit(process_name),
-                "entity_name": F.lit(source_filename_start),
-                "file_ID": F.sha2(
-                    F.concat(
-                        F.lit(F.input_file_name()), F.current_timestamp().cast("string")
-                    ),
-                    256,
-                ),
-            }
-            df_cleaned = df_cleaned.withColumns(standardised_cols)
-            # Change any array field to string
-            standardised_schema_json = standardised_table_definitions[file_name]
-            for field in standardised_schema_json["fields"]:
-                if field["type"] == "array":
-                    field["type"] = "string"
-            standardised_schema = StructType.fromJson(standardised_schema_json)
-            # Remove characters that Delta can't allow in headers and add numbers to repeated column headers
-            cols_orig = df_cleaned.schema.names
-            cols_cleaned = [
-                re.sub("[^0-9a-zA-Z]+", "_", i).lower().rstrip("_") for i in cols_orig
-            ]
 
-            def _clean_reoccurring_columns(i, elem, cols: list):
-                total_column_occurrences = cols.count(elem)
-                currently_evaluated_occurrences = cols[:i].count(elem)
-                return (
-                    elem + str(currently_evaluated_occurrences + 1)
-                    if total_column_occurrences > 1
-                    else elem
-                )
-
-            cols_cleaned = [
-                _clean_reoccurring_columns(i, v, cols_cleaned)
-                for i, v in enumerate(cols_cleaned)
-            ]
-            df_cleaned = df_cleaned.toDF(*cols_cleaned)
-            # Cast any column in df_cleaned with type mismatch
-            mismatched_fields = {}
-            for field in df_cleaned.schema:
-                table_field = next(
-                    (
-                        f
-                        for f in standardised_schema
-                        if f.name.lower() == field.name.lower()
-                    ),
-                    None,
-                )
-                if table_field is not None and field.dataType != table_field.dataType:
-                    mismatched_fields[field.name] = F.col(field.name).cast(
-                        table_field.dataType
+                def _clean_reoccurring_columns(i, elem, cols: list):
+                    total_column_occurrences = cols.count(elem)
+                    currently_evaluated_occurrences = cols[:i].count(elem)
+                    return (
+                        elem + str(currently_evaluated_occurrences + 1)
+                        if total_column_occurrences > 1
+                        else elem
                     )
-            df_cleaned = df_cleaned.withColumns(mismatched_fields)
-            new_row_count += df_cleaned.count()
-            table_exists = (
-                source_data.get(f"odw_standardised_db.{standardised_table_name}", None)
-                is not None
-            )
-            # Apply anonymisation only in DEV/TEST environments
-            df_cleaned = self.try_anonymise_data(
-                df_cleaned, file_name, source_folder, source_filename_start
-            )
-            data_to_write[f"odw_standardised_db.{standardised_table_name}"] = {
-                "data": df_cleaned,
-                "storage_kind": "ADLSG2-Table",
-                "database_name": "odw_standardised_db",
-                "table_name": standardised_table_name,
-                "storage_endpoint": Util.get_storage_account(),
-                "container_name": "odw-standardised",
-                "blob_path": standardised_table_name,
-                "file_format": "delta",
-                "write_mode": "append" if table_exists else "overwrite",
-                "write_options": {"mergeSchema": "true"} if table_exists else dict(),
-            }
+
+                cols_cleaned = [
+                    _clean_reoccurring_columns(i, v, cols_cleaned)
+                    for i, v in enumerate(cols_cleaned)
+                ]
+                df_cleaned = df_cleaned.toDF(*cols_cleaned)
+                # Cast any column in df_cleaned with type mismatch
+                mismatched_fields = {}
+                for field in df_cleaned.schema:
+                    table_field = next(
+                        (
+                            f
+                            for f in standardised_schema
+                            if f.name.lower() == field.name.lower()
+                        ),
+                        None,
+                    )
+                    if (
+                        table_field is not None
+                        and field.dataType != table_field.dataType
+                    ):
+                        mismatched_fields[field.name] = F.col(field.name).cast(
+                            table_field.dataType
+                        )
+                df_cleaned = df_cleaned.withColumns(mismatched_fields)
+                new_row_count += df_cleaned.count()
+                table_exists = (
+                    source_data.get(
+                        f"odw_standardised_db.{standardised_table_name}", None
+                    )
+                    is not None
+                )
+                # Apply anonymisation only in DEV/TEST environments
+                df_cleaned = self.try_anonymise_data(
+                    df_cleaned, file_name, source_folder, source_filename_start
+                )
+                data_to_write[f"odw_standardised_db.{standardised_table_name}"] = {
+                    "data": df_cleaned,
+                    "storage_kind": "ADLSG2-Table",
+                    "database_name": "odw_standardised_db",
+                    "table_name": standardised_table_name,
+                    "storage_endpoint": Util.get_storage_account(),
+                    "container_name": "odw-standardised",
+                    "blob_path": standardised_table_name,
+                    "file_format": "delta",
+                    "write_mode": "append" if table_exists else "overwrite",
+                    "write_options": {"mergeSchema": "true"}
+                    if table_exists
+                    else dict(),
+                }
         end_exec_time = datetime.now()
         return data_to_write, ETLSuccessResult(
             metadata=ETLResult.ETLResultMetadata(
