@@ -47,7 +47,6 @@ class APIStandardisationProcess(StandardisationProcess):
         is_multiline = kwargs.get("is_multiline", True)
 
         storage_account = Util.get_storage_account()
-        raw_container = "abfss://odw-raw@" + storage_account
 
         if date_folder_in == "":
             date_folder = datetime.now().date()
@@ -79,6 +78,9 @@ class APIStandardisationProcess(StandardisationProcess):
         # Detect files to be extracted
         LoggingUtil().log_info(f"Reading from {source_path}")
         files = self.get_file_names_in_directory(source_path)
+        LoggingUtil().log_info(
+            f"Found the following files: {json.dumps(files, indent=4)}"
+        )
 
         json_read_options = {"multiline": True} if is_multiline else dict()
         csv_read_options = {
@@ -331,6 +333,8 @@ class APIStandardisationProcess(StandardisationProcess):
                 df_cleaned = self.try_anonymise_data(
                     df_cleaned, file_name, source_folder, source_filename_start
                 )
+                # Would be good to combine the dataframes into a single dataframe, and do a proper delta merge.
+                # This is left as-is for now to save time/for compatibility, but it is quite inefficient
                 data_to_write[f"odw_standardised_db.{standardised_table_name}"] = {
                     "data": df_cleaned,
                     "storage_kind": "ADLSG2-Table",
