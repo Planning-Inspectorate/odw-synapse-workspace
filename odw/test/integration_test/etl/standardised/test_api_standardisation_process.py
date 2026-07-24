@@ -71,6 +71,13 @@ class TestAPIStandardisationProcess(ETLTestCase):
                 "Standardised_Table_Name": "t_asp_r_wned",
                 "Expected_Within_Weekdays": 1,
             },
+            {
+                "Source_Filename_Start": "t_asp_r_wed",
+                "Standardised_Table_Definition": "standardised_table_definitions/t_asp_r_wed/t_asp_r_wed.json",
+                "Source_Frequency_Folder": "",
+                "Standardised_Table_Name": "t_asp_r_wed",
+                "Expected_Within_Weekdays": 1,
+            },
         ]
         for definition in new_definitions:
             add_orchestration_entry(definition)
@@ -146,6 +153,11 @@ class TestAPIStandardisationProcess(ETLTestCase):
         assert_dataframes_equal(expected_cleaned, actual_cleaned)
 
     def test__api_standardisation_process__run__with_no_existing_data(self):
+        """
+        - Given I have a raw file ingested on 2025-01-01, and a raw file ingested on 2024-12-31, and there is no standardised data
+        - When I run APIStandardisationProcess for 2025-01-01
+        - Then the data for 2025-01-01 should be standardised, and the standardised table should be created
+        """
         entity_name = "t_asp_r_wned"
         spark = PytestSparkSessionUtil().get_spark_session()
         # Create some raw data
@@ -209,4 +221,95 @@ class TestAPIStandardisationProcess(ETLTestCase):
         self.compare_standardised_data(expected_output_data, actual_output_data)
 
     def test__api_standardisation_process__run__with_existing_data(self):
-        pass
+        """
+        - Given I have a raw file ingested on 2025-01-01, and a raw file ingested on 2024-12-31, and there is an existing standardised table
+        - When I run APIStandardisationProcess for 2025-01-01
+        - Then the data for 2025-01-01 should be standardised, and the standardised table should be created
+        """
+        entity_name = "t_asp_r_wed"
+        spark = PytestSparkSessionUtil().get_spark_session()
+        # Create some raw data
+        raw_data = [
+            {"id": 1, "firstName": "Frodo", "lastName": "Baggins"},
+            {"id": 2, "firstName": "Samwise", "lastName": "Gamgee"},
+            {"id": 3, "firstName": "Merry", "lastName": "Brandybuck"},
+            {"id": 4, "firstName": "Peregrin", "lastName": "Took"},
+        ]
+        self.write_csv(
+            raw_data,
+            ("odw-raw", entity_name, "2025-01-01", f"{entity_name}.csv"),
+        )
+        # Create data for another date (which should be ignored by the APIStandardisationProcess)
+        other_date_data = [
+            {"id": 5, "firstName": "Aragorn", "lastName": "Son of Arathorn"},
+            {"id": 6, "firstName": "Gandalf", "lastName": "The Grey"},
+        ]
+        self.write_csv(
+            other_date_data,
+            ("odw-raw", entity_name, "2024-12-31", f"{entity_name}.csv"),
+        )
+        existing_standardised_data = create_standardised_dataframe(
+            [
+                {"id": 10, "firstname": "Witchking", "lastname": "Of Angmar"},
+            ],
+            T.StructType(
+                [
+                    T.StructField("id", T.IntegerType(), True),
+                    T.StructField("firstname", T.StringType(), True),
+                    T.StructField("lastname", T.StringType(), True),
+                ]
+            ),
+        )
+        self.write_existing_table(
+            spark,
+            existing_standardised_data,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "overwrite",
+        )
+        # Create the standardised table definitions, which outlines column casting during processing
+        standardised_table_definition = self.generate_standardised_table_definitions()
+        self.write_json(
+            standardised_table_definition,
+            [
+                "odw-config",
+                "standardised_table_definitions",
+                entity_name,
+                f"{entity_name}.json",
+            ],
+        )
+        expected_output_data = create_standardised_dataframe(
+            [
+                {"id": 1, "firstname": "Frodo", "lastname": "Baggins"},
+                {"id": 2, "firstname": "Samwise", "lastname": "Gamgee"},
+                {"id": 3, "firstname": "Merry", "lastname": "Brandybuck"},
+                {"id": 4, "firstname": "Peregrin", "lastname": "Took"},
+                {
+                    "id": 10,
+                    "firstname": "Witchking",
+                    "lastname": "Of Angmar",
+                },  # Row from pre-existing table should be appended to
+            ],
+            T.StructType(
+                [
+                    T.StructField("id", T.IntegerType(), True),
+                    T.StructField("firstname", T.StringType(), True),
+                    T.StructField("lastname", T.StringType(), True),
+                ]
+            ),
+        )
+        etl_result = APIStandardisationProcess(
+            spark,
+        ).run(
+            entity_name=entity_name,
+            source_folder=entity_name,
+            date_folder="2025-01-01",
+            orchestration_run_id=entity_name,
+            orchestration_entity_name=entity_name,
+            orchestration_stage_name="historical_anonymisation",
+        )
+        assert_etl_result_successful(etl_result)
+        actual_output_data = spark.table(f"odw_standardised_db.{entity_name}")
+        self.compare_standardised_data(expected_output_data, actual_output_data)
