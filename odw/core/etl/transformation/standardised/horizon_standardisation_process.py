@@ -285,45 +285,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     f"anonymisation_gate: environment={Util.get_environment()} enabled={_anon_enabled} file={file}"
                 )
                 # Apply anonymisation only in DEV/TEST environments
-                if _anon_enabled:
-                    try:
-                        anon_config = AnonymisationConfig()
-                        try:
-                            policy_path = Util.get_path_to_file(
-                                "odw-config/anonymisation/policy.yaml"
-                            )
-                            policy_text = (
-                                self.spark.read.text(policy_path, wholetext=True)
-                                .first()
-                                .value
-                            )
-                            anon_config = load_config(text=policy_text)
-                        except Exception as config_err:
-                            LoggingUtil().log_info(
-                                f"Could not load anonymisation policy, using defaults: {config_err}"
-                            )
-                        entity_name_for_seed = definition.get(
-                            "Source_Filename_Start", ""
-                        )
-                        engine = AnonymisationEngine(
-                            config=AnonymisationConfig(
-                                classification_allowlist=anon_config.classification_allowlist,
-                                seed_column=anon_config.get_seed_column(
-                                    entity_name_for_seed
-                                ),
-                            )
-                        )
-                        LoggingUtil().log_info(
-                            f"Applying anonymisation to Horizon file: {file}"
-                        )
-                        data = engine.apply_from_purview(
-                            data, file_name=file, source_folder="Horizon"
-                        )
-                    except Exception as e:
-                        LoggingUtil().log_error(
-                            f"Anonymisation failed for {file}: {str(e)}"
-                        )
-                        raise
+                data = self.try_anonymise_data(
+                    data, file, "Horizon", definition.get("Source_Filename_Start", "")
+                )
 
                 table_exists = (
                     source_data.get(f"odw_standardised_db.{table_name}", None)
