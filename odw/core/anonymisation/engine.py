@@ -4,7 +4,7 @@ import os
 import json
 import re
 import logging
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, Literal
+from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import requests
 from pyspark.sql import DataFrame, functions as F
@@ -15,7 +15,6 @@ from odw.core.anonymisation.base import (
     default_strategies,
 )
 from odw.core.anonymisation.config import AnonymisationConfig
-from odw.core.util.util import Util
 
 # Prefer core util logging if available; fallback to module logger
 logger = logging.getLogger(__name__)
