@@ -13,6 +13,7 @@ class StandardisationProcess(TransformationProcess):
         file_name: str,
         source_folder: str,
         entity_name_for_seed: str = "",
+        ignore_exceptions: bool = False,
     ):
         """
         Anonymise the given dataframe if the process is running in a non-live environment. Else just return the data as-is
@@ -52,5 +53,7 @@ class StandardisationProcess(TransformationProcess):
                 LoggingUtil().log_error(
                     f"Anonymisation failed for {file_name}: {str(e)}"
                 )
-                return data
+                if ignore_exceptions:
+                    return data
+                raise
         return data

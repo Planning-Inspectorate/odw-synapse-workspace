@@ -220,7 +220,8 @@ class APIStandardisationProcess(StandardisationProcess):
         processed_tables = []
         new_row_count = 0
         data_to_write = dict()
-        for file_name, df in raw_data_files.items():
+        for i, file_name in enumerate(raw_data_files):
+            df = raw_data_files[file_name]
             definition = next(
                 (
                     d
@@ -331,11 +332,11 @@ class APIStandardisationProcess(StandardisationProcess):
                 )
                 # Apply anonymisation only in DEV/TEST environments
                 df_cleaned = self.try_anonymise_data(
-                    df_cleaned, file_name, source_folder, source_filename_start
+                    df_cleaned, file_name, source_folder, source_filename_start, True
                 )
                 # Would be good to combine the dataframes into a single dataframe, and do a proper delta merge.
                 # This is left as-is for now to save time/for compatibility, but it is quite inefficient
-                data_to_write[f"odw_standardised_db.{standardised_table_name}"] = {
+                data_to_write[f"odw_standardised_db.{standardised_table_name}__{i}"] = {
                     "data": df_cleaned,
                     "storage_kind": "ADLSG2-Table",
                     "database_name": "odw_standardised_db",

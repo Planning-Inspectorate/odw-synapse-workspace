@@ -197,7 +197,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
         new_row_count = 0
 
         data_to_write = dict()
-        for file in files_to_process.keys():
+        for i, file in enumerate(files_to_process.keys()):
             definition = next(
                 (
                     d
@@ -297,7 +297,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
                 write_opts = {"mergeSchema": "true"} if table_exists else dict()
 
                 new_row_count += data.count()
-                data_to_write[f"odw_standardised_db.{table_name}"] = {
+                data_to_write[f"odw_standardised_db.{table_name}__{i}"] = {
                     "data": data,
                     "storage_kind": "ADLSG2-Table",
                     "database_name": "odw_standardised_db",
