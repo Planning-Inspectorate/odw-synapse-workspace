@@ -184,9 +184,11 @@ from pyspark.sql import SparkSession
 from odw.core.anonymisation import AnonymisationEngine
 
 spark = SparkSession.builder.getOrCreate()
-df = spark.createDataFrame([
-    {"EmployeeID": "E1", "full_name": "John Doe", "email": "john.doe@example.com"},
-])
+df = spark.createDataFrame(
+    [
+        {"EmployeeID": "E1", "full_name": "John Doe", "email": "john.doe@example.com"},
+    ]
+)
 
 cols = [
     {"column_name": "full_name", "classifications": ["MICROSOFT.PERSONAL.NAME"]},
@@ -231,7 +233,9 @@ from odw.core.anonymisation import AnonymisationEngine, load_config
 
 config = load_config(path="anonymisation.yml")
 engine = AnonymisationEngine(config=config)
-out = engine.apply(df, cols, classification_allowlist=None)  # engine will use config.allowlist
+out = engine.apply(
+    df, cols, classification_allowlist=None
+)  # engine will use config.allowlist
 ```
 
 ## Observability

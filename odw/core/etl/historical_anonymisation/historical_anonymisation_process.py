@@ -9,7 +9,6 @@ import pyspark.sql.functions as F
 import pyspark.sql.types as T
 from typing import Dict
 from datetime import datetime
-from typing import List
 from functools import reduce
 import json
 import os
