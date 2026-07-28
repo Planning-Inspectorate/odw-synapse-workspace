@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f12e2b98-e5af-467a-a3b2-92ae7733af11"
+				"spark.autotune.trackingId": "ca84b436-7d4d-4d59-8e72-8a843967bf2f"
 			}
 		},
 		"metadata": {
@@ -70,48 +70,36 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"PipelineName = \"pln_sap_hr_odw\"\n",
-					"PipelineRunID = \"f96480d7-8e9d-406d-9e34-974f84b14cbb\"\n",
-					"PipelineTriggerID = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
-					"PipelineTriggerName = \"af25d427-f06a-4ef9-85fb-79363a14090b\"\n",
-					"PipelineTriggerType = \"PipelineActivity\"\n",
-					"PipelineTriggeredbyPipelineName = \"pln_sap_hr_odw\"\n",
-					"PipelineTriggeredbyPipelineRunID = \"3334ecfd-6fba-41ee-971e-5ab3f9eda134\""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
 					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
 					"from pyspark.sql.window import Window\n",
 					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 56
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run /utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 57
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"spark_table_final = \"odw_curated_db.pbi_sap_hr_inspector_specialisms\"\n",
+					"spark_table_final = \"odw_curated_db.pbi_saphr_inspector_specialisms\"\n",
 					"source_table = \"odw_harmonised_db.sap_hr_inspector_specialisms\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
+					"\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
@@ -119,14 +107,14 @@
 					"error_message=''\n",
 					"storage_account = ''"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        logInfo(\"Starting inspector_specialisms data inspector_specialisms curated table setup\")\n",
+					"        logInfo(\"Starting checkmark data case_marking curated table setup\")\n",
 					"        \n",
 					"        # Get storage account \n",
 					"        storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
@@ -134,14 +122,41 @@
 					"        \n",
 					"        # Fix the path\n",
 					"        storage_account = storage_account.rstrip('/')\n",
-					"        delta_table_path = f\"abfss://odw-curated@{storage_account}/saphr/pbi_sap_hr_inspector_specialisms\"\n",
+					"        delta_table_path = f\"abfss://odw-curated@{storage_account}/saphr/pbi_saphr_inspector_specialisms\"\n",
 					"        logInfo(f\"Delta table will be created at: {delta_table_path}\")\n",
 					"        \n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in getting storage account configuration: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()"
 				],
-				"execution_count": null
+				"execution_count": 60
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Create table from view with specified location\n",
+					"        logInfo(f\"Creating or replacing table {spark_table_final}\")\n",
+					"        spark.sql(f\"\"\"\n",
+					"        CREATE OR REPLACE TABLE {spark_table_final}\n",
+					"        USING delta\n",
+					"        LOCATION '{delta_table_path}'\n",
+					"        AS SELECT * FROM {source_table}\n",
+					"        \"\"\")\n",
+					"        \n",
+					"        # Count records in table - this is our final record count\n",
+					"        insert_count = spark.sql(f\"SELECT COUNT(*) as count FROM {spark_table_final}\").collect()[0]['count']\n",
+					"        logInfo(f\"Created table with {insert_count} records at location: {delta_table_path}\")\n",
+					"        \n",
+					"        logInfo(\"checkmark data case marking curated table setup completed successfully\")\n",
+					"        end_exec_time = datetime.now()\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in creating table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": 61
 			},
 			{
 				"cell_type": "code",
@@ -178,7 +193,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 62
 			}
 		]
 	}
