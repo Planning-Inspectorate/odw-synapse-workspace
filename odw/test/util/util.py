@@ -52,7 +52,7 @@ def get_all_files_in_directory(inst, source_path: str):
 
 
 def get_all_file_names_in_directory(inst, source_path: str):
-    # This wraped around mssparkutils.fs.ls
+    # This wraps around mssparkutils.fs.ls
     return [
         x
         for x in os.listdir(source_path)
