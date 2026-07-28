@@ -319,7 +319,7 @@ class HorizonStandardisationProcess(StandardisationProcess):
             metadata=ETLResult.ETLResultMetadata(
                 start_execution_time=start_exec_time,
                 end_execution_time=end_exec_time,
-                table_name=", ".join(processed_tables),
+                table_name=", ".join(set(processed_tables)),
                 insert_count=new_row_count,
                 update_count=0,
                 delete_count=0,
