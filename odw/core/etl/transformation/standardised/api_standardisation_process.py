@@ -46,8 +46,6 @@ class APIStandardisationProcess(StandardisationProcess):
         )  # if not provided, it will ingest all files in the date_folder
         is_multiline = kwargs.get("is_multiline", True)
 
-        storage_account = Util.get_storage_account()
-
         if date_folder_in == "":
             date_folder = datetime.now().date()
         else:
@@ -61,19 +59,11 @@ class APIStandardisationProcess(StandardisationProcess):
         )
 
         # Read orchestration data
-        df = SynapseFileDataIO().read(
-            spark=self.spark,
-            storage_endpoint=Util.get_storage_account(),
-            container_name="odw-config",
-            blob_path="orchestration/orchestration.json",
-            file_format="json",
-            read_options={"multiline": "true"},
-        )
+        df = self.load_orchestration_data()
         definitions = json.loads(df.toJSON().first())["definitions"]
 
-        source_path = Util.get_path_to_file(
-            f"odw-raw/{source_folder_path}/{date_folder_str}"
-        )
+        container_path = f"odw-raw/{source_folder_path}/{date_folder_str}"
+        source_path = Util.get_path_to_file(container_path)
 
         # Detect files to be extracted
         LoggingUtil().log_info(f"Reading from {source_path}")
@@ -167,13 +157,12 @@ class APIStandardisationProcess(StandardisationProcess):
                 if "csv" in file_name.lower():
                     df = self.spark.read.options(**csv_read_options).csv(file_to_read)
                 elif ".json" in file_name.lower():
-                    df = self.spark.read.options(**json_read_options).json(
-                        f"{source_path}/{file_name}"
-                    )
+                    df = self.spark.read.options(**json_read_options).json(file_to_read)
                 else:
                     raise RuntimeError(f"The file type for {file_name} is unsupported")
-                source_data[file_name] = df
-                source_data[f"{file_name}_standardised_table_definition"] = json.loads(
+                new_entry = f"{container_path}/{file_name}"
+                source_data[new_entry] = df
+                source_data[f"{new_entry}_standardised_table_definition"] = json.loads(
                     standardised_table_def_text
                 )
         return source_data
@@ -194,7 +183,7 @@ class APIStandardisationProcess(StandardisationProcess):
                 "APIStandardisationProcess.process requires a source_data dictionary to be provided, but was missing"
             )
         standardised_table_definitions = {
-            k.rstrip("_standardised_table_definition"): v
+            k.removesuffix("_standardised_table_definition"): v
             for k, v in source_data.items()
             if k.endswith("_standardised_table_definition")
         }
@@ -209,7 +198,7 @@ class APIStandardisationProcess(StandardisationProcess):
         LoggingUtil().log_info(
             f"The following raw data files were extracted: {json.dumps(list(raw_data_files.keys()), indent=4)}"
         )
-        definitions = source_data.get("definitions")
+        definitions = raw_data_files.pop("definitions")
         LoggingUtil().log_info(
             f"The following definitions were loaded: {json.dumps(definitions, indent=4)}"
         )
@@ -217,11 +206,19 @@ class APIStandardisationProcess(StandardisationProcess):
         specific_file = kwargs.get(
             "specific_file", ""
         )  # if not provided, it will ingest all files in the date_folder
+        date_folder_str = date_folder.strftime("%Y-%m-%d")
+        source_folder_path = (
+            source_folder
+            if not source_frequency_folder
+            else f"{source_folder}/{source_frequency_folder}"
+        )
+        container_path = f"odw-raw/{source_folder_path}/{date_folder_str}/"
         processed_tables = []
         new_row_count = 0
         data_to_write = dict()
-        for i, file_name in enumerate(raw_data_files):
-            df = raw_data_files[file_name]
+        for i, file_name_with_source_folder in enumerate(raw_data_files):
+            df = raw_data_files[file_name_with_source_folder]
+            file_name = file_name_with_source_folder.removeprefix(container_path)
             definition = next(
                 (
                     d
@@ -278,7 +275,9 @@ class APIStandardisationProcess(StandardisationProcess):
                 }
                 df_cleaned = df_cleaned.withColumns(standardised_cols)
                 # Change any array field to string
-                standardised_schema_json = standardised_table_definitions[file_name]
+                standardised_schema_json = standardised_table_definitions[
+                    file_name_with_source_folder
+                ]
                 for field in standardised_schema_json["fields"]:
                     if field["type"] == "array":
                         field["type"] = "string"
@@ -345,9 +344,11 @@ class APIStandardisationProcess(StandardisationProcess):
                     "container_name": "odw-standardised",
                     "blob_path": standardised_table_name,
                     "file_format": "delta",
-                    "write_mode": "append" if table_exists else "overwrite",
+                    "write_mode": "append"
+                    if table_exists or data_to_write
+                    else "overwrite",
                     "write_options": {"mergeSchema": "true"}
-                    if table_exists
+                    if table_exists or data_to_write
                     else dict(),
                 }
         end_exec_time = datetime.now()
