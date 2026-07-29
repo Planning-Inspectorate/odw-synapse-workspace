@@ -4,6 +4,7 @@ import pyspark.sql.functions as F
 from odw.core.etl.transformation.standardised.horizon_standardisation_process import (
     HorizonStandardisationProcess,
 )
+from odw.core.anonymisation.engine import AnonymisationEngine
 from odw.test.util.test_case import SparkTestCase
 from odw.core.util.util import Util
 from odw.core.util.logging_util import LoggingUtil
@@ -165,8 +166,9 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
-            mock.patch(
-                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
                 return_value=anonymised_df,
             ) as mock_apply,
         ):
@@ -181,7 +183,8 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
         assert kwargs["file_name"] == "test_file.csv"
         assert kwargs["source_folder"] == "Horizon"
 
-        written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+        assert len(data_to_write) == 1
+        written_df = next(iter(data_to_write.values()))["data"]
         row = (
             written_df.select("first_name", "last_name", "email_address")
             .collect()[0]
@@ -224,8 +227,9 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
-            mock.patch(
-                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview"
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
             ) as mock_apply,
         ):
             data_to_write, etl_result = process.process(
@@ -236,7 +240,8 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
 
         mock_apply.assert_not_called()
 
-        written_df = data_to_write["odw_standardised_db.test_table"]["data"]
+        assert len(data_to_write) == 1
+        written_df = next(iter(data_to_write.values()))["data"]
         row = (
             written_df.select("first_name", "last_name", "email_address")
             .collect()[0]
@@ -275,8 +280,9 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
-            mock.patch(
-                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
                 return_value=anonymised_df,
             ),
         ):
@@ -286,7 +292,8 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
                 date_folder="2025-01-05",
             )
 
-        payload = data_to_write["odw_standardised_db.test_table"]
+        assert len(data_to_write) == 1
+        payload = next(iter(data_to_write.values()))
 
         assert payload["storage_kind"] == "ADLSG2-Table"
         assert payload["database_name"] == "odw_standardised_db"
@@ -324,8 +331,9 @@ class TestHorizonStandardisationAnonymisation(SparkTestCase):
             mock.patch.object(LoggingUtil, "__new__"),
             mock.patch.object(LoggingUtil, "log_info", return_value=None),
             mock.patch.object(LoggingUtil, "log_error", return_value=None),
-            mock.patch(
-                "odw.core.etl.transformation.standardised.horizon_standardisation_process.AnonymisationEngine.apply_from_purview",
+            mock.patch.object(
+                AnonymisationEngine,
+                "apply_from_purview",
                 side_effect=RuntimeError("Purview anonymisation failed"),
             ),
         ):
