@@ -7,8 +7,6 @@ from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
 from odw.core.etl.util.schema_util import SchemaUtil
-from odw.core.anonymisation.engine import AnonymisationEngine
-from odw.core.anonymisation.config import load_config, AnonymisationConfig
 from notebookutils import mssparkutils
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType
@@ -294,7 +292,9 @@ class HorizonStandardisationProcess(StandardisationProcess):
                     is not None
                 )
                 write_mode = "append" if table_exists or data_to_write else "overwrite"
-                write_opts = {"mergeSchema": "true"} if table_exists or data_to_write else dict()
+                write_opts = (
+                    {"mergeSchema": "true"} if table_exists or data_to_write else dict()
+                )
 
                 new_row_count += data.count()
                 data_to_write[f"odw_standardised_db.{table_name}__{i}"] = {
