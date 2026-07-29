@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "15988070-b318-4006-b987-b74b35c62466"
+				"spark.autotune.trackingId": "ce1ed592-7529-418b-abab-322061f8242b"
 			}
 		},
 		"metadata": {
@@ -83,7 +83,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 64
+				"execution_count": 381
 			},
 			{
 				"cell_type": "code",
@@ -101,7 +101,7 @@
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": 65
+				"execution_count": 382
 			},
 			{
 				"cell_type": "code",
@@ -126,7 +126,7 @@
 					"watermark_column = 'message_enqueued_time_utc'\n",
 					""
 				],
-				"execution_count": 66
+				"execution_count": 383
 			},
 			{
 				"cell_type": "code",
@@ -140,7 +140,7 @@
 					"import pyspark.sql.functions as F\n",
 					""
 				],
-				"execution_count": 67
+				"execution_count": 384
 			},
 			{
 				"cell_type": "code",
@@ -162,30 +162,26 @@
 					"        print(f\"Primary logging failed: {log_error}\")\n",
 					"        print(error_message)\n",
 					"\n",
-					"    try:\n",
-					"        telemetry_fn = globals().get(\"_log_telemetry\")\n",
-					"        if callable(telemetry_fn):\n",
-					"            telemetry_fn(\"Failed\", error_message, step_name)\n",
-					"        else:\n",
-					"            print(\"Telemetry function '_log_telemetry' is not yet defined. Skipping telemetry.\")\n",
-					"    except Exception as telemetry_error:\n",
-					"        print(f\"Telemetry logging failed: {telemetry_error}\")\n",
-					"\n",
 					"    raise e"
 				],
-				"execution_count": 68
+				"execution_count": 385
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"def run_step(step_name: str, fn):\n",
+					"    global error_message\n",
+					"\n",
+					"    if error_message:\n",
+					"        logInfo(f\"Skipping step '{step_name}' because notebook is already in failed state\")\n",
+					"        return None\n",
+					"\n",
 					"    try:\n",
 					"        return fn()\n",
 					"    except Exception as e:\n",
-					"        _fail_and_log(step_name, e)\n",
-					""
+					"        _fail_and_log(step_name, e)"
 				],
-				"execution_count": 69
+				"execution_count": 386
 			},
 			{
 				"cell_type": "code",
@@ -196,7 +192,7 @@
 					"error_message = \"\"\n",
 					"max_message_enqueued_time_utc = None"
 				],
-				"execution_count": 70
+				"execution_count": 387
 			},
 			{
 				"cell_type": "code",
@@ -258,7 +254,7 @@
 					"\n",
 					"start_exec_time = datetime.now()"
 				],
-				"execution_count": 71
+				"execution_count": 388
 			},
 			{
 				"cell_type": "code",
@@ -320,7 +316,7 @@
 					"    logInfo(f\"Read rows from {source_path} (file-level filter active: {last_ingest_time is not None and (ENABLE_FILE_FILTER_ENTITIES is None or entity_name in ENABLE_FILE_FILTER_ENTITIES)})\")\n",
 					"    return df"
 				],
-				"execution_count": 72
+				"execution_count": 389
 			},
 			{
 				"cell_type": "code",
@@ -361,7 +357,7 @@
 					"    return df.dropDuplicates(subset=columns_to_consider)\n",
 					""
 				],
-				"execution_count": 73
+				"execution_count": 390
 			},
 			{
 				"cell_type": "code",
@@ -381,7 +377,7 @@
 					"    logInfo(f\"Successfully appended data to table {target_table}\")\n",
 					""
 				],
-				"execution_count": 74
+				"execution_count": 391
 			},
 			{
 				"cell_type": "code",
@@ -415,7 +411,7 @@
 					"    return result\n",
 					""
 				],
-				"execution_count": 75
+				"execution_count": 392
 			},
 			{
 				"cell_type": "code",
@@ -435,7 +431,7 @@
 					"except Exception as e:\n",
 					"    logInfo(f\"Watermark table not accessible, processing all RAW records: {str(e)[:200]}\")"
 				],
-				"execution_count": 76
+				"execution_count": 393
 			},
 			{
 				"cell_type": "code",
@@ -446,7 +442,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 77
+				"execution_count": 394
 			},
 			{
 				"cell_type": "code",
@@ -457,24 +453,24 @@
 					"    )\n",
 					"    logInfo(f\"Watermark filter applied ({watermark_column} > {last_ingest_time})\")\n",
 					"\n",
-					"# Using head(1) instead of count() == 0 to avoid a full DataFrame scan\n",
 					"first_row = df.head(1)\n",
-					"if not first_row:\n",
-					"    logInfo(\"No new records after watermark filter — exiting gracefully.\")\n",
-					"    mssparkutils.notebook.exit(json.dumps({\n",
-					"        \"hasNewData\": False,\n",
-					"        \"max_message_enqueued_time_utc\": None,\n",
-					"        \"table_details\": [{\"insert_count\": 0, \"update_count\": 0, \"delete_count\": 0, \"total_exec_time\": 0, \"error_message\": None}],\n",
-					"    }))\n",
 					"\n",
-					"try:\n",
-					"    max_ts_row = df.agg({watermark_column: \"max\"}).collect()\n",
-					"    max_message_enqueued_time_utc = str(max_ts_row[0][0]) if max_ts_row and max_ts_row[0][0] else None\n",
-					"except Exception as _mts_err:\n",
-					"    logError(f\"Failed to compute max watermark value: {str(_mts_err)[:200]}\")\n",
-					""
+					"if not first_row:\n",
+					"    logInfo(\"No new records after watermark filter\")\n",
+					"    error_message = \"\"\n",
+					"    insert_count = 0\n",
+					"    update_count = 0\n",
+					"    delete_count = 0\n",
+					"    rows_valid = True\n",
+					"    max_message_enqueued_time_utc = None\n",
+					"else:\n",
+					"    try:\n",
+					"        max_ts_row = df.agg({watermark_column: \"max\"}).collect()\n",
+					"        max_message_enqueued_time_utc = str(max_ts_row[0][0]) if max_ts_row and max_ts_row[0][0] else None\n",
+					"    except Exception as _mts_err:\n",
+					"        logError(f\"Failed to compute max watermark value: {str(_mts_err)[:200]}\")"
 				],
-				"execution_count": 78
+				"execution_count": 395
 			},
 			{
 				"cell_type": "markdown",
@@ -498,17 +494,27 @@
 				"cell_type": "code",
 				"source": [
 					"def calculate_expected_new_count(df, target_table):\n",
+					"    global insert_count\n",
+					"\n",
 					"    logInfo(\"Calculating expected new row count\")\n",
+					"\n",
+					"    if df is None or not df.head(1):\n",
+					"        insert_count = 0\n",
+					"        logInfo(\"No rows available for append. insert_count set to 0\")\n",
+					"        expected_new_count = spark.table(target_table).count()\n",
+					"        return expected_new_count, insert_count, df\n",
 					"\n",
 					"    table_row_count = spark.table(target_table).count()\n",
 					"    logInfo(f\"Row count before append: {table_row_count}\")\n",
 					"\n",
 					"    df = dedupe_dataframe(df=df)\n",
-					"\n",
 					"    df.cache()\n",
 					"\n",
 					"    rows_to_append = df.count()\n",
+					"    insert_count = rows_to_append\n",
+					"\n",
 					"    logInfo(f\"Rows to append: {rows_to_append}\")\n",
+					"    logInfo(f\"insert_count assigned inside function = {insert_count}\")\n",
 					"\n",
 					"    expected_new_count = table_row_count + rows_to_append\n",
 					"    logInfo(f\"Expected new count: {expected_new_count}\")\n",
@@ -525,10 +531,13 @@
 					"    step_calculate_expected_new_count\n",
 					")\n",
 					"\n",
+					"if insert_count is None:\n",
+					"    insert_count = 0\n",
+					"\n",
 					"logInfo(f\"insert_count assigned = {insert_count}\")\n",
 					"print(f\"insert_count assigned = {insert_count}\")"
 				],
-				"execution_count": 79
+				"execution_count": 396
 			},
 			{
 				"cell_type": "code",
@@ -541,7 +550,7 @@
 					"print(f\"target_count after load = {target_count}\")\n",
 					"print(f\"count_match = {target_count == expected_new_count}\")"
 				],
-				"execution_count": 80
+				"execution_count": 397
 			},
 			{
 				"cell_type": "code",
@@ -577,7 +586,7 @@
 					")\n",
 					""
 				],
-				"execution_count": 81
+				"execution_count": 398
 			},
 			{
 				"cell_type": "markdown",
@@ -596,22 +605,25 @@
 				"cell_type": "code",
 				"source": [
 					"def step_append_df_to_table():\n",
-					" \n",
 					"    logInfo(f\"Appending new rows to table {target_table}\")\n",
 					"    append_df_to_table(df=df, target_table=target_table)\n",
-					"    end_exec_time = datetime.now()\n",
+					"    logInfo(f\"Successfully appended data to table {target_table}\")\n",
 					"    logInfo(\"Done appending rows to table\")\n",
 					"\n",
-					"    # Release cached DataFrame to free Spark memory\n",
 					"    try:\n",
 					"        df.unpersist()\n",
 					"    except Exception:\n",
 					"        pass\n",
 					"\n",
 					"    return spark.table(target_table).count()\n",
-					"new_table_row_count=run_step(f\"|Append rows to table{target_table} and get new count\",step_append_df_to_table)"
+					"\n",
+					"\n",
+					"new_table_row_count = run_step(\n",
+					"    f\"Append rows to table {target_table} and get new count\",\n",
+					"    step_append_df_to_table\n",
+					")"
 				],
-				"execution_count": 82
+				"execution_count": 399
 			},
 			{
 				"cell_type": "markdown",
@@ -647,7 +659,7 @@
 					"rows_valid = run_step(\"validate rows appended\", step_validate_rows_appended)\n",
 					""
 				],
-				"execution_count": 83
+				"execution_count": 400
 			},
 			{
 				"cell_type": "markdown",
@@ -669,17 +681,23 @@
 					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"\n",
+					"if insert_count is None:\n",
+					"    insert_count = 0\n",
+					"\n",
+					"telemetry_insert_count = int(insert_count)\n",
+					"\n",
 					"if error_message:\n",
 					"    stage = \"Failed\"\n",
 					"    status_code = \"500\"\n",
 					"    status_message = f\"Failed to load data into {target_table} table\"\n",
+					"    telemetry_insert_count = 0\n",
 					"    exit_payload = json.dumps({\n",
 					"        \"hasNewData\": False,\n",
 					"        \"max_message_enqueued_time_utc\": None,\n",
 					"        \"table_details\": [{\n",
 					"            \"insert_count\": 0,\n",
-					"            \"update_count\": 0,\n",
-					"            \"delete_count\": 0,\n",
+					"            \"update_count\": update_count,\n",
+					"            \"delete_count\": delete_count,\n",
 					"            \"total_exec_time\": int(duration_seconds),\n",
 					"            \"error_message\": error_message\n",
 					"        }],\n",
@@ -689,10 +707,10 @@
 					"    status_code = \"200\"\n",
 					"    status_message = f\"Successfully loaded data into {target_table} table\"\n",
 					"    exit_payload = json.dumps({\n",
-					"        \"hasNewData\": True,\n",
+					"        \"hasNewData\": telemetry_insert_count > 0,\n",
 					"        \"max_message_enqueued_time_utc\": max_message_enqueued_time_utc,\n",
 					"        \"table_details\": [{\n",
-					"            \"insert_count\": insert_count,\n",
+					"            \"insert_count\": telemetry_insert_count,\n",
 					"            \"update_count\": update_count,\n",
 					"            \"delete_count\": delete_count,\n",
 					"            \"total_exec_time\": int(duration_seconds),\n",
@@ -700,14 +718,17 @@
 					"        }],\n",
 					"    })\n",
 					"\n",
+					"print(f\"TELEMETRY DEBUG insert_count = {insert_count}\")\n",
+					"print(f\"TELEMETRY DEBUG telemetry_insert_count = {telemetry_insert_count}\")\n",
+					"\n",
 					"try:\n",
 					"    log_telemetry_and_exit(\n",
 					"        stage,\n",
 					"        start_exec_time,\n",
 					"        end_exec_time,\n",
-					"        error_message,\n",
+					"        error_message if error_message else \"\",\n",
 					"        target_table,\n",
-					"        insert_count,\n",
+					"        telemetry_insert_count,\n",
 					"        update_count,\n",
 					"        delete_count,\n",
 					"        PipelineName,\n",
@@ -727,7 +748,7 @@
 					"\n",
 					"mssparkutils.notebook.exit(exit_payload)"
 				],
-				"execution_count": 84
+				"execution_count": 401
 			}
 		]
 	}
