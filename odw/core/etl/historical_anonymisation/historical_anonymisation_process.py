@@ -342,6 +342,11 @@ class HistoricalAnonymisationProcess(ETLProcess):
             source_folder=entity_category,
             file_name=horizon_file_name,
         )
+        final_anonymised_data_count = anonymised_data.count()
+        if final_anonymised_data_count != standardised_data_count:
+            raise ValueError(
+                "The row count of the anonymised data is different to the standardised data - please review the anonymisation process"
+            )
         end_exec_time = datetime.now()
         blob_path_prefix = "" if apply else "anonymised/"
         data_to_write = {
