@@ -192,6 +192,7 @@ class SalaryStrategy(BaseStrategy):
             column, BaseStrategy.random_int_from_seed(seed, 20000, 100000).cast("int")
         )
 
+
 class AddressStrategy(BaseStrategy):
     classification_names = {
         "Address Line 1",
