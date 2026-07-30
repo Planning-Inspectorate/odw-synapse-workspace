@@ -269,7 +269,8 @@ class HistoricalAnonymisationProcess(ETLProcess):
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         entity_name = kwargs.get("entity_name", "")
-        apply = kwargs.get("apply", False)
+        # The pipeline can only pass strings to the ETLProcess, so massage this string into a boolean
+        apply = kwargs.get("apply", "").lower() == "true"
         if not entity_name:
             raise ValueError(
                 "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"

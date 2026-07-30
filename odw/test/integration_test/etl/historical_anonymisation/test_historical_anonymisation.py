@@ -1073,7 +1073,7 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 orchestration_run_id=entity_name,
                 orchestration_entity_name=entity_name,
                 orchestration_stage_name="historical_anonymisation",
-                apply=True,
+                apply="True",
             )
             assert_etl_result_successful(etl_result)
             actual_anonymised_data = spark.sql(
