@@ -26,6 +26,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "category": "ServiceBus",
             "primary_keys": ["caseReference"],
             "cols_to_revert_to_raw": ["siteAddressTown", "newConditionDetails"],
+            "table_name": "sb_appeal_has",
         },  # Service bus
         "nsip-subscription": {
             "raw_blob_path": "ServiceBus/nsip-subscription",
@@ -35,6 +36,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "category": "ServiceBus",
             "primary_keys": ["subscriptionId", "message_enqueued_time_utc"],
             "cols_to_revert_to_raw": ["emailAddress"],
+            "table_name": "sb_nsip_subscription",
         },  # Service bus
         "entraid": {
             "raw_blob_path": "entraid",
@@ -44,6 +46,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "category": "entraid",
             "primary_keys": ["id"],
             "cols_to_revert_to_raw": ["userPrincipalName"],
+            "table_name": "entraid",
         },  # From py_raw_to_std
         "InspectorCases": {
             "raw_blob_path": "Horizon",
@@ -64,6 +67,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "LastName",
                 "Email",
             ],
+            "table_name": "horizon_inspector_cases",
         },  # Horizon
         "DaRT_Inspectors": {
             "raw_blob_path": "Horizon",
@@ -80,6 +84,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "qualifications",
             ],
             "horizon_file_name": "DaRT_Inspectors.csv",
+            "table_name": "horizon_pins_inspector",
         },  # Horizon
         "CaseInvolvement": {
             "raw_blob_path": "Horizon",
@@ -98,6 +103,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "Postcode",
                 "Email",
             ],
+            "table_name": "horizon_case_involvement",
         },  # Horizon
         "DaRT_LPA": {
             "raw_blob_path": "Horizon",
@@ -120,6 +126,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "postcode",
                 "emailAddress",
             ],
+            "table_name": "pins_lpa",
         },  # Horizon
         "HorizonCases_s78": {
             "raw_blob_path": "Horizon",
@@ -135,6 +142,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             ],
             "horizon_file_name": "HorizonCases_s78.csv",
             "cols_to_revert_to_raw": ["caseOfficerName", "coEmailAddress"],
+            "table_name": "HorizonCases_s78",
         },  # Horizon
         "NSIPReleventRepresentation": {
             "raw_blob_path": "Horizon",
@@ -150,6 +158,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             ],
             "horizon_file_name": "NSIPReleventRepresentation.csv",
             "cols_to_revert_to_raw": ["FullName", "EmailAddress"],
+            "table_name": "horizon_nsip_relevant_representation",
         },  # Horizon
         "HorizonCases_Has": {
             "raw_blob_path": "Horizon",
@@ -165,6 +174,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             ],
             "horizon_file_name": "HorizonCases_Has.csv",
             "cols_to_revert_to_raw": ["caseOfficerName", "coEmailAddress"],
+            "table_name": "HorizonCases_Has",
         },  # Horizon
         "DocumentMetaData": {
             "raw_blob_path": "Horizon",
@@ -180,6 +190,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "horizon_file_name": "DocumentMetaData.csv",
             "category": "Horizon",
             "cols_to_revert_to_raw": ["representative"],
+            "table_name": "document_meta_data",
         },  # Horizon
         "CaseSiteStrings": {
             "raw_blob_path": "Horizon",
@@ -190,6 +201,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
             "primary_keys": ["CaseNodeId", "AreaOfSite", "County"],
             "category": "Horizon",
             "cols_to_revert_to_raw": ["LandUse", "Town"],
+            "table_name": "CaseSiteStrings",
         },  # Horizon
     }
 
@@ -257,6 +269,7 @@ class HistoricalAnonymisationProcess(ETLProcess):
     def process(self, **kwargs):
         start_exec_time = datetime.now()
         entity_name = kwargs.get("entity_name", "")
+        apply = kwargs.get("apply", False)
         if not entity_name:
             raise ValueError(
                 "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
@@ -271,10 +284,15 @@ class HistoricalAnonymisationProcess(ETLProcess):
         standardised_blob_path = entity_config.get("standardised_blob_path", "")
         cols_to_revert_to_raw = entity_config.get("cols_to_revert_to_raw", [])
         horizon_file_name = entity_config.get("horizon_file_name", None)
+        table_name = entity_config.get("table_name", None)
         if entity_category == "Horizon" and not horizon_file_name:
             # The anonymisation engine requires a filename to be specified - this is the underlying name of the csv file that gets ingested into the ODW
             raise ValueError(
                 "For Horizon entities, the config must have a 'horizon_file_name' entry"
+            )
+        if apply and not table_name:
+            raise ValueError(
+                "When applying, a 'table_name' entry must be defined in the config for the entity"
             )
         source_data: Dict[str, DataFrame] = self.load_parameter("source_data", kwargs)
         standardised_data: DataFrame = self.load_parameter(
@@ -324,16 +342,19 @@ class HistoricalAnonymisationProcess(ETLProcess):
             file_name=horizon_file_name,
         )
         end_exec_time = datetime.now()
+        blob_path_prefix = "" if apply else "anonymised/"
         data_to_write = {
             entity_name: {
                 "data": anonymised_data,
                 "storage_kind": "ADLSG2-File",
                 "storage_endpoint": Util.get_storage_account(),
                 "container_name": "odw-standardised",
-                "blob_path": f"anonymised/{standardised_blob_path}",
+                "blob_path": f"{blob_path_prefix}{standardised_blob_path}",
                 "file_format": "delta",
                 "write_mode": "overwrite",
                 "write_options": {},
+                "database_name": "odw_standardised_db" if apply else None,
+                "table_name": table_name if apply else None,
             }
         }
         return data_to_write, ETLSuccessResult(

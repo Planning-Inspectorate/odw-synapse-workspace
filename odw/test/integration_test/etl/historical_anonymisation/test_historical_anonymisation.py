@@ -806,3 +806,277 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 f"{warehouse_name}/odw-standardised/anonymised/sb_{entity_name}"
             )
             assert_dataframes_equal(expected_anonymised_data, actual_anonymised_data)
+
+    def test__historical_anonymisation__run__overwrite_existing_data(self):
+        entity_name = "t_ha_r_oed"
+        subfolder = "t_ha_r_oed"
+        spark = PytestSparkSessionUtil().get_spark_session()
+        # Using nsip representation - note that the real data has nothing to anonymise
+        # We wil pretend that the date representationType and registerFor columns need to be anonymised
+        nsip_representation_raw = [
+            {
+                "representationId": 1,
+                "referenceId": "ref1",
+                "examinationLibraryRef": "",
+                "caseRef": "case1",
+                "caseId": 101,
+                "status": "awaiting_review",
+                "redacted": False,
+                "originalRepresentation": "rep1",
+                "representationType": "type a",
+                "representedId": "repId1",
+                "representationFrom": "PERSON",
+                "registerFor": "PERSON",
+                "dateReceived": "2025-01-01T00:00:00.000Z",
+                "attachmentIds": [],
+                "message_type": "Update",
+                "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                "message_id": "messageId1",
+            },
+            {
+                "representationId": 2,
+                "referenceId": "ref2",
+                "examinationLibraryRef": "",
+                "caseRef": "case2",
+                "caseId": 102,
+                "status": "awaiting_review",
+                "redacted": False,
+                "originalRepresentation": "rep2",
+                "representationType": "type b",
+                "representedId": "repId2",
+                "representationFrom": "PERSON",
+                "registerFor": "PERSON",
+                "dateReceived": "2025-01-01T00:00:00.000Z",
+                "attachmentIds": [],
+                "message_type": "Update",
+                "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                "message_id": "messageId2",
+            },
+            {
+                "representationId": 3,
+                "referenceId": "ref3",
+                "examinationLibraryRef": "",
+                "caseRef": "case3",
+                "caseId": 103,
+                "status": "awaiting_review",
+                "redacted": False,
+                "originalRepresentation": "rep3",
+                "representationType": "type c",
+                "representedId": "repId3",
+                "representationFrom": "ORG",
+                "registerFor": "ORG",
+                "dateReceived": "2025-01-01T00:00:00.000Z",
+                "attachmentIds": [],
+                "message_type": "Update",
+                "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                "message_id": "messageId1",
+            },
+        ]
+        self.write_json(
+            nsip_representation_raw,
+            (
+                "odw-raw",
+                "ServiceBus",
+                subfolder,
+                "2025-01-01",
+                f"{entity_name}_2025-01-01T00_00_00.000000+0000.json",
+            ),
+        )
+        standardised_schema = T.StructType(
+            [
+                T.StructField("representationId", T.StringType(), True),
+                T.StructField("referenceId", T.StringType(), True),
+                T.StructField("examinationLibraryRef", T.StringType(), True),
+                T.StructField("caseRef", T.StringType(), True),
+                T.StructField("caseId", T.StringType(), True),
+                T.StructField("status", T.StringType(), True),
+                T.StructField("redacted", T.StringType(), True),
+                T.StructField("originalRepresentation", T.StringType(), True),
+                T.StructField("representationType", T.StringType(), True),
+                T.StructField("representedId", T.StringType(), True),
+                T.StructField("representationFrom", T.StringType(), True),
+                T.StructField("registerFor", T.StringType(), True),
+                T.StructField("dateReceived", T.StringType(), True),
+                T.StructField("attachmentIds", T.StringType(), True),
+                T.StructField("message_type", T.StringType(), True),
+                T.StructField("message_enqueued_time_utc", T.StringType(), True),
+                T.StructField("message_id", T.StringType(), True),
+            ]
+        )
+        standardised_data = create_standardised_dataframe(
+            [
+                {  # Unanonymised
+                    "representationId": 1,
+                    "referenceId": "ref1",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case1",
+                    "caseId": 101,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep1",
+                    "representationType": "type a",
+                    "representedId": "repId1",
+                    "representationFrom": "PERSON",
+                    "registerFor": "PERSON",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId1",
+                },
+                {  # Anonymised using the old format
+                    "representationId": 2,
+                    "referenceId": "ref2",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case2",
+                    "caseId": 102,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep2",
+                    "representationType": "t*****",
+                    "representedId": "repId2",
+                    "representationFrom": "PERSON",
+                    "registerFor": "P*****",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId2",
+                },
+                {
+                    "representationId": 3,
+                    "referenceId": "ref3",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case3",
+                    "caseId": 103,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep3",
+                    "representationType": "REDACTED",
+                    "representedId": "repId3",
+                    "representationFrom": "ORG",
+                    "registerFor": "REDACTED",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId1",
+                },
+            ],
+            standardised_schema,
+        )
+        self.write_existing_table(
+            spark,
+            standardised_data,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{entity_name}",
+            "overwrite",
+        )
+        expected_anonymised_data = create_standardised_dataframe(
+            [
+                {  # Unanonymised
+                    "representationId": 1,
+                    "referenceId": "ref1",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case1",
+                    "caseId": 101,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep1",
+                    "representationType": "REDACTED",
+                    "representedId": "repId1",
+                    "representationFrom": "PERSON",
+                    "registerFor": "REDACTED",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId1",
+                },
+                {  # Anonymised using the old format
+                    "representationId": 2,
+                    "referenceId": "ref2",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case2",
+                    "caseId": 102,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep2",
+                    "representationType": "REDACTED",
+                    "representedId": "repId2",
+                    "representationFrom": "PERSON",
+                    "registerFor": "REDACTED",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId2",
+                },
+                {
+                    "representationId": 3,
+                    "referenceId": "ref3",
+                    "examinationLibraryRef": "",
+                    "caseRef": "case3",
+                    "caseId": 103,
+                    "status": "awaiting_review",
+                    "redacted": False,
+                    "originalRepresentation": "rep3",
+                    "representationType": "REDACTED",
+                    "representedId": "repId3",
+                    "representationFrom": "ORG",
+                    "registerFor": "REDACTED",
+                    "dateReceived": "2025-01-01T00:00:00.000Z",
+                    "attachmentIds": [],
+                    "message_type": "Update",
+                    "message_enqueued_time_utc": "2025-01-01T00:00:00.000000+0000",
+                    "message_id": "messageId1",
+                },
+            ],
+            standardised_schema,
+        )
+        override_config = {
+            entity_name: {
+                "raw_blob_path": f"ServiceBus/{subfolder}",  # For the "real" data this will be set to "entraid" - this is set differently here to prevent conflicts
+                "raw_blob_format": "json",
+                "standardised_blob_path": f"sb_{entity_name}",
+                "category": "ServiceBus",
+                "primary_keys": ["representationId"],
+                "cols_to_revert_to_raw": ["representationType", "registerFor"],
+                "table_name": entity_name,
+            }
+        }
+        mocked_purview_cols = [
+            {
+                "column_name": "representationType",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+            {
+                "column_name": "registerFor",
+                "classifications": ["MICROSOFT.PERSONAL.NAME"],
+            },
+        ]
+        with (
+            mock.patch.object(
+                HistoricalAnonymisationProcess, "_ENTITY_CONFIG", override_config
+            ),
+            mock.patch(
+                "odw.core.anonymisation.engine.fetch_purview_classifications_by_qualified_name",
+                return_value=mocked_purview_cols,
+            ),
+        ):
+            etl_result = HistoricalAnonymisationProcess(
+                spark,
+            ).run(
+                entity_name=entity_name,
+                orchestration_run_id=entity_name,
+                orchestration_entity_name=entity_name,
+                orchestration_stage_name="historical_anonymisation",
+                apply=True,
+            )
+            assert_etl_result_successful(etl_result)
+            actual_anonymised_data = spark.sql(
+                f"select * from odw_standardised_db.{entity_name}"
+            )
+            assert_dataframes_equal(expected_anonymised_data, actual_anonymised_data)
