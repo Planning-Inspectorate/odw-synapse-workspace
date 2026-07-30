@@ -2,6 +2,7 @@ from odw.core.etl.etl_process import ETLProcess
 from odw.core.etl.etl_result import ETLResult, ETLSuccessResult
 from odw.core.util.util import Util
 from odw.core.io.synapse_file_data_io import SynapseFileDataIO
+from odw.core.io.synapse_table_data_io import SynapseTableDataIO
 from odw.core.anonymisation.engine import AnonymisationEngine
 from odw.core.util.logging_util import LoggingUtil
 from pyspark.sql import DataFrame
@@ -216,19 +217,18 @@ class HistoricalAnonymisationProcess(ETLProcess):
                 "HistoricalAnonymisationProcess requires an 'entity_name' argument to be provided"
             )
         entity_config = self._ENTITY_CONFIG.get(entity_name, None)
+        table_name = entity_config.get("table_name", None)
         if not entity_config:
             raise ValueError(
                 f"Could not find an entry in HistoricalAnonymisationProcess._ENTITY_CONFIG for entity '{entity_name}'"
             )
         # Load all of the standardised data for the entity
-        standardised_blob_path = entity_config.get("standardised_blob_path", "")
         storage_endpoint = Util.get_storage_account()
-        standardised_data = SynapseFileDataIO().read(
+        standardised_data = SynapseTableDataIO().read(
             spark=self.spark,
-            storage_endpoint=storage_endpoint,
-            container_name="odw-standardised",
-            blob_path=standardised_blob_path,
-            file_format="parquet",
+            database_name="odw_standardised_db",
+            table_name=table_name,
+            file_format="delta",
         )
         raw_blob_path = entity_config.get("raw_blob_path", "")
         raw_blob_format = entity_config.get("raw_blob_format", "")

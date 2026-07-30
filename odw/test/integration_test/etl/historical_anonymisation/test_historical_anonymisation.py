@@ -229,8 +229,14 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 ]
             ),
         )
-        standardised_data.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/odw-standardised/{entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "overwrite",
         )
         expected_anonymised_data = create_standardised_dataframe(
             [
@@ -315,6 +321,7 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                     "email",
                 ],
                 "horizon_file_name": entity_name,
+                "table_name": entity_name,
             }
         }
         mocked_purview_cols = [
@@ -441,8 +448,14 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 ]
             ),
         )
-        standardised_data.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/odw-standardised/{entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "overwrite",
         )
         expected_anonymised_data = create_standardised_dataframe(
             [
@@ -495,6 +508,7 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 "cols_to_revert_to_raw": [
                     "userPrincipalName",
                 ],
+                "table_name": entity_name,
             }
         }
         mocked_purview_cols = [
@@ -699,8 +713,14 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
             ],
             standardised_schema,
         )
-        standardised_data.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/odw-standardised/sb_{entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{entity_name}",
+            "overwrite",
         )
         expected_anonymised_data = create_standardised_dataframe(
             [
@@ -772,6 +792,7 @@ class TestHistoricalAnonymisationProcess(ETLTestCase):
                 "category": "ServiceBus",
                 "primary_keys": ["representationId"],
                 "cols_to_revert_to_raw": ["representationType", "registerFor"],
+                "table_name": entity_name,
             }
         }
         mocked_purview_cols = [
