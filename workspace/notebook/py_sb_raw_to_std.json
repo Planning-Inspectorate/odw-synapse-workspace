@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "64f25a8e-23b0-4b58-bf78-77074880976e"
+				"spark.autotune.trackingId": "04fe7e2d-34bf-4a4c-b487-806e8ce1984d"
 			}
 		},
 		"metadata": {
@@ -526,13 +526,20 @@
 					"    return calculate_expected_new_count(df, target_table)\n",
 					"\n",
 					"\n",
-					"expected_new_count, insert_count, df = run_step(\n",
+					"result = run_step(\n",
 					"    \"Calculate expected new row count\",\n",
 					"    step_calculate_expected_new_count\n",
 					")\n",
 					"\n",
-					"if insert_count is None:\n",
+					"if result is None:\n",
+					"    logInfo(\"Calculate expected new row count step returned None; treating as no rows to append.\")\n",
+					"    expected_new_count = None\n",
 					"    insert_count = 0\n",
+					"    df = None\n",
+					"else:\n",
+					"    expected_new_count, insert_count, df = result\n",
+					"    if insert_count is None:\n",
+					"        insert_count = 0\n",
 					"\n",
 					"logInfo(f\"insert_count assigned = {insert_count}\")\n",
 					"print(f\"insert_count assigned = {insert_count}\")"
@@ -547,7 +554,7 @@
 					"\n",
 					"print(f\"insert_count assigned = {insert_count}\")\n",
 					"print(f\"expected_new_count = {expected_new_count}\")\n",
-					"print(f\"target_count after load = {target_count}\")\n",
+					"print(f\"target_count before append = {target_count}\")\n",
 					"print(f\"count_match = {target_count == expected_new_count}\")"
 				],
 				"execution_count": null
@@ -616,13 +623,18 @@
 				"cell_type": "code",
 				"source": [
 					"def step_append_df_to_table():\n",
+					"    if insert_count == 0:\n",
+					"        logInfo(f\"No records to insert into {target_table}. Skipping append operation.\")\n",
+					"        return spark.table(target_table).count()\n",
+					"\n",
 					"    logInfo(f\"Appending new rows to table {target_table}\")\n",
 					"    append_df_to_table(df=df, target_table=target_table)\n",
 					"    logInfo(f\"Successfully appended data to table {target_table}\")\n",
 					"    logInfo(\"Done appending rows to table\")\n",
 					"\n",
 					"    try:\n",
-					"        df.unpersist()\n",
+					"        if df is not None:\n",
+					"            df.unpersist()\n",
 					"    except Exception:\n",
 					"        pass\n",
 					"\n",
