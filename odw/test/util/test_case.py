@@ -84,7 +84,8 @@ class SparkTestCase(TestCase):
         format: str = "delta",
     ):
         logging.info(f"Creating table '{database_name}.{table_name}'")
-        spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
+        if mode == "overwrite":
+            spark.sql(f"DROP TABLE IF EXISTS {database_name}.{table_name}")
         table_path = f"{database_name}.{table_name}"
         data_path = format_to_adls_path(None, container, blob_path)
         write_opts = options | {"path": data_path}
