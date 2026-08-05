@@ -1,8 +1,8 @@
 import pandas as pd
 
-DISCOVERY_FILE = "S62A-Data-Discovery.xlsx"
+DISCOVERY_FILE = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/csv_and_xlsx_files/S62A-Data-Discovery.xlsx"
 DISCOVERY_SHEET = "BO Crown Comparison - USE THIS"
-OUTPUT_CSV = "output/horizon_field_mapping.csv"
+OUTPUT_CSV = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/horizon_field_mapping.csv"
 
 df = pd.read_excel(DISCOVERY_FILE, sheet_name=DISCOVERY_SHEET)
 
@@ -44,6 +44,7 @@ def extract_horizon_field(source, source_field):
     source_parts = [p.strip().lower() for p in str(source).split("/")]
     field_parts = [p.strip() for p in source_field.split("/")]
 
+    # find the position of "Horizon" in the Source parts and return the corresponding Source field part.
     for i, part in enumerate(source_parts):
         if "horizon" in part and i < len(field_parts):
             return field_parts[i]
@@ -58,4 +59,3 @@ horizon_df["Source field"] = horizon_df.apply(
 
 horizon_df.to_csv(OUTPUT_CSV, index=False)
 print(f"Wrote {len(horizon_df)} Horizon rows to {OUTPUT_CSV}")
-
