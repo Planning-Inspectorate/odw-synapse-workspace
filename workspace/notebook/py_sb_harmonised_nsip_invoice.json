@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "407a61ed-ab4a-426b-9f4f-e7d9fe8e21ac"
+				"spark.autotune.trackingId": "47f1a8ba-dd9a-408b-8425-a863390364cf"
 			}
 		},
 		"metadata": {
@@ -530,6 +530,24 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)\n",
 					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
 				],
 				"execution_count": null
 			},
