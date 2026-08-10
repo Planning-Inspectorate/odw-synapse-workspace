@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "61c5bdf9-b3d1-4472-9ba0-fb6dc8207fcf"
+				"spark.autotune.trackingId": "382d11a7-cbf1-4365-9f23-5566883f5bea"
 			}
 		},
 		"metadata": {
@@ -90,7 +90,8 @@
 					"from pyspark.sql import Row\r\n",
 					"import pyspark.sql.functions as F\r\n",
 					"from datetime import date,datetime\r\n",
-					"from pyspark.sql.window import Window"
+					"from pyspark.sql.window import Window\r\n",
+					"import time"
 				],
 				"execution_count": null
 			},
@@ -849,6 +850,24 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\r\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\r\n",
+					"    for attempt in range(max_retries):\r\n",
+					"        try:\r\n",
+					"            return func(*args, **kwargs)\r\n",
+					"        except Exception as exc:\r\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\r\n",
+					"                wait = base_wait_secs * (attempt + 1)\r\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\r\n",
+					"                time.sleep(wait)\r\n",
+					"            else:\r\n",
+					"                raise"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -866,7 +885,6 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"        \r\n",
 					"        # Count records being written\r\n",
 					"        insert_count = final_df.count()\r\n",
 					"\r\n",
@@ -879,17 +897,21 @@
 					"            .collect()[0][0]\r\n",
 					"        )\r\n",
 					"\r\n",
-					"        # Write Delta with overwrite & schema evolution, partitioned by IsActive\r\n",
-					"        final_df.write \\\r\n",
-					"            .format(\"delta\") \\\r\n",
-					"            .mode(\"overwrite\") \\\r\n",
-					"            .option(\"overwriteSchema\", \"true\") \\\r\n",
-					"            .option(\"path\", table_path) \\\r\n",
-					"            .partitionBy(\"IsActive\") \\\r\n",
-					"            .saveAsTable(spark_table_final)\r\n",
+					"        # Define the write operation as a function for the retry helper\r\n",
+					"        def perform_delta_write():\r\n",
+					"            final_df.write \\\r\n",
+					"                .format(\"delta\") \\\r\n",
+					"                .mode(\"overwrite\") \\\r\n",
+					"                .option(\"overwriteSchema\", \"true\") \\\r\n",
+					"                .option(\"path\", table_path) \\\r\n",
+					"                .partitionBy(\"IsActive\") \\\r\n",
+					"                .saveAsTable(spark_table_final)\r\n",
+					"\r\n",
+					"        # Execute the write with retry logic to handle ConcurrentAppendException\r\n",
+					"        _execute_with_retry(perform_delta_write)\r\n",
+					"        \r\n",
 					"        end_exec_time = datetime.now()\r\n",
 					"        logInfo(f\"Written final {spark_table_final}\")\r\n",
-					"        \r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\r\n",
