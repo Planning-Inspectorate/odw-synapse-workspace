@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "052ef83c-74b6-4d47-8b7c-d88bbac0f2eb"
+				"spark.autotune.trackingId": "7a29ea02-948c-456e-9cf2-4a1a7e4c87d5"
 			}
 		},
 		"metadata": {
@@ -87,7 +87,8 @@
 					"from pyspark.sql.utils import AnalysisException\n",
 					"from datetime import datetime, date\n",
 					"from pyspark.sql import DataFrame\n",
-					"import json"
+					"import json\n",
+					"import time"
 				],
 				"execution_count": null
 			},
@@ -355,6 +356,24 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"try:\n",
 					"    if not error_message:\n",
 					"\n",
@@ -407,7 +426,12 @@
 					"                .drop(\"business_key\", \"key_rank_desc\", \"next_msg_ingestion_date\")\n",
 					"            )\n",
 					"\n",
-					"            initial_load.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", True).saveAsTable(spark_table_final)\n",
+					"            # WRAPPER: Initial Load Write\n",
+					"            def perform_initial_load():\n",
+					"                initial_load.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", True).saveAsTable(spark_table_final)\n",
+					"            \n",
+					"            _execute_with_retry(perform_initial_load)\n",
+					"\n",
 					"            insert_count = initial_load.count()\n",
 					"            print(f\"Initial load completed. Created {insert_count} records.\")\n",
 					"            end_exec_time = datetime.now()\n",
@@ -493,8 +517,11 @@
 					"                    )\n",
 					"                )\n",
 					"\n",
-					"                # Solution 1 keeps overwrite behavior as-is\n",
-					"                expired_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(spark_table_final)\n",
+					"                # WRAPPER: Expire Rows Write\n",
+					"                def perform_expire_overwrite():\n",
+					"                    expired_df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(spark_table_final)\n",
+					"                \n",
+					"                _execute_with_retry(perform_expire_overwrite)\n",
 					"\n",
 					"            # Insert all source rows for affected keys (new or changed)\n",
 					"            records_to_insert = (\n",
@@ -526,7 +553,12 @@
 					"                    .drop(\"business_key\", \"key_rank_desc\", \"next_msg_ingestion_date\")\n",
 					"                )\n",
 					"\n",
-					"                new_versions.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
+					"                # WRAPPER: Append New Versions Write\n",
+					"                def perform_append_new():\n",
+					"                    new_versions.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
+					"                \n",
+					"                _execute_with_retry(perform_append_new)\n",
+					"\n",
 					"                print(\n",
 					"                    f\"SCD Type 2 load completed. Inserted {insert_count} records for {keys_to_process_count} affected keys \"\n",
 					"                    f\"starting from NSIPMeetingId: {max_id + 1}\"\n",
