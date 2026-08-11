@@ -1,0 +1,364 @@
+{
+	"name": "py_vw_checkmark_case_data",
+	"properties": {
+		"folder": {
+			"name": "odw-curated/checkmarkdata"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to create the Spark SQL curated view `odw_curated_db.vw_checkmark_case_data` for Checkmark integration.\r\n",
+					"\r\n",
+					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \r\n",
+					"Priyanka Challa &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11-August-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Combines S78 and HAS appeal cases with event and inspector details from odw_curated_db tables into a single view for Checkmark to read\r\n",
+					"\r\n",
+					"**Dependencies**: Must run after `appeal_s78`, `appeal-has`, `appeal-event`, and `pins-inspector` curated notebooks have completed.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version: 3.5, Python Version: 3.10, Delta Lake Version: 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import datetime"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"view_name: str = \"odw_curated_db.vw_checkmark_case_data\"\r\n",
+					"\r\n",
+					"start_exec_time = datetime.now()\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"error_message = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Create the curated view joining S78, HAS, event and inspector tables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"try:\r\n",
+					"    spark.sql(\"\"\"\r\n",
+					"        CREATE OR REPLACE VIEW odw_curated_db.vw_checkmark_case_data AS\r\n",
+					"\r\n",
+					"        WITH combined_cases AS (\r\n",
+					"\r\n",
+					"            SELECT\r\n",
+					"                1               AS source_priority,\r\n",
+					"                caseReference,\r\n",
+					"                caseType,\r\n",
+					"                caseProcedure,\r\n",
+					"                caseOfficerId,\r\n",
+					"                allocationLevel,\r\n",
+					"                caseSpecialisms,\r\n",
+					"                linkedCaseStatus,\r\n",
+					"                isGreenBelt,\r\n",
+					"                appellantCostsAppliedFor,\r\n",
+					"                lpaCostsAppliedFor,\r\n",
+					"                targetDate,\r\n",
+					"                inspectorId\r\n",
+					"            FROM odw_curated_db.appeal_s78\r\n",
+					"\r\n",
+					"            UNION ALL\r\n",
+					"\r\n",
+					"            SELECT\r\n",
+					"                2               AS source_priority,\r\n",
+					"                caseReference,\r\n",
+					"                caseType,\r\n",
+					"                caseProcedure,\r\n",
+					"                caseOfficerId,\r\n",
+					"                allocationLevel,\r\n",
+					"                caseSpecialisms,\r\n",
+					"                linkedCaseStatus,\r\n",
+					"                isGreenBelt,\r\n",
+					"                appellantCostsAppliedFor,\r\n",
+					"                lpaCostsAppliedFor,\r\n",
+					"                targetDate,\r\n",
+					"                inspectorId\r\n",
+					"            FROM odw_curated_db.appeal_has\r\n",
+					"\r\n",
+					"        ),\r\n",
+					"\r\n",
+					"        deduplicated_cases AS (\r\n",
+					"            SELECT *,\r\n",
+					"                   ROW_NUMBER() OVER (PARTITION BY caseReference ORDER BY source_priority) AS rn\r\n",
+					"            FROM combined_cases\r\n",
+					"        ),\r\n",
+					"\r\n",
+					"        events_agg AS (\r\n",
+					"            SELECT\r\n",
+					"                caseReference,\r\n",
+					"                to_json(collect_list(struct(eventType, eventStartDateTime))) AS events\r\n",
+					"            FROM odw_curated_db.appeal_event\r\n",
+					"            GROUP BY caseReference\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        SELECT\r\n",
+					"            c.caseReference,\r\n",
+					"            c.caseType,\r\n",
+					"            c.caseProcedure,\r\n",
+					"            c.caseOfficerId,\r\n",
+					"            c.allocationLevel,\r\n",
+					"            to_json(c.caseSpecialisms)                  AS caseSpecialisms,\r\n",
+					"            c.linkedCaseStatus,\r\n",
+					"            c.isGreenBelt,\r\n",
+					"            CASE\r\n",
+					"                WHEN c.lpaCostsAppliedFor = true         THEN 'Yes'\r\n",
+					"                WHEN c.appellantCostsAppliedFor = true   THEN 'Yes'\r\n",
+					"                ELSE 'No'\r\n",
+					"            END                                          AS costsAppliedFor,\r\n",
+					"            c.targetDate,\r\n",
+					"            c.inspectorId,\r\n",
+					"            insp.firstName                               AS inspectorFirstName,\r\n",
+					"            insp.lastName                                AS inspectorLastName,\r\n",
+					"            co.firstName                                 AS caseOfficerFirstName,\r\n",
+					"            co.lastName                                  AS caseOfficerLastName,\r\n",
+					"            ea.events\r\n",
+					"        FROM deduplicated_cases c\r\n",
+					"        LEFT JOIN events_agg ea\r\n",
+					"            ON c.caseReference = ea.caseReference\r\n",
+					"        LEFT JOIN odw_curated_db.pins_inspector insp\r\n",
+					"            ON c.inspectorId = insp.entraId\r\n",
+					"        LEFT JOIN odw_curated_db.pins_inspector co\r\n",
+					"            ON c.caseOfficerId = co.entraId\r\n",
+					"        WHERE c.rn = 1\r\n",
+					"    \"\"\")\r\n",
+					"\r\n",
+					"    print(f\"View {view_name} created successfully\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    error_message = f\"Error creating view {view_name} : {str(e)[:800]}\"\r\n",
+					"    end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Verify view and count rows for telemetry"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        insert_count = spark.sql(f\"SELECT COUNT(*) FROM {view_name}\").collect()[0][0]\r\n",
+					"        print(f\"View {view_name} row count: {insert_count}\")\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error counting rows in {view_name} : {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#####  Logging Execution Metadata to Azure Application Insights"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"insert_count = 0 if error_message else insert_count\r\n",
+					"end_exec_time = datetime.now()\r\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"status_message = (\r\n",
+					"    f\"Successfully created view {view_name}\"\r\n",
+					"    if not error_message\r\n",
+					"    else f\"Failed to create view {view_name}\"\r\n",
+					")\r\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"\r\n",
+					"log_telemetry_and_exit(\r\n",
+					"    stage,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    error_message,\r\n",
+					"    view_name,\r\n",
+					"    insert_count,\r\n",
+					"    update_count,\r\n",
+					"    delete_count,\r\n",
+					"    PipelineName,\r\n",
+					"    PipelineRunID,\r\n",
+					"    PipelineTriggerID,\r\n",
+					"    PipelineTriggerName,\r\n",
+					"    PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID,\r\n",
+					"    activity_type,\r\n",
+					"    duration_seconds,\r\n",
+					"    status_message,\r\n",
+					"    status_code\r\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
