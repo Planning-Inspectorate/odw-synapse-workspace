@@ -2,18 +2,18 @@
 
 ##### View: vw_checkmark_case_data (Checkmark Integration)
 
-Logical data model showing the curated layer entities that feed `odw_curated_db.vw_checkmark_case_data` and the relationships between them.
+Logical data model showing the harmonised layer entities that feed `odw_curated_db.vw_checkmark_case_data` and the relationships between them.
 
 ---
 
 #### Primary Identifiers and Join Keys
 
-| Entity | Primary Key | Foreign Keys |
-|---|---|---|
-| `appeal_s78` | `caseReference` | `inspectorId` → `pins_inspector.entraId`; `caseOfficerId` → `pins_inspector.entraId` |
-| `appeal_has` | `caseReference` | `inspectorId` → `pins_inspector.entraId`; `caseOfficerId` → `pins_inspector.entraId` |
-| `appeal_event` | `eventId` | `caseReference` → `appeal_s78.caseReference` / `appeal_has.caseReference` |
-| `pins_inspector` | `entraId` | — |
+| Entity | Primary Key | Foreign Keys | Source database |
+|---|---|---|---|
+| `appeal_s78` | `caseReference` | `inspectorId` → `pins_inspector.entraId`; `caseOfficerId` → `pins_inspector.entraId` | `odw_harmonised_db` |
+| `appeal_has` | `caseReference` | `inspectorId` → `pins_inspector.entraId`; `caseOfficerId` → `pins_inspector.entraId` | `odw_harmonised_db` |
+| `appeal_event` | `eventId` | `caseReference` → `appeal_s78.caseReference` / `appeal_has.caseReference` | `odw_harmonised_db` |
+| `pins_inspector` | `entraId` | — | `odw_harmonised_db` |
 
 #### Cardinality
 
@@ -90,10 +90,10 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    S78["appeal_s78<br/>(odw_curated_db)"]
-    HAS["appeal_has<br/>(odw_curated_db)"]
-    EVT["appeal_event<br/>(odw_curated_db)"]
-    INS["pins_inspector<br/>(odw_curated_db)"]
+    S78["appeal_s78<br/>(odw_harmonised_db — IsActive='Y')"]
+    HAS["appeal_has<br/>(odw_harmonised_db — IsActive='Y')"]
+    EVT["appeal_event<br/>(odw_harmonised_db — IsActive='Y')"]
+    INS["pins_inspector<br/>(odw_harmonised_db — IsActive='Y')"]
 
     S78 -->|source_priority = 1| union["UNION ALL<br/>combined_cases"]
     HAS -->|source_priority = 2| union
