@@ -99,7 +99,7 @@ flowchart LR
     HAS -->|source_priority = 2| union
     union --> dedup["ROW_NUMBER PARTITION BY caseReference<br/>ORDER BY source_priority<br/>deduplicated_cases — WHERE rn = 1"]
     dedup --> view["odw_curated_db.vw_checkmark_case_data"]
-    EVT -->|"collect_list grouped by caseReference<br/>to_json — events column"| view
+    EVT -->|"collect_list grouped by caseReference<br/>to_json — event column"| view
     INS -->|"LEFT JOIN inspectorId = entraId<br/>(inspectorFirstName, inspectorLastName)"| view
     INS -->|"LEFT JOIN caseOfficerId = entraId<br/>(caseOfficerFirstName, caseOfficerLastName)"| view
 ```
@@ -125,4 +125,4 @@ flowchart LR
 | `inspectorLastName` | `pins_inspector` | Joined via `inspectorId = entraId` |
 | `caseOfficerFirstName` | `pins_inspector` | Joined via `caseOfficerId = entraId` |
 | `caseOfficerLastName` | `pins_inspector` | Joined via `caseOfficerId = entraId` |
-| `events` | `appeal_event` | JSON array of `{eventType, eventStartDateTime}` per case |
+| `event` | `appeal_event` | JSON array of `{eventType, eventStartDateTime}` per case |
