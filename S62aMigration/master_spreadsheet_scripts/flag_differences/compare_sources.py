@@ -1,8 +1,8 @@
-import shutil
-import pandas as pd
+from copy import copy
+from pathlib import Path
 
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 
 
@@ -12,6 +12,11 @@ HORIZON_FILE = (
 
 SPREADSHEET_FILE = (
     "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/S62A_All_Sheets_migrated.xlsx"
+)
+
+MASTER_TEMPLATE_FILE = (
+    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/"
+    "S62aMigration/csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
 )
 
 SHEET_NAME = "Template"
@@ -26,701 +31,295 @@ OUTPUT_FILE = (
     "S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
 )
 
-# colours/formatting
-
-HEADER_FILL = PatternFill(
-    start_color="D9D9D9",
-    end_color="D9D9D9",
-    fill_type="solid"
-)
-
-# Horizon vs Spreadsheet mismatch
-MISMATCH_FILL = PatternFill(
+# highlight differences in red
+DIFFERENCE_FILL = PatternFill(
+    fill_type="solid",
     start_color="FFC7CE",
     end_color="FFC7CE",
-    fill_type="solid"
 )
 
-# Multiple conflicting values within ONE source
-CONFLICT_FILL = PatternFill(
-    start_color="FFF2CC",
-    end_color="FFF2CC",
-    fill_type="solid"
-)
 
-BOLD_FONT = Font(bold=True)
+def _get_columns(worksheet):
+    columns = []
+    for column in range(1, worksheet.max_column + 1):
+        value = worksheet.cell(HEADER_ROW, column).value
+        if value is None or str(value).strip() == "":
+            continue
+        columns.append((str(value).strip(), column))
+    return columns
 
-def norm(value):
-    """
-    Normalise a value for comparison.
 
-    This does NOT alter the value stored in Excel.
-    It is only used to determine whether values are equal.
-    """
-
+def _normalise_case_reference(value):
     if value is None:
-        return ""
-
-    if pd.isna(value):
-        return ""
-
-    return str(value).strip()
+        return None
+    value = str(value).strip()
+    return value or None
 
 
-def is_blank(value):
-    return norm(value) == ""
+def _is_blank(value):
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return value != value
 
 
-def load_source(path, source_name):
-    """
-    Load a source and consolidate duplicate Case references.
+def _values_differ(left, right):
+    if _is_blank(left) or _is_blank(right):
+        return False
+    if isinstance(left, str) and isinstance(right, str):
+        return left.strip() != right.strip()
+    return left != right
 
-    Returns:
 
-        records
-        conflicts
+def _read_cases(worksheet, columns):
+    cases = {}
+    order = []
+    source_rows = {}
+    key_column = next(column for header, column in columns if header == KEY_COL)
 
-    records:
-        {
-            "12345": {
-                "Case reference": "12345",
-                "Status": "Open",
-                ...
+    for row in range(HEADER_ROW + 1, worksheet.max_row + 1):
+        case_reference = _normalise_case_reference(
+            worksheet.cell(row, key_column).value
+        )
+        if case_reference is None:
+            continue
+
+        if case_reference not in cases:
+            cases[case_reference] = {
+                index: worksheet.cell(row, column).value
+                for index, (_, column) in enumerate(columns)
             }
-        }
+            order.append(case_reference)
+            source_rows[case_reference] = row
+            continue
 
-    conflicts:
-        [
-            {
-                "Case reference": "12345",
-                "Source": "Horizon",
-                "Field": "Status",
-                "Values": "Open / Closed"
-            }
-        ]
-    """
+        for index, (_, column) in enumerate(columns):
+            existing = cases[case_reference][index]
+            incoming = worksheet.cell(row, column).value
+            if existing in (None, "") and incoming not in (None, ""):
+                cases[case_reference][index] = incoming
 
-    df = pd.read_excel(
-        path,
-        sheet_name=SHEET_NAME,
-        header=HEADER_ROW - 1
-    )
+    return cases, order, source_rows
 
-    # Remove rows without a case reference
-    df = df.dropna(subset=[KEY_COL])
 
-    # Normalise case references
-    df[KEY_COL] = (
-        df[KEY_COL]
-        .astype(str)
-        .str.strip()
-    )
+def _copy_cell_format(source_cell, target_cell):
+    if source_cell.has_style:
+        target_cell._style = copy(source_cell._style)
+    target_cell.number_format = source_cell.number_format
+    target_cell.font = copy(source_cell.font)
+    target_cell.fill = copy(source_cell.fill)
+    target_cell.border = copy(source_cell.border)
+    target_cell.alignment = copy(source_cell.alignment)
+    target_cell.protection = copy(source_cell.protection)
 
-    records = {}
-    conflicts = []
 
-    for case_reference, group in df.groupby(
-        KEY_COL,
-        sort=False
-    ):
+def _copy_column_format(source_worksheet, source_column, target_worksheet, target_column):
+    source_letter = get_column_letter(source_column)
+    target_letter = get_column_letter(target_column)
+    source_dimension = source_worksheet.column_dimensions[source_letter]
+    target_dimension = target_worksheet.column_dimensions[target_letter]
+    target_dimension.width = source_dimension.width
+    target_dimension.hidden = source_dimension.hidden
+    target_dimension.bestFit = source_dimension.bestFit
 
-        combined = {}
+    for row in range(1, HEADER_ROW + 2):
+        _copy_cell_format(
+            source_worksheet.cell(row, source_column),
+            target_worksheet.cell(row, target_column),
+        )
 
-        # Keep case reference
-        combined[KEY_COL] = case_reference
 
-        for column in df.columns:
+def _output_column(source_column, source_is_key=False):
+    if source_is_key:
+        return 1
+    return 2 + ((source_column - 2) * 2)
 
-            if column == KEY_COL:
-                continue
 
-            # Get all non-blank values for this case/field
+def combine_sources(
+    horizon_file=HORIZON_FILE,
+    spreadsheet_file=SPREADSHEET_FILE,
+    master_template_file=MASTER_TEMPLATE_FILE,
+    output_file=OUTPUT_FILE,
+):
+    # Write one output row per case with Horizon and spreadsheet values paired
+    horizon_workbook = load_workbook(horizon_file, data_only=False)
+    spreadsheet_workbook = load_workbook(spreadsheet_file, data_only=False)
+    master_workbook = load_workbook(master_template_file, data_only=False)
 
-            values = []
+    try:
+        horizon_source = horizon_workbook[SHEET_NAME]
+        spreadsheet_source = spreadsheet_workbook[SHEET_NAME]
+        master_source = master_workbook[SHEET_NAME]
+        horizon_columns = _get_columns(horizon_source)
+        spreadsheet_columns = _get_columns(spreadsheet_source)
+        master_columns = _get_columns(master_source)
 
-            for value in group[column]:
+        horizon_headers = [header for header, _ in horizon_columns]
+        spreadsheet_headers = [header for header, _ in spreadsheet_columns]
+        master_headers = [header for header, _ in master_columns]
+        if KEY_COL not in horizon_headers or KEY_COL not in spreadsheet_headers:
+            raise ValueError(f"Both sheets must contain {KEY_COL!r}")
 
-                normalised = norm(value)
+        if horizon_headers != master_headers or spreadsheet_headers != master_headers:
+            raise ValueError(
+                "The Horizon and spreadsheet columns must match the legacy master "
+                "schema in the same order."
+            )
 
-                if normalised != "":
-                    values.append(
-                        (value, normalised)
+        horizon_cases, horizon_order, horizon_rows = _read_cases(
+            horizon_source, horizon_columns
+        )
+        spreadsheet_cases, spreadsheet_order, spreadsheet_rows = _read_cases(
+            spreadsheet_source, spreadsheet_columns
+        )
+
+        output_workbook = load_workbook(master_template_file, data_only=False)
+        output_sheet = output_workbook[SHEET_NAME]
+        try:
+            source_merges = list(output_sheet.merged_cells.ranges)
+            for merged_range in source_merges:
+                output_sheet.unmerge_cells(str(merged_range))
+            if output_sheet.max_row > HEADER_ROW:
+                output_sheet.delete_rows(HEADER_ROW + 1, output_sheet.max_row - HEADER_ROW)
+
+            key_index = master_headers.index(KEY_COL)
+            output_headers = [KEY_COL]
+            output_sources = [(KEY_COL, key_index, False)]
+            for index, header in enumerate(master_headers):
+                if header != KEY_COL:
+                    output_headers.extend(
+                        (f"{header} (horizon)", f"{header} (spreadsheet)")
+                    )
+                    output_sources.extend(
+                        ((header, index, True), (header, index, False))
                     )
 
-            if not values:
+            output_columns_by_source_index = {}
+            for output_column, (_, index, _) in enumerate(output_sources, start=1):
+                output_columns_by_source_index.setdefault(index, []).append(output_column)
 
-                combined[column] = None
-                continue
-
-            unique_values = []
-            seen = set()
-
-            for original_value, normalised_value in values:
-
-                if normalised_value not in seen:
-
-                    seen.add(normalised_value)
-
-                    unique_values.append(
-                        (original_value, normalised_value)
-                    )
-
-
-            if len(unique_values) == 1:
-
-                combined[column] = (
-                    unique_values[0][0]
+            for output_column, (_, index, is_horizon) in enumerate(
+                output_sources, start=1
+            ):
+                source_worksheet = horizon_source if is_horizon else spreadsheet_source
+                source_columns = horizon_columns if is_horizon else spreadsheet_columns
+                source_column = source_columns[index][1]
+                _copy_column_format(
+                    source_worksheet,
+                    source_column,
+                    output_sheet,
+                    output_column,
                 )
-
-            else:
-
-                display_values = [
-                    item[1]
-                    for item in unique_values
+                output_sheet.cell(HEADER_ROW, output_column).value = output_headers[
+                    output_column - 1
                 ]
 
-                combined[column] = (
-                    " / ".join(display_values)
+            for merged_range in source_merges:
+                if merged_range.min_row != 1 or merged_range.max_row != 1:
+                    continue
+                mapped_columns = [
+                    output_column
+                    for index, (_, source_column) in enumerate(master_columns)
+                    if merged_range.min_col <= source_column <= merged_range.max_col
+                    for output_column in output_columns_by_source_index.get(index, [])
+                ]
+                if not mapped_columns:
+                    continue
+                start_column = min(mapped_columns)
+                end_column = max(mapped_columns)
+                output_sheet.cell(1, start_column).value = master_source.cell(
+                    1, merged_range.min_col
+                ).value
+                _copy_cell_format(
+                    master_source.cell(1, merged_range.min_col),
+                    output_sheet.cell(1, start_column),
+                )
+                output_sheet.merge_cells(
+                    start_row=1,
+                    start_column=start_column,
+                    end_row=1,
+                    end_column=end_column,
                 )
 
-                conflicts.append({
-                    "Case reference": case_reference,
-                    "Source": source_name,
-                    "Field": column,
-                    "Values": " / ".join(
-                        display_values
-                    ),
-                    "Number of different values": len(
-                        unique_values
-                    )
-                })
-
-        records[case_reference] = combined
-
-    return records, conflicts
-
-
-def get_fields(horizon_data, spreadsheet_data):
-
-    horizon_fields = []
-
-    if horizon_data:
-        first_horizon_record = next(
-            iter(horizon_data.values())
-        )
-        horizon_fields = list(
-            first_horizon_record.keys()
-        )
-
-    spreadsheet_fields = []
-
-    if spreadsheet_data:
-        first_spreadsheet_record = next(
-            iter(spreadsheet_data.values())
-        )
-        spreadsheet_fields = list(
-            first_spreadsheet_record.keys()
-        )
-
-    fields = []
-
-    # Horizon fields first
-    for field in horizon_fields:
-        if field != KEY_COL:
-            fields.append(field)
-
-    # Spreadsheet-only fields afterwards
-    for field in spreadsheet_fields:
-        if field != KEY_COL and field not in fields:
-            fields.append(field)
-
-    return fields
-
-
-def prepare_output_workbook():
-
-    # Copy the spreadsheet workbook first.
-    # This preserves the original workbook.
-    shutil.copy2(
-        SPREADSHEET_FILE,
-        OUTPUT_FILE
-    )
-
-    wb = load_workbook(
-        OUTPUT_FILE
-    )
-
-    # Remove previous output sheets if they exist
-
-    if "Comparison" in wb.sheetnames:
-        del wb["Comparison"]
-
-    if "Data Quality Issues" in wb.sheetnames:
-        del wb["Data Quality Issues"]
-
-
-    # copy exisiting template sheet
-
-    template_ws = wb[SHEET_NAME]
-
-    comparison_ws = wb.copy_worksheet(
-        template_ws
-    )
-
-    comparison_ws.title = "Comparison"
-
-    # create data quality issues separately 
-
-    quality_ws = wb.create_sheet(
-        "Data Quality Issues"
-    )
-
-    return (
-        wb,
-        comparison_ws,
-        quality_ws
-    )
-
-def build_comparison_sheet(
-    ws,
-    horizon_data,
-    spreadsheet_data,
-    fields
-):
-    """
-    Creates one row per Case reference.
-
-    For every field:
-
-        Field (Horizon) | Field (Spreadsheet)
-
-    are placed directly beside each other.
-    """
-
-    case_header = ws.cell(
-        row=1,
-        column=1,
-        value="Case reference"
-    )
-
-    case_header.font = BOLD_FONT
-    case_header.fill = HEADER_FILL
-    case_header.alignment = Alignment(
-        horizontal="center",
-        vertical="center",
-        wrap_text=True
-    )
-
-    # Case reference spans both header rows
-    ws.merge_cells(
-        start_row=1,
-        start_column=1,
-        end_row=2,
-        end_column=1
-    )
-
-    # HORIZON / SPREADSHEET COLUMN PAIRS
-    field_col_map = {}
-
-    current_col = 2
-
-    for field in fields:
-
-        horizon_col = current_col
-        spreadsheet_col = current_col + 1
-
-        field_col_map[field] = {
-            "horizon": horizon_col,
-            "spreadsheet": spreadsheet_col
-        }
-
-        horizon_header = ws.cell(
-            row=2,
-            column=horizon_col,
-            value=f"{field} (Horizon)"
-        )
-
-        spreadsheet_header = ws.cell(
-            row=2,
-            column=spreadsheet_col,
-            value=f"{field} (Spreadsheet)"
-        )
-
-        for cell in (
-            horizon_header,
-            spreadsheet_header
-        ):
-            cell.font = BOLD_FONT
-            cell.fill = HEADER_FILL
-            cell.alignment = Alignment(
-                horizontal="center",
-                vertical="center",
-                wrap_text=True
+            case_references = list(spreadsheet_order)
+            case_references.extend(
+                case_reference
+                for case_reference in horizon_order
+                if case_reference not in spreadsheet_cases
             )
 
-        current_col += 2
-
-
-    all_cases = sorted(
-        set(horizon_data.keys())
-        |
-        set(spreadsheet_data.keys())
-    )
-
-    row_idx = 3
-    mismatch_count = 0
-
-    for case_reference in all_cases:
-
-        horizon_row = horizon_data.get(
-            case_reference,
-            {}
-        )
-
-        spreadsheet_row = spreadsheet_data.get(
-            case_reference,
-            {}
-        )
-
-        # Case reference
-        case_cell = ws.cell(
-            row=row_idx,
-            column=1,
-            value=case_reference
-        )
-
-        case_cell.font = BOLD_FONT
-
-        # Compare every field
-
-        for field in fields:
-
-            horizon_col = field_col_map[field][
-                "horizon"
-            ]
-
-            spreadsheet_col = field_col_map[field][
-                "spreadsheet"
-            ]
-
-            horizon_value = horizon_row.get(
-                field
-            )
-
-            spreadsheet_value = (
-                spreadsheet_row.get(field)
-            )
-
-            # Horizon
-            horizon_cell = ws.cell(
-                row=row_idx,
-                column=horizon_col,
-                value=(
-                    None
-                    if is_blank(horizon_value)
-                    else horizon_value
-                )
-            )
-
-            # Spreadsheet
-            spreadsheet_cell = ws.cell(
-                row=row_idx,
-                column=spreadsheet_col,
-                value=(
-                    None
-                    if is_blank(spreadsheet_value)
-                    else spreadsheet_value
-                )
-            )
-
-            # Difference logic
-
-            horizon_normalised = norm(
-                horizon_value
-            )
-
-            spreadsheet_normalised = norm(
-                spreadsheet_value
-            )
-
-            # Don't highlight blank vs populated.
-            #
-            # Only highlight if BOTH sides contain data
-            # and the values differ.
-
-            if (
-                horizon_normalised
-                and spreadsheet_normalised
-                and horizon_normalised
-                != spreadsheet_normalised
+            for output_row, case_reference in enumerate(
+                case_references, start=HEADER_ROW + 1
             ):
+                spreadsheet_row = spreadsheet_rows.get(case_reference)
+                horizon_row = horizon_rows.get(case_reference)
+                output_sheet.cell(output_row, 1).value = case_reference
 
-                horizon_cell.fill = MISMATCH_FILL
-                spreadsheet_cell.fill = MISMATCH_FILL
+                if spreadsheet_row is not None:
+                    _copy_cell_format(
+                        spreadsheet_source.cell(
+                            spreadsheet_row, spreadsheet_columns[key_index][1]
+                        ),
+                        output_sheet.cell(output_row, 1),
+                    )
 
-                mismatch_count += 1
+                for output_column, (_, index, is_horizon) in enumerate(
+                    output_sources[1:], start=2
+                ):
+                    cases = horizon_cases if is_horizon else spreadsheet_cases
+                    source_row = horizon_row if is_horizon else spreadsheet_row
+                    source_worksheet = horizon_source if is_horizon else spreadsheet_source
+                    source_columns = horizon_columns if is_horizon else spreadsheet_columns
+                    output_sheet.cell(output_row, output_column).value = cases.get(
+                        case_reference, {}
+                    ).get(index)
+                    if source_row is not None:
+                        _copy_cell_format(
+                            source_worksheet.cell(source_row, source_columns[index][1]),
+                            output_sheet.cell(output_row, output_column),
+                        )
 
-        row_idx += 1
+                for horizon_column in range(2, len(output_headers), 2):
+                    spreadsheet_column = horizon_column + 1
+                    horizon_value = output_sheet.cell(
+                        output_row, horizon_column
+                    ).value
+                    spreadsheet_value = output_sheet.cell(
+                        output_row, spreadsheet_column
+                    ).value
+                    if _values_differ(horizon_value, spreadsheet_value):
+                        output_sheet.cell(
+                            output_row, horizon_column
+                        ).fill = copy(DIFFERENCE_FILL)
+                        output_sheet.cell(
+                            output_row, spreadsheet_column
+                        ).fill = copy(DIFFERENCE_FILL)
 
-    # formatting
+                source_row = spreadsheet_row or horizon_row
+                if source_row is not None:
+                    source_worksheet = (
+                        spreadsheet_source if spreadsheet_row is not None else horizon_source
+                    )
+                    output_sheet.row_dimensions[output_row].height = source_worksheet.row_dimensions[
+                        source_row
+                    ].height
 
-    ws.column_dimensions["A"].width = 20
-
-    for column in range(2, current_col):
-
-        column_letter = get_column_letter(
-            column
-        )
-
-        ws.column_dimensions[
-            column_letter
-        ].width = 25
-
-    # Wrap text
-    for row in ws.iter_rows(
-        min_row=1,
-        max_row=row_idx - 1,
-        min_col=1,
-        max_col=current_col - 1
-    ):
-        for cell in row:
-            cell.alignment = Alignment(
-                vertical="top",
-                wrap_text=True
+            output_sheet.freeze_panes = f"A{HEADER_ROW + 1}"
+            output_sheet.auto_filter.ref = (
+                f"A{HEADER_ROW}:{get_column_letter(len(output_headers))}"
+                f"{HEADER_ROW + len(case_references)}"
             )
-
-    ws.freeze_panes = "B3"
-
-    ws.auto_filter.ref = (
-        f"A2:{get_column_letter(current_col - 1)}"
-        f"{row_idx - 1}"
-    )
-
-    return (
-        len(all_cases),
-        mismatch_count
-    )
-
-def build_quality_sheet(
-    ws,
-    conflicts
-):
-
-    headers = [
-        "Case reference",
-        "Source",
-        "Field",
-        "Conflicting values",
-        "Number of different values"
-    ]
-
-
-    for column, header in enumerate(
-        headers,
-        start=1
-    ):
-
-        cell = ws.cell(
-            row=1,
-            column=column,
-            value=header
-        )
-
-        cell.font = BOLD_FONT
-        cell.fill = HEADER_FILL
-
-
-    row_idx = 2
-
-    for conflict in conflicts:
-
-        ws.cell(
-            row=row_idx,
-            column=1,
-            value=conflict[
-                "Case reference"
-            ]
-        )
-
-        ws.cell(
-            row=row_idx,
-            column=2,
-            value=conflict[
-                "Source"
-            ]
-        )
-
-        ws.cell(
-            row=row_idx,
-            column=3,
-            value=conflict[
-                "Field"
-            ]
-        )
-
-        values_cell = ws.cell(
-            row=row_idx,
-            column=4,
-            value=conflict[
-                "Values"
-            ]
-        )
-
-        ws.cell(
-            row=row_idx,
-            column=5,
-            value=conflict[
-                "Number of different values"
-            ]
-        )
-
-        # Highlight conflicting values
-        values_cell.fill = CONFLICT_FILL
-
-        row_idx += 1
-
-    widths = {
-        "A": 20,
-        "B": 20,
-        "C": 30,
-        "D": 50,
-        "E": 25
-    }
-
-    for column, width in widths.items():
-
-        ws.column_dimensions[
-            column
-        ].width = width
-
-    for row in ws.iter_rows(
-        min_row=1,
-        max_row=max(row_idx - 1, 1),
-        min_col=1,
-        max_col=5
-    ):
-
-        for cell in row:
-
-            cell.alignment = Alignment(
-                vertical="top",
-                wrap_text=True
-            )
-
-    if conflicts:
-
-        ws.auto_filter.ref = (
-            f"A1:E{row_idx - 1}"
-        )
-
-    ws.freeze_panes = "A2"
-
-    return len(conflicts)
-
-def main():
-
-    print("Loading Horizon data...")
-
-    horizon_data, horizon_conflicts = (
-        load_source(
-            HORIZON_FILE,
-            "Horizon"
-        )
-    )
-
-    print(
-        f"Horizon cases: "
-        f"{len(horizon_data)}"
-    )
-
-    print(
-        f"Horizon source conflicts: "
-        f"{len(horizon_conflicts)}"
-    )
-
-    print("Loading spreadsheet data...")
-
-    spreadsheet_data, spreadsheet_conflicts = (
-        load_source(
-            SPREADSHEET_FILE,
-            "Spreadsheet"
-        )
-    )
-
-    print(
-        f"Spreadsheet cases: "
-        f"{len(spreadsheet_data)}"
-    )
-
-    print(
-        f"Spreadsheet source conflicts: "
-        f"{len(spreadsheet_conflicts)}"
-    )
-
-    fields = get_fields(
-        horizon_data,
-        spreadsheet_data
-    )
-
-    print("preparing output workbook...")
-
-    (
-        wb,
-        comparison_ws,
-        quality_ws
-    ) = prepare_output_workbook()
-
-    print("building comparison")
-
-    case_count, mismatch_count = (
-        build_comparison_sheet(
-            comparison_ws,
-            horizon_data,
-            spreadsheet_data,
-            fields
-        )
-    )
-
-
-    all_conflicts = (
-        horizon_conflicts
-        +
-        spreadsheet_conflicts
-    )
-
-    print(
-        "Building Data Quality Issues sheet..."
-    )
-
-    quality_count = build_quality_sheet(
-        quality_ws,
-        all_conflicts
-    )
-
-    wb.save(
-        OUTPUT_FILE
-    )
-
-    print()
-    print("Comparison complete")
-    print(
-        f"Cases: {case_count}"
-    )
-    print(
-        f"Fields compared: {len(fields)}"
-    )
-    print(
-        f"Horizon vs Spreadsheet mismatches: "
-        f"{mismatch_count}"
-    )
-    print(
-        f"Source-level data quality issues: "
-        f"{quality_count}"
-    )
-    print(
-        f"Output: {OUTPUT_FILE}"
-    )
+            Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+            output_workbook.save(output_file)
+        finally:
+            output_workbook.close()
+    finally:
+        horizon_workbook.close()
+        spreadsheet_workbook.close()
+        master_workbook.close()
 
 
 if __name__ == "__main__":
-    main()
+    combine_sources()
+    print(f"Created {OUTPUT_FILE}")
