@@ -1,6 +1,6 @@
 import pandas as pd
 
-DISCOVERY_FILE = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/csv_and_xlsx_files/S62A-Data-Discovery.xlsx"
+DISCOVERY_FILE = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/csv_and_xlsx_files/S62A Data Discovery.xlsx"
 DISCOVERY_SHEET = "BO Crown Comparison - USE THIS"
 OUTPUT_CSV = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/horizon_field_mapping.csv"
 
