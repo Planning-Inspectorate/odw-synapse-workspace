@@ -1,8 +1,8 @@
 import pandas as pd
 
-DISCOVERY_FILE = "csv_and_xlsx_files/S62A-Data-Discovery.xlsx"
+DISCOVERY_FILE = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/csv_and_xlsx_files/S62A Data Discovery.xlsx"
 DISCOVERY_SHEET = "BO Crown Comparison - USE THIS"
-OUTPUT_CSV = "outputs/spreadsheet_field_mapping.csv"
+OUTPUT_CSV = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/spreadsheet_field_mapping.csv"
 
 df = pd.read_excel(DISCOVERY_FILE, sheet_name=DISCOVERY_SHEET)
 

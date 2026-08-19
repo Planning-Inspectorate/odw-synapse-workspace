@@ -6,16 +6,17 @@ from datetime import datetime, date
 import openpyxl
 import pandas as pd
  
-SOURCE_FILE   = "csv_and_xlsx_files/SS_data/Section-62a-Cases-COPY.xlsx"
-MAPPING_CSV   = "outputs/spreadsheet_field_mapping.csv"
-TEMPLATE_FILE = "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
+BASE_DIR      = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration"
+SOURCE_FILE   = os.path.join(BASE_DIR, "csv_and_xlsx_files/SS_data/Section 62a Cases - COPY.xlsx")
+MAPPING_CSV   = os.path.join(BASE_DIR, "outputs/spreadsheet_field_mapping.csv")
+TEMPLATE_FILE = os.path.join(BASE_DIR, "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx")
 TEMPLATE_SHEET          = "Template"
 TEMPLATE_HEADER_ROW     = 2
 TEMPLATE_FIRST_DATA_ROW = 3
  
-OUTPUT_FILE        = "outputs/S62A_All_Sheets_migrated.xlsx"
-AUDIT_LOG_FILE      = "outputs/spreadsheet_migration_audit_log.csv"
-UNMAPPED_COLS_FILE  = "outputs/spreadsheet_unmapped_columns_report.csv"
+OUTPUT_FILE        = os.path.join(BASE_DIR, "outputs/S62A_All_Sheets_migrated.xlsx")
+AUDIT_LOG_FILE      = os.path.join(BASE_DIR, "outputs/spreadsheet_migration_audit_log.csv")
+UNMAPPED_COLS_FILE  = os.path.join(BASE_DIR, "outputs/spreadsheet_unmapped_columns_report.csv")
  
 print("Block 1 done - config set")
  
