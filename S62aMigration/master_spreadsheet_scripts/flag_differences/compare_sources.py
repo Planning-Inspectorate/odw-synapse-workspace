@@ -2,7 +2,7 @@ from copy import copy
 from pathlib import Path
 
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
@@ -30,6 +30,8 @@ OUTPUT_FILE = (
     "odw-synapse-workspace/S62aMigration/outputs/"
     "S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
 )
+
+SUMMARY_SHEET_NAME = "Contradiction Summary"
 
 # highlight differences in red
 DIFFERENCE_FILL = PatternFill(
@@ -128,6 +130,44 @@ def _copy_column_format(source_worksheet, source_column, target_worksheet, targe
             source_worksheet.cell(row, source_column),
             target_worksheet.cell(row, target_column),
         )
+
+
+def _write_contradiction_summary(workbook, master_headers, contradiction_counts):
+    if SUMMARY_SHEET_NAME in workbook.sheetnames:
+        del workbook[SUMMARY_SHEET_NAME]
+
+    summary_sheet = workbook.create_sheet(SUMMARY_SHEET_NAME)
+    summary_sheet.append(["Master template field", "Contradiction count"])
+
+    header_fill = PatternFill(
+        fill_type="solid",
+        start_color="C00000",
+        end_color="C00000",
+    )
+    for cell in summary_sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = copy(header_fill)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    written_fields = set()
+    for index, field_name in enumerate(master_headers):
+        if field_name == KEY_COL or field_name in written_fields:
+            continue
+        count = sum(
+            contradiction_counts.get(field_index, 0)
+            for field_index, candidate_name in enumerate(master_headers)
+            if candidate_name == field_name
+        )
+        if count == 0:
+            continue
+        summary_sheet.append([field_name, count])
+        written_fields.add(field_name)
+
+    summary_sheet.column_dimensions["A"].width = 48
+    summary_sheet.column_dimensions["B"].width = 22
+    summary_sheet.freeze_panes = "A2"
+    summary_sheet.auto_filter.ref = f"A1:B{summary_sheet.max_row}"
+    summary_sheet.sheet_view.showGridLines = False
 
 
 def _output_column(source_column, source_is_key=False):
@@ -248,6 +288,7 @@ def combine_sources(
                 for case_reference in horizon_order
                 if case_reference not in spreadsheet_cases
             )
+            contradiction_counts = {}
 
             for output_row, case_reference in enumerate(
                 case_references, start=HEADER_ROW + 1
@@ -289,6 +330,10 @@ def combine_sources(
                         output_row, spreadsheet_column
                     ).value
                     if _values_differ(horizon_value, spreadsheet_value):
+                        field_index = output_sources[horizon_column - 1][1]
+                        contradiction_counts[field_index] = (
+                            contradiction_counts.get(field_index, 0) + 1
+                        )
                         output_sheet.cell(
                             output_row, horizon_column
                         ).fill = copy(DIFFERENCE_FILL)
@@ -309,6 +354,11 @@ def combine_sources(
             output_sheet.auto_filter.ref = (
                 f"A{HEADER_ROW}:{get_column_letter(len(output_headers))}"
                 f"{HEADER_ROW + len(case_references)}"
+            )
+            _write_contradiction_summary(
+                output_workbook,
+                master_headers,
+                contradiction_counts,
             )
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             output_workbook.save(output_file)
