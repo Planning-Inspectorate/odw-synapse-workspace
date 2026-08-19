@@ -4,9 +4,10 @@ import re
  
 import pandas as pd
  
-SPREADSHEET_EXTRACTS_DIR = "csv_and_xlsx_files/SS_data"
-MAPPING_CSV               = "outputs/spreadsheet_field_mapping.csv"
-OUTPUT_FILE                = "outputs/spreadsheet_field_mapping_validation.csv"
+BASE_DIR             = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration"
+SPREADSHEET_EXTRACTS_DIR = os.path.join(BASE_DIR, "csv_and_xlsx_files/SS_data")
+MAPPING_CSV               = os.path.join(BASE_DIR, "outputs/spreadsheet_field_mapping.csv")
+OUTPUT_FILE                = os.path.join(BASE_DIR, "outputs/spreadsheet_field_mapping_validation.csv")
  
 print("Block 1 done - config set")
  
