@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "c261cff4-b798-4a15-9321-7efd3a2a3f3c"
+				"spark.autotune.trackingId": "28a64e51-f2f6-4de7-b97d-c04e6b8bd24c"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -98,7 +98,7 @@
 					"from datetime import datetime, timedelta\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -226,6 +226,7 @@
 					"            a.QualificationName,\n",
 					"            a.Proficien,\n",
 					"            a.ValidFrom,\n",
+					"            a.professionalMemberships,\n",
 					"            a.ValidTo\n",
 					"        FROM vw_inspector_specialisms_monthly a\n",
 					"        \"\"\"\n",
@@ -251,6 +252,7 @@
 					"        SourceSystemID,\n",
 					"        IngestionDate,\n",
 					"        ValidFrom,\n",
+					"        professionalMemberships,\n",
 					"        ValidTo,\n",
 					"        RowID,\n",
 					"        IsActive\n",
@@ -274,6 +276,7 @@
 					"        'saphr' AS SourceSystemID,\n",
 					"        CURRENT_TIMESTAMP() AS IngestionDate,\n",
 					"        cast(to_date(ValidFrom, \"d/M/yyyy\") as timestamp) AS ValidFrom,\n",
+					"        professionalMemberships,\n",
 					"        CASE \n",
 					"        WHEN Rnk = 1 \n",
 					"        THEN           \n",
@@ -364,6 +367,7 @@
 					"            souSpe.QualificationName,\n",
 					"            souSpe.Proficien,\n",
 					"            souSpe.ValidFrom,\n",
+					"            souSpe.professionalMemberships,\n",
 					"            souSpe.ValidTo,\n",
 					"            souSpe.RowID,\n",
 					"            'saphr' AS SourceSystemID,\n",
@@ -374,6 +378,7 @@
 					"            tarSpe.StaffNumber AS Target_StaffNumber,\n",
 					"            tarSpe.ValidFrom AS Target_ValidFrom,\n",
 					"            tarSpe.IsActive AS Target_IsActive,\n",
+					"            tarSpe.professionalMemberships AS Target_professionalMemberships,\n",
 					"            tarSpe.Firstname AS Target_Firstname,\n",
 					"            tarSpe.Lastname AS Target_Lastname,\n",
 					"            tarSpe.Proficien AS Target_Proficien,\n",
@@ -382,7 +387,8 @@
 					"                WHEN tarSpe.StaffNumber IS NULL THEN 'New_Record'\n",
 					"                WHEN tarSpe.ValidFrom != souSpe.ValidFrom THEN 'New_Version'\n",
 					"                WHEN tarSpe.Firstname != souSpe.Firstname \n",
-					"                    OR tarSpe.Lastname != souSpe.Lastname \n",
+					"                    OR tarSpe.Lastname != souSpe.Lastname\n",
+					"                    OR COALESCE(tarSpe.professionalMemberships,'') !=COALESCE(souSpe.professionalMemberships,'')\n",
 					"                    OR tarSpe.Proficien != souSpe.Proficien THEN 'Record_Changed'\n",
 					"                ELSE 'No_Change'\n",
 					"            END AS ChangeType\n",
@@ -548,7 +554,8 @@
 					"                    Proficien,\n",
 					"                    SourceSystemID, \n",
 					"                    IngestionDate, \n",
-					"                    ValidFrom, \n",
+					"                    ValidFrom,\n",
+					"                    professionalMemberships,\n",
 					"                    ValidTo, \n",
 					"                    Current, \n",
 					"                    RowID, \n",
@@ -562,7 +569,8 @@
 					"                    Proficien,\n",
 					"                    SourceSystemID, \n",
 					"                    IngestionDate, \n",
-					"                    ValidFrom, \n",
+					"                    ValidFrom,\n",
+					"                    professionalMemberships,\n",
 					"                    ValidTo, \n",
 					"                    Current, \n",
 					"                    RowID, \n",
