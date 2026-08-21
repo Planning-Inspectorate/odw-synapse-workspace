@@ -1,0 +1,164 @@
+{
+	"name": "Drop_and_recreate_Inspector Specialisms",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "5c9d3b4b-754b-4fba-bc8e-35194e1513ed"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run /0-odw-source-to-raw/Fileshare/SAP_HR/py_0_source_to_raw_hr_functions"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"# Tables to recreate\n",
+					"tables_to_recreate = [\n",
+					"    \"transform_inspector_specialisms\"\n",
+					"    #\"sap_hr_inspector_specialisms\"\n",
+					"]\n",
+					"\n",
+					"# Get storage account\n",
+					"storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"\n",
+					"# Locations\n",
+					"harmonised_storage_container = f'abfss://odw-harmonised@{storage_account}'\n",
+					"harmonised_storage_delta_folder = 'lib/'\n",
+					"delta_lake_database_name = \"odw_harmonised_db\"\n",
+					"\n",
+					"config_storage_container = f'abfss://odw-config@{storage_account}'\n",
+					"json_schema_folder = 'harmonised_table_definitions'\n",
+					"json_schema_path = f\"{config_storage_container}/{json_schema_folder}\"\n",
+					"\n",
+					"# SAP HR orchestration file\n",
+					"orchestration_file = (\n",
+					"    f\"abfss://odw-config@{storage_account}\"\n",
+					"    \"/orchestration/orchestration_saphr.json\"\n",
+					")\n",
+					"\n",
+					"print(f\"Using orchestration file: {orchestration_file}\")\n",
+					"\n",
+					"# Step 1 - Drop tables\n",
+					"for table_name in tables_to_recreate:\n",
+					"\n",
+					"    logInfo(f\"Dropping table {table_name}\")\n",
+					"\n",
+					"    spark.sql(f\"\"\"\n",
+					"        DROP TABLE IF EXISTS {delta_lake_database_name}.{table_name}\n",
+					"    \"\"\")\n",
+					"\n",
+					"    logInfo(f\"Dropped table {table_name}\")\n",
+					"\n",
+					"# Step 2 - Recreate from schema JSON\n",
+					"files = mssparkutils.fs.ls(json_schema_path)\n",
+					"\n",
+					"for table_name in tables_to_recreate:\n",
+					"\n",
+					"    schema_file = f\"{table_name}.json\"\n",
+					"\n",
+					"    matching_file = None\n",
+					"\n",
+					"    for file in files:\n",
+					"        if file.name.lower() == schema_file.lower():\n",
+					"            matching_file = file\n",
+					"            break\n",
+					"\n",
+					"    if matching_file is None:\n",
+					"        raise Exception(f\"Schema file not found for {table_name}\")\n",
+					"\n",
+					"    logInfo(f\"Reading schema file {matching_file.path}\")\n",
+					"\n",
+					"    json_schema = spark.read.text(\n",
+					"        matching_file.path,\n",
+					"        wholetext=True\n",
+					"    ).first().value\n",
+					"\n",
+					"   \n",
+					"\n",
+					"    create_table_from_schema(\n",
+					"        json_schema,\n",
+					"        delta_lake_database_name,\n",
+					"        table_name,\n",
+					"        harmonised_storage_container + \"/\",\n",
+					"        harmonised_storage_delta_folder + table_name\n",
+					"    )\n",
+					"\n",
+					"    logInfo(f\"Successfully recreated {table_name}\")\n",
+					"\n",
+					"# Step 3 - Validate\n",
+					"for table_name in tables_to_recreate:\n",
+					"\n",
+					"    print(f\"\\n===== {table_name} =====\")\n",
+					"\n",
+					"    display(\n",
+					"        spark.sql(\n",
+					"            f\"DESCRIBE {delta_lake_database_name}.{table_name}\"\n",
+					"        )\n",
+					"    )"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
