@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6edeedf2-6b60-4e72-9bec-ffd0d5f22988"
+				"spark.autotune.trackingId": "890e44bd-a2fa-4ed2-989c-fa2b14818b9d"
 			}
 		},
 		"metadata": {
@@ -372,11 +372,14 @@
 					"\n",
 					"        raise ValueError(f\"Missing incremental key for entity '{entity_name}' in database '{db_name}'. Schema creation aborted.\")\n",
 					"\n",
-					"    schema = mssparkutils.notebook.run(\"/py_create_spark_schema\", 600, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
+					"    result = mssparkutils.notebook.run(\"/py_create_spark_schema\", 600, {\"db_name\": db_name, \"entity_name\": entity_name, \"incremental_key\": incremental_key, \"is_servicebus_schema\": is_servicebus_schema})\n",
 					"    \n",
+					"    result_json = json.loads(result)\n",
+					"    version = result_json[\"version\"]\n",
+					"    schema = StructType.fromJson(json.loads(result_json[\"schema\"]))\n",
 					"    try: \n",
 					"        logInfo(f\"Parsing JSON schema for entity '{entity_name}'...\")\n",
-					"        schema_dict = json.loads(schema)\n",
+					"        schema_dict = json.loads(result_json[\"schema\"])\n",
 					"        logInfo(f\"Succesfully parsed JSON schema\")\n",
 					"\n",
 					"    except json.JSONDecodeError as e:\n",
@@ -391,7 +394,7 @@
 					"        logError(f\"Spark schema is not generated successfully : {e}\")\n",
 					"\n",
 					"\n",
-					"    return spark_schema"
+					"    return spark_schema,version"
 				],
 				"execution_count": null
 			},
@@ -482,8 +485,16 @@
 				"source": [
 					"@logging_to_appins\n",
 					"def create_spark_dataframe() -> DataFrame:\n",
-					"    spark_dataframe: DataFrame = spark.createDataFrame([], schema=create_spark_schema(db_name, entity_name))\n",
-					"    return spark_dataframe"
+					"    spark_schema, version = create_spark_schema(db_name,entity_name)\n",
+					"    spark_dataframe: DataFrame = spark.createDataFrame([],schema=spark_schema)\n",
+					"    return spark_dataframe, version"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark_dataframe, version = create_spark_schema(db_name, entity_name)"
 				],
 				"execution_count": null
 			},
@@ -564,7 +575,7 @@
 					"if not error_message:\n",
 					"    try:\n",
 					"        logInfo(f\"Creating spark table {table_name}\")\n",
-					"        sdf = create_spark_dataframe()\n",
+					"        sdf,version = create_spark_dataframe()\n",
 					"        create_spark_table(db_name, table_name, sdf)\n",
 					"    except pyspark.sql.utils.AnalysisException as e:\n",
 					"        table_loc = f\"abfss://{get_container_name(db_name)}@{storage_account}{table_name}\"\n",
@@ -609,9 +620,9 @@
 					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
 					"stage = \"Success\" if not error_message else \"Failed\"\n",
 					"status_message = (\n",
-					"    f\"Successfully created table {db_name}.{table_name}\"\n",
+					"    f\"Successfully created table {db_name}.{table_name} using schema version {version}\"\n",
 					"    if not error_message\n",
-					"    else f\"Failed to create table {db_name}.{table_name}\"\n",
+					"    else f\"Failed to create table {db_name}.{table_name} using schema version {version}\"\n",
 					")\n",
 					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
 					"\n",
