@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dfa9053b-3bd6-4abf-a16e-6285dae89146"
+				"spark.autotune.trackingId": "1bdcda83-ca27-44f3-9553-5012b6f64a52"
 			}
 		},
 		"metadata": {
@@ -91,8 +91,7 @@
 					"incremental_key = ''\r\n",
 					"is_servicebus_schema: bool = True\r\n",
 					"return_json_schema = False\r\n",
-					"odw_config_entity = ''\r\n",
-					"version = '2.50.0'"
+					"odw_config_entity = ''"
 				],
 				"execution_count": null
 			},
@@ -103,7 +102,35 @@
 					"from pyspark.sql import DataFrame\r\n",
 					"import pprint\r\n",
 					"import json\r\n",
-					"import requests"
+					"import requests\r\n",
+					"import re\r\n",
+					"from packaging.version import Version"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\r\n",
+					"    url = \"https://api.github.com/repos/Planning-Inspectorate/data-model/tags\"\r\n",
+					"\r\n",
+					"    response = requests.get(url, timeout=30)\r\n",
+					"    response.raise_for_status()\r\n",
+					"\r\n",
+					"    tags = response.json()\r\n",
+					"\r\n",
+					"    versions = [\r\n",
+					"        tag[\"name\"].replace(\"v\", \"\")\r\n",
+					"        for tag in tags\r\n",
+					"        if re.match(r'^\\d+\\.\\d+\\.\\d+$', tag[\"name\"].replace(\"v\", \"\"))\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    version = str(max([Version(v) for v in versions]))\r\n",
+					"\r\n",
+					"    print(f\"Latest Version: {version}\")\r\n",
+					"\r\n",
+					"except Exception as ex:\r\n",
+					"   raise  Exception(f\"Failed to determine latest data-model version: {ex}\")"
 				],
 				"execution_count": null
 			},
@@ -459,6 +486,17 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"output = {\r\n",
+					"    \"version\": version,\r\n",
+					"    \"schema\": final_schema.json()\r\n",
+					"}\r\n",
+					"mssparkutils.notebook.exit(json.dumps(output))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -471,8 +509,8 @@
 					}
 				},
 				"source": [
-					"logInfo(f\"Spark schema created\")\r\n",
-					"mssparkutils.notebook.exit(final_schema.json())"
+					"# logInfo(f\"Spark schema created\")\r\n",
+					"# mssparkutils.notebook.exit(final_schema.json())"
 				],
 				"execution_count": null
 			}
