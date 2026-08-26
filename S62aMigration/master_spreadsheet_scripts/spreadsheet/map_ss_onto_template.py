@@ -10,7 +10,6 @@ from dateutil import parser as dateparser
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
  
 def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
-  
     d = start_dir
     for _ in range(max_up + 1):
         if os.path.isdir(os.path.join(d, marker)):
@@ -26,7 +25,27 @@ def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
  
 DATA_ROOT = find_data_root(BASE_DIR)
  
-SOURCE_FILE   = os.path.join(DATA_ROOT, "csv_and_xlsx_files/SS_data/Section-62a-Cases-COPY.xlsx")
+def find_source_file(data_root):
+    ss_data_dir = os.path.join(data_root, "csv_and_xlsx_files", "SS_data")
+    if not os.path.isdir(ss_data_dir):
+        raise FileNotFoundError(f"SS_data folder not found: {ss_data_dir}")
+    candidates = [
+        f for f in os.listdir(ss_data_dir)
+        if f.lower().endswith(".xlsx")
+        and "62a" in f.lower()
+        and "cases" in f.lower()
+        and "copy" in f.lower()
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            f"Could not find a 'Section 62a Cases ... COPY.xlsx'-style file in {ss_data_dir}. "
+            f"Files present: {os.listdir(ss_data_dir)}"
+        )
+    if len(candidates) > 1:
+        print(f"WARNING: multiple candidate source files found, using the first: {candidates}")
+    return os.path.join(ss_data_dir, candidates[0])
+ 
+SOURCE_FILE   = find_source_file(DATA_ROOT)
 MAPPING_XLSX  = os.path.join(DATA_ROOT, "csv_and_xlsx_files/SS_data/S62A_Column_mapping.xlsx")
 MAPPING_SHEET = "Lookup"
 TEMPLATE_FILE = os.path.join(DATA_ROOT, "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx")
@@ -43,7 +62,19 @@ os.makedirs(os.path.join(DATA_ROOT, "outputs"), exist_ok=True)
  
 print("Block 1 done - config set")
  
-
+# %%
+ 
+                                                                         
+ 
+                                                              
+ 
+                                         
+ 
+                                                                         
+ 
+                                           
+ 
+            
  
 SET_TO_BE_RE = re.compile(r'set to be\s+"([^"]+)"', re.IGNORECASE)
  
@@ -71,14 +102,19 @@ def load_lookup_mapping():
  
 LOOKUP_ROWS = load_lookup_mapping()
  
-
+ 
+                                                                     
+ 
 SHEET_CONSTANTS = {
     "Pre-application - DONE":  {"Application Status": "Closed"},
     "Application (Major)":     {"Application Status": "Closed"},
     "Application (Non Major)": {"Application Status": "Closed"},
 }
  
-
+ 
+                                                                             
+ 
+                                                               
 MANUAL_SOURCE_OVERRIDES = {
     "Site address 2":    ("Address", "address_part", "address2"),
     "Site town or city":  ("Address", "address_part", "town"),
@@ -87,7 +123,8 @@ MANUAL_SOURCE_OVERRIDES = {
     "Agent email":        ("Agent",   "agent_email",  None),
 }
  
-
+ 
+                                                 
 FIELD_TRANSFORM_OVERRIDES = {
     "Case reference":          ("before_bracket", None),
     "Site address 1":          ("address_part", "address1"),
@@ -109,12 +146,20 @@ FIELD_TRANSFORM_OVERRIDES = {
     "Pre-application fee due": ("fee_amount", None),
 }
  
-
+ 
+                                                                             
+ 
+                                                                         
+ 
 SHEET_FIELD_SKIPS = {
     "Application (Major)": {"CIL amount"},
 }
  
-
+ 
+                                                                           
+ 
+                                                                      
+ 
 SOURCE_COLUMN_ALIASES = {
     "Application (Non Major)": {
         "SAP5 to FSSD": "SAP5 to FSSD / Fee requested by BACS",
@@ -125,8 +170,6 @@ def _norm_col(text):
     return re.sub(r"\s+", " ", str(text).strip()).lower()
  
 def resolve_source_column(sheet_name, source_col, available_by_norm, available):
-    """Match a Lookup-sheet source column name against the real sheet headers,
-    tolerating whitespace/case differences and known renames."""
     alias = SOURCE_COLUMN_ALIASES.get(sheet_name, {}).get(source_col)
     if alias:
         source_col = alias
@@ -135,11 +178,6 @@ def resolve_source_column(sheet_name, source_col, available_by_norm, available):
     return available_by_norm.get(_norm_col(source_col))
  
 def build_mapping_for_sheet(sheet_name, available_columns):
-    """Returns (mapping, constants, config_issues) for one source sheet.
-    mapping = list of (template_field, source_column, transform_name, extra)
-    constants = {template_field: value} to apply to every row on this sheet
-    config_issues = Lookup rows pointing at a column that doesn't exist here
-    """
     mapping = []
     config_issues = []
     available = set(available_columns)
@@ -180,7 +218,9 @@ def build_mapping_for_sheet(sheet_name, available_columns):
 print(f"Block 2 done - {len(LOOKUP_ROWS)} template fields loaded from Lookup sheet")
  
 # %%
-
+ 
+                     
+ 
 def is_blank(value):
     if value is None:
         return True
@@ -208,11 +248,33 @@ def transform_before_bracket(value, extra):
  
 UK_POSTCODE_PATTERN = re.compile(r"\b([A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2})\b")
  
+KNOWN_COUNTIES_DISPLAY = ["Essex", "Hertfordshire", "Bristol", "East Sussex", "Lancashire", "Hampshire", "Cambridgeshire"]
+KNOWN_COUNTIES = {c.lower() for c in KNOWN_COUNTIES_DISPLAY}
+ADDRESS_NOISE_PHRASES = {"nearest postcode"}
+ 
+TRAILING_COUNTY_RE = re.compile(
+    r'[\s,.]+(' + '|'.join(re.escape(c) for c in sorted(KNOWN_COUNTIES_DISPLAY, key=len, reverse=True)) + r')\.?\s*$',
+    re.IGNORECASE,
+)
+ 
+def strip_trailing_county(s):
+    m = TRAILING_COUNTY_RE.search(s)
+    if not m:
+        return s, None
+    remainder = s[:m.start()].strip()
+    if not remainder:
+        return s, None
+    county_lower = m.group(1).lower()
+    county_display = next(c for c in KNOWN_COUNTIES_DISPLAY if c.lower() == county_lower)
+    return remainder, county_display
+ 
+def is_county_token(s):
+    return s.strip().rstrip(".").strip().lower() in KNOWN_COUNTIES
+ 
 def split_address_parts(text):
-    """Best-effort split of one free-text address into its pieces."""
     if is_blank(text):
         return {}
-    text = str(text).strip()
+    text = str(text).strip().replace("\n", ", ")
  
     postcode = None
     match = UK_POSTCODE_PATTERN.search(text)
@@ -221,13 +283,38 @@ def split_address_parts(text):
         text = text[:match.start()].rstrip(", ")
  
     parts = [p.strip() for p in text.split(",") if p.strip()]
-    county = parts[-1] if len(parts) >= 1 else None
-    town = parts[-2] if len(parts) >= 2 else None
-    address_parts = parts[:-2] if len(parts) > 2 else []
-    address1 = address_parts[0] if len(address_parts) >= 1 else None
-    address2 = "; ".join(address_parts[1:]) if len(address_parts) > 1 else None
+    parts = [p for p in parts if p.lower() not in ADDRESS_NOISE_PHRASES]
  
-    return {"address1": address1, "address2": address2, "town": town,
+    if not parts:
+        return {"address1": None, "address2": None, "town": None, "county": None, "postcode": postcode}
+ 
+    county = None
+    if is_county_token(parts[-1]):
+        county = next(c for c in KNOWN_COUNTIES_DISPLAY if c.lower() == parts[-1].rstrip(".").strip().lower())
+        parts = parts[:-1]
+ 
+    if not parts:
+        return {"address1": None, "address2": None, "town": None, "county": county, "postcode": postcode}
+ 
+    if len(parts) == 1:
+        if county is None:
+            remainder, found = strip_trailing_county(parts[0])
+            if found:
+                return {"address1": remainder, "address2": None, "town": None, "county": found, "postcode": postcode}
+        return {"address1": parts[0], "address2": None, "town": None, "county": county, "postcode": postcode}
+ 
+    town = parts[-1]
+    if county is None:
+        town_clean, found = strip_trailing_county(town)
+        if found:
+            town = town_clean
+            county = found
+ 
+    address_lines = parts[:-1]
+    address1 = address_lines[0] if address_lines else None
+    address2 = "; ".join(address_lines[1:]) if len(address_lines) > 1 else None
+ 
+    return {"address1": address1, "address2": address2, "town": town or None,
             "county": county, "postcode": postcode}
  
 def transform_address_part(value, extra):
@@ -246,11 +333,6 @@ def transform_grant_refuse(value, extra):
 EMAIL_PATTERN = re.compile(r"[\w.\-]+@[\w.\-]+")
  
 def transform_agent_org(value, extra):
-    """Org name before the '(' when there's a clean 'Org (emails)' pattern.
-    Otherwise (name-only, bare email, 'Name <email>', etc) there's nothing
-    reliable to split, so the whole raw value is kept here rather than
-    guessing - per Abbas: keep all emails in Agent email, and if the Agent
-    data doesn't split cleanly just keep everything together in one field."""
     if is_blank(value):
         return None
     return str(value).split("(")[0].strip()
@@ -261,7 +343,10 @@ def transform_agent_email(value, extra):
     emails = EMAIL_PATTERN.findall(str(value))
     return "; ".join(emails) if emails else None
  
-
+ 
+                                                                            
+ 
+                                                            
 BAND_TOKEN_RE = re.compile(r'^B(?:AND)?\s*(\d+)$', re.IGNORECASE)
  
 def split_specialism_band(text):
@@ -281,11 +366,17 @@ def split_specialism_band(text):
 def transform_specialism_band(value, extra):
     return split_specialism_band(value).get(extra)
  
-
+ 
+                                                                          
+ 
+                                                                     
+ 
+                                                                   
+ 
 PRESS_NOTICE_DATE_RE = re.compile(
-    r'^\s*(\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}'   # 23/2/23, 27-10-22
-    r'|\d{1,2}\s+[A-Za-z]+\s+\d{2,4}'                      # 16 June 2022
-    r'|\d{1,2}\s*-\s*[A-Za-z]+\s*-\s*\d{2,4})'             # 27-Oct-22
+    r'^\s*(\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}'                      
+    r'|\d{1,2}\s+[A-Za-z]+\s+\d{2,4}'                                    
+    r'|\d{1,2}\s*-\s*[A-Za-z]+\s*-\s*\d{2,4})'                        
 )
  
 def split_press_notice(value):
@@ -322,7 +413,14 @@ def extract_gbp_amount(text):
     except ValueError:
         return None
  
-
+ 
+                                                                         
+ 
+                                                                           
+ 
+                                                                      
+ 
+                
 def transform_eia_outcome(value, extra):
     return transform_direct(value, extra)
  
@@ -345,7 +443,10 @@ def transform_eia_received_date(value, extra):
     except (ValueError, TypeError, OverflowError):
         return None
  
-
+ 
+                                                                     
+ 
+                        
 CUSTOMER_NUMBER_RE = re.compile(r'\b(\d{6})\b')
  
 def transform_customer_number(value, extra):
@@ -354,7 +455,9 @@ def transform_customer_number(value, extra):
     match = CUSTOMER_NUMBER_RE.search(str(value))
     return match.group(1) if match else None
  
-
+ 
+                                                                        
+ 
 def transform_fee_amount(value, extra):
     if is_blank(value):
         return None
@@ -368,14 +471,19 @@ def transform_fee_amount(value, extra):
     except ValueError:
         return None
  
-
+ 
+                                                                           
+ 
+                                                                         
+ 
+                
 SITE_VISIT_TYPE_RE = re.compile(r"\b(ARSV|USV)\b", re.IGNORECASE)
  
 def transform_site_visit_type(value, extra):
     if is_blank(value):
         return None
     if isinstance(value, (datetime, date)):
-        return None  # plain date with no type mentioned
+        return None                                     
     match = SITE_VISIT_TYPE_RE.search(str(value))
     return match.group(1).upper() if match else None
  
@@ -389,10 +497,10 @@ def transform_site_visit_date(value, extra):
     except (ValueError, TypeError, OverflowError):
         return None
  
-# --- CIL liable: "LPA CIL response" is free text like "Not CIL liable
-# 26/09/2025", "CIL liable 8/10/24", "NA", "??". Treat "not"/"no" + liable
-# as No, "liable" on its own as Yes, anything else (NA, ??, blank) as
-# unknown/blank rather than guessing.
+ 
+                                                                          
+ 
+                                     
 def transform_cil_liable(value, extra):
     if is_blank(value):
         return None
@@ -440,7 +548,10 @@ TRANSFORM_FUNCTIONS = {
  
 print(f"Block 3 done - {len(TRANSFORM_FUNCTIONS)} transform functions ready")
  
-
+# %%
+ 
+                                                     
+ 
 SHEET_NAMES = ["Pre-application - DONE", "Application (Major)", "Application (Non Major)"]
  
 def read_source_rows(sheet_name):
@@ -450,13 +561,16 @@ def read_source_rows(sheet_name):
     df = df[df[first_col].notna()]
     return df
  
-_test_sheet = SHEET_NAMES[1]  # Application (Major) - has the richest data
+_test_sheet = SHEET_NAMES[1]                                              
 df_test = read_source_rows(_test_sheet)
  
 print(f"Block 4 done - {_test_sheet}: loaded {len(df_test)} rows")
 print(df_test.head())
  
-
+# %%
+ 
+                                                                  
+ 
 def build_output_rows(df, mapping, constants, sheet_label):
     output_rows   = []
     audit_entries = []
@@ -474,12 +588,20 @@ def build_output_rows(df, mapping, constants, sheet_label):
                     row_result[template_column] = result
             elif transform_name not in ("address_part", "site_visit_type",
                                          "specialism_band", "press_notice",
-                                         "eia_received_date", "customer_number") \
+                                         "eia_received_date", "customer_number")\
                     and not is_blank(source_value):
  
+                                                                              
+ 
+                                                                              
+ 
+                                                                     
                 audit_entries.append((row_result.get("Case reference"), sheet_label,
                                        template_column, f"could not convert value: {source_value!r}"))
-    
+ 
+                                                                             
+ 
+                                                                           
         if not row_result.get("Press notice cost"):
             cost = extract_gbp_amount(row_result.get("Press notice reference"))
             if cost is not None:
@@ -495,13 +617,16 @@ print("Single row result:")
 for k, v in one_row_result[0].items():
     print(f"  {k}: {v!r}")
 print(f"  ({len(one_row_audit)} audit flags for this row)")
-# ^ CHECK: does every value look sensible? Fix FIELD_TRANSFORM_OVERRIDES/MANUAL_SOURCE_OVERRIDES before continuing.
  
-
+ 
+# %%
+ 
+                                                   
+ 
 all_rows        = []
 all_audit       = []
 all_config_issues = []
-unmapped_report = []  # {Sheet, Column} - source columns no template field claims
+unmapped_report = []                                                             
  
 for sheet_name in SHEET_NAMES:
     df = read_source_rows(sheet_name)
@@ -520,7 +645,15 @@ for sheet_name in SHEET_NAMES:
  
 print(f"Block 5b done - {len(all_rows)} rows built, {len(all_audit)} audit flags, {len(all_config_issues)} config issues")
  
-
+# %%
+ 
+                       
+ 
+                                                                     
+ 
+                                                                      
+ 
+                                       
 DESTINATION_FIELD_RENAMES = {
     "Pre-application or application": "Application phase",
 }
@@ -565,7 +698,10 @@ if _missing_fields:
     for h in sorted(column_lookup):
         print(f"  {h!r}")
  
-
+# %%
+ 
+                                                               
+ 
 os.makedirs(os.path.dirname(AUDIT_LOG_FILE), exist_ok=True)
  
 with open(AUDIT_LOG_FILE, "w", newline="", encoding="utf-8") as f:
