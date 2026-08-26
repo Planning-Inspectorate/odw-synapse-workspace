@@ -10,11 +10,7 @@ from dateutil import parser as dateparser
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
  
 def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
-    """The script has moved folders more than once (it now lives one level
-    deeper, in .../master_spreadsheet_scripts/spreadsheet/), so rather than
-    hardcode how many '..' to use, walk upward until the data folder is
-    found. Works whether the script sits next to csv_and_xlsx_files or one
-    or two levels below it."""
+  
     d = start_dir
     for _ in range(max_up + 1):
         if os.path.isdir(os.path.join(d, marker)):
@@ -47,19 +43,7 @@ os.makedirs(os.path.join(DATA_ROOT, "outputs"), exist_ok=True)
  
 print("Block 1 done - config set")
  
-# %%
-# ============================================================
-# BLOCK 2: LOAD MAPPING - from the Lookup tab of S62A_Column_mapping.xlsx
-# ============================================================
-# Lookup sheet layout (row 1 = headers, row 2 onwards = data):
-#   A: Category (sparse - only set on the first row of each group)
-#   B: Field (final Template column name)
-#   C: Pre-application - DONE  -> source column name for that sheet, or "N/A",
-#                                  or literal text like Set to be "Major"
-#   D: Application (Major)     -> same idea
-#   E: Application (Non Major) -> same idea
-#   F: Horizon                 -> not used here (Nisali's script handles Horizon)
-#   G: Notes
+
  
 SET_TO_BE_RE = re.compile(r'set to be\s+"([^"]+)"', re.IGNORECASE)
  
@@ -87,19 +71,14 @@ def load_lookup_mapping():
  
 LOOKUP_ROWS = load_lookup_mapping()
  
-# Baseline constants that apply regardless of what the Lookup sheet says,
-# because they're known project facts rather than per-field mappings.
-# (All S62A Horizon/spreadsheet cases are closed - see project memory.)
+
 SHEET_CONSTANTS = {
     "Pre-application - DONE":  {"Application Status": "Closed"},
     "Application (Major)":     {"Application Status": "Closed"},
     "Application (Non Major)": {"Application Status": "Closed"},
 }
  
-# --- Fields the Lookup sheet marks "N/A" (no direct source column) but whose
-# Notes say they should be pulled out of another field. Only added here where
-# the split is actually reliable from the real data - see the message this
-# script was delivered with for the ones deliberately left out.
+
 MANUAL_SOURCE_OVERRIDES = {
     "Site address 2":    ("Address", "address_part", "address2"),
     "Site town or city":  ("Address", "address_part", "town"),
@@ -108,8 +87,7 @@ MANUAL_SOURCE_OVERRIDES = {
     "Agent email":        ("Agent",   "agent_email",  None),
 }
  
-# --- Transform overrides for fields that need something other than a
-# straight copy or the default date/direct guess.
+
 FIELD_TRANSFORM_OVERRIDES = {
     "Case reference":          ("before_bracket", None),
     "Site address 1":          ("address_part", "address1"),
@@ -131,20 +109,12 @@ FIELD_TRANSFORM_OVERRIDES = {
     "Pre-application fee due": ("fee_amount", None),
 }
  
-# The Major sheet has no reliable numeric CIL figure in the source data -
-# "LPA CIL response" is free text and is "NA" for every Major row we checked,
-# and there's no separate "CIL amount" column on that sheet at all. Leave it
-# unmapped there rather than pointing "CIL amount" at a column that can't
-# produce a number. (Non-major has a real "CIL amount" column, so it's fine.)
+
 SHEET_FIELD_SKIPS = {
     "Application (Major)": {"CIL amount"},
 }
  
-# The Lookup sheet's source-column text and the real spreadsheet headers
-# disagree on whitespace/case in several places (' Ref' vs 'Ref', 'Decision
-# date ' vs 'Decision date', 'Likely Issues' vs 'Likely issues', etc) - those
-# are resolved automatically below. A couple of columns were genuinely
-# renamed on one sheet and need an explicit alias instead.
+
 SOURCE_COLUMN_ALIASES = {
     "Application (Non Major)": {
         "SAP5 to FSSD": "SAP5 to FSSD / Fee requested by BACS",
@@ -210,9 +180,7 @@ def build_mapping_for_sheet(sheet_name, available_columns):
 print(f"Block 2 done - {len(LOOKUP_ROWS)} template fields loaded from Lookup sheet")
  
 # %%
-# ============================================================
-# BLOCK 3: TRANSFORMS
-# ============================================================
+
 def is_blank(value):
     if value is None:
         return True
@@ -293,10 +261,7 @@ def transform_agent_email(value, extra):
     emails = EMAIL_PATTERN.findall(str(value))
     return "; ".join(emails) if emails else None
  
-# --- Level & Specialism, e.g. "B3 RE" -> Inspector band "Band 3", Specialism
-# "RE". Not every sheet has the band prefix (Non-major values like "HG" have
-# no band at all) - in that case the whole value is kept as Specialism and
-# Inspector band is left blank, rather than guessing a band.
+
 BAND_TOKEN_RE = re.compile(r'^B(?:AND)?\s*(\d+)$', re.IGNORECASE)
  
 def split_specialism_band(text):
@@ -316,13 +281,7 @@ def split_specialism_band(text):
 def transform_specialism_band(value, extra):
     return split_specialism_band(value).get(extra)
  
-# --- Press notice: one free-text cell holds a placed-date plus a reference/
-# cost note, e.g. "16 June 2022.  Saffron Walden Reporter...  £337.10 plus
-# VAT" or "27-Oct-22 (£497.54) TMP ref 443455". Per Abbas: the first part
-# looks like the date, so pull that off the front as "placed" and put
-# everything else into "reference". If the text doesn't start with a
-# recognisable date, leave placed blank and keep the whole value in
-# reference rather than losing anything.
+
 PRESS_NOTICE_DATE_RE = re.compile(
     r'^\s*(\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}'   # 23/2/23, 27-10-22
     r'|\d{1,2}\s+[A-Za-z]+\s+\d{2,4}'                      # 16 June 2022
@@ -363,14 +322,7 @@ def extract_gbp_amount(text):
     except ValueError:
         return None
  
-# --- EIA outcome / received date: both fields share one free-text source
-# column ("EIA outcome (publish any letter to gov.uk)"). In the real data
-# this column is always a descriptive sentence, not a bare date, so the
-# outcome text is kept as-is; the received date is only pulled out when the
-# text actually mentions submission/receipt near a date (e.g. "ES requested
-# 5/10/22. Submtted 23/12/22") - otherwise it's left blank rather than
-# misreading an unrelated date (like the screening-request date) as the
-# received date.
+
 def transform_eia_outcome(value, extra):
     return transform_direct(value, extra)
  
@@ -393,10 +345,7 @@ def transform_eia_received_date(value, extra):
     except (ValueError, TypeError, OverflowError):
         return None
  
-# --- Customer number: pulled out of the free-text "Set up as customer for
-# invoicing? (SAP 8)" column, e.g. "Customer number set up 708832" or
-# "15/03/2024. Customer no 710585". PINS customer numbers in this data are
-# consistently 6 digits.
+
 CUSTOMER_NUMBER_RE = re.compile(r'\b(\d{6})\b')
  
 def transform_customer_number(value, extra):
@@ -405,9 +354,7 @@ def transform_customer_number(value, extra):
     match = CUSTOMER_NUMBER_RE.search(str(value))
     return match.group(1) if match else None
  
-# --- Fee amount: mostly plain numbers but occasionally free text like
-# "£6951 plus mileage for SV" - pull the leading number out and drop the
-# rest rather than losing the whole value.
+
 def transform_fee_amount(value, extra):
     if is_blank(value):
         return None
@@ -421,12 +368,7 @@ def transform_fee_amount(value, extra):
     except ValueError:
         return None
  
-# --- Site visit: one free-text/date cell needs to become type (USV/ARSV) and
-# date separately. Source data is inconsistent (plain dates, "USV 8 October
-# 2024", "ARSV 6 May 2025 3.00-4.00pm", "USV w/c 24/03/2025", and the odd
-# unrelated note like "See applicant email of ..."), so both of these are
-# best-effort - check the audit log for rows where the date couldn't be
-# parsed at all.
+
 SITE_VISIT_TYPE_RE = re.compile(r"\b(ARSV|USV)\b", re.IGNORECASE)
  
 def transform_site_visit_type(value, extra):
@@ -498,10 +440,7 @@ TRANSFORM_FUNCTIONS = {
  
 print(f"Block 3 done - {len(TRANSFORM_FUNCTIONS)} transform functions ready")
  
-# %%
-# ============================================================
-# BLOCK 4: READ SOURCE - just the first sheet for now
-# ============================================================
+
 SHEET_NAMES = ["Pre-application - DONE", "Application (Major)", "Application (Non Major)"]
  
 def read_source_rows(sheet_name):
@@ -517,10 +456,7 @@ df_test = read_source_rows(_test_sheet)
 print(f"Block 4 done - {_test_sheet}: loaded {len(df_test)} rows")
 print(df_test.head())
  
-# %%
-# ============================================================
-# BLOCK 5: BUILD ROWS - try it on ONE row first before all of them
-# ============================================================
+
 def build_output_rows(df, mapping, constants, sheet_label):
     output_rows   = []
     audit_entries = []
@@ -540,18 +476,10 @@ def build_output_rows(df, mapping, constants, sheet_label):
                                          "specialism_band", "press_notice",
                                          "eia_received_date", "customer_number") \
                     and not is_blank(source_value):
-                # site_visit_type/specialism_band/press_notice/eia_received_date/
-                # customer_number each have a legitimately-blank outcome quite
-                # often (no USV/ARSV keyword, no band prefix, no leading date,
-                # no receipt date mentioned, no 6-digit number found) - that's
-                # a normal outcome of the free text, not a real conversion
-                # failure, so it's excluded from the audit log noise.
+ 
                 audit_entries.append((row_result.get("Case reference"), sheet_label,
                                        template_column, f"could not convert value: {source_value!r}"))
-        # Press notice cost cross-check: the direct "TMP amount" column is
-        # usually enough, but where it's blank the cost is often still sat in
-        # the press notice free text, e.g. "(£497.54) TMP ref 443455" - which
-        # by this point has already landed in Press notice reference above.
+    
         if not row_result.get("Press notice cost"):
             cost = extract_gbp_amount(row_result.get("Press notice reference"))
             if cost is not None:
@@ -569,10 +497,7 @@ for k, v in one_row_result[0].items():
 print(f"  ({len(one_row_audit)} audit flags for this row)")
 # ^ CHECK: does every value look sensible? Fix FIELD_TRANSFORM_OVERRIDES/MANUAL_SOURCE_OVERRIDES before continuing.
  
-# %%
-# ============================================================
-# BLOCK 5b: now run it on ALL rows, for every sheet
-# ============================================================
+
 all_rows        = []
 all_audit       = []
 all_config_issues = []
@@ -595,15 +520,7 @@ for sheet_name in SHEET_NAMES:
  
 print(f"Block 5b done - {len(all_rows)} rows built, {len(all_audit)} audit flags, {len(all_config_issues)} config issues")
  
-# %%
-# ============================================================
-# BLOCK 6: WRITE OUTPUT
-# ============================================================
-# A few field names in the Lookup sheet don't match the real Template
-# header - the Lookup sheet uses "Pre-application or application" but the
-# Template column is actually called "Application phase" (its value is
-# still just the pre-app/major/non-major constant, telling us which of the
-# three source sheets a row came from).
+
 DESTINATION_FIELD_RENAMES = {
     "Pre-application or application": "Application phase",
 }
@@ -648,10 +565,7 @@ if _missing_fields:
     for h in sorted(column_lookup):
         print(f"  {h!r}")
  
-# %%
-# ============================================================
-# BLOCK 7: AUDIT LOG + UNMAPPED COLUMNS + MAPPING CONFIG ISSUES
-# ============================================================
+
 os.makedirs(os.path.dirname(AUDIT_LOG_FILE), exist_ok=True)
  
 with open(AUDIT_LOG_FILE, "w", newline="", encoding="utf-8") as f:
