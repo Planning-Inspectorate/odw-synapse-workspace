@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "019dbbdd-ec03-456a-bcdd-18ebe6e580ca"
+				"spark.autotune.trackingId": "6ddca712-7f3a-4592-9352-dd2007783c54"
 			}
 		},
 		"metadata": {
@@ -190,7 +190,8 @@
 					"update_count = 0\n",
 					"delete_count = 0\n",
 					"error_message = \"\"\n",
-					"max_message_enqueued_time_utc = None"
+					"max_message_enqueued_time_utc = None\n",
+					"start_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
@@ -224,24 +225,26 @@
 					"    else f\"odw_standardised_db.sb_{entity_name.replace('-', '_')}\"\n",
 					")\n",
 					"\n",
-					"schema = mssparkutils.notebook.run(\n",
-					"    \"/py_create_spark_schema\",\n",
-					"    30,\n",
-					"    {\n",
-					"        \"db_name\": \"odw_standardised_db\",\n",
-					"        \"entity_name\": entity_name\n",
-					"    }\n",
+					"schema = run_step(\n",
+					"    \"Create Spark Schema\",lambda: mssparkutils.notebook.run(\"/py_create_spark_schema\",30,\n",
+					"           {\n",
+					"            \"db_name\": \"odw_standardised_db\",\n",
+					"            \"entity_name\": entity_name\n",
+					"        }\n",
+					"    )\n",
 					")\n",
 					"\n",
-					"spark_schema = (\n",
-					"    StructType.fromJson(json.loads(schema))\n",
-					"    if schema != \"\"\n",
-					"    else \"\"\n",
-					")\n",
+					"schema_output = json.loads(schema) if schema else {}\n",
 					"\n",
-					"\n",
-					"\n",
-					"start_exec_time = datetime.now()"
+					"try:\n",
+					"    spark_schema = (\n",
+					"        StructType.fromJson(json.loads(schema_output[\"schema\"]))\n",
+					"        if schema_output.get(\"schema\")\n",
+					"        else \"\"\n",
+					"    )\n",
+					"except Exception as e:\n",
+					"    logError(f\"[Create Spark Schema] {type(e).__name__}: {str(e)}\")\n",
+					"    spark_schema = \"\""
 				],
 				"execution_count": null
 			},
