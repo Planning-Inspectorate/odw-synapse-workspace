@@ -9,6 +9,7 @@ erDiagram
 		string Lastname
 		string QualificationName PK
 		string Proficien
+        string professionalMemberships
 		
     }
     
@@ -18,6 +19,7 @@ erDiagram
 		string Lastname
 		string QualificationName  PK
 		string Proficien
+        string professionalMemberships
 		string SourceSystemID
 		date IngestionDate
 		date ValidTo
@@ -31,6 +33,7 @@ erDiagram
         string Lastname
         string QualificationName PK
         string Proficien
+        string professionalMemberships
         string SourceSystemID
         date IngestionDate
         date ValidFrom
