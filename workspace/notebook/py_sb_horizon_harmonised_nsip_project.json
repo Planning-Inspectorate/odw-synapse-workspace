@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "17c69b18-e3f4-438f-a626-2b1f3fc37c50"
+				"spark.autotune.trackingId": "acf83b57-3241-4437-aa86-0d291cfb1efc"
 			}
 		},
 		"metadata": {
@@ -109,7 +109,8 @@
 					"from pyspark.sql.window import Window\n",
 					"from pyspark.sql import SparkSession\n",
 					"from pyspark.sql.functions import col, from_json, regexp_replace, explode\n",
-					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType"
+					"from pyspark.sql.types import ArrayType, StructType, StructField, StringType, DoubleType\n",
+					"import time"
 				],
 				"execution_count": null
 			},
@@ -853,6 +854,24 @@
 				"execution_count": null
 			},
 			{
+				"cell_type": "code",
+				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -882,7 +901,6 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"\n",
 					"        df_calcs = spark.sql(\"\"\"\n",
 					"                                SELECT\n",
 					"                                    CurrentRow.NSIPProjectInfoInternalID\n",
@@ -906,8 +924,6 @@
 					"\n",
 					"        df_calcs =df_calcs.withColumnRenamed(\"caseid\", \"temp_caseid\").withColumnRenamed(\"IngestionDate\", \"temp_IngestionDate\")\n",
 					"\n",
-					"\n",
-					"        #To Do: Need to complete this statement. At the moment will return duplicate fields called RowID\n",
 					"        results = spark.sql(f\"\"\"\n",
 					"            SELECT \n",
 					"                NSIPProjectInfoInternalID\n",
@@ -1226,6 +1242,7 @@
 					"        final_df = results.join(df_calcs, (df_calcs[\"temp_caseid\"] == results[\"caseid\"]) & (df_calcs[\"temp_IngestionDate\"] == results[\"IngestionDate\"])).select(columns)\n",
 					"        final_df = final_df.drop_duplicates()\n",
 					"        insert_count = final_df.count()\n",
+					"        \n",
 					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {spark_table_final}\")\n",
 					"        table_path = (\n",
 					"            df_table_path\n",
@@ -1233,13 +1250,20 @@
 					"            .select(\"data_type\")\n",
 					"            .collect()[0][0]\n",
 					"        )\n",
-					"        final_df.write \\\n",
-					"            .format(\"delta\") \\\n",
-					"            .mode(\"overwrite\") \\\n",
-					"            .option(\"overwriteSchema\", \"true\") \\\n",
-					"            .option(\"path\", table_path) \\\n",
-					"            .partitionBy(\"IsActive\") \\\n",
-					"            .saveAsTable(spark_table_final)\n",
+					"\n",
+					"        # Define the write operation as a function for the retry helper\n",
+					"        def perform_delta_write():\n",
+					"            final_df.write \\\n",
+					"                .format(\"delta\") \\\n",
+					"                .mode(\"overwrite\") \\\n",
+					"                .option(\"overwriteSchema\", \"true\") \\\n",
+					"                .option(\"path\", table_path) \\\n",
+					"                .partitionBy(\"IsActive\") \\\n",
+					"                .saveAsTable(spark_table_final)\n",
+					"\n",
+					"        # Execute the write with retry logic to handle ConcurrentAppendException\n",
+					"        _execute_with_retry(perform_delta_write)\n",
+					"        \n",
 					"        end_exec_time = datetime.now()\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)}\"\n",
