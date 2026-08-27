@@ -600,8 +600,8 @@ class TestAnonymisationEngine(SparkTestCase):
                                 )
 
         rows = result_df.select("Postcode").collect()
-        assert rows[0]["Postcode"] == "E17"
-        assert rows[1]["Postcode"] == "SW1W"
+        assert rows[0]["Postcode"] == "REDACTED"
+        assert rows[1]["Postcode"] == "REDACTED"
         assert rows[2]["Postcode"] is None
 
     def test__address_strategy__redacts_struct_fields_preserving_postcode(self):
@@ -905,13 +905,13 @@ class TestAnonymisationEngine(SparkTestCase):
                                 )
 
         rows = result_df.select("Postcode").collect()
-        assert rows[0]["Postcode"] == "SW1W"  # multiple spaces: first block kept
+        assert rows[0]["Postcode"] == "REDACTED"  # multiple spaces: first block kept
         assert (
-            rows[1]["Postcode"] == "E17"
+            rows[1]["Postcode"] == "REDACTED"
         )  # leading/trailing spaces stripped, first block kept
-        assert rows[2]["Postcode"] == "sw1w"  # lowercase preserved as-is
+        assert rows[2]["Postcode"] == "REDACTED"  # lowercase preserved as-is
         assert (
-            rows[3]["Postcode"] == "E174NT"
+            rows[3]["Postcode"] == "REDACTED"
         )  # no space: full value kept (no block to split)
 
     def test__anonymisation__non_allowlisted_classification_skipped(self):
@@ -956,7 +956,9 @@ class TestAnonymisationEngine(SparkTestCase):
                                 )
 
         rows = result_df.select("Postcode", "Secret").collect()
-        assert rows[0]["Postcode"] == "E17"  # anonymised — classification in allowlist
+        assert (
+            rows[0]["Postcode"] == "REDACTED"
+        )  # anonymised — classification in allowlist
         assert (
             rows[0]["Secret"] == "sensitive"
         )  # not anonymised — classification not in allowlist
@@ -1002,7 +1004,7 @@ class TestAnonymisationEngine(SparkTestCase):
                                 )
 
         rows = result_df.select("Postcode").collect()
-        assert rows[0]["Postcode"] == "E17"  # correctly anonymised exactly once
+        assert rows[0]["Postcode"] == "REDACTED"  # correctly anonymised exactly once
 
     def test__anonymisation__nested_purview_column_matched_by_leaf(self):
         from odw.core.anonymisation.engine import AnonymisationEngine
