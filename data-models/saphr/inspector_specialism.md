@@ -17,6 +17,7 @@ classDiagram
             Lastname: string
             QualificationName: string
             Proficien: string
+            professionalMemberships: string
         }
 
     }
@@ -32,6 +33,7 @@ classDiagram
             Lastname: string
             QualificationName: string
             Proficien: string
+            professionalMemberships: string
         }
 
     }
@@ -44,6 +46,7 @@ classDiagram
             Lastname: string
             QualificationName: string
             Proficien: string
+            professionalMemberships: string
             SourceSystemID: string
             IngestionDate: date
             ValidTo: date
@@ -57,6 +60,7 @@ classDiagram
             Lastname: string
             QualificationName: string
             Proficien: string
+            professionalMemberships: string
             SourceSystemID: string
             IngestionDate: date
             ValidFrom: date
