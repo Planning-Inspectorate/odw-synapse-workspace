@@ -193,25 +193,13 @@ class SalaryStrategy(BaseStrategy):
         )
 
 
-class PostcodeStrategy(BaseStrategy):
-    classification_names = {"UK Postcode"}
-
-    def apply(
-        self, df: DataFrame, column: str, seed: Column, context: dict
-    ) -> DataFrame:
-        col_expr = F.col(column).cast("string")
-        result = F.when(F.col(column).isNull(), None).otherwise(
-            F.split(F.trim(col_expr), r"\s+").getItem(0)
-        )
-        return df.withColumn(column, result)
-
-
 class AddressStrategy(BaseStrategy):
     classification_names = {
         "Address Line 1",
         "Address Line 2",
         "Street Address",
         "Postcode",
+        "UK Postcode",
         "All Physical Addresses",
         "MICROSOFT.PERSONAL.PHYSICALADDRESS",  # Microsoft Purview classification
     }
@@ -264,7 +252,6 @@ def default_strategies() -> List[BaseStrategy]:
         NINumberStrategy(),
         EmailMaskStrategy(),
         NameMaskStrategy(),
-        PostcodeStrategy(),
         BirthDateStrategy(),
         AgeStrategy(),
         SalaryStrategy(),

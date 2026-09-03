@@ -434,25 +434,13 @@
 				}
 			},
 			{
-				"name": "Output JSON",
+				"name": "Return successful result",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
 						"activity": "Append success",
 						"dependencyConditions": [
-							"Completed"
-						]
-					},
-					{
-						"activity": "Mark Failure meta",
-						"dependencyConditions": [
-							"Completed"
-						]
-					},
-					{
-						"activity": "Mark Failure foreach",
-						"dependencyConditions": [
-							"Completed"
+							"Succeeded"
 						]
 					}
 				],
@@ -462,19 +450,55 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "aieStatusJson",
-					"value": {
-						"value": "@string(variables('aieStatus'))",
-						"type": "Expression"
-					}
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n  '\"results\":', string(variables('aieStatus')),\n  '}'\n)"
+							}
+						}
+					],
+					"setSystemVariable": true
 				}
 			},
 			{
-				"name": "Return result",
+				"name": "Return on metdata extraction failure",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "Output JSON",
+						"activity": "Mark Failure meta",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": true,
+					"secureInput": true
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "pipelineReturnValue",
+					"value": [
+						{
+							"key": "result",
+							"value": {
+								"type": "Expression",
+								"content": "@concat(\n  '{',\n  '\"hasFailure\":', toLower(string(variables('hasFailure'))), ',',\n  '\"results\":', string(variables('aieStatus')),\n  '}'\n)"
+							}
+						}
+					],
+					"setSystemVariable": true
+				}
+			},
+			{
+				"name": "Return failed result",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Mark Failure foreach",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -511,10 +535,6 @@
 			"aieStatus": {
 				"type": "Array",
 				"defaultValue": []
-			},
-			"aieStatusJson": {
-				"type": "String",
-				"defaultValue": "'[]'"
 			},
 			"env": {
 				"type": "String"

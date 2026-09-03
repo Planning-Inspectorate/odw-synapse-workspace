@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4f6205cf-ac67-429b-b1ff-e52637bedbf9"
+				"spark.autotune.trackingId": "287bc34c-caca-4b26-9878-2f9750257f7e"
 			}
 		},
 		"metadata": {
@@ -45,8 +45,8 @@
 				"sparkVersion": "3.5",
 				"nodeCount": 3,
 				"cores": 4,
-				"memory": 32,
-				"automaticScaleJobs": true
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -144,8 +144,14 @@
 					"            hist_sap.CounterSignManager AS Manager_L2,\n",
 					"            hist_sap.EmployeeNo as EmployeeNo,\n",
 					"            hist_sap.PersNo as PersonNo,\n",
-					"            hist_Sap.location as Location\n",
+					"            hist_Sap.location as Location,\n",
+					"            CASE WHEN hist_sap.WorkContract IN ('Non-Salaried Inspector', 'Non-Sal. Inspec')\n",
+					"                THEN null\n",
+					"                ELSE email.EmailAddress\n",
+					"                END AS EmailAddress\n",
 					"        FROM odw_harmonised_db.hist_sap_hr hist_sap\n",
+					"        LEFT JOIN odw_harmonised_db.load_sap_pins_email_weekly email\n",
+					"        ON hist_sap.PersNo = email.StaffNumber\n",
 					"        WHERE hist_sap.Firstname is not null\n",
 					"    \n",
 					"        UNION ALL\n",
@@ -160,7 +166,8 @@
 					"            NULL AS Manager_L2,\n",
 					"            a.EmployeeNo as EmployeeNo,\n",
 					"            a.PersNo as PersonNo,\n",
-					"            a.location as Location\n",
+					"            a.location as Location,\n",
+					"            NULL as EmailAddress\n",
 					"        FROM odw_harmonised_db.load_SAP_HR_Leavers a  \n",
 					"        WHERE a.Firstname is not null\n",
 					"        AND NOT EXISTS (\n",
