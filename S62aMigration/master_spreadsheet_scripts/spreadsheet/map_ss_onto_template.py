@@ -6,6 +6,7 @@ from datetime import datetime, date
 import openpyxl
 import pandas as pd
 from dateutil import parser as dateparser
+from openpyxl.styles import PatternFill
  
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
  
@@ -141,8 +142,7 @@ FIELD_TRANSFORM_OVERRIDES = {
     "EIA screening outcome":              ("eia_outcome", None),
     "Date environment statement was received": ("eia_received_date", None),
     "Date Environmental Statement rec'd":      ("eia_received_date", None),
-    "Customer number":         ("customer_number", None),
-    "Pre-application fee":     ("fee_amount", None),
+    "SAP8 to SAP Helpdesk (inc customer number)": ("customer_number", None),
     "Pre-application fee due": ("fee_amount", None),
 }
  
@@ -571,10 +571,13 @@ print(df_test.head())
  
                                                                   
  
+AUDIT_HIGHLIGHT_FILL = PatternFill(start_color="FFFFFF00", end_color="FFFFFF00", fill_type="solid")
+ 
 def build_output_rows(df, mapping, constants, sheet_label):
-    output_rows   = []
-    audit_entries = []
-    for _, source_row in df.iterrows():
+    output_rows      = []
+    audit_entries    = []
+    audit_highlights = []
+    for row_index, (_, source_row) in enumerate(df.iterrows()):
         row_result = dict(constants)
         for template_column, source_column, transform_name, extra in mapping:
             source_value = source_row.get(source_column)
@@ -591,26 +594,27 @@ def build_output_rows(df, mapping, constants, sheet_label):
                                          "eia_received_date", "customer_number")\
                     and not is_blank(source_value):
  
-                                                                              
- 
-                                                                              
- 
-                                                                     
                 audit_entries.append((row_result.get("Case reference"), sheet_label,
                                        template_column, f"could not convert value: {source_value!r}"))
  
-                                                                             
+                # Write the raw, un-transformed value into the cell anyway so
+                # nothing is silently lost, and flag it for a yellow highlight
+                # in the output workbook so it's easy to spot for manual
+                # review/fixing rather than only showing up in a separate
+                # audit log CSV.
+                if not row_result.get(template_column):
+                    row_result[template_column] = source_value
+                audit_highlights.append((row_index, template_column))
  
-                                                                           
         if not row_result.get("Press notice cost"):
             cost = extract_gbp_amount(row_result.get("Press notice reference"))
             if cost is not None:
                 row_result["Press notice cost"] = cost
         output_rows.append(row_result)
-    return output_rows, audit_entries
+    return output_rows, audit_entries, audit_highlights
  
 mapping_test, constants_test, issues_test = build_mapping_for_sheet(_test_sheet, df_test.columns.tolist())
-one_row_result, one_row_audit = build_output_rows(df_test.head(1), mapping_test, constants_test, _test_sheet)
+one_row_result, one_row_audit, one_row_highlights = build_output_rows(df_test.head(1), mapping_test, constants_test, _test_sheet)
  
 print(f"Block 5 test done - {_test_sheet}: {len(mapping_test)} mapped columns, {len(issues_test)} config issues")
 print("Single row result:")
@@ -626,7 +630,8 @@ print(f"  ({len(one_row_audit)} audit flags for this row)")
 all_rows        = []
 all_audit       = []
 all_config_issues = []
-unmapped_report = []                                                             
+unmapped_report = []
+all_audit_highlights = []                                                     
  
 for sheet_name in SHEET_NAMES:
     df = read_source_rows(sheet_name)
@@ -638,7 +643,9 @@ for sheet_name in SHEET_NAMES:
         if col not in used_columns:
             unmapped_report.append({"Sheet": sheet_name, "Column": col})
  
-    rows, audit = build_output_rows(df, mapping, constants, sheet_name)
+    rows, audit, highlights = build_output_rows(df, mapping, constants, sheet_name)
+    row_offset = len(all_rows)
+    all_audit_highlights.extend((row_offset + local_index, col) for local_index, col in highlights)
     all_rows.extend(rows)
     all_audit.extend(audit)
     print(f"  {sheet_name}: {len(mapping)} mapped columns, {len(config_issues)} config issues, {len(df)} rows")
@@ -686,8 +693,22 @@ for row_result in all_rows:
             cell.number_format = "YYYY-MM-DD"
     excel_row += 1
  
+# Yellow-highlight every cell that came from a failed transform (raw value
+# written in as a fallback above) so it's visible for manual review directly
+# in the output workbook, not just in the separate audit log CSV.
+highlighted = 0
+for row_index, template_column in all_audit_highlights:
+    template_column = DESTINATION_FIELD_RENAMES.get(template_column, template_column)
+    if template_column not in column_lookup:
+        continue                                              
+    excel_row = TEMPLATE_FIRST_DATA_ROW + row_index
+    col_num = column_lookup[template_column]
+    ws.cell(row=excel_row, column=col_num).fill = AUDIT_HIGHLIGHT_FILL
+    highlighted += 1
+ 
 wb.save(OUTPUT_FILE)
 print(f"Block 6 done - wrote {len(all_rows)} rows to {OUTPUT_FILE}")
+print(f"  {highlighted} cell(s) highlighted yellow for manual review")
  
 if _missing_fields:
     print(f"\n{len(_missing_fields)} unmatched Field name(s) - compare against real Template headers below")
@@ -723,4 +744,3 @@ with open(MAPPING_ISSUES_FILE, "w", newline="", encoding="utf-8") as f:
 print(f"Mapping config issues:    {MAPPING_ISSUES_FILE} ({len(all_config_issues)} entries)")
  
 # %%
- 

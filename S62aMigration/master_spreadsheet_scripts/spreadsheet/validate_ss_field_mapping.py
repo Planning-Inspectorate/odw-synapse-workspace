@@ -1,129 +1,261 @@
-
+import csv
 import os
 import re
  
+import openpyxl
 import pandas as pd
  
-BASE_DIR             = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration"
-SPREADSHEET_EXTRACTS_DIR = os.path.join(BASE_DIR, "csv_and_xlsx_files/SS_data")
-MAPPING_CSV               = os.path.join(BASE_DIR, "outputs/spreadsheet_field_mapping.csv")
-OUTPUT_FILE                = os.path.join(BASE_DIR, "outputs/spreadsheet_field_mapping_validation.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ 
+def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
+    d = start_dir
+    for _ in range(max_up + 1):
+        if os.path.isdir(os.path.join(d, marker)):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    raise FileNotFoundError(
+        f"Could not find a '{marker}' folder above {start_dir} "
+        f"(searched {max_up + 1} levels up) - check the script's location."
+    )
+ 
+DATA_ROOT = find_data_root(BASE_DIR)
+ 
+def find_source_file(data_root):
+    ss_data_dir = os.path.join(data_root, "csv_and_xlsx_files", "SS_data")
+    if not os.path.isdir(ss_data_dir):
+        raise FileNotFoundError(f"SS_data folder not found: {ss_data_dir}")
+    candidates = [
+        f for f in os.listdir(ss_data_dir)
+        if f.lower().endswith(".xlsx")
+        and "62a" in f.lower()
+        and "cases" in f.lower()
+        and "copy" in f.lower()
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            f"Could not find a 'Section 62a Cases ... COPY.xlsx'-style file in {ss_data_dir}. "
+            f"Files present: {os.listdir(ss_data_dir)}"
+        )
+    if len(candidates) > 1:
+        print(f"WARNING: multiple candidate source files found, using the first: {candidates}")
+    return os.path.join(ss_data_dir, candidates[0])
+ 
+SOURCE_FILE   = find_source_file(DATA_ROOT)
+MAPPING_XLSX  = os.path.join(DATA_ROOT, "csv_and_xlsx_files/SS_data/S62A_Column_mapping.xlsx")
+MAPPING_SHEET = "Lookup"
+TEMPLATE_FILE = os.path.join(DATA_ROOT, "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx")
+TEMPLATE_SHEET      = "Template"
+TEMPLATE_HEADER_ROW = 2
+ 
+OUTPUT_FILE = os.path.join(DATA_ROOT, "outputs/spreadsheet_field_mapping_validation_v2.csv")
+ 
+os.makedirs(os.path.join(DATA_ROOT, "outputs"), exist_ok=True)
  
 print("Block 1 done - config set")
  
-# reads just the header row of specific tabs in every Excel file and builds a lookup:
-# normalised column name -> {filename, sheet name, original column name}
-# This is the set of "real" columns we will check Source fields against.
+# %%
+# ============================================================
+# BLOCK 2: LOAD LOOKUP MAPPING - same parsing as map_ss_onto_template_v2.py.
+# Keep this in sync with that script's load_lookup_mapping() so this
+# validator checks exactly what the migration actually does.
+# ============================================================
  
-TARGET_SHEETS = ['Pre-application - DONE', 'Application (Major)', 'Application (Non Major)']
+SET_TO_BE_RE = re.compile(r'set to be\s+"([^"]+)"', re.IGNORECASE)
  
-_camel = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-def _norm(t): return re.sub(r"\s+", " ", _camel.sub(" ", str(t)).lower()).strip()
- 
-# norm -> list of (filename, sheet, original_col)
-all_cols: dict[str, list[tuple[str, str, str]]] = {}
- 
-for filename in sorted(os.listdir(SPREADSHEET_EXTRACTS_DIR)):
-    if not filename.endswith((".xlsx", ".xlsm")):
-        continue
-    filepath = os.path.join(SPREADSHEET_EXTRACTS_DIR, filename)
- 
-    try:
-        xl = pd.ExcelFile(filepath)
-    except Exception as e:
-        print(f"  WARNING: could not open {filename}: {e}")
-        continue
- 
-    for sheet in TARGET_SHEETS:
-        if sheet not in xl.sheet_names:
-            print(f"  WARNING: sheet '{sheet}' not found in {filename}")
+def load_lookup_mapping():
+    wb = openpyxl.load_workbook(MAPPING_XLSX, data_only=True)
+    ws = wb[MAPPING_SHEET]
+    rows = []
+    current_category = None
+    for r in range(2, ws.max_row + 1):
+        category = ws.cell(row=r, column=1).value
+        field    = ws.cell(row=r, column=2).value
+        if category:
+            current_category = category
+        if not field:
             continue
-        headers = pd.read_excel(xl, sheet_name=sheet, nrows=0).columns.tolist()
-        for col in headers:
-            all_cols.setdefault(_norm(col), []).append((filename, sheet, col))
+        rows.append({
+            "category": current_category,
+            "field": str(field).strip(),
+            "Pre-application - DONE":  ws.cell(row=r, column=3).value,
+            "Application (Major)":     ws.cell(row=r, column=4).value,
+            "Application (Non Major)": ws.cell(row=r, column=5).value,
+            "notes": ws.cell(row=r, column=7).value,
+        })
+    return rows
  
-print(f"Block 2 done - {len(all_cols)} distinct normalised column names found across target sheets")
+LOOKUP_ROWS = load_lookup_mapping()
  
-# check every source field in the mapping csv
-mapping_df = pd.read_csv(MAPPING_CSV, dtype=str).fillna("")
+SHEET_NAMES = ["Pre-application - DONE", "Application (Major)", "Application (Non Major)"]
  
-# Same fixes applied in map_ss_onto_template.py - keep in sync so this
-# validator doesn't keep flagging entries that are already resolved there.
-SOURCE_FIELD_ALIASES = {
-    "Grant":                    "Grant/Refuse",
-    "Development description":  "Development",
-    "S106 suubmitted date":     "S106 submitted date",
-    "Inspector interim findings (letter 25 to applicant)":
-        "Inspectors Interim findings (letter 25 to applicant)",
-    "Hearing date notification":
-        "Hearing date notification (at least 2 weeks before hearing for major applications)",
-    "Hearing date\nEvent notes on Horizon to be used for time of event": "Hearing Date",
+# Fields the migration script sources from elsewhere rather than straight
+# off the Lookup sheet's stated column (address/agent-email splits) - kept
+# in sync with MANUAL_SOURCE_OVERRIDES in map_ss_onto_template_v2.py so
+# this validator checks the real source column, not the "N/A" the Lookup
+# sheet shows for these.
+MANUAL_SOURCE_OVERRIDES = {
+    "Site address 2":    "Address",
+    "Site town or city":  "Address",
+    "Site county":        "Address",
+    "Site post code":     "Address",
+    "Agent email":        "Agent",
 }
  
-KNOWN_TRUNCATED_SOURCE_FIELDS = {
-    _norm("Procedure WR"),
-    _norm("Valid letters (17 & 9) to LPA"),
-    _norm("Fee return date"),
-    _norm("Consultations deadline (see statutory consultees and Town Parish "
-          "Council list for list of parties consulted"),
+# Kept in sync with SOURCE_COLUMN_ALIASES in map_ss_onto_template_v2.py.
+SOURCE_COLUMN_ALIASES = {
+    "Application (Non Major)": {
+        "SAP5 to FSSD": "SAP5 to FSSD / Fee requested by BACS",
+    },
 }
  
-# Same corrections/additions applied in map_ss_onto_template.py - keep in
-# sync so this validator doesn't keep flagging entries already resolved
-# there. See that script for why each one is needed.
-MANUAL_SOURCE_FIELD_OVERRIDES = {
-    "Cil amount": "CIL amount",
+# Kept in sync with SHEET_FIELD_SKIPS in map_ss_onto_template_v2.py.
+SHEET_FIELD_SKIPS = {
+    "Application (Major)": {"CIL amount"},
 }
-MANUAL_FIELD_ADDITIONS = [
-    ("Agent organisation name",     "Agent"),
-    ("Agent email",                 "Agent"),
-    ("Applicant organisation name", "Applicant"),
-]
-_extra_rows = pd.DataFrame(MANUAL_FIELD_ADDITIONS, columns=["Field", "Source field"])
-_extra_rows["Source"] = "Spreadsheet"
-mapping_df = pd.concat([mapping_df, _extra_rows], ignore_index=True)
-
+ 
+def _norm_col(text):
+    return re.sub(r"\s+", " ", str(text).strip()).lower()
+ 
+def resolve_source_column(sheet_name, source_col, available_by_norm, available):
+    alias = SOURCE_COLUMN_ALIASES.get(sheet_name, {}).get(source_col)
+    if alias:
+        source_col = alias
+    if source_col in available:
+        return source_col
+    return available_by_norm.get(_norm_col(source_col))
+ 
+print(f"Block 2 done - {len(LOOKUP_ROWS)} template fields loaded from Lookup sheet")
+ 
+# %%
+# ============================================================
+# BLOCK 3: READ REAL SOURCE COLUMNS for each sheet
+# ============================================================
+ 
+def read_columns(sheet_name):
+    return pd.read_excel(SOURCE_FILE, sheet_name=sheet_name, nrows=0).columns.tolist()
+ 
+sheet_columns = {}
+for sheet_name in SHEET_NAMES:
+    cols = read_columns(sheet_name)
+    sheet_columns[sheet_name] = {
+        "available": set(cols),
+        "available_by_norm": {_norm_col(c): c for c in cols},
+    }
+    print(f"  {sheet_name}: {len(cols)} columns read")
+ 
+print("Block 3 done - source columns loaded for all three sheets")
+ 
+# %%
+# ============================================================
+# BLOCK 4: VALIDATE - for every field x sheet, check the stated source
+# column actually resolves to a real column on that sheet
+# ============================================================
+ 
 results = []
-for _, row in mapping_df.iterrows():
-    field        = row["Field"].strip()
-    source_field = row["Source field"].strip()
-    source_field = MANUAL_SOURCE_FIELD_OVERRIDES.get(field, source_field)
-    source_field = SOURCE_FIELD_ALIASES.get(source_field, source_field)
  
-    if not source_field:
-        continue
+for row in LOOKUP_ROWS:
+    field = row["field"]
+    for sheet_name in SHEET_NAMES:
+        if field in SHEET_FIELD_SKIPS.get(sheet_name, set()):
+            results.append({
+                "Field": field, "Sheet": sheet_name, "Source field (Lookup sheet)": "(skipped)",
+                "Status": "SKIPPED", "Resolved column": "",
+            })
+            continue
  
-    norm_sf = _norm(source_field)
-    matches = all_cols.get(norm_sf, [])
-    if not matches and norm_sf in KNOWN_TRUNCATED_SOURCE_FIELDS:
-        # These are individually verified truncated prefixes - kept as an
-        # explicit whitelist rather than a generic prefix fallback, since a
-        # generic version was found to over-match on short/common words
-        # (e.g. "Inspector" also matching "Inspector USV or ARSV date").
-        # Kept in sync with map_ss_onto_template.py.
-        for norm_col, col_entries in all_cols.items():
-            if norm_col.startswith(norm_sf):
-                matches = col_entries
-                break
+        if field in MANUAL_SOURCE_OVERRIDES:
+            stated_source = MANUAL_SOURCE_OVERRIDES[field]
+        else:
+            raw = row.get(sheet_name)
+            stated_source = str(raw).strip() if raw is not None else ""
  
-    results.append({
-        "Field":        field,
-        "Source field": source_field,
-        "Found":        "YES" if matches else "NO",
-        "Found in files": ", ".join(sorted({f"{f} [{s}]" for f, s, _ in matches})) if matches else "",
-    })
+        if not stated_source or stated_source.upper() == "N/A":
+            results.append({
+                "Field": field, "Sheet": sheet_name, "Source field (Lookup sheet)": "N/A",
+                "Status": "NOT MAPPED (N/A)", "Resolved column": "",
+            })
+            continue
  
-found   = [r for r in results if r["Found"] == "YES"]
-missing = [r for r in results if r["Found"] == "NO"]
+        m = SET_TO_BE_RE.search(stated_source)
+        if m:
+            results.append({
+                "Field": field, "Sheet": sheet_name, "Source field (Lookup sheet)": stated_source,
+                "Status": "CONSTANT", "Resolved column": f'constant = "{m.group(1)}"',
+            })
+            continue
  
-print(f"\nBlock 3 done:")
-print(f"  {len(found)} Source fields found in at least one sheet")
-print(f"  {len(missing)} Source fields NOT found in any sheet:")
+        available = sheet_columns[sheet_name]["available"]
+        available_by_norm = sheet_columns[sheet_name]["available_by_norm"]
+        resolved = resolve_source_column(sheet_name, stated_source, available_by_norm, available)
+ 
+        if resolved:
+            results.append({
+                "Field": field, "Sheet": sheet_name, "Source field (Lookup sheet)": stated_source,
+                "Status": "FOUND", "Resolved column": resolved,
+            })
+        else:
+            results.append({
+                "Field": field, "Sheet": sheet_name, "Source field (Lookup sheet)": stated_source,
+                "Status": "MISSING", "Resolved column": "",
+            })
+ 
+status_counts = {}
+for r in results:
+    status_counts[r["Status"]] = status_counts.get(r["Status"], 0) + 1
+ 
+print("\nBlock 4 done - validation totals:")
+for status, count in sorted(status_counts.items()):
+    print(f"  {status}: {count}")
+ 
+missing = [r for r in results if r["Status"] == "MISSING"]
+print(f"\n{len(missing)} MISSING entries (Lookup sheet points at a column that doesn't exist on that sheet):")
 for r in missing:
-    print(f"    Field={r['Field']!r:45}  Source field={r['Source field']!r}")
+    print(f"  {r['Sheet']:28} {r['Field']!r:45} -> {r['Source field (Lookup sheet)']!r}")
  
-# write validation report
-os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-pd.DataFrame(results).to_csv(OUTPUT_FILE, index=False)
-print(f"\nBlock 4 done - full validation report written to {OUTPUT_FILE}")
+# %%
+# ============================================================
+# BLOCK 5: CHECK FOR TEMPLATE FIELD NAME MISMATCHES
+# Every Field in the Lookup sheet should exist as a real Template header
+# (after DESTINATION_FIELD_RENAMES is applied) - flag any that don't.
+# ============================================================
+ 
+DESTINATION_FIELD_RENAMES = {
+    "Pre-application or application": "Application phase",
+}
+ 
+wb = openpyxl.load_workbook(TEMPLATE_FILE, data_only=True)
+ws = wb[TEMPLATE_SHEET]
+template_headers = {
+    str(ws.cell(row=TEMPLATE_HEADER_ROW, column=c).value).strip()
+    for c in range(1, ws.max_column + 1)
+    if ws.cell(row=TEMPLATE_HEADER_ROW, column=c).value
+}
+ 
+lookup_fields = {row["field"] for row in LOOKUP_ROWS}
+unmatched_fields = sorted(
+    f for f in lookup_fields
+    if DESTINATION_FIELD_RENAMES.get(f, f) not in template_headers
+)
+ 
+print(f"\nBlock 5 done - {len(unmatched_fields)} Lookup field name(s) with no matching Template header:")
+for f in unmatched_fields:
+    print(f"  {f!r}")
+ 
+# %%
+# ============================================================
+# BLOCK 6: WRITE REPORT
+# ============================================================
+ 
+with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=["Field", "Sheet", "Source field (Lookup sheet)",
+                                            "Status", "Resolved column"])
+    writer.writeheader()
+    writer.writerows(results)
+ 
+print(f"\nBlock 6 done - full validation report written to {OUTPUT_FILE}")
+ 
+# %%
  
