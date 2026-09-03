@@ -1,3 +1,4 @@
+import csv
 from copy import copy
 from pathlib import Path
 
@@ -33,12 +34,27 @@ OUTPUT_FILE = (
 
 SUMMARY_SHEET_NAME = "Contradiction Summary"
 
+HORIZON_MAPPING_FILE = (
+    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/"
+    "S62aMigration/outputs/horizon_field_mapping.csv"
+)
+
 # highlight differences in red
 DIFFERENCE_FILL = PatternFill(
     fill_type="solid",
     start_color="FFC7CE",
     end_color="FFC7CE",
 )
+
+
+def _get_extended_data_fields(mapping_file=HORIZON_MAPPING_FILE):
+    with open(mapping_file, newline="", encoding="utf-8-sig") as mapping_stream:
+        return {
+            row["Field"].strip()
+            for row in csv.DictReader(mapping_stream)
+            if row.get("Field", "").strip()
+            and row.get("Source field", "").strip().startswith("extended_data.")
+        }
 
 
 def _get_columns(worksheet):
@@ -198,14 +214,25 @@ def combine_sources(
         horizon_headers = [header for header, _ in horizon_columns]
         spreadsheet_headers = [header for header, _ in spreadsheet_columns]
         master_headers = [header for header, _ in master_columns]
+        extended_data_fields = _get_extended_data_fields()
         if KEY_COL not in horizon_headers or KEY_COL not in spreadsheet_headers:
             raise ValueError(f"Both sheets must contain {KEY_COL!r}")
 
-        if horizon_headers != master_headers or spreadsheet_headers != master_headers:
+        missing_horizon_headers = [
+            header for header in master_headers if header not in horizon_headers
+        ]
+        missing_spreadsheet_headers = [
+            header for header in master_headers if header not in spreadsheet_headers
+        ]
+        if missing_horizon_headers or missing_spreadsheet_headers:
             raise ValueError(
-                "The Horizon and spreadsheet columns must match the legacy master "
-                "schema in the same order."
+                "Both sources must contain every legacy master column. Missing "
+                f"from Horizon: {missing_horizon_headers}; missing from spreadsheet: "
+                f"{missing_spreadsheet_headers}"
             )
+        spreadsheet_only_headers = [
+            header for header in spreadsheet_headers if header not in master_headers
+        ]
 
         horizon_cases, horizon_order, horizon_rows = _read_cases(
             horizon_source, horizon_columns
@@ -225,26 +252,49 @@ def combine_sources(
 
             key_index = master_headers.index(KEY_COL)
             output_headers = [KEY_COL]
-            output_sources = [(KEY_COL, key_index, False)]
+            # Entries are (header, summary index, source index, is_horizon).
+            output_sources = [(KEY_COL, key_index, key_index, False)]
+            comparison_pairs = []
             for index, header in enumerate(master_headers):
                 if header != KEY_COL:
-                    output_headers.extend(
-                        (f"{header} (horizon)", f"{header} (spreadsheet)")
-                    )
-                    output_sources.extend(
-                        ((header, index, True), (header, index, False))
-                    )
+                    horizon_column = len(output_headers) + 1
+                    output_headers.append(f"{header} (horizon)")
+                    output_sources.append((header, index, index, True))
+                    if header in extended_data_fields:
+                        continue
+                    spreadsheet_column = len(output_headers) + 1
+                    output_headers.append(f"{header} (spreadsheet)")
+                    output_sources.append((header, index, index, False))
+                    comparison_pairs.append((horizon_column, spreadsheet_column, index))
+            for header in spreadsheet_only_headers:
+                source_index = spreadsheet_headers.index(header)
+                summary_index = len(master_headers)
+                master_headers.append(header)
+                horizon_column = len(output_headers) + 1
+                output_headers.append(f"{header} (horizon)")
+                output_sources.extend(
+                    ((header, summary_index, None, True),)
+                )
+                spreadsheet_column = len(output_headers) + 1
+                output_headers.append(f"{header} (spreadsheet)")
+                output_sources.append((header, summary_index, source_index, False))
+                comparison_pairs.append((horizon_column, spreadsheet_column, summary_index))
 
             output_columns_by_source_index = {}
-            for output_column, (_, index, _) in enumerate(output_sources, start=1):
+            for output_column, (_, index, _, _) in enumerate(output_sources, start=1):
                 output_columns_by_source_index.setdefault(index, []).append(output_column)
 
-            for output_column, (_, index, is_horizon) in enumerate(
+            for output_column, (_, _, source_index, is_horizon) in enumerate(
                 output_sources, start=1
             ):
+                if source_index is None:
+                    output_sheet.cell(HEADER_ROW, output_column).value = output_headers[
+                        output_column - 1
+                    ]
+                    continue
                 source_worksheet = horizon_source if is_horizon else spreadsheet_source
                 source_columns = horizon_columns if is_horizon else spreadsheet_columns
-                source_column = source_columns[index][1]
+                source_column = source_columns[source_index][1]
                 _copy_column_format(
                     source_worksheet,
                     source_column,
@@ -305,24 +355,24 @@ def combine_sources(
                         output_sheet.cell(output_row, 1),
                     )
 
-                for output_column, (_, index, is_horizon) in enumerate(
+                for output_column, (_, index, source_index, is_horizon) in enumerate(
                     output_sources[1:], start=2
                 ):
                     cases = horizon_cases if is_horizon else spreadsheet_cases
                     source_row = horizon_row if is_horizon else spreadsheet_row
                     source_worksheet = horizon_source if is_horizon else spreadsheet_source
                     source_columns = horizon_columns if is_horizon else spreadsheet_columns
-                    output_sheet.cell(output_row, output_column).value = cases.get(
-                        case_reference, {}
-                    ).get(index)
-                    if source_row is not None:
+                    output_sheet.cell(output_row, output_column).value = (
+                        cases.get(case_reference, {}).get(source_index)
+                        if source_index is not None else None
+                    )
+                    if source_row is not None and source_index is not None:
                         _copy_cell_format(
-                            source_worksheet.cell(source_row, source_columns[index][1]),
+                            source_worksheet.cell(source_row, source_columns[source_index][1]),
                             output_sheet.cell(output_row, output_column),
                         )
 
-                for horizon_column in range(2, len(output_headers), 2):
-                    spreadsheet_column = horizon_column + 1
+                for horizon_column, spreadsheet_column, field_index in comparison_pairs:
                     horizon_value = output_sheet.cell(
                         output_row, horizon_column
                     ).value
@@ -330,7 +380,6 @@ def combine_sources(
                         output_row, spreadsheet_column
                     ).value
                     if _values_differ(horizon_value, spreadsheet_value):
-                        field_index = output_sources[horizon_column - 1][1]
                         contradiction_counts[field_index] = (
                             contradiction_counts.get(field_index, 0) + 1
                         )
