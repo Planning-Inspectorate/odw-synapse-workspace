@@ -54,15 +54,15 @@
 							"type": "Expression"
 						},
 						"PipelineTriggerID": {
-							"value": "@pipeline().TriggerId",
+							"value": "@pipeline().parameters.PipelineTriggerId",
 							"type": "Expression"
 						},
 						"PipelineTriggerName": {
-							"value": "@pipeline().TriggerName",
+							"value": "@pipeline().parameters.PipelineTriggername",
 							"type": "Expression"
 						},
 						"PipelineTriggerType": {
-							"value": "@pipeline().TriggerType",
+							"value": "@pipeline().parameters.PipelineTriggertype",
 							"type": "Expression"
 						},
 						"PipelineTriggeredbyPipelineName": {
@@ -73,7 +73,10 @@
 							"value": "@pipeline()?.TriggeredByPipelineRunId",
 							"type": "Expression"
 						},
-						"PipelineExecutionTimeInSec": "@string(\n    div(\n        sub(\n            ticks(utcNow()),\n            ticks(variables('start_time'))\n        ),\n        10000000\n    )\n)",
+						"PipelineExecutionTimeInSec": {
+							"value": "@string(\n    div(\n        sub(\n            ticks(utcNow()),\n            ticks(variables('start_time'))\n        ),\n        10000000\n    )\n)",
+							"type": "Expression"
+						},
 						"ActivityType": "Pipeline",
 						"DurationSeconds": {
 							"value": "@string(\n    div(\n        sub(\n            ticks(utcNow()),\n            ticks(variables('start_time'))\n        ),\n        10000000\n    )\n)",
@@ -168,7 +171,14 @@
 										"name": "Copy horizon Files",
 										"description": "Copies data from Horizon to odw-raw",
 										"type": "Copy",
-										"dependsOn": [],
+										"dependsOn": [
+											{
+												"activity": "Copy_StartTime",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
 										"policy": {
 											"timeout": "0.12:00:00",
 											"retry": 0,
@@ -253,7 +263,7 @@
 											"waitOnCompletion": true,
 											"parameters": {
 												"Stage": {
-													"value": "@if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''),equals(activity('Copy horizon Files')?.Error?.Message, null)),'Successfully','Failed')\n",
+													"value": "@if(or(equals(activity('Copy horizon Files')?.Error?.Message, ''),equals(activity('Copy horizon Files')?.Error?.Message, null)),'Success','Failed')\n",
 													"type": "Expression"
 												},
 												"PipelineName": {
@@ -262,6 +272,10 @@
 												},
 												"PipelineRunID": {
 													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@variables('Copy_StartTime')",
 													"type": "Expression"
 												},
 												"EndTime": {
@@ -281,15 +295,15 @@
 													"type": "Expression"
 												},
 												"PipelineTriggerID": {
-													"value": "@pipeline().TriggerId",
+													"value": "@pipeline().parameters.PipelineTriggerId",
 													"type": "Expression"
 												},
 												"PipelineTriggerName": {
-													"value": "@pipeline().TriggerName",
+													"value": "@pipeline().parameters.PipelineTriggername",
 													"type": "Expression"
 												},
 												"PipelineTriggerType": {
-													"value": "@pipeline().TriggerType",
+													"value": "@pipeline().parameters.PipelineTriggertype",
 													"type": "Expression"
 												},
 												"PipelineTriggeredbyPipelineName": {
@@ -300,12 +314,20 @@
 													"value": "@pipeline()?.TriggeredByPipelineRunId",
 													"type": "Expression"
 												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@string(activity('Copy horizon Files').output.copyDuration)",
+													"type": "Expression"
+												},
 												"ActivityType": {
 													"value": "Copy Activity",
 													"type": "Expression"
 												},
 												"DurationSeconds": {
 													"value": "@activity('Copy horizon Files').output.copyDuration\n",
+													"type": "Expression"
+												},
+												"StatusCode": {
+													"value": "@if(\n    or(\n        equals(activity('Copy horizon Files')?.Error?.Message, ''),\n        equals(activity('Copy horizon Files')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
 													"type": "Expression"
 												},
 												"AppInsIKey": {
@@ -403,6 +425,24 @@
 												"type": "Expression"
 											}
 										}
+									},
+									{
+										"name": "Copy_StartTime",
+										"description": " Capturing Copy activity Start time",
+										"type": "SetVariable",
+										"dependsOn": [],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "Copy_StartTime",
+											"value": {
+												"value": "@utcNow()",
+												"type": "Expression"
+											}
+										}
 									}
 								],
 								"ifTrueActivities": [
@@ -472,6 +512,12 @@
 										"dependsOn": [
 											{
 												"activity": "Set LastIngestDate",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											},
+											{
+												"activity": "IncrementalCopyStartTime",
 												"dependencyConditions": [
 													"Succeeded"
 												]
@@ -601,7 +647,7 @@
 											"waitOnCompletion": true,
 											"parameters": {
 												"Stage": {
-													"value": "@if(or(equals(activity('Incremental Copy')?.Error?.Message, ''),equals(activity('Incremental Copy')?.Error?.Message, null)),'Successfully','Failed')\n",
+													"value": "@if(or(equals(activity('Incremental Copy')?.Error?.Message, ''),equals(activity('Incremental Copy')?.Error?.Message, null)),'Success','Failed')\n",
 													"type": "Expression"
 												},
 												"PipelineName": {
@@ -610,6 +656,10 @@
 												},
 												"PipelineRunID": {
 													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"StartTime": {
+													"value": "@variables('IncrementalCopyStartTime')",
 													"type": "Expression"
 												},
 												"EndTime": {
@@ -629,15 +679,15 @@
 													"type": "Expression"
 												},
 												"PipelineTriggerID": {
-													"value": "@pipeline().TriggerId",
+													"value": "@pipeline().parameters.PipelineTriggerId",
 													"type": "Expression"
 												},
 												"PipelineTriggerName": {
-													"value": "@pipeline().TriggerName",
+													"value": "@pipeline().parameters.PipelineTriggername",
 													"type": "Expression"
 												},
 												"PipelineTriggerType": {
-													"value": "@pipeline().TriggerType",
+													"value": "@pipeline().parameters.PipelineTriggertype",
 													"type": "Expression"
 												},
 												"PipelineTriggeredbyPipelineName": {
@@ -648,12 +698,20 @@
 													"value": "@pipeline()?.TriggeredByPipelineRunId",
 													"type": "Expression"
 												},
+												"PipelineExecutionTimeInSec": {
+													"value": "@string(activity('Incremental Copy').output.copyDuration)",
+													"type": "Expression"
+												},
 												"ActivityType": {
 													"value": "Copy Activity",
 													"type": "Expression"
 												},
 												"DurationSeconds": {
 													"value": "@activity('Incremental Copy').output.copyDuration\n",
+													"type": "Expression"
+												},
+												"StatusCode": {
+													"value": "@if(\n    or(\n        equals(activity('Incremental Copy')?.Error?.Message, ''),\n        equals(activity('Incremental Copy')?.Error?.Message, null)\n    ),\n    '200',\n    '500'\n)",
 													"type": "Expression"
 												},
 												"AppInsIKey": {
@@ -748,6 +806,24 @@
 											"variableName": "errorMessage",
 											"value": {
 												"value": "@split(activity('Incremental Copy')?.Error?.Message, ',')[2]",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "IncrementalCopyStartTime",
+										"description": " Capturing  Incremental Copy activity Start time",
+										"type": "SetVariable",
+										"dependsOn": [],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "IncrementalCopyStartTime",
+											"value": {
+												"value": "@utcNow()",
 												"type": "Expression"
 											}
 										}
@@ -1357,6 +1433,15 @@
 			},
 			"completed_image": {
 				"type": "string"
+			},
+			"PipelineTriggername": {
+				"type": "string"
+			},
+			"PipelineTriggertype": {
+				"type": "string"
+			},
+			"PipelineTriggerId": {
+				"type": "string"
 			}
 		},
 		"variables": {
@@ -1371,6 +1456,12 @@
 			},
 			"HrmNotebookErrorArray": {
 				"type": "Array"
+			},
+			"Copy_StartTime": {
+				"type": "String"
+			},
+			"IncrementalCopyStartTime": {
+				"type": "String"
 			}
 		},
 		"folder": {

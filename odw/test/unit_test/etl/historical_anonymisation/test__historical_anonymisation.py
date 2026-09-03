@@ -77,7 +77,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         - Then them only the raw and standardised data for the specific entity should be read
         """
         spark = PytestSparkSessionUtil().get_spark_session()
-        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
         subfolder = "t_ha_ld_hd"  # For the "real" data this will be set to "Horizon" - this is set differently here to prevent conflicts
         entity_name = "t_ha_ld_hd__main"
         other_entity_name = "t_ha_ld_hd__other"
@@ -103,7 +102,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             ("odw-raw", subfolder, "2025-01-01", f"{other_entity_name}_a.csv"),
         )
         # Create standardised data that aligns with the corresponding raw data
-        standardised_data_base_path = "odw-standardised/"
         standardised_data_main_a: DataFrame = spark.createDataFrame(
             [
                 {
@@ -114,8 +112,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_main_a.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/{standardised_data_base_path}{entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data_main_a,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "overwrite",
         )
         standardised_data_main_b: DataFrame = spark.createDataFrame(
             [
@@ -127,8 +131,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_main_b.write.format("parquet").mode("append").save(
-            f"{warehouse_name}/{standardised_data_base_path}{entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data_main_b,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "append",
         )
         # Create standardised data for the "other" entity which should be ignored by the ETLProcess
         standardised_data_other_a: DataFrame = spark.createDataFrame(
@@ -141,8 +151,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_other_a.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/{standardised_data_base_path}/{other_entity_name}"
+        self.write_existing_table(
+            spark,
+            standardised_data_other_a,
+            other_entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{other_entity_name}",
+            "overwrite",
         )
         # Expect the full raw/standardised data to be loaded (with the "other" entity excluded)
         expected_raw_data = spark.createDataFrame(
@@ -174,6 +190,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "standardised_blob_path": entity_name,
                 "category": "Horizon",
                 "horizon_file_name": entity_name,
+                "table_name": entity_name,
             }
         }
         with mock.patch.object(
@@ -201,7 +218,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         - Then them only the raw and standardised data for the specific entity should be read
         """
         spark = PytestSparkSessionUtil().get_spark_session()
-        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
         entity_name = "t_ha_ld_ead"
         raw_data_base_path = ("odw-raw", entity_name)
         # Create the raw data
@@ -219,7 +235,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         )
         # Create the standardised data
 
-        standardised_data_base_path = f"odw-standardised/{entity_name}"
         standardised_data_a: DataFrame = spark.createDataFrame(
             [
                 {
@@ -230,8 +245,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_a.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/{standardised_data_base_path}"
+        self.write_existing_table(
+            spark,
+            standardised_data_a,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "overwrite",
         )
         standardised_data_b: DataFrame = spark.createDataFrame(
             [
@@ -243,8 +264,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_b.write.format("parquet").mode("append").save(
-            f"{warehouse_name}/{standardised_data_base_path}"
+        self.write_existing_table(
+            spark,
+            standardised_data_b,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            entity_name,
+            "append",
         )
         # Expect the raw and standardised data to be loaded
         expected_raw_data = spark.createDataFrame(
@@ -276,6 +303,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_file_name_starts_with": "raw_data",
                 "standardised_blob_path": entity_name,
                 "category": "entraid",
+                "table_name": entity_name,
             }
         }
         with mock.patch.object(
@@ -303,7 +331,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
         - Then them only the raw and standardised data for the specific entity should be read
         """
         spark = PytestSparkSessionUtil().get_spark_session()
-        warehouse_name = PytestSparkSessionUtil().get_spark_warehouse_name()
         subfolder = "t_ha_ld_sb"  # For the "real" data this will be set to "ServiceBus" - this is set differently here to prevent conflicts
         entity_name = "t_ha_ld_sb__main"
         other_entity_name = "t_ha_ld_hb__other"
@@ -343,7 +370,6 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
             ),
         )
         # Create standardised data
-        standardised_data_base_path = f"odw-standardised/sb_{entity_name}"
         standardised_data_a: DataFrame = spark.createDataFrame(
             [
                 {
@@ -354,8 +380,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_a.write.format("parquet").mode("overwrite").save(
-            f"{warehouse_name}/{standardised_data_base_path}"
+        self.write_existing_table(
+            spark,
+            standardised_data_a,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{entity_name}",
+            "overwrite",
         )
         standardised_data_b: DataFrame = spark.createDataFrame(
             [
@@ -373,8 +405,14 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 },
             ]
         )
-        standardised_data_b.write.format("parquet").mode("append").save(
-            f"{warehouse_name}/{standardised_data_base_path}"
+        self.write_existing_table(
+            spark,
+            standardised_data_b,
+            entity_name,
+            "odw_standardised_db",
+            "odw-standardised",
+            f"sb_{entity_name}",
+            "append",
         )
         # Expect all of the raw and standardised data to be loaded
         expected_raw_data = spark.createDataFrame(
@@ -412,6 +450,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "raw_blob_format": "json",
                 "standardised_blob_path": f"sb_{entity_name}",
                 "category": "ServiceBus",
+                "table_name": entity_name,
             }
         }
         with mock.patch.object(
@@ -442,6 +481,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 "primary_keys": ["id"],
                 "cols_to_revert_to_raw": ["email"],
                 "horizon_file_name": entity_name,
+                "table_name": entity_name,
             }
         }
         raw_data = spark.createDataFrame(
@@ -540,6 +580,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 ],  # minionCount should be ignored from the comparison because it is not a string
                 "cols_to_revert_to_raw": ["name"],
                 "horizon_file_name": entity_name,
+                "table_name": entity_name,
             }
         }
         standardised_data = spark.createDataFrame(
@@ -595,6 +636,7 @@ class TestHistoricalAnonymisationProcess(SparkTestCase):
                 ],  # minionCount should be ignored from the comparison because it is not a string
                 "cols_to_revert_to_raw": ["name"],
                 "horizon_file_name": entity_name,
+                "table_name": entity_name,
             }
         }
         standardised_data = spark.createDataFrame(
