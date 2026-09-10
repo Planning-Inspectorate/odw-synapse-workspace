@@ -1,8 +1,8 @@
 {
-	"name": "py_checkmark_case_marking",
+	"name": "vw_sap_hr_monthly",
 	"properties": {
 		"folder": {
-			"name": "odw-curated/checkmarkdata"
+			"name": "odw-curated/saphr"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a8dc39d4-e171-4ab0-baf0-924390e7c16a"
+				"spark.autotune.trackingId": "d0655bb4-d3d9-4634-887a-c03cd4571647"
 			}
 		},
 		"metadata": {
@@ -61,26 +61,27 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this notebook is to read data from Harmonised layer and build a view & table for Power BI use.\n",
+					"#### The purpose of this notebook is to read data from Harmoised layer and build a view & table for Mipins and  Power BI use.\n",
 					"\n",
 					"**Author** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   **Created Date** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Description**  \n",
-					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-June-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Checkmark data for curated view and table for Power BI"
+					"Prathap Adicherla &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-Aug-2026 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sap hr monthly  details Covered in here;"
 				]
 			},
 			{
 				"cell_type": "code",
 				"source": [
+					"from pyspark.sql.functions import udf, col, lit, when, coalesce, concat, sum, avg, max, min, count, countDistinct, date_format, to_date, datediff, months_between, year, month,  hour, minute, second, expr, asc, desc\n",
+					"from pyspark.sql.types import DateType, TimestampType, StringType, IntegerType, FloatType, DoubleType, BooleanType, StructType, StructField, ArrayType, MapType\n",
 					"from pyspark.sql.window import Window\n",
 					"from pyspark.sql.functions import row_number, rank, dense_rank, lag, lead, ntile\n",
-					"from datetime import datetime, timedelta\n",
-					"import sys"
+					""
 				],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"%run utils/py_logging_decorator"
+					"%run /utils/py_logging_decorator"
 				],
 				"execution_count": null
 			},
@@ -94,10 +95,11 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"spark_table_final = \"odw_curated_db.pbi_case_marking\"\n",
-					"source_table = \"odw_harmonised_db.case_marking\"\n",
+					"spark_table_final = \"odw_curated_db.pbi_load_sap_hr_monthly\"\n",
+					"source_table = \"odw_harmonised_db.load_sap_hr_monthly\"\n",
 					"\n",
 					"start_exec_time = datetime.now()\n",
+					"\n",
 					"insert_count = 0\n",
 					"update_count = 0\n",
 					"delete_count = 0\n",
@@ -112,7 +114,7 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        logInfo(\"Starting checkmark data case_marking curated table setup\")\n",
+					"        logInfo(\"Starting load sap hr curated table setup\")\n",
 					"        \n",
 					"        # Get storage account \n",
 					"        storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
@@ -120,7 +122,7 @@
 					"        \n",
 					"        # Fix the path\n",
 					"        storage_account = storage_account.rstrip('/')\n",
-					"        delta_table_path = f\"abfss://odw-curated@{storage_account}/checkmarkdata/pbi_case_marking\"\n",
+					"        delta_table_path = f\"abfss://odw-curated@{storage_account}/saphr/pbi_load_sap_hr_monthly\"\n",
 					"        logInfo(f\"Delta table will be created at: {delta_table_path}\")\n",
 					"        \n",
 					"    except Exception as e:\n",
@@ -136,23 +138,41 @@
 					"    try:\n",
 					"        # Create table from view with specified location\n",
 					"        logInfo(f\"Creating or replacing table {spark_table_final}\")\n",
+					"\n",
 					"        spark.sql(f\"\"\"\n",
 					"        CREATE OR REPLACE TABLE {spark_table_final}\n",
 					"        USING delta\n",
 					"        LOCATION '{delta_table_path}'\n",
-					"        AS SELECT * FROM {source_table}\n",
+					"        AS\n",
+					"        SELECT * FROM {source_table}\n",
 					"        \"\"\")\n",
-					"        \n",
-					"        # Count records in table - this is our final record count\n",
-					"        insert_count = spark.sql(f\"SELECT COUNT(*) as count FROM {spark_table_final}\").collect()[0]['count']\n",
-					"        logInfo(f\"Created table with {insert_count} records at location: {delta_table_path}\")\n",
-					"        \n",
-					"        logInfo(\"checkmark data case marking curated table setup completed successfully\")\n",
+					"\n",
+					"        # Count records in table\n",
+					"        insert_count = spark.sql(\n",
+					"            f\"SELECT COUNT(*) AS count FROM {spark_table_final}\"\n",
+					"        ).collect()[0][\"count\"]\n",
+					"\n",
+					"        logInfo(\n",
+					"            f\"Created table with {insert_count} records at location: {delta_table_path}\"\n",
+					"        )\n",
+					"\n",
+					"        logInfo(\n",
+					"            \"sap_hr weekly curated table setup completed successfully\"\n",
+					"        )\n",
+					"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        \n",
+					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in creating table {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()"
+					"        error_message = (\n",
+					"            f\"Error in creating table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        )\n",
+					"        logError(error_message)\n",
+					"        end_exec_time = datetime.now()\n",
+					"else:\n",
+					"    logInfo(\n",
+					"        f\"Skipping table creation for {spark_table_final} due to previous error: {error_message}\"\n",
+					"    )\n",
+					"    end_exec_time = datetime.now()"
 				],
 				"execution_count": null
 			},
