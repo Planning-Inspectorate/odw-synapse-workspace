@@ -1,11 +1,11 @@
-# %% [markdown]
 # # Map all Horizon extracts onto MASTER LEGACY cases S62A
 #
 # Follows the same block-by-block pattern as ssmapping_stepbystep.py.
 #
 # horizon_field_mapping.csv tells us:
-#   'Source field' = column name (in human-readable form) in the Horizon CSV
+#   'Source field' = extract filename token and column name
 #   'Field'        = column name in MASTER LEGACY cases S62A .xlsx
+#   'Conditions'   = supported WHERE filters and special transformations
 #
 # each CSV in Horizon_extracts/ is processed in turn. Because multiple CSVs
 # share the same CaseReference (each file just has different columns for the
@@ -40,44 +40,83 @@ print("Block 1 done - config set")
 
 
 # MAPPING HELPER
-# build_mapping_for_file() reads the actual column headers from one CSV and
-# returns the same MAPPING list format: (template_column, source_column,
-# transform, extra) - one entry per column that has a match in the mapping CSV.
-# It also returns the list of column names that had NO match (for the report).
+# Source fields identify an extract by the token before the first dot. A token
+# can match more than one export, so files are resolved separately.
 
 _camel      = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 def _norm(t): return re.sub(r"\s+", " ", _camel.sub(" ", str(t)).lower()).strip()
 
 _mapping_df = pd.read_csv(MAPPING_CSV, dtype=str).fillna("")
 
-# Pre-build a lookup: normalized Source field -> template Field, using the
-# mapping CSV. A normalized Source field can appear in multiple mapping rows
-# (e.g. "Appointed person" maps to Inspector 1, 2 and 3) so we keep a list.
-_sf_to_fields: dict[str, list[str]] = {}
+def _source_parts(source_field):
+    """Return (filename token, source columns) from a Source field value."""
+    token, separator, columns = source_field.partition(".")
+    if not separator:
+        return "", []
+    source_columns = []
+    for part in columns.split(","):
+        part = part.strip()
+        if "." in part:
+            part = part.rsplit(".", 1)[-1].strip()
+        if part and part not in source_columns:
+            source_columns.append(part)
+    return token.strip(), source_columns
+
+def _condition_filter(condition):
+    """Return (condition column, accepted values) for a supported WHERE rule."""
+    if not condition.strip().upper().startswith("WHERE"):
+        return None
+    match = re.search(
+        r"WHERE\s+[^.\s]+\.([\w]+)\s*(?:=\s*[\"']([^\"']+)[\"']|in\s*\(([^)]*)\))",
+        condition,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    values = match.group(2)
+    if values is None:
+        values = [value.strip().strip("\"'") for value in match.group(3).split(",")]
+    else:
+        values = [values.strip()]
+    return match.group(1), {value.casefold() for value in values}
+
+_mapping_rules = []
 for _, _r in _mapping_df.iterrows():
     _field = _r["Field"].strip()
-    _sf    = _norm(_r["Source field"].strip())
-    if _field and _sf:
-        _sf_to_fields.setdefault(_sf, []).append(_field)
+    _token, _columns = _source_parts(_r["Source field"].strip())
+    if _field and _token and _columns:
+        _mapping_rules.append({
+            "template_column": _field,
+            "file_token": _token,
+            "source_columns": _columns,
+            "condition": _condition_filter(_r["Conditions"]),
+            "append": "append to array" in _r["Conditions"].strip().casefold(),
+            "aggregate_by_case": _token.casefold() == "extended_data",
+        })
 
-# Normalized Source fields known to the mapping CSV (used to detect unmapped cols)
-_all_mapped_sf = set(_sf_to_fields.keys())
+_extended_data_columns = {
+    rule["template_column"]
+    for rule in _mapping_rules
+    if rule["aggregate_by_case"]
+}
 
 def build_mapping_for_file(filepath):
     """Returns (MAPPING, unmapped_columns) for the given CSV file.
-    MAPPING  = list of (template_column, source_column, 'direct', None)
+    MAPPING  = list of mapping rule dictionaries
     unmapped = list of column names that have no entry in horizon_field_mapping
     """
     headers = pd.read_csv(filepath, nrows=0).columns.tolist()
+    filename = os.path.basename(filepath)
     mapping = []
-    unmapped = []
-    for col in headers:
-        norm_col = _norm(col)
-        if norm_col in _sf_to_fields:
-            for template_col in _sf_to_fields[norm_col]:
-                mapping.append((template_col, col, "direct", None))
-        else:
-            unmapped.append(col)
+    mapped_columns = set()
+    for rule in _mapping_rules:
+        if rule["file_token"] not in filename:
+            continue
+        available = [column for column in rule["source_columns"] if column in headers]
+        if available:
+            mapping.append({**rule, "source_columns": available})
+            mapped_columns.update(available)
+    unmapped = [col for col in headers if col not in mapped_columns and col not in {"CaseReference", "CaseUniqueId", "CaseNodeId"}]
     return mapping, unmapped
 
 print("Block 2 done - mapping helper ready")
@@ -96,6 +135,10 @@ def is_blank(value):
 def transform_direct(value, extra):
     return None if is_blank(value) else str(value).strip()
 
+def transform_email(value):
+    value = transform_direct(value, None)
+    return None if value is None or re.fullmatch(r"\d+(?:\.\d+)?", value) else value
+
 def transform_date(value, extra):
     if is_blank(value):
         return None
@@ -108,6 +151,20 @@ def transform_date(value, extra):
 
 def transform_constant(value, extra):
     return extra
+
+def transform_hearing_duration(source_row):
+    end_value = source_row.get("EndDate")
+    start_value = source_row.get("StartDate")
+    if is_blank(end_value) or is_blank(start_value):
+        return None
+    try:
+        end_date = pd.to_datetime(str(end_value).strip(), dayfirst=True)
+        start_date = pd.to_datetime(str(start_value).strip(), dayfirst=True)
+        if pd.isna(end_date) or pd.isna(start_date):
+            raise ValueError
+        return (end_date - start_date).days
+    except (ValueError, TypeError):
+        return f"{str(end_value).strip()} - {str(start_value).strip()}"
 
 TRANSFORM_FUNCTIONS = {
     "direct":   transform_direct,
@@ -128,16 +185,37 @@ def build_output_rows(df, mapping):
     audit_entries = []
     for _, source_row in df.iterrows():
         row_result = {}
-        for template_column, source_column, transform_name, extra in mapping:
-            source_value = source_row.get(source_column)
-            transform_fn = TRANSFORM_FUNCTIONS[transform_name]
-            result = transform_fn(source_value, extra)
+        if "CaseReference" in source_row and not is_blank(source_row["CaseReference"]):
+            row_result["Case reference"] = str(source_row["CaseReference"]).strip()
+        for rule in mapping:
+            template_column = rule["template_column"]
+            if template_column == "Case reference":
+                continue
+            condition = rule["condition"]
+            if condition:
+                condition_column, accepted_values = condition
+                condition_value = source_row.get(condition_column)
+                if is_blank(condition_value) or str(condition_value).strip().casefold() not in accepted_values:
+                    continue
+
+            if template_column == "Hearing duration - sitting (days)":
+                source_value = transform_hearing_duration(source_row)
+            elif template_column == "Application phase":
+                category = str(source_row.get("caseCategory", "")).strip().casefold()
+                source_value = "pre-application" if category == "pre-app" else "application"
+            elif template_column == "Application subtype":
+                category = str(source_row.get("caseCategory", "")).strip().casefold()
+                source_value = "Listed building consent" if category == "listed-building" else "Planning permission"
+            else:
+                values = [source_row.get(column) for column in rule["source_columns"]]
+                source_value = ", ".join(str(value).strip() for value in values if not is_blank(value))
+            result = transform_email(source_value) if template_column == "LPA contact - Email" else transform_direct(source_value, None)
             if result is not None:
                 if template_column in row_result and row_result[template_column] is not None:
                     row_result[template_column] = f"{row_result[template_column]}; {result}"
                 else:
                     row_result[template_column] = result
-            elif transform_name != "constant" and not is_blank(source_value):
+            elif not is_blank(source_value):
                 audit_entries.append((
                     row_result.get("Case reference"),
                     template_column,
@@ -146,7 +224,9 @@ def build_output_rows(df, mapping):
         output_rows.append(row_result)
     return output_rows, audit_entries
 
-case_rows      = {}   # CaseReference -> merged row dict
+# CaseReference -> each record contains values, conflict cells, and
+# unique values for fields whose mapping says to append to an array.
+case_rows      = {}
 all_audit      = []
 unmapped_report = []  # {file, column}
 
@@ -155,7 +235,13 @@ unmapped_report = []  # {file, column}
 # the entire Horizon system and would otherwise bring in hundreds of thousands
 # of non-S62A cases).
 _ref_file = os.path.join(HORIZON_EXTRACTS_DIR, "20260716_query_s62A_case_reference_list.csv")
-S62A_CASES = set(pd.read_csv(_ref_file, dtype=str)["CaseReference"].dropna().str.strip())
+_reference_df = pd.read_csv(_ref_file, dtype=str).fillna("")
+_reference_df["CaseUniqueId"] = _reference_df["CaseUniqueId"].str.strip()
+_reference_df["CaseReference"] = _reference_df["CaseReference"].str.strip()
+CASE_UNIQUE_ID_TO_REFERENCE = dict(
+    zip(_reference_df["CaseUniqueId"], _reference_df["CaseReference"])
+)
+S62A_CASES = set(_reference_df["CaseReference"]) - {""}
 print(f"  S62A case reference list loaded: {len(S62A_CASES)} cases")
 
 csv_files = sorted(f for f in os.listdir(HORIZON_EXTRACTS_DIR) if f.endswith(".csv"))
@@ -173,25 +259,80 @@ for filename in csv_files:
         continue
 
     df = pd.read_csv(filepath, dtype=str).dropna(how="all")
+    if "CaseReference" not in df.columns and "CaseUniqueId" in df.columns:
+        df["CaseReference"] = (
+            df["CaseUniqueId"].fillna("").str.strip().map(CASE_UNIQUE_ID_TO_REFERENCE)
+        )
     if "CaseReference" in df.columns:
         df = df[df["CaseReference"].str.strip().isin(S62A_CASES)]
     rows, audit = build_output_rows(df, mapping)
     all_audit.extend(audit)
 
-    # Merge into case_rows by CaseReference (first value seen wins per column)
+    # Merge into case_rows by CaseReference; extended_data fields are combined
+    # unique values, while conflicting ordinary fields create separate rows.
     for row_result in rows:
         case_ref = row_result.get("Case reference")
         if not case_ref:
             continue
+        aggregate_columns = {
+            rule["template_column"]
+            for rule in mapping
+            if rule["append"] or rule["aggregate_by_case"]
+        }
+        non_append = {
+            col: val for col, val in row_result.items()
+            if col not in aggregate_columns and col != "Case reference"
+        }
         if case_ref not in case_rows:
-            case_rows[case_ref] = {}
+            case_rows[case_ref] = [{"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}]
+
+        # Reuse a row when all non-array values agree, otherwise retain the
+        # source combination in a new row and highlight the differing cells.
+        compatible = None
+        for record in case_rows[case_ref]:
+            if all(
+                col not in record["values"] or record["values"][col] == val
+                for col, val in non_append.items()
+            ):
+                compatible = record
+                break
+        if compatible is None:
+            compatible = {"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}
+            for col, val in non_append.items():
+                for record in case_rows[case_ref]:
+                    if col in record["values"] and record["values"][col] != val:
+                        record["conflicts"].add(col)
+                compatible["values"][col] = val
+                compatible["conflicts"].add(col)
+            case_rows[case_ref].append(compatible)
+        else:
+            for col, val in non_append.items():
+                compatible["values"].setdefault(col, val)
+
         for col, val in row_result.items():
-            if col not in case_rows[case_ref] or case_rows[case_ref][col] is None:
-                case_rows[case_ref][col] = val
+            if col not in aggregate_columns or is_blank(val):
+                continue
+            compatible["arrays"].setdefault(col, [])
+            if val not in compatible["arrays"][col]:
+                compatible["arrays"][col].append(val)
 
     print(f"  {filename}: {len(mapping)} mapped columns, {len(unmapped_cols)} unmapped, {len(df)} rows")
 
-all_rows = list(case_rows.values())
+all_rows = []
+all_conflicts = []
+for records in case_rows.values():
+    for record in records:
+        row = dict(record["values"])
+        for col, values in record["arrays"].items():
+            if len(values) == 1:
+                row[col] = values[0]
+            elif values:
+                if col in _extended_data_columns:
+                    row[col] = "[" + ", ".join(values) + "]"
+                else:
+                    row[col] = "{" + ", ".join(f"{index}: {value}" for index, value in enumerate(values, 1)) + "}"
+        all_rows.append(row)
+        all_conflicts.append(record["conflicts"])
 print(f"\nBlock 4 done - {len(all_rows)} unique cases, {len(all_audit)} audit flags, {len(unmapped_report)} unmapped column entries")
 
 
@@ -217,7 +358,7 @@ for col_num in range(1, ws.max_column + 1):
         column_lookup[str(header_value).strip()] = col_num
 
 excel_row = TEMPLATE_FIRST_DATA_ROW
-for row_result in all_rows:
+for row_result, conflicts in zip(all_rows, all_conflicts):
     for template_column, value in row_result.items():
         if template_column not in column_lookup:
             print(f"WARNING: '{template_column}' not found in Template headers - skipped")
@@ -227,6 +368,8 @@ for row_result in all_rows:
         cell.value = value
         if isinstance(value, date):
             cell.number_format = "YYYY-MM-DD"
+        if template_column in conflicts:
+            cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FFF2CC")
     excel_row += 1
 
 wb.save(OUTPUT_FILE)
