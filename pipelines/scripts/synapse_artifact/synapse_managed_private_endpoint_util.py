@@ -30,11 +30,6 @@ class SynapseManagedPrivateEndpointUtil(SynapseArtifactUtil):
             f"{self.synapse_endpoint}/managedVirtualNetworks/{vnet}/managedPrivateEndpoints?api-version=2020-12-01",
         ).json()
         
-        logging.info(f"Managed Private Endpoint response: {response}")
-
-        if "value" not in response:
-            raise Exception(f"Unexpected response from Synapse API: {response}")
-
         all_mpes = response["value"]
         while "nextLink" in response:
             next_link = response["nextLink"]
