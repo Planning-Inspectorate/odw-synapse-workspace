@@ -1,5 +1,6 @@
 import csv
 from copy import copy
+from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -33,6 +34,14 @@ OUTPUT_FILE = (
 )
 
 SUMMARY_SHEET_NAME = "Contradiction Summary"
+
+DATE_FIELDS = {
+    "Application valid",
+    "Valid letters sent",
+    "LPA questionnaire sent",
+    "Representations period - start",
+    "Representations period - End",
+}
 
 HORIZON_MAPPING_FILE = (
     "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/"
@@ -82,9 +91,33 @@ def _is_blank(value):
     return value != value
 
 
-def _values_differ(left, right):
+def _normalise_date(value):
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if not isinstance(value, str):
+        return value
+    value = value.strip()
+    for date_format in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(value[:10], date_format).date().isoformat()
+        except ValueError:
+            continue
+    return value
+
+
+def _values_differ(left, right, field_name=None):
     if _is_blank(left) or _is_blank(right):
         return False
+    if field_name == "LPA":
+        horizon_value = str(left).strip().casefold()
+        spreadsheet_value = str(right).strip().casefold()
+        return spreadsheet_value not in horizon_value
+    if field_name and (
+        "date" in field_name.casefold() or field_name in DATE_FIELDS
+    ):
+        return _normalise_date(left) != _normalise_date(right)
     if isinstance(left, str) and isinstance(right, str):
         return left.strip() != right.strip()
     return left != right
@@ -215,6 +248,8 @@ def combine_sources(
         spreadsheet_headers = [header for header, _ in spreadsheet_columns]
         master_headers = [header for header, _ in master_columns]
         extended_data_fields = _get_extended_data_fields()
+        horizon_indexes = {header: index for index, header in enumerate(horizon_headers)}
+        spreadsheet_indexes = {header: index for index, header in enumerate(spreadsheet_headers)}
         if KEY_COL not in horizon_headers or KEY_COL not in spreadsheet_headers:
             raise ValueError(f"Both sheets must contain {KEY_COL!r}")
 
@@ -251,20 +286,21 @@ def combine_sources(
                 output_sheet.delete_rows(HEADER_ROW + 1, output_sheet.max_row - HEADER_ROW)
 
             key_index = master_headers.index(KEY_COL)
+            spreadsheet_key_index = spreadsheet_indexes[KEY_COL]
             output_headers = [KEY_COL]
             # Entries are (header, summary index, source index, is_horizon).
-            output_sources = [(KEY_COL, key_index, key_index, False)]
+            output_sources = [(KEY_COL, key_index, spreadsheet_key_index, False)]
             comparison_pairs = []
             for index, header in enumerate(master_headers):
                 if header != KEY_COL:
                     horizon_column = len(output_headers) + 1
                     output_headers.append(f"{header} (horizon)")
-                    output_sources.append((header, index, index, True))
+                    output_sources.append((header, index, horizon_indexes[header], True))
                     if header in extended_data_fields:
                         continue
                     spreadsheet_column = len(output_headers) + 1
                     output_headers.append(f"{header} (spreadsheet)")
-                    output_sources.append((header, index, index, False))
+                    output_sources.append((header, index, spreadsheet_indexes[header], False))
                     comparison_pairs.append((horizon_column, spreadsheet_column, index))
             for header in spreadsheet_only_headers:
                 source_index = spreadsheet_headers.index(header)
@@ -350,7 +386,7 @@ def combine_sources(
                 if spreadsheet_row is not None:
                     _copy_cell_format(
                         spreadsheet_source.cell(
-                            spreadsheet_row, spreadsheet_columns[key_index][1]
+                            spreadsheet_row, spreadsheet_columns[spreadsheet_key_index][1]
                         ),
                         output_sheet.cell(output_row, 1),
                     )
@@ -379,7 +415,8 @@ def combine_sources(
                     spreadsheet_value = output_sheet.cell(
                         output_row, spreadsheet_column
                     ).value
-                    if _values_differ(horizon_value, spreadsheet_value):
+                    field_name = output_sources[horizon_column - 1][0]
+                    if _values_differ(horizon_value, spreadsheet_value, field_name):
                         contradiction_counts[field_index] = (
                             contradiction_counts.get(field_index, 0) + 1
                         )
