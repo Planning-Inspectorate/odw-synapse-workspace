@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1d462f98-6f49-4ccd-8451-51f9eeb0daff"
+				"spark.autotune.trackingId": "afb54d47-5b89-45b4-8796-4222fd8ddcfa"
 			}
 		},
 		"metadata": {
@@ -101,7 +101,7 @@
 					"from pyspark.sql import DataFrame\r\n",
 					"import json"
 				],
-				"execution_count": 1
+				"execution_count": 57
 			},
 			{
 				"cell_type": "markdown",
@@ -121,7 +121,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 				"source": [
 					"db_name: str = \"odw_curated_db\"\r\n",
 					"entity_name: str = \"applications-notify-email\"\r\n",
-					"table_name: str = \"odw_curated_db.notify_email_fact\"\r\n",
+					"table_name: str = \"odw_curated_db.applications_notify_email\"\r\n",
 					"\r\n",
 					"start_exec_time = datetime.now()\r\n",
 					"insert_count = 0\r\n",
@@ -147,7 +147,7 @@
 					"delete_count = 0\r\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 59
 			},
 			{
 				"cell_type": "markdown",
@@ -185,10 +185,10 @@
 					"            casework_fact_key,\r\n",
 					"            reference,\r\n",
 					"            createdDate,\r\n",
-					"            createdDateKey,\r\n",
+					"            CAST(NULL AS INT) AS  createdDateKey,\r\n",
 					"            createdBy,\r\n",
 					"            completedDate,\r\n",
-					"            completedDateKey,\r\n",
+					"            CAST(NULL AS INT) AS completedDateKey,\r\n",
 					"            email,\r\n",
 					"            contactId,\r\n",
 					"            contactPreference,\r\n",
@@ -200,18 +200,29 @@
 					"            templateVersion,\r\n",
 					"            body,\r\n",
 					"            subject\r\n",
-					"        FROM odw_harmonised_db.notify_email\r\n",
+					"        FROM odw_harmonised_db.applications_notify_email\r\n",
 					"        WHERE IsActive = 'Y'\r\n",
 					"    \"\"\")\r\n",
 					"\r\n",
 					"except Exception as e:\r\n",
 					"    error_message = (\r\n",
 					"        f\"Error in SQL query for table \"\r\n",
-					"        f\"odw_harmonised_db.notify_email: {str(e)[:800]}\"\r\n",
+					"        f\"odw_harmonised_db.applications_notify_email: {str(e)[:800]}\"\r\n",
 					"    )\r\n",
-					"    end_exec_time = datetime.now()"
+					"    end_exec_time = datetime.now()\r\n",
+					"    print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 60
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if spark.catalog.tableExists(table_name):\r\n",
+					"    df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"else:\r\n",
+					"    print(f\"{table_name} does not exist\")"
+				],
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -231,39 +242,63 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"       \r\n",
+					"\r\n",
+					"        # Record count\r\n",
 					"        insert_count = df.count()\r\n",
-					"        print(insert_count)\r\n",
+					"        print(f\"Source record count: {insert_count}\")\r\n",
 					"\r\n",
-					"      \r\n",
-					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
-					"        table_path = (\r\n",
-					"            df_table_path\r\n",
-					"            .where(\"col_name == 'Location'\")\r\n",
-					"            .select(\"data_type\")\r\n",
-					"            .collect()[0][0]\r\n",
-					"        )\r\n",
+					"        # Create database if it doesn't exist\r\n",
+					"        spark.sql(f\"CREATE DATABASE IF NOT EXISTS {db_name}\")\r\n",
 					"\r\n",
-					"       \r\n",
-					"        df.write \\\r\n",
-					"            .format(\"parquet\") \\\r\n",
-					"            .mode(\"overwrite\") \\\r\n",
-					"            .option(\"path\", table_path) \\\r\n",
-					"            .saveAsTable(table_name)\r\n",
+					"        # Check whether table already exists\r\n",
+					"        if spark.catalog.tableExists(table_name):\r\n",
 					"\r\n",
-					"        print(f\"Written to {table_name}\")\r\n",
+					"            print(f\"Table exists: {table_name}\")\r\n",
 					"\r\n",
-					"       \r\n",
+					"            table_path = (\r\n",
+					"                spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"                .filter(\"col_name = 'Location'\")\r\n",
+					"                .select(\"data_type\")\r\n",
+					"                .collect()[0][0]\r\n",
+					"            )\r\n",
+					"\r\n",
+					"            print(f\"Table Path: {table_path}\")\r\n",
+					"\r\n",
+					"            (\r\n",
+					"                df.write\r\n",
+					"                .format(\"parquet\")\r\n",
+					"                .mode(\"overwrite\")\r\n",
+					"                .option(\"path\", table_path)\r\n",
+					"                .saveAsTable(table_name)\r\n",
+					"            )\r\n",
+					"\r\n",
+					"        else:\r\n",
+					"\r\n",
+					"            print(f\"Creating new table: {table_name}\")\r\n",
+					"\r\n",
+					"            (\r\n",
+					"                df.write\r\n",
+					"                .format(\"parquet\")\r\n",
+					"                .mode(\"overwrite\")\r\n",
+					"                .saveAsTable(table_name)\r\n",
+					"            )\r\n",
+					"\r\n",
+					"        print(f\"Successfully written to {table_name}\")\r\n",
+					"\r\n",
 					"        end_exec_time = datetime.now()\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
+					"\r\n",
 					"        error_message = (\r\n",
-					"            f\"Error appending data to the curated layer {table_name} table : \"\r\n",
-					"            f\"{str(e)[:800]}\"\r\n",
+					"            f\"Error writing data to curated layer table \"\r\n",
+					"            f\"{table_name}: {str(e)[:800]}\"\r\n",
 					"        )\r\n",
-					"        end_exec_time = datetime.now()"
+					"\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"\r\n",
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -313,7 +348,7 @@
 					"    status_code\r\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 63
 			}
 		]
 	}
