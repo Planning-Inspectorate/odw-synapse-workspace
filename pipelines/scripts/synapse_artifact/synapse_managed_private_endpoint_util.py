@@ -1,3 +1,5 @@
+from urllib import response
+
 from pipelines.scripts.synapse_artifact.synapse_artifact_util import SynapseArtifactUtil
 from typing import List, Dict, Any
 import os
@@ -27,6 +29,12 @@ class SynapseManagedPrivateEndpointUtil(SynapseArtifactUtil):
         response = self._web_request(
             f"{self.synapse_endpoint}/managedVirtualNetworks/{vnet}/managedPrivateEndpoints?api-version=2020-12-01",
         ).json()
+        
+        logging.info(f"Managed Private Endpoint response: {response}")
+
+        if "value" not in response:
+            raise Exception(f"Unexpected response from Synapse API: {response}")
+
         all_mpes = response["value"]
         while "nextLink" in response:
             next_link = response["nextLink"]
