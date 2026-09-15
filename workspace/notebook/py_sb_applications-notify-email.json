@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6ca03955-4b44-4a92-b1d4-36990f8ad87e"
+				"spark.autotune.trackingId": "761d8134-5bea-42ed-8896-3e327ac6f4af"
 			}
 		},
 		"metadata": {
@@ -144,22 +144,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 51
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"microsoft": {
-						"language": "python"
-					},
-					"collapsed": false
-				},
-				"source": [
-					"%%pyspark\n",
-					"df = spark.sql(\"SELECT * FROM `odw_harmonised_db`.`sb_applications_notify_email`\")\n",
-					"display(df)"
-				],
-				"execution_count": 43
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -241,23 +226,6 @@
 				"execution_count": 65
 			},
 			{
-				"cell_type": "code",
-				"source": [
-					"new_data.printSchema()"
-				],
-				"execution_count": 60
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(new_data)"
-				],
-				"execution_count": 61
-			},
-			{
 				"cell_type": "markdown",
 				"metadata": {
 					"nteract": {
@@ -292,7 +260,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 66
+				"execution_count": 77
 			},
 			{
 				"cell_type": "markdown",
@@ -375,15 +343,10 @@
 					"                    ,IFNULL(CAST(templateVersion AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(body AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(subject AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(ingested_datetime AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(expected_from AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(expected_to AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(message_id AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(message_type AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(message_enqueued_time_utc AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(input_file AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(IngestionDate AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(ValidTo AS STRING), '.')\n",
 					"                )) AS RowID\n",
-					"                ,true AS IsActive\n",
+					"                ,IsActive\n",
 					"            FROM {spark_table_final}\n",
 					"        \"\"\")\n",
 					"\n",
@@ -392,14 +355,25 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 73
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"display(results)"
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
 				],
-				"execution_count": 74
+				"execution_count": 89
 			},
 			{
 				"cell_type": "markdown",
@@ -444,7 +418,7 @@
 					"\n",
 					"        # Define the write operation as a function for the retry helper\n",
 					"        def perform_delta_write():\n",
-					"            final_df.write \\\n",
+					"            results.write \\\n",
 					"                .format(\"delta\") \\\n",
 					"                .mode(\"overwrite\") \\\n",
 					"                .option(\"overwriteSchema\", \"true\") \\\n",
@@ -461,7 +435,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 71
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
