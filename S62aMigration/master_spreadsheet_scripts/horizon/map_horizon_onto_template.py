@@ -15,6 +15,7 @@
 
 # CONFIG
 import csv
+from copy import copy
 import os
 import re
 import shutil
@@ -61,6 +62,12 @@ def _source_parts(source_field):
         if part and part not in source_columns:
             source_columns.append(part)
     return token.strip(), source_columns
+
+def _filename_matches_token(filename, token):
+    """Match the exact extract token after any dated/query filename prefix."""
+    filename_stem = os.path.splitext(os.path.basename(filename))[0].casefold()
+    token = token.strip().casefold()
+    return filename_stem == token or filename_stem.endswith(f"_{token}")
 
 def _condition_filter(condition):
     """Return (condition column, accepted values) for a supported WHERE rule."""
@@ -110,7 +117,7 @@ def build_mapping_for_file(filepath):
     mapping = []
     mapped_columns = set()
     for rule in _mapping_rules:
-        if rule["file_token"] not in filename:
+        if not _filename_matches_token(filename, rule["file_token"]):
             continue
         available = [column for column in rule["source_columns"] if column in headers]
         if available:
@@ -138,6 +145,19 @@ def transform_direct(value, extra):
 def transform_email(value):
     value = transform_direct(value, None)
     return None if value is None or re.fullmatch(r"\d+(?:\.\d+)?", value) else value
+
+def transform_pounds(value):
+    """Return the first numeric amount as an integer number of pounds."""
+    value = transform_direct(value, None)
+    if value is None:
+        return None
+    match = re.search(r"[-+]?\d[\d,]*(?:\.\d+)?", value)
+    if not match:
+        return None
+    try:
+        return int(float(match.group(0).replace(",", "")))
+    except ValueError:
+        return None
 
 def transform_date(value, extra):
     if is_blank(value):
@@ -209,7 +229,12 @@ def build_output_rows(df, mapping):
             else:
                 values = [source_row.get(column) for column in rule["source_columns"]]
                 source_value = ", ".join(str(value).strip() for value in values if not is_blank(value))
-            result = transform_email(source_value) if template_column == "LPA contact - Email" else transform_direct(source_value, None)
+            if template_column in {"Application fee amount", "Fee refund amount"}:
+                result = transform_pounds(source_value)
+            elif template_column == "LPA contact - Email":
+                result = transform_email(source_value)
+            else:
+                result = transform_direct(source_value, None)
             if result is not None:
                 if template_column in row_result and row_result[template_column] is not None:
                     row_result[template_column] = f"{row_result[template_column]}; {result}"
@@ -331,6 +356,10 @@ for records in case_rows.values():
                     row[col] = "[" + ", ".join(values) + "]"
                 else:
                     row[col] = "{" + ", ".join(f"{index}: {value}" for index, value in enumerate(values, 1)) + "}"
+        if not is_blank(row.get("Application fee amount")):
+            row["Application fee"] = "Yes"
+        if not is_blank(row.get("Fee refund amount")):
+            row["Fee refund"] = "Yes"
         all_rows.append(row)
         all_conflicts.append(record["conflicts"])
 print(f"\nBlock 4 done - {len(all_rows)} unique cases, {len(all_audit)} audit flags, {len(unmapped_report)} unmapped column entries")
@@ -350,6 +379,18 @@ shutil.copy(MASTER_FILE, OUTPUT_FILE)   # never modify the original
 wb = openpyxl.load_workbook(OUTPUT_FILE)
 ws = wb[TEMPLATE_SHEET]
 
+# keep the template structure and formatting, but remove all example data
+# before writing Horizon rows. This prevents template-only cases from being bought
+# into the migrated output when they are absent from the Horizon extracts.
+normal_data_row = TEMPLATE_FIRST_DATA_ROW + 1 if ws.max_row > TEMPLATE_FIRST_DATA_ROW else TEMPLATE_FIRST_DATA_ROW
+normal_data_styles = [
+    copy(ws.cell(normal_data_row, col_num)._style)
+    for col_num in range(1, ws.max_column + 1)
+]
+for row in ws.iter_rows(min_row=TEMPLATE_FIRST_DATA_ROW):
+    for cell in row:
+        cell.value = None
+
 # Build column-name -> Excel column number from the header row
 column_lookup = {}
 for col_num in range(1, ws.max_column + 1):
@@ -359,6 +400,8 @@ for col_num in range(1, ws.max_column + 1):
 
 excel_row = TEMPLATE_FIRST_DATA_ROW
 for row_result, conflicts in zip(all_rows, all_conflicts):
+    for col_num in range(1, ws.max_column + 1):
+        ws.cell(row=excel_row, column=col_num)._style = copy(normal_data_styles[col_num - 1])
     for template_column, value in row_result.items():
         if template_column not in column_lookup:
             print(f"WARNING: '{template_column}' not found in Template headers - skipped")
