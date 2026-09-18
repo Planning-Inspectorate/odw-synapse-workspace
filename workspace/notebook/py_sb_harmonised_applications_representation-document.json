@@ -1,0 +1,578 @@
+{
+	"name": "py_sb_harmonised_applications_representation-document",
+	"properties": {
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "495068a1-ad45-4c81-b990-611d87f9c753"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"run_control": {
+						"frozen": false
+					},
+					"editable": true
+				},
+				"source": [
+					"#### Description\n",
+					"\n",
+					"###### The purpose of this PySpark notebook is to read Service Bus data from the `odw_harmonised_db.sb_applications_representation` Delta table and load the transformed data into the `odw_harmonised_db.notify_email` Delta table based on the Crown project business requirements and transformation logic."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\n",
+					"from pyspark.sql import Row\n",
+					"import pyspark.sql.functions as F\n",
+					"from datetime import date,datetime\n",
+					"import time"
+				],
+				"execution_count": 41
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Logging decorator"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					" %run utils/py_logging_decorator"
+				],
+				"execution_count": 42
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# This cell is generated from runtime parameters. Learn more: https://go.microsoft.com/fwlink/?linkid=2161015\n",
+					"PipelineName = \"pln_service_bus - applications_representation\"\n",
+					"PipelineRunID = \"21aed6af-79c7-42c1-a15a-d5b97a053581\"\n",
+					"PipelineTriggerID = \"08584125580849507810157027381CU44\"\n",
+					"PipelineTriggerName = \"tr_daily_weekdays_1500\"\n",
+					"PipelineTriggerType = \"ScheduleTrigger\"\n",
+					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"3d1e6566-96e8-4d55-9d1e-6bb97593f885\""
+				],
+				"execution_count": 43
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": 44
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"service_bus_table = \"odw_harmonised_db.sb_applications_representation\"\n",
+					"spark_table_final = \"odw_harmonised_db.applications_representation\"\n",
+					"primary_key = \"id\"\n",
+					"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": 45
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Extract and Transform Contact Information from Service Bus Notify Email Data\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from datetime import datetime\n",
+					"\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"            SELECT DISTINCT\n",
+					"                   representation_id\n",
+					"                  ,id\n",
+					"                  ,reference\n",
+					"                  ,CAST(NULL AS STRING) AS casework_fact_key\n",
+					"                  ,representationStatus\n",
+					"                  ,submittedFor\n",
+					"                  ,submittedByContact\n",
+					"                  ,submittedByAgent\n",
+					"                  ,submittedByAgentOrgName\n",
+					"                  ,submittedDate\n",
+					"                  ,submittedReceivedMethod\n",
+					"                  ,submissionMethodReason\n",
+					"                  ,comment\n",
+					"                  ,commentRedacted\n",
+					"                  ,representedType\n",
+					"                  ,representedContact\n",
+					"                  ,representedCategory\n",
+					"                  ,wantsToBeHeard\n",
+					"                  ,containsAttachments\n",
+					"                  ,sharePointFolderCreated\n",
+					"                  ,distressingContentInRepresentation\n",
+					"                  ,withdrawalRequestDate\n",
+					"                  ,withdrawalReason\n",
+					"                  ,dateWithdrawn\n",
+					"                  ,representationDocuments\n",
+					"                  ,ODTSourceSystem\n",
+					"                  ,SourceSystemID\n",
+					"                  ,IngestionDate\n",
+					"                  ,message_id\n",
+					"                  ,ValidTo\n",
+					"                  ,RowID\n",
+					"                  ,IsActive\n",
+					"            FROM {service_bus_table}\n",
+					"        \"\"\")\n",
+					"\n",
+					"        new_data = service_bus_data.select(\n",
+					"               \"representation_id\"\n",
+					"              ,\"id\"\n",
+					"              ,\"reference\"\n",
+					"              ,\"casework_fact_key\"\n",
+					"              ,\"representationStatus\"\n",
+					"              ,\"submittedFor\"\n",
+					"              ,\"submittedByContact\"\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"submittedByContact\") > 0,\n",
+					"                  F.col(\"submittedByContact\")[0][\"contactId\"]\n",
+					"               ).alias(\"submittedByContactId\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"submittedByContact\") > 0,\n",
+					"                  F.col(\"submittedByContact\")[0][\"contactPreference\"]\n",
+					"               ).alias(\"submittedByContactPreference\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"submittedByContact\") > 0,\n",
+					"                  F.col(\"submittedByContact\")[0][\"writtenRepOrgName\"]\n",
+					"               ).alias(\"submittedbywrittenreporgname\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"submittedByContact\") > 0,\n",
+					"                  F.col(\"submittedByContact\")[0][\"writtenRepJobTitleorRole\"]\n",
+					"               ).alias(\"submittedbywrittenrepjobtitleorrole\")\n",
+					"\n",
+					"              ,\"submittedByAgent\"\n",
+					"              ,\"submittedByAgentOrgName\"\n",
+					"              ,\"submittedDate\"\n",
+					"              ,\"submittedReceivedMethod\"\n",
+					"              ,\"submissionMethodReason\"\n",
+					"              ,\"comment\"\n",
+					"              ,\"commentRedacted\"\n",
+					"              ,\"representedType\"\n",
+					"              ,\"representedContact\"\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"representedContact\") > 0,\n",
+					"                  F.col(\"representedContact\")[0][\"contactId\"]\n",
+					"               ).alias(\"representedContactId\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"representedContact\") > 0,\n",
+					"                  F.col(\"representedContact\")[0][\"contactPreference\"]\n",
+					"               ).alias(\"representedContactPreference\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"representedContact\") > 0,\n",
+					"                  F.col(\"representedContact\")[0][\"writtenRepOrgName\"]\n",
+					"               ).alias(\"representedwrittenreporgname\")\n",
+					"\n",
+					"              ,F.when(\n",
+					"                  F.size(\"representedContact\") > 0,\n",
+					"                  F.col(\"representedContact\")[0][\"writtenRepJobTitleorRole\"]\n",
+					"               ).alias(\"representedwrittenrepjobtitleorrole\")\n",
+					"\n",
+					"              ,\"representedCategory\"\n",
+					"              ,\"wantsToBeHeard\"\n",
+					"              ,\"containsAttachments\"\n",
+					"              ,\"sharePointFolderCreated\"\n",
+					"              ,\"distressingContentInRepresentation\"\n",
+					"              ,\"withdrawalRequestDate\"\n",
+					"              ,\"withdrawalReason\"\n",
+					"              ,\"dateWithdrawn\"\n",
+					"              ,\"representationDocuments\"\n",
+					"              ,\"ODTSourceSystem\"\n",
+					"              ,\"SourceSystemID\"\n",
+					"              ,\"IngestionDate\"\n",
+					"              ,\"message_id\"\n",
+					"              ,\"ValidTo\"\n",
+					"              ,\"RowID\"\n",
+					"              ,\"IsActive\"\n",
+					"        )\n",
+					"\n",
+					"        print(\"Contact and document fields extracted successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error extracting contact/document fields: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 46
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Prepare data for intermediate applications_representation processing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        new_data.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        results = spark.sql(f\"\"\"\n",
+					"            SELECT DISTINCT\n",
+					"                representation_id\n",
+					"                ,id\n",
+					"                ,reference\n",
+					"                ,casework_fact_key\n",
+					"                ,representationStatus\n",
+					"                ,submittedFor\n",
+					"                ,submittedByContact\n",
+					"                ,submittedByContactId\n",
+					"                ,submittedByContactPreference\n",
+					"                ,submittedbywrittenreporgname\n",
+					"                ,submittedbywrittenrepjobtitleorrole\n",
+					"                ,submittedByAgent\n",
+					"                ,submittedByAgentOrgName\n",
+					"                ,submittedDate\n",
+					"                ,submittedReceivedMethod\n",
+					"                ,submissionMethodReason\n",
+					"                ,comment\n",
+					"                ,commentRedacted\n",
+					"                ,representedType\n",
+					"                ,representedContact\n",
+					"                ,representedContactId\n",
+					"                ,representedContactPreference\n",
+					"                ,representedwrittenreporgname\n",
+					"                ,representedwrittenrepjobtitleorrole\n",
+					"                ,representedCategory\n",
+					"                ,wantsToBeHeard\n",
+					"                ,containsAttachments\n",
+					"                ,sharePointFolderCreated\n",
+					"                ,distressingContentInRepresentation\n",
+					"                ,withdrawalRequestDate\n",
+					"                ,withdrawalReason\n",
+					"                ,dateWithdrawn\n",
+					"                ,representationDocuments\n",
+					"                ,ODTSourceSystem\n",
+					"                ,SourceSystemID\n",
+					"                ,IngestionDate\n",
+					"                ,message_id\n",
+					"                ,ValidTo\n",
+					"\n",
+					"                ,MD5(CONCAT(\n",
+					"                    IFNULL(CAST(representation_id AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(id AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(reference AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(casework_fact_key AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representationStatus AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedFor AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedByContact AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedByContactId AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedByContactPreference AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedbywrittenreporgname AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedbywrittenrepjobtitleorrole AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedByAgent AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedByAgentOrgName AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedDate AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submittedReceivedMethod AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(submissionMethodReason AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(comment AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(commentRedacted AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedType AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedContact AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedContactId AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedContactPreference AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedwrittenreporgname AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedwrittenrepjobtitleorrole AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representedCategory AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(wantsToBeHeard AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(containsAttachments AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(sharePointFolderCreated AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(distressingContentInRepresentation AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(withdrawalRequestDate AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(withdrawalReason AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(dateWithdrawn AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(representationDocuments AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(ODTSourceSystem AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(SourceSystemID AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(IngestionDate AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(message_id AS STRING), '.')\n",
+					"                    ,IFNULL(CAST(ValidTo AS STRING), '.')\n",
+					"                )) AS RowID\n",
+					"\n",
+					"                ,IsActive\n",
+					"            FROM {spark_table_final}\n",
+					"        \"\"\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = (\n",
+					"            f\"Error in preparing results dataframe for {spark_table_final}: {str(e)[:800]}\"\n",
+					"        )\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
+				],
+				"execution_count": 49
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Ingest final data set to delta table applications_representation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"         # Count records being written\n",
+					"        insert_count = results.count()\n",
+					"\n",
+					"        # Resolve storage path of the target table \n",
+					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {spark_table_final}\")\n",
+					"        table_path = (\n",
+					"            df_table_path\n",
+					"            .where(\"col_name == 'Location'\")\n",
+					"            .select(\"data_type\")\n",
+					"            .collect()[0][0]\n",
+					"        )\n",
+					"\n",
+					"        # Define the write operation as a function for the retry helper\n",
+					"        def perform_delta_write():\n",
+					"            results.write \\\n",
+					"                .format(\"delta\") \\\n",
+					"                .mode(\"overwrite\") \\\n",
+					"                .option(\"overwriteSchema\", \"true\") \\\n",
+					"                .option(\"path\", table_path) \\\n",
+					"                .partitionBy(\"IsActive\") \\\n",
+					"                .saveAsTable(spark_table_final)\n",
+					"\n",
+					"        # Execute the write with retry logic to handle ConcurrentAppendException\n",
+					"        _execute_with_retry(perform_delta_write)\n",
+					"        \n",
+					"        end_exec_time = datetime.now()\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": 51
+			}
+		]
+	}
+}
