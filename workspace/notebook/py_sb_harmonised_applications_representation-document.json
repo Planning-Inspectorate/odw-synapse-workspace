@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a71e5708-7777-4222-a2a9-138521a9d607"
+				"spark.autotune.trackingId": "9350fc3c-e33b-4f37-9c77-7883f41a4d89"
 			}
 		},
 		"metadata": {
@@ -109,7 +109,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -136,7 +136,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -167,7 +167,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 3
+				"execution_count": 29
 			},
 			{
 				"cell_type": "markdown",
@@ -228,7 +228,7 @@
 					"    print(error_message)\n",
 					""
 				],
-				"execution_count": 4
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -246,8 +246,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql.types import *\n",
-					"\n",
 					"if not error_message:\n",
 					"    try:\n",
 					"\n",
@@ -277,11 +275,10 @@
 					"\n",
 					"            empty_df.write \\\n",
 					"                .format(\"delta\") \\\n",
-					"                .mode(\"overwrite\") \\\n",
 					"                .save(delta_table_path)\n",
 					"\n",
 					"            spark.sql(f\"\"\"\n",
-					"                CREATE TABLE IF NOT EXISTS {spark_table_final}\n",
+					"                CREATE TABLE {spark_table_final}\n",
 					"                USING DELTA\n",
 					"                LOCATION '{delta_table_path}'\n",
 					"            \"\"\")\n",
@@ -290,33 +287,14 @@
 					"\n",
 					"        else:\n",
 					"\n",
-					"            print(f\"{spark_table_final} already exists. Continuing processing.\")\n",
+					"            print(f\"{spark_table_final} already exists. Skipping table creation.\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error creating table: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"\n",
-					"        if spark.catalog.tableExists(spark_table_final):\n",
-					"            print(f\"Delta table {spark_table_final} already exists.\")\n",
-					"\n",
-					"        else:\n",
-					"            print(f\"Delta table {spark_table_final} was created successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error validating table: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
-				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -353,7 +331,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "markdown",
@@ -384,7 +362,7 @@
 					"                SourceSystemID,\n",
 					"                IngestionDate\n",
 					"            FROM {service_bus_table}\n",
-					"            WHERE invoices IS NOT NULL\n",
+					"            WHERE representationDocuments IS NOT NULL\n",
 					"        \"\"\")\n",
 					"\n",
 					"        print(\" Service bus data loaded successfully.\")\n",
@@ -394,7 +372,17 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(service_bus_data)"
+				],
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -412,33 +400,31 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
-					"if not error_message:  # Only run if no previous error\n",
+					"if not error_message:\n",
 					"    try:\n",
-					"        # Step 3: Explode invoices array\n",
+					"\n",
 					"        exploded_df = service_bus_data.select(\n",
 					"            F.col(\"key_representation_id\"),\n",
 					"            F.col(\"sp_representation_id\"),\n",
-					"            F.explode(F.col(\"representationDocuments\")).alias(\"representationDocuments\"),\n",
+					"            F.explode(F.col(\"representationDocuments\")).alias(\"representationDocument\"),\n",
 					"            F.col(\"ODTSourceSystem\"),\n",
 					"            F.col(\"SourceSystemID\"),\n",
 					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
 					"\n",
-					"        # Step 4: Extract invoice fields\n",
 					"        new_data = exploded_df.select(\n",
 					"            F.col(\"key_representation_id\"),\n",
-					"            F.col(\"sp_representation_id\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"id\"]).alias(\"id\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"representationId\"]).alias(\"representation_id\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"itemId\"]).alias(\"itemId\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"fileName\"]).alias(\"fileName\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"redactedItemId\"]).alias(\"redactedItemId\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"redactedFileName\"]).alias(\"redactedFileName\")\n",
-					"           ,F.when(F.size(\"representationDocuments\") > 0,F.col(\"representationDocuments\")[0][\"status\"]).alias(\"status\")\n",
-					"           ,F.col(\"ODTSourceSystem\")\n",
-					"           ,F.col(\"SourceSystemID\")\n",
-					"           ,F.col(\"IngestionDate\")\n",
+					"            F.col(\"sp_representation_id\"),\n",
+					"            F.col(\"representationDocument.id\").alias(\"id\"),\n",
+					"            F.col(\"representationDocument.representationId\").alias(\"representation_id\"),\n",
+					"            F.col(\"representationDocument.itemId\").alias(\"itemId\"),\n",
+					"            F.col(\"representationDocument.fileName\").alias(\"fileName\"),\n",
+					"            F.col(\"representationDocument.redactedItemId\").alias(\"redactedItemId\"),\n",
+					"            F.col(\"representationDocument.redactedFileName\").alias(\"redactedFileName\"),\n",
+					"            F.col(\"representationDocument.status\").alias(\"status\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
 					"\n",
 					"        print(\"Explode and extract completed successfully.\")\n",
@@ -446,10 +432,19 @@
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)\n",
-					""
+					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 30
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(new_data)"
+				],
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -517,7 +512,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -535,7 +530,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -575,7 +570,14 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.table(spark_table_final).printSchema()"
+				],
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
