@@ -1,0 +1,413 @@
+{
+	"name": "checkmark_case_data",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this notebook is to build the physical curated table `odw_curated_db.checkmark_case_data` for Checkmark integration.\r\n",
+					"\r\n",
+					"**Description**: Combines active S78 and HAS appeal cases (IsActive = 'Y') with event and inspector details from `odw_harmonised_db` tables into a single physical table. Business rules applied:\r\n",
+					"- S78 and HAS cases are combined, with exactly one row per `caseReference` (S78 takes precedence if a reference exists in both)\r\n",
+					"- Only active records (`IsActive = 'Y'`) are included from all four source tables\r\n",
+					"- All appeal events for a case are aggregated into a single nested JSON column (`event`), preserving one row per case\r\n",
+					"- `caseSpecialisms` is returned as nested JSON\r\n",
+					"- `costsAppliedFor` is `'Yes'` if either `lpaCostsAppliedFor` or `appellantCostsAppliedFor` is true, otherwise `'No'`\r\n",
+					"- Inspector and case officer details are left-joined from `pins_inspector` on `entraId`, so a missing inspector/case officer/event never excludes the case\r\n",
+					"\r\n",
+					"**Dependencies**: Reads directly from `odw_harmonised_db` (appeal_s78, appeal_has, appeal_event, pins_inspector), which is populated ahead of `pln_curated` running. This notebook does not depend on any other curated notebook completing - it runs in parallel with the rest of `pln_curated`.\r\n",
+					"\r\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version: 3.5, Python Version: 3.10, Delta Lake Version: 2.4"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Import Packages"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from datetime import datetime\r\n",
+					"from pyspark.sql import functions as F\r\n",
+					"from pyspark.sql.window import Window"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"table_name: str = \"odw_curated_db.checkmark_case_data\"\r\n",
+					"\r\n",
+					"start_exec_time = datetime.now()\r\n",
+					"insert_count = 0\r\n",
+					"update_count = 0\r\n",
+					"delete_count = 0\r\n",
+					"error_message = ''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Build the curated dataset joining S78, HAS, event and inspector tables\r\n",
+					"\r\n",
+					"Same transformation logic previously exposed through `vw_checkmark_case_data`, expressed here as a DataFrame so it can be materialised as a physical table."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"try:\r\n",
+					"    s78 = (\r\n",
+					"        spark.table(\"odw_harmonised_db.appeal_s78\")\r\n",
+					"             .filter(F.col(\"IsActive\") == \"Y\")\r\n",
+					"             .withColumn(\"source_priority\", F.lit(1))\r\n",
+					"    )\r\n",
+					"    has = (\r\n",
+					"        spark.table(\"odw_harmonised_db.appeal_has\")\r\n",
+					"             .filter(F.col(\"IsActive\") == \"Y\")\r\n",
+					"             .withColumn(\"source_priority\", F.lit(2))\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    combined_cols = [\r\n",
+					"        \"source_priority\",\r\n",
+					"        \"caseReference\",\r\n",
+					"        \"caseType\",\r\n",
+					"        \"caseProcedure\",\r\n",
+					"        \"caseOfficerId\",\r\n",
+					"        \"allocationLevel\",\r\n",
+					"        \"caseSpecialisms\",\r\n",
+					"        \"linkedCaseStatus\",\r\n",
+					"        \"isGreenBelt\",\r\n",
+					"        \"appellantCostsAppliedFor\",\r\n",
+					"        \"lpaCostsAppliedFor\",\r\n",
+					"        \"targetDate\",\r\n",
+					"        \"inspectorId\",\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    combined_cases = s78.select(*combined_cols).unionByName(has.select(*combined_cols))\r\n",
+					"\r\n",
+					"    # S78 cases should never share a caseReference with HAS, but source_priority ensures S78 wins if they do\r\n",
+					"    window = Window.partitionBy(\"caseReference\").orderBy(\"source_priority\")\r\n",
+					"    deduplicated_cases = (\r\n",
+					"        combined_cases\r\n",
+					"        .withColumn(\"rn\", F.row_number().over(window))\r\n",
+					"        .filter(F.col(\"rn\") == 1)\r\n",
+					"        .drop(\"rn\", \"source_priority\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    events_agg = (\r\n",
+					"        spark.table(\"odw_harmonised_db.appeal_event\")\r\n",
+					"             .filter(F.col(\"IsActive\") == \"Y\")\r\n",
+					"             .groupBy(\"caseReference\")\r\n",
+					"             .agg(\r\n",
+					"                 F.to_json(\r\n",
+					"                     F.collect_list(F.struct(\"eventType\", \"eventStartDateTime\")),\r\n",
+					"                     {\"ignoreNullFields\": \"false\"},\r\n",
+					"                 ).alias(\"event\")\r\n",
+					"             )\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    active_inspectors = (\r\n",
+					"        spark.table(\"odw_harmonised_db.pins_inspector\")\r\n",
+					"             .filter(F.col(\"IsActive\") == \"Y\")\r\n",
+					"             .select(\"entraId\", \"firstName\", \"lastName\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"    df = (\r\n",
+					"        deduplicated_cases.alias(\"c\")\r\n",
+					"        .join(events_agg.alias(\"ea\"), on=\"caseReference\", how=\"left\")\r\n",
+					"        .join(\r\n",
+					"            active_inspectors\r\n",
+					"                .withColumnRenamed(\"entraId\", \"insp_entraId\")\r\n",
+					"                .withColumnRenamed(\"firstName\", \"inspectorFirstName\")\r\n",
+					"                .withColumnRenamed(\"lastName\", \"inspectorLastName\"),\r\n",
+					"            on=F.col(\"inspectorId\") == F.col(\"insp_entraId\"),\r\n",
+					"            how=\"left\",\r\n",
+					"        )\r\n",
+					"        .drop(\"insp_entraId\")\r\n",
+					"        .join(\r\n",
+					"            active_inspectors\r\n",
+					"                .withColumnRenamed(\"entraId\", \"co_entraId\")\r\n",
+					"                .withColumnRenamed(\"firstName\", \"caseOfficerFirstName\")\r\n",
+					"                .withColumnRenamed(\"lastName\", \"caseOfficerLastName\"),\r\n",
+					"            on=F.col(\"caseOfficerId\") == F.col(\"co_entraId\"),\r\n",
+					"            how=\"left\",\r\n",
+					"        )\r\n",
+					"        .drop(\"co_entraId\")\r\n",
+					"        .withColumn(\r\n",
+					"            \"costsAppliedFor\",\r\n",
+					"            F.when(\r\n",
+					"                (F.col(\"lpaCostsAppliedFor\") == True) | (F.col(\"appellantCostsAppliedFor\") == True),\r\n",
+					"                F.lit(\"Yes\"),\r\n",
+					"            ).otherwise(F.lit(\"No\")),\r\n",
+					"        )\r\n",
+					"        .withColumn(\"caseSpecialisms\", F.to_json(\"caseSpecialisms\"))\r\n",
+					"        .select(\r\n",
+					"            \"caseReference\",\r\n",
+					"            \"caseType\",\r\n",
+					"            \"caseProcedure\",\r\n",
+					"            \"caseOfficerId\",\r\n",
+					"            \"allocationLevel\",\r\n",
+					"            \"caseSpecialisms\",\r\n",
+					"            \"linkedCaseStatus\",\r\n",
+					"            \"isGreenBelt\",\r\n",
+					"            \"costsAppliedFor\",\r\n",
+					"            \"targetDate\",\r\n",
+					"            \"inspectorId\",\r\n",
+					"            \"inspectorFirstName\",\r\n",
+					"            \"inspectorLastName\",\r\n",
+					"            \"caseOfficerFirstName\",\r\n",
+					"            \"caseOfficerLastName\",\r\n",
+					"            \"event\",\r\n",
+					"        )\r\n",
+					"    )\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    error_message = f\"Error building curated DataFrame for {table_name} : {str(e)[:800]}\"\r\n",
+					"    end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Write the data to the physical curated table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\r\n",
+					"    try:\r\n",
+					"        insert_count = df.count()\r\n",
+					"        print(f\"rows to write: {insert_count}\")\r\n",
+					"\r\n",
+					"        if spark.catalog.tableExists(table_name):\r\n",
+					"            df_table_path = spark.sql(f\"DESCRIBE EXTENDED {table_name}\")\r\n",
+					"            table_path = (\r\n",
+					"                df_table_path\r\n",
+					"                .where(\"col_name == 'Location'\")\r\n",
+					"                .select(\"data_type\")\r\n",
+					"                .collect()[0][0]\r\n",
+					"            )\r\n",
+					"\r\n",
+					"            df.write \\\r\n",
+					"                .format(\"parquet\") \\\r\n",
+					"                .mode(\"overwrite\") \\\r\n",
+					"                .option(\"path\", table_path) \\\r\n",
+					"                .saveAsTable(table_name)\r\n",
+					"        else:\r\n",
+					"            df.write \\\r\n",
+					"                .format(\"parquet\") \\\r\n",
+					"                .mode(\"overwrite\") \\\r\n",
+					"                .saveAsTable(table_name)\r\n",
+					"\r\n",
+					"        print(f\"Written to {table_name}\")\r\n",
+					"        end_exec_time = datetime.now()\r\n",
+					"\r\n",
+					"    except Exception as e:\r\n",
+					"        error_message = f\"Error writing curated table {table_name} : {str(e)[:800]}\"\r\n",
+					"        end_exec_time = datetime.now()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#####  Logging Execution Metadata to Azure Application Insights"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"insert_count = 0 if error_message else insert_count\r\n",
+					"end_exec_time = datetime.now()\r\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\r\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\r\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\r\n",
+					"status_message = (\r\n",
+					"    f\"Successfully loaded data into {table_name} table\"\r\n",
+					"    if not error_message\r\n",
+					"    else f\"Failed to load data from {table_name} table\"\r\n",
+					")\r\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\r\n",
+					"\r\n",
+					"log_telemetry_and_exit(\r\n",
+					"    stage,\r\n",
+					"    start_exec_time,\r\n",
+					"    end_exec_time,\r\n",
+					"    error_message,\r\n",
+					"    table_name,\r\n",
+					"    insert_count,\r\n",
+					"    update_count,\r\n",
+					"    delete_count,\r\n",
+					"    PipelineName,\r\n",
+					"    PipelineRunID,\r\n",
+					"    PipelineTriggerID,\r\n",
+					"    PipelineTriggerName,\r\n",
+					"    PipelineTriggerType,\r\n",
+					"    PipelineTriggeredbyPipelineName,\r\n",
+					"    PipelineTriggeredbyPipelineRunID,\r\n",
+					"    activity_type,\r\n",
+					"    duration_seconds,\r\n",
+					"    status_message,\r\n",
+					"    status_code\r\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
