@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ab344162-73f7-4f90-ba22-f15f0c492ee2"
+				"spark.autotune.trackingId": "50f20b7c-7d67-4987-ae20-813a4bd62482"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"from datetime import date,datetime\n",
 					"import time"
 				],
-				"execution_count": 38
+				"execution_count": 58
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +99,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": 39
+				"execution_count": 59
 			},
 			{
 				"cell_type": "markdown",
@@ -119,7 +119,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 40
+				"execution_count": 60
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 41
+				"execution_count": 61
 			},
 			{
 				"cell_type": "markdown",
@@ -173,7 +173,7 @@
 					"                  ,id\n",
 					"                  ,notifyId\n",
 					"                  ,reference\n",
-					"                  ,null as casework_fact_key\n",
+					"                  ,CAST(NULL AS STRING) AS casework_fact_key\n",
 					"                  ,createdDate\n",
 					"                  ,createdBy\n",
 					"                  ,completedDate\n",
@@ -234,7 +234,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 42
+				"execution_count": 62
 			},
 			{
 				"cell_type": "markdown",
@@ -271,7 +271,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 43
+				"execution_count": 63
 			},
 			{
 				"cell_type": "code",
@@ -292,7 +292,8 @@
 					"    try:\n",
 					"        results = spark.sql(f\"\"\"\n",
 					"            SELECT DISTINCT\n",
-					"                id\n",
+					"                 notify_email_id\n",
+					"                ,id\n",
 					"                ,notifyId\n",
 					"                ,reference\n",
 					"                ,casework_fact_key\n",
@@ -349,7 +350,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 44
+				"execution_count": 64
 			},
 			{
 				"cell_type": "code",
@@ -367,7 +368,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": 45
+				"execution_count": 65
 			},
 			{
 				"cell_type": "markdown",
@@ -398,11 +399,10 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"         en\n",
 					"        insert_count = results.count()\n",
 					"\n",
-					"        \n",
 					"        df_table_path = spark.sql(f\"DESCRIBE EXTENDED {spark_table_final}\")\n",
+					"\n",
 					"        table_path = (\n",
 					"            df_table_path\n",
 					"            .where(\"col_name == 'Location'\")\n",
@@ -410,26 +410,30 @@
 					"            .collect()[0][0]\n",
 					"        )\n",
 					"\n",
-					"        \n",
 					"        def perform_delta_write():\n",
-					"            results.write \\\n",
-					"                .format(\"delta\") \\\n",
-					"                .mode(\"overwrite\") \\\n",
-					"                .option(\"overwriteSchema\", \"true\") \\\n",
-					"                .option(\"path\", table_path) \\\n",
-					"                .partitionBy(\"IsActive\") \\\n",
+					"            (\n",
+					"                results.write\n",
+					"                .format(\"delta\")\n",
+					"                .mode(\"overwrite\")\n",
+					"                .option(\"overwriteSchema\", \"true\")\n",
+					"                .option(\"path\", table_path)\n",
+					"                .partitionBy(\"isActive\")\n",
 					"                .saveAsTable(spark_table_final)\n",
+					"            )\n",
 					"\n",
-					"        \n",
 					"        _execute_with_retry(perform_delta_write)\n",
-					"        \n",
+					"\n",
 					"        end_exec_time = datetime.now()\n",
+					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error in ingesting delta table in the final step {spark_table_final}: {str(e)[:800]}\"\n",
+					"        error_message = (\n",
+					"            f\"Error in ingesting delta table in the final step \"\n",
+					"            f\"{spark_table_final}: {str(e)[:800]}\"\n",
+					"        )\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 46
+				"execution_count": 66
 			},
 			{
 				"cell_type": "code",
@@ -466,7 +470,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 67
 			}
 		]
 	}
