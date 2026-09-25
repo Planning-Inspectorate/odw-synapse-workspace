@@ -1,0 +1,729 @@
+{
+	"name": "py_sb_harmonised_applications_representation_document",
+	"properties": {
+		"description": "Process service bus data for nsip_invoice table from sb_nsip_project ",
+		"folder": {
+			"name": "odw-harmonised"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "907df591-148c-48d7-973b-9904f6e83878"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### The purpose of this pyspark notebook is to read service bus data from odw_harmonised_db.sb_applications_representation Delta table and process nested  data to odw_harmonised_db.applications_representation_document Delta table.\n",
+					"\n",
+					"**Description** \n",
+					"The purpose of this pyspark notebook is to read service bus data with nested representation arrays from odw_harmonised_db.sb_applications_representation Delta table and explode/transform them into odw_harmonised_db.applications_representation_document Delta table based on the existing  business logic.\n",
+					"\n",
+					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version - 3.10, Delta Lake Version - 2.4\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## update all exceptions with appropriate comments"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Import required libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime,date\n",
+					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import explode, col\n",
+					"from pyspark.sql.types import *\n",
+					"import json\n",
+					"import time"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime\n",
+					"from delta.tables import DeltaTable\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql.functions import explode, col\n",
+					"import time\n",
+					"import json"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Configurable Variables for Service Bus and Spark Table Processing"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Configurable variables\n",
+					"service_bus_table = \"odw_harmonised_db.sb_applications_representation\"\n",
+					"db_name=\"odw_harmonised_db\"\n",
+					"entity_name=\"applications-representation-document\"\n",
+					"table_name=\"applications_representation_document\"\n",
+					"spark_table_final = f\"{db_name}.{table_name}\"\n",
+					"incremental_key = \"representation_document_id\"\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read and Filter Harmonised Metadata for Delta Table Path"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    \n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    metadata_path = f\"abfss://odw-config@{storage_account}/existing-tables-metadata.json\"\n",
+					"    file_content = mssparkutils.fs.head(metadata_path, 1024 * 1024)  # up to 1MB\n",
+					"    metadata_root = json.loads(file_content)\n",
+					"\n",
+					"    \n",
+					"    harmonised_metadata = []\n",
+					"    if isinstance(metadata_root, list):\n",
+					"        for block in metadata_root:\n",
+					"            if isinstance(block, dict) and \"harmonised_metadata\" in block:\n",
+					"                harmonised_metadata = block.get(\"harmonised_metadata\", [])\n",
+					"                break\n",
+					"    else:\n",
+					"        \n",
+					"        harmonised_metadata = metadata_root.get(\"harmonised_metadata\", [])\n",
+					"\n",
+					"    print(f\"harmonised_metadata entries: {len(harmonised_metadata)}\")\n",
+					"\n",
+					"    \n",
+					"    target_db = db_name.strip()\n",
+					"    target_table = table_name.strip()\n",
+					"\n",
+					"    filtered = [\n",
+					"        item for item in harmonised_metadata\n",
+					"        if item.get(\"database_name\", \"\").strip() == target_db\n",
+					"        and item.get(\"table_name\", \"\").strip() == target_table\n",
+					"    ]\n",
+					"\n",
+					"    \n",
+					"    if filtered:\n",
+					"        delta_table_path = filtered[0].get(\"table_location\")\n",
+					"        print(f\"Delta table path for {target_db}.{target_table}: {delta_table_path}\")\n",
+					"    else:\n",
+					"        raise ValueError(f\"No metadata found for {target_db}.{target_table}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error while reading metadata: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()\n",
+					"    print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Delta Table Schema Validation and Update Logic"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        if not spark.catalog.tableExists(spark_table_final):\n",
+					"\n",
+					"            print(f\"Table {spark_table_final} does not exist. Creating table...\")\n",
+					"\n",
+					"            schema = StructType([\n",
+					"                StructField(\"representation_document_id\", LongType(), True),\n",
+					"                StructField(\"id\", StringType(), True),\n",
+					"                StructField(\"representation_id\", StringType(), True),\n",
+					"                StructField(\"itemId\", StringType(), True),\n",
+					"                StructField(\"fileName\", StringType(), True),\n",
+					"                StructField(\"redactedItemId\", StringType(), True),\n",
+					"                StructField(\"redactedFileName\", StringType(), True),\n",
+					"                StructField(\"status\", StringType(), True),\n",
+					"                StructField(\"ODTSourceSystem\", StringType(), True),\n",
+					"                StructField(\"SourceSystemID\", StringType(), True),\n",
+					"                StructField(\"IngestionDate\", TimestampType(), True),\n",
+					"                StructField(\"message_id\", StringType(), True),\n",
+					"                StructField(\"ValidTo\", TimestampType(), True),\n",
+					"                StructField(\"RowID\", StringType(), True),\n",
+					"                StructField(\"IsActive\", StringType(), True)\n",
+					"            ])\n",
+					"\n",
+					"            empty_df = spark.createDataFrame([], schema)\n",
+					"\n",
+					"            empty_df.write \\\n",
+					"                .format(\"delta\") \\\n",
+					"                .mode(\"overwrite\") \\\n",
+					"                .save(delta_table_path)\n",
+					"\n",
+					"            spark.sql(f\"\"\"\n",
+					"                CREATE TABLE {spark_table_final}\n",
+					"                USING DELTA\n",
+					"                LOCATION '{delta_table_path}'\n",
+					"            \"\"\")\n",
+					"\n",
+					"            print(f\"{spark_table_final} created successfully.\")\n",
+					"\n",
+					"        else:\n",
+					"\n",
+					"            print(f\"{spark_table_final} already exists. Skipping table creation.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error creating table: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Fetch Maximum IngestionDate from Existing Delta Table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:  \n",
+					"    try:\n",
+					"       \n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"        max_IngestionDate_to = existing_df.agg(F.max(\"IngestionDate\")).collect()[0][0]\n",
+					"\n",
+					"        if max_IngestionDate_to is None:\n",
+					"            \n",
+					"            max_IngestionDate_to = datetime(1900, 1, 1)  # or any baseline date you prefer\n",
+					"\n",
+					"        print(f\"Max IngestionDate from existing table: {max_IngestionDate_to}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while fetching max IngestionDate: {str(e)[:800]}\"\n",
+					"        max_IngestionDate_to = datetime(1900, 1, 1)  # fallback default\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Retrieve Maximum IngestionDate with Fallback Handling"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        \n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"            SELECT \n",
+					"                representation_id as  key_representation_id,\n",
+					"                Id as sp_representation_id,\n",
+					"                representationDocuments,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate,\n",
+					"                message_id\n",
+					"            FROM {service_bus_table}\n",
+					"            WHERE representationDocuments IS NOT NULL\n",
+					"        \"\"\")\n",
+					"\n",
+					"        print(\" Service bus data loaded successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error while loading service bus data: {str(e)[:800]}\"\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Explode Invoices Array and Extract Invoice Fields"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        exploded_df = service_bus_data.select(\n",
+					"            F.explode(F.col(\"representationDocuments\")).alias(\"representationDocument\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\"),\n",
+					"            F.col(\"message_id\")\n",
+					"        )\n",
+					"\n",
+					"        new_data = exploded_df.select(\n",
+					"            \n",
+					"            F.col(\"representationDocument.id\").alias(\"id\"),\n",
+					"            F.col(\"representationDocument.representationId\").alias(\"representation_id\"),\n",
+					"            F.col(\"representationDocument.itemId\").alias(\"itemId\"),\n",
+					"            F.col(\"representationDocument.fileName\").alias(\"fileName\"),\n",
+					"            F.col(\"representationDocument.redactedItemId\").alias(\"redactedItemId\"),\n",
+					"            F.col(\"representationDocument.redactedFileName\").alias(\"redactedFileName\"),\n",
+					"            F.col(\"representationDocument.status\").alias(\"status\"),\n",
+					"            F.col(\"ODTSourceSystem\"),\n",
+					"            F.col(\"SourceSystemID\"),\n",
+					"            F.col(\"IngestionDate\"),\n",
+					"            F.col(\"message_id\")\n",
+					"        )\n",
+					"\n",
+					"        print(\"Explode and extract completed successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Filter New Records, Add Metadata Columns, and Generate Surrogate Keys"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        existing_df = spark.table(spark_table_final)\n",
+					"\n",
+					"        max_id_row = existing_df.agg(\n",
+					"            F.max(F.col(incremental_key))\n",
+					"        ).collect()[0][0]\n",
+					"\n",
+					"        if max_id_row is None:\n",
+					"            max_id_row = 0\n",
+					"\n",
+					"        if max_IngestionDate_to:\n",
+					"            new_data = new_data.filter(\n",
+					"                F.col(\"IngestionDate\") > F.lit(max_IngestionDate_to)\n",
+					"            )\n",
+					"        else:\n",
+					"            default_date = datetime(1900, 1, 1)\n",
+					"\n",
+					"            new_data = new_data.filter(\n",
+					"                F.col(\"IngestionDate\") > F.lit(default_date)\n",
+					"            )\n",
+					"\n",
+					"        new_data = new_data.withColumn(\n",
+					"            \"IngestionDate\",\n",
+					"            F.col(\"IngestionDate\").cast(\"timestamp\")\n",
+					"        )\n",
+					"\n",
+					"        new_data = (\n",
+					"            new_data\n",
+					"            .withColumn(\"ValidTo\", F.lit(None).cast(\"timestamp\"))\n",
+					"            .withColumn(\"RowID\", F.lit(None).cast(\"string\"))\n",
+					"            .withColumn(\"IsActive\", F.lit(\"Y\").cast(\"string\"))\n",
+					"        )\n",
+					"\n",
+					"        window_spec = Window.orderBy(\n",
+					"            F.monotonically_increasing_id()\n",
+					"        )\n",
+					"\n",
+					"        new_data = new_data.withColumn(\n",
+					"            incremental_key,\n",
+					"            (\n",
+					"                F.row_number().over(window_spec)\n",
+					"                + F.lit(max_id_row)\n",
+					"            ).cast(\"long\")\n",
+					"        )\n",
+					"\n",
+					"        cols = new_data.columns\n",
+					"\n",
+					"        reordered_cols = [incremental_key] + [\n",
+					"            c for c in cols if c != incremental_key\n",
+					"        ]\n",
+					"\n",
+					"        new_data = new_data.select(reordered_cols)\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during processing: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Retry helper - catches ConcurrentAppendException from Delta operations and retries\n",
+					"def _execute_with_retry(func, *args, max_retries=3, base_wait_secs=30, **kwargs):\n",
+					"    for attempt in range(max_retries):\n",
+					"        try:\n",
+					"            return func(*args, **kwargs)\n",
+					"        except Exception as exc:\n",
+					"            if \"ConcurrentAppendException\" in str(exc) and attempt < max_retries - 1:\n",
+					"                wait = base_wait_secs * (attempt + 1)\n",
+					"                print(f\"ConcurrentAppendException on attempt {attempt + 1}/{max_retries}, retrying in {wait}s...\")\n",
+					"                time.sleep(wait)\n",
+					"            else:\n",
+					"                raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Append Processed DataFrame to Delta Table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"if not error_message:\n",
+					"   \n",
+					"    try:\n",
+					"        \n",
+					"        def perform_delta_append():\n",
+					"            new_data.write.format(\"delta\").mode(\"append\").saveAsTable(spark_table_final)\n",
+					"\n",
+					"        \n",
+					"        _execute_with_retry(perform_delta_append)\n",
+					"        \n",
+					"        print(f\"Data appended successfully to {spark_table_final}.\")\n",
+					"       \n",
+					"        insert_count = new_data.count()\n",
+					"        print(f\"Columns added and reordered successfully. Inserted rows: {insert_count}\")\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Failed to append data: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Update Delta Table with MERGE: Maintain Latest Records and Add Derived Columns"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        target_table = DeltaTable.forName(spark, spark_table_final)\n",
+					"\n",
+					"        df = spark.table(spark_table_final)\n",
+					"\n",
+					"        window_spec = Window.partitionBy(\"representation_Id\").orderBy(\n",
+					"            F.col(\"representation_document_id\").desc()\n",
+					"        )\n",
+					"\n",
+					"        df = df.withColumn(\n",
+					"            \"row_num\",\n",
+					"            F.row_number().over(window_spec)\n",
+					"        )\n",
+					"\n",
+					"        df = df.withColumn(\n",
+					"            \"NextIngestionDate\",\n",
+					"            F.lag(\"IngestionDate\", 1).over(window_spec)\n",
+					"        )\n",
+					"\n",
+					"        df = df.withColumn(\n",
+					"            \"NewIsActive\",\n",
+					"            F.when(\n",
+					"                F.col(\"row_num\") == 1,\n",
+					"                F.lit(\"Y\")\n",
+					"            ).otherwise(F.lit(\"N\"))\n",
+					"        )\n",
+					"\n",
+					"        df = df.withColumn(\n",
+					"            \"RowID\",\n",
+					"            F.md5(\n",
+					"                F.concat_ws(\n",
+					"                    \"\",\n",
+					"                    F.coalesce(F.col(\"representation_document_id\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"id\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"representation_Id\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"itemId\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"fileName\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"redactedItemId\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"redactedFileName\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"status\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"IngestionDate\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"message_id\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"ValidTo\").cast(\"string\"), F.lit(\".\")),\n",
+					"                    F.coalesce(F.col(\"NewIsActive\").cast(\"string\"), F.lit(\".\"))\n",
+					"                )\n",
+					"            )\n",
+					"        )\n",
+					"\n",
+					"        (\n",
+					"            target_table.alias(\"t\")\n",
+					"            .merge(\n",
+					"                df.alias(\"s\"),\n",
+					"                \"t.representation_document_id = s.representation_document_id\"\n",
+					"            )\n",
+					"            .whenMatchedUpdate(\n",
+					"                set={\n",
+					"                    \"ValidTo\": \"s.NextIngestionDate\",\n",
+					"                    \"IsActive\": \"s.NewIsActive\",\n",
+					"                    \"RowID\": \"s.RowID\"\n",
+					"                }\n",
+					"            )\n",
+					"            .whenNotMatchedInsertAll()\n",
+					"            .execute()\n",
+					"        )\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(f\"Error occurred at: {end_exec_time}\")\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"\n",
+					"        today = date.today()\n",
+					"        rowsInactivatedTodayCount = (\n",
+					"            spark.table(spark_table_final)\n",
+					"             .filter(F.to_date(\"ValidTo\") == F.lit(today))\n",
+					"             .count()\n",
+					"        )\n",
+					"        \n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(\n",
+					"            f\"MERGE completed successfully. \"\n",
+					"            f\"Rows inactivated today: {rowsInactivatedTodayCount}.\"\n",
+					"        )\n",
+					"        \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data from {spark_table_final} table\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					" \n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    spark_table_final,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
