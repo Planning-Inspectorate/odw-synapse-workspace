@@ -38,6 +38,15 @@ steps:
       sdk install gradle 9.2.0
       gradle --version
       export PATH="$PATH:/home/AzDevOps/.local/bin/"
+      # Hosted Ubuntu agents can start with unattended-upgrades holding the dpkg lock; wait for it to clear before installing.
+      for i in $(seq 1 30); do
+        if sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; then
+          echo "Waiting for dpkg/apt lock to be released... ($i/30)"
+          sleep 10
+        else
+          break
+        fi
+      done
       sudo apt-get install -y unixodbc-dev=2.3.9-5ubuntu0.1
       sudo curl -fsSL https://aka.ms/install-azd.sh | bash
       echo "##[endgroup]"
