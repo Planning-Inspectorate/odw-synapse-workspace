@@ -1,4 +1,7 @@
+import colorsys
 import csv
+import os
+import re
 from copy import copy
 from datetime import date, datetime
 from pathlib import Path
@@ -8,18 +11,11 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
-HORIZON_FILE = (
-    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/MASTER LEGACY cases S62A - with Horizon data.xlsx"
-)
+HORIZON_FILE = "S62aMigration/outputs/MASTER LEGACY cases S62A - with Horizon data.xlsx"
 
-SPREADSHEET_FILE = (
-    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration/outputs/S62A_All_Sheets_migrated.xlsx"
-)
+SPREADSHEET_FILE = "S62aMigration/outputs/S62A_All_Sheets_migrated.xlsx"
 
-MASTER_TEMPLATE_FILE = (
-    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/"
-    "S62aMigration/csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
-)
+MASTER_TEMPLATE_FILE = "S62aMigration/csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
 
 SHEET_NAME = "Template"
 
@@ -27,11 +23,7 @@ KEY_COL = "Case reference"
 
 HEADER_ROW = 2
 
-OUTPUT_FILE = (
-    "/Users/nisalihalwathura/PINS/ODW-Service/"
-    "odw-synapse-workspace/S62aMigration/outputs/"
-    "S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
-)
+OUTPUT_FILE = "S62aMigration/outputs/S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
 
 SUMMARY_SHEET_NAME = "Contradiction Summary"
 
@@ -43,16 +35,208 @@ DATE_FIELDS = {
     "Representations period - End",
 }
 
-HORIZON_MAPPING_FILE = (
-    "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/"
-    "S62aMigration/outputs/horizon_field_mapping.csv"
-)
+HORIZON_MAPPING_FILE = "S62aMigration/outputs/horizon_field_mapping.csv"
+
+# Fields that Horizon holds in extended_data but which the spreadsheet also fills:
+# always show the spreadsheet column and compare them.
+ALWAYS_COMPARE_FIELDS = {
+    "Site address 1",
+    "Site post code",
+}
+
+QUERIES_FILE = "S62aMigration/csv_and_xlsx_files/Queries on data for SS + Horizon data merge.xlsx"
+
+# The team confirms a final value for a case + field by shading that cell
+# blue in the queries workbook - sometimes a plain colour fill, sometimes a
+# theme colour (Excel's colour picker can apply either for the same visual
+# blue), so both are detected. Any blue cell overrides (or fills in) the
+# matching cell in the spreadsheet output before comparison.
+HORIZON_SUFFIX = " (horizon)"
+SPREADSHEET_SUFFIX = " (spreadsheet)"
+
+# Column headers in the queries workbook that don't follow the
+# "<field> (horizon)" / "<field> (spreadsheet)" convention and so need
+# mapping to the real master template field name by hand. A header that
+# starts with "Another" (e.g. "Another date?", "Another Outcome?") is
+# resolved automatically to whichever field pair precedes it on the row.
+QUERIES_COLUMN_FIELD_OVERRIDES = {
+    ("Application status", "To-be status"): "Application Status",
+}
+
+# Placeholder text that sometimes fills an otherwise-unresolved cell; never
+# treated as a real confirmed value even if the cell happens to be blue.
+QUERIES_PLACEHOLDER_VALUES = {"no data", "n/a", "na", "?", "???", "tbc"}
+
+REF_YEAR_RE = re.compile(r'/(\d{2})/')
+
+
+def _normalise_query_case_reference(value):
+    if value is None:
+        return None
+    value = str(value).strip()
+    if not value:
+        return None
+    # the queries workbook sometimes uses two-digit years (S62A/22/...);
+    # normalise to match the case references the migration script writes
+    return REF_YEAR_RE.sub(lambda m: f"/20{m.group(1)}/", value)
+
+
+def _load_theme_colors(workbook):
+    """Returns the 12 theme colours as 6-digit hex strings, in the order
+    a cell's theme colour index refers to: 0 lt1, 1 dk1, 2 lt2, 3 dk2,
+    4-9 accent1-6, 10 hlink, 11 folHlink."""
+    theme_xml = workbook.loaded_theme
+    if not theme_xml:
+        return None
+    if isinstance(theme_xml, bytes):
+        theme_xml = theme_xml.decode("utf-8")
+    match = re.search(r"<a:clrScheme.*?</a:clrScheme>", theme_xml, re.S)
+    if not match:
+        return None
+    scheme = {}
+    for tag, attrs in re.findall(r"<a:(\w+)>\s*<a:(?:srgbClr|sysClr)([^/>]*)/?>", match.group(0)):
+        value_match = (re.search(r'lastClr="([0-9A-Fa-f]{6})"', attrs)
+                       or re.search(r'val="([0-9A-Fa-f]{6})"', attrs))
+        if value_match:
+            scheme[tag] = value_match.group(1)
+    order = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3",
+             "accent4", "accent5", "accent6", "hlink", "folHlink"]
+    return [scheme.get(name, "000000") for name in order]
+
+
+def _apply_tint(rgb_hex, tint):
+    r, g, b = (int(rgb_hex[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    l = l * (1 + tint) if tint < 0 else l * (1 - tint) + tint
+    r, g, b = colorsys.hls_to_rgb(h, max(0, min(1, l)), s)
+    return "%02X%02X%02X" % (round(r * 255), round(g * 255), round(b * 255))
+
+
+def _resolve_fill_rgb(cell, theme_colors):
+    if not (cell.fill and cell.fill.patternType):
+        return None
+    fg = cell.fill.fgColor
+    if fg.type == "rgb" and isinstance(fg.rgb, str) and len(fg.rgb) == 8:
+        return fg.rgb[2:]
+    if fg.type == "theme" and theme_colors and fg.theme < len(theme_colors):
+        return _apply_tint(theme_colors[fg.theme], fg.tint or 0)
+    return None
+
+
+def _is_confirmed_blue(rgb_hex):
+    """True for the blue shades used to mark a confirmed value, whichever
+    way Excel stored the colour. Tuned to exclude the workbook's other
+    highlight colours (yellow, orange, red, green, grey)."""
+    if not rgb_hex:
+        return False
+    r, g, b = (int(rgb_hex[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    hue_deg = h * 360
+    return 175 <= hue_deg <= 240 and s >= 0.35 and 0.25 <= l <= 0.75
+
+
+def _load_confirmed_overrides(queries_file=QUERIES_FILE):
+    """
+    Scans the queries workbook for blue-filled cells and treats each one as
+    the team's confirmed final value for that case reference + field.
+    Returns {case_reference: {field_name: value}}.
+    """
+    if not os.path.isfile(queries_file):
+        print(f"Queries file not found, skipping confirmed overrides: {queries_file}")
+        return {}
+
+    wb = load_workbook(queries_file, data_only=True)
+    theme_colors = _load_theme_colors(wb)
+    overrides = {}
+    for ws in wb.worksheets:
+        header_row = None
+        col_fields = {}
+        for row in ws.iter_rows(min_row=1, max_row=min(5, ws.max_row)):
+            found = {}
+            last_field = None
+            for cell in row:
+                if not isinstance(cell.value, str):
+                    continue
+                text = cell.value.strip()
+                key = (ws.title, text)
+                if key in QUERIES_COLUMN_FIELD_OVERRIDES:
+                    last_field = QUERIES_COLUMN_FIELD_OVERRIDES[key]
+                    found[cell.column] = last_field
+                elif text.endswith(HORIZON_SUFFIX):
+                    last_field = text[: -len(HORIZON_SUFFIX)]
+                    found[cell.column] = last_field
+                elif text.endswith(SPREADSHEET_SUFFIX):
+                    last_field = text[: -len(SPREADSHEET_SUFFIX)]
+                    found[cell.column] = last_field
+                elif text.lower().startswith("another") and last_field:
+                    # a resolution column (e.g. "Another date?") belongs to
+                    # whichever field pair precedes it on the same row
+                    found[cell.column] = last_field
+            if found:
+                header_row = row[0].row
+                col_fields = found
+        if not col_fields:
+            continue
+
+        for row in ws.iter_rows(min_row=header_row + 1):
+            case_reference = _normalise_query_case_reference(row[0].value)
+            if case_reference is None:
+                continue
+            for cell in row:
+                if cell.column not in col_fields:
+                    continue
+                rgb = _resolve_fill_rgb(cell, theme_colors)
+                if not _is_confirmed_blue(rgb):
+                    continue
+                if _is_blank(cell.value):
+                    continue
+                if isinstance(cell.value, str) and cell.value.strip().lower() in QUERIES_PLACEHOLDER_VALUES:
+                    continue
+                overrides.setdefault(case_reference, {})[col_fields[cell.column]] = cell.value
+    return overrides
+
+
+def _apply_confirmed_overrides(spreadsheet_cases, spreadsheet_indexes, overrides):
+    """Writes each confirmed value into spreadsheet_cases and returns the set
+    of (case_reference, field_index) cells that were actually changed, so the
+    caller can carry the blue confirmation colour through to the output."""
+    confirmed_cells = set()
+    skipped_case, skipped_field = [], []
+    for case_reference, field_values in overrides.items():
+        case = spreadsheet_cases.get(case_reference)
+        if case is None:
+            skipped_case.append(case_reference)
+            continue
+        for field_name, value in field_values.items():
+            index = spreadsheet_indexes.get(field_name)
+            if index is None:
+                skipped_field.append((case_reference, field_name))
+                continue
+            case[index] = value
+            confirmed_cells.add((case_reference, index))
+    print(f"Confirmed overrides: {len(confirmed_cells)} applied")
+    if skipped_case:
+        print(f"  {len(skipped_case)} case(s) not found in the migrated spreadsheet output: "
+              f"{sorted(set(skipped_case))}")
+    if skipped_field:
+        print(f"  {len(skipped_field)} field(s) not found in the template headers: "
+              f"{sorted(set(skipped_field))}")
+    return confirmed_cells
+
 
 # highlight differences in red
 DIFFERENCE_FILL = PatternFill(
     fill_type="solid",
     start_color="FFC7CE",
     end_color="FFC7CE",
+)
+
+# marks a cell whose value came from a confirmed (blue) cell in the queries
+# workbook, carrying that same blue through to the comparison output
+CONFIRMED_FILL = PatternFill(
+    fill_type="solid",
+    start_color="00B0F0",
+    end_color="00B0F0",
 )
 
 
@@ -276,6 +460,11 @@ def combine_sources(
             spreadsheet_source, spreadsheet_columns
         )
 
+        confirmed_overrides = _load_confirmed_overrides()
+        confirmed_cells = _apply_confirmed_overrides(
+            spreadsheet_cases, spreadsheet_indexes, confirmed_overrides
+        )
+
         output_workbook = load_workbook(master_template_file, data_only=False)
         output_sheet = output_workbook[SHEET_NAME]
         try:
@@ -296,7 +485,7 @@ def combine_sources(
                     horizon_column = len(output_headers) + 1
                     output_headers.append(f"{header} (horizon)")
                     output_sources.append((header, index, horizon_indexes[header], True))
-                    if header in extended_data_fields:
+                    if header in extended_data_fields and header not in ALWAYS_COMPARE_FIELDS:
                         continue
                     spreadsheet_column = len(output_headers) + 1
                     output_headers.append(f"{header} (spreadsheet)")
@@ -391,6 +580,7 @@ def combine_sources(
                         output_sheet.cell(output_row, 1),
                     )
 
+                confirmed_columns = set()
                 for output_column, (_, index, source_index, is_horizon) in enumerate(
                     output_sources[1:], start=2
                 ):
@@ -407,6 +597,9 @@ def combine_sources(
                             source_worksheet.cell(source_row, source_columns[source_index][1]),
                             output_sheet.cell(output_row, output_column),
                         )
+                    if not is_horizon and (case_reference, index) in confirmed_cells:
+                        output_sheet.cell(output_row, output_column).fill = copy(CONFIRMED_FILL)
+                        confirmed_columns.add(output_column)
 
                 for horizon_column, spreadsheet_column, field_index in comparison_pairs:
                     horizon_value = output_sheet.cell(
@@ -423,9 +616,12 @@ def combine_sources(
                         output_sheet.cell(
                             output_row, horizon_column
                         ).fill = copy(DIFFERENCE_FILL)
-                        output_sheet.cell(
-                            output_row, spreadsheet_column
-                        ).fill = copy(DIFFERENCE_FILL)
+                        # a confirmed (blue) spreadsheet value keeps its blue fill even
+                        # when it still disagrees with Horizon - the confirmation wins
+                        if spreadsheet_column not in confirmed_columns:
+                            output_sheet.cell(
+                                output_row, spreadsheet_column
+                            ).fill = copy(DIFFERENCE_FILL)
 
                 source_row = spreadsheet_row or horizon_row
                 if source_row is not None:

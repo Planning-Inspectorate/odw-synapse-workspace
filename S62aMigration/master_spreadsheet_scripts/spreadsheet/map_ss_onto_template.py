@@ -60,6 +60,20 @@ AUDIT_LOG_FILE        = os.path.join(DATA_ROOT, "outputs/spreadsheet_migration_a
 UNMAPPED_COLS_FILE    = os.path.join(DATA_ROOT, "outputs/spreadsheet_unmapped_columns_report.csv")
 MAPPING_ISSUES_FILE   = os.path.join(DATA_ROOT, "outputs/spreadsheet_mapping_config_issues.csv")
 
+# --- Pre-application status lookup (from the Status and Decision checks file) ---
+STATUS_FILE  = os.path.join(DATA_ROOT, "csv_and_xlsx_files/S62A Status and Decision checks.xlsx")
+STATUS_SHEET = "Pre-application status"
+STATUS_REF_COL    = "CaseReference"
+STATUS_VALUE_COL  = "Confirmed status"
+PREAPP_SHEET_LABEL = "Pre-application - DONE"
+# Normalises inconsistent casing in the 'Confirmed status' column.
+# Adjust the right-hand values if the template's allowed values differ.
+STATUS_NORMALISE = {
+    "closed - advice issued":  "Closed - advice issued",
+    "closed - didn't proceed": "Closed - didn't proceed",
+    "in progress":             "In progress",
+}
+
 os.makedirs(os.path.join(DATA_ROOT, "outputs"), exist_ok=True)
 
 print("Block 1 done - config set")
@@ -113,6 +127,25 @@ MANUAL_SOURCE_OVERRIDES = {
     "Applicant type":            ("Applicant", "applicant_parse", "type"),
     "LPA reference":      ("Ref",     "lpa_reference", None),
     "Pre-application fee due": ("Amount Invoiced", "fee_amount", None),
+    # Source column name is identical on both sheets, but the field doesn't
+    # exist at all on Pre-application - DONE (skipped there, see below).
+    "Valid letters (17 & 9) to LPA and Applicant": (
+        "Valid letters (17 & 9) to LPA and Applicant", "date_strict", None),
+    # Real column name differs per sheet ("26 weeks" on Major, "16 weeks" on
+    # Non Major); resolved via SOURCE_COLUMN_ALIASES below. Doesn't exist on
+    # Pre-application - DONE (skipped there).
+    "Fee return date": ("Fee return date (26 weeks from valid)", "date_strict", None),
+    # Major's column has no space ("SAP5"); Non Major's variant is aliased
+    # below. NOTE: Pre-application - DONE has a differently-named column
+    # again ("Invoice SAP5 to FSSD/Payables for forwarding to Applicant")
+    # with 10 real values - currently left unmapped/skipped there rather
+    # than guessed at; confirm with Abziii whether it should feed this field.
+    "SAP 5 to FSSD": ("SAP5 to FSSD", "date_strict", None),
+    # Pre-app's real column is just "Comments" (aliased below); Major/Non Major
+    # both use "Comments/Notes" literally. This raw text was previously landing
+    # in "Notes" instead - see the "Notes" SHEET_FIELD_SKIPS entries below,
+    # which stop that so it lands only here now.
+    "Comments": ("Comments/Notes", "direct", None),
 }
 
 
@@ -135,6 +168,9 @@ FIELD_TRANSFORM_OVERRIDES = {
     "Date Environmental Statement rec'd":      ("eia_received_date", None),
     "SAP8 to SAP Helpdesk (inc customer number)": ("customer_number", None),
     "Application valid": ("application_valid_date", None),
+    "Application acknowledged": ("date_strict", None),
+    "Reconsultation details sent date": ("reconsult_dates", "sent"),
+    "Reconsultation details deadline date": ("reconsult_dates", "deadline"),
     "Interested parties press notice deadline": ("date_earliest", None),
     "Interim findings date": ("date_earliest", None),
     "Representations period - start": ("date_earliest", None),
@@ -147,15 +183,36 @@ FIELD_TRANSFORM_OVERRIDES = {
 
 
 SHEET_FIELD_SKIPS = {
-    "Pre-application - DONE":  {"Application Status"},
-    "Application (Major)":     {"CIL amount", "Application Status"},
-    "Application (Non Major)": {"Application Status"},
+    "Pre-application - DONE":  {"Application Status", "Planning officer", "Assessor inspector",
+                                 # neither column exists at all on this sheet
+                                 "Valid letters (17 & 9) to LPA and Applicant", "Fee return date",
+                                 # has a differently-named column instead (see MANUAL_SOURCE_OVERRIDES
+                                 # note above) - left unmapped here pending confirmation
+                                 "SAP 5 to FSSD",
+                                 # raw comments text now goes to "Comments" instead - see above
+                                 "Notes"},
+    "Application (Major)":     {"CIL amount", "Application Status", "Planning officer", "Assessor inspector",
+                                 # no invoice data at all on this sheet - only applies pre-app
+                                 "Pre-application fee due",
+                                 # raw comments text now goes to "Comments" instead - see above
+                                 "Notes"},
+    "Application (Non Major)": {"Application Status", "Planning officer", "Assessor inspector",
+                                 # no invoice data at all on this sheet - only applies pre-app
+                                 "Pre-application fee due",
+                                 # no CMC/meeting column on this sheet at all (only Major has one)
+                                 "Additional meeting required date",
+                                 # raw comments text now goes to "Comments" instead - see above
+                                 "Notes"},
 }
 
 
 SOURCE_COLUMN_ALIASES = {
     "Application (Non Major)": {
         "SAP5 to FSSD": "SAP5 to FSSD / Fee requested by BACS",
+        "Fee return date (26 weeks from valid)": "Fee return date (16 weeks from valid)",
+    },
+    "Pre-application - DONE": {
+        "Comments/Notes": "Comments",
     },
 }
 
@@ -361,6 +418,71 @@ def transform_date_later_ignore_due(value, extra):
 
     parsed = _parse_date_tokens(kept_tokens)
     return max(parsed) if parsed else None
+
+RECONSULT_DATE_TOKEN_RE = re.compile(
+    r'\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}'
+    r'|\d{1,2}\s*-\s*[A-Za-z]{3,9}\s*-\s*\d{2,4}'
+    r'|\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\.?\s*,?\s*\d{2,4}'
+    r'|\d{1,2}\s*/\s*\d{1,2}(?![\d/])'
+)
+RECONSULT_DEADLINE_RE = re.compile(r'deadline|\bdue\b|\buntil\b', re.IGNORECASE)
+RECONSULT_IGNORE_RE   = re.compile(r'\bby\b|\bdated\b|submitted|submission|provided', re.IGNORECASE)
+
+def _parse_reconsult_token(tok, fallback_year=None):
+    try:
+        if re.fullmatch(r'\d{1,2}\s*/\s*\d{1,2}', tok.strip()):
+            if not fallback_year:
+                return None
+            return _sane_date(dateparser.parse(f"{tok.strip()}/{fallback_year}", dayfirst=True).date())
+        return _sane_date(dateparser.parse(tok, fuzzy=True, dayfirst=True).date())
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+def parse_reconsultation(raw):
+    if is_blank(raw):
+        return {}
+    if isinstance(raw, (datetime, date)):
+        d = _sane_date(raw.date() if isinstance(raw, datetime) else raw)
+        return {"sent": d, "deadline": None}
+    text = str(raw).strip()
+    if text.lower() in ("na", "n/a"):
+        return {}
+
+    matches = list(RECONSULT_DATE_TOKEN_RE.finditer(text))
+    tagged, prev_end = [], 0
+    for m in matches:
+        gap = text[prev_end:m.start()]
+        prev_end = m.end()
+        if RECONSULT_DEADLINE_RE.search(gap):
+            kind = "deadline"
+        elif RECONSULT_IGNORE_RE.search(gap):
+            kind = "ignore"
+        else:
+            kind = "sent"
+        tagged.append((kind, m.group(0)))
+
+    full = [_parse_reconsult_token(t) for k, t in tagged if not re.fullmatch(r'\d{1,2}\s*/\s*\d{1,2}', t.strip())]
+    full = [d for d in full if d]
+    year_hint = full[-1].year if full else None
+
+    sent, deadline, other = [], [], []
+    for kind, tok in tagged:
+        d = _parse_reconsult_token(tok, year_hint)
+        if not d:
+            continue
+        if kind == "ignore":
+            other.append(d)
+        else:
+            (sent if kind == "sent" else deadline).append(d)
+    # only "provided by" / "comments by" style dates in the cell: latest is the deadline
+    if not sent and not deadline and other:
+        deadline.append(max(other))
+    # several reconsultations in one cell: use the first round
+    return {"sent": sent[0] if sent else None,
+            "deadline": deadline[0] if deadline else None}
+
+def transform_reconsult_dates(value, extra):
+    return parse_reconsultation(value).get(extra)
 
 APPLICATION_VALID_WITHDRAWN_RE = re.compile(r'\bwithdrawn\b', re.IGNORECASE)
 
@@ -579,6 +701,38 @@ def normalize_ref_year(value):
     if not isinstance(value, str):
         return value
     return REF_YEAR_RE.sub(lambda m: f"/20{m.group(1)}/", value)
+
+
+# ---------------------------------------------------------------------------
+# Pre-application status lookup
+# Source: 'Status and Decision checks' workbook, 'Pre-application status' sheet.
+# Uses the 'Confirmed status' column, keyed on case reference.
+# ---------------------------------------------------------------------------
+def _ref_key(ref):
+    if is_blank(ref):
+        return None
+    return re.sub(r"\s+", "", str(ref)).upper()
+
+def load_preapp_status():
+    if not os.path.isfile(STATUS_FILE):
+        raise FileNotFoundError(f"Status file not found: {STATUS_FILE}")
+    wb = openpyxl.load_workbook(STATUS_FILE, data_only=True)
+    ws = wb[STATUS_SHEET]
+    headers = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value}
+    ref_i, status_i = headers[STATUS_REF_COL], headers[STATUS_VALUE_COL]
+    out = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        ref, status = row[ref_i], row[status_i]
+        if is_blank(ref) or is_blank(status):
+            continue
+        s = str(status).strip()
+        out[_ref_key(normalize_ref_year(str(ref).strip()))] = STATUS_NORMALISE.get(s.lower(), s)
+    return out
+
+PREAPP_STATUS = load_preapp_status()
+PREAPP_STATUS_MATCHED = set()
+print(f"Loaded {len(PREAPP_STATUS)} pre-application statuses from {os.path.basename(STATUS_FILE)}")
+
 
 UK_POSTCODE_PATTERN = re.compile(r"\b([A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2})\b")
 
@@ -898,8 +1052,19 @@ def transform_applicant_parse(value, extra):
         return None
     return parsed.get(extra)
 
+# Cells where only the first name should be kept (the rest of the text is a note)
+INSPECTOR_TEXT_OVERRIDES = {
+    "Luke Simpson (initial charging schedule done with Gemma Pannell)": "Luke Simpson",
+    "Graham Chamberlain (available w/c 29 July). Then on leave for 3 weeks from 9 Aug.": "Graham Chamberlain",
+    "Cullum Parker (prep day added for 17/8/22 for validation)": "Cullum Parker",
+    "Zoe Raygen - let Insp see LP email from UDC 09/08": "Zoe Raygen",
+}
 INSPECTOR_SPLIT_RE = re.compile(r'(?<!\d)/(?!\d)')
 INSPECTOR_LEADING_AND_RE = re.compile(r'^(?:and|&)\s+', re.IGNORECASE)
+INSPECTOR_VALIDATING_RE = re.compile(r'\b(?:validating|validated)\b', re.IGNORECASE)
+INSPECTOR_BRACKET_NAME_RE = re.compile(
+    r"\(\s*([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){1,2})(?:\s+(validating|validated))?\s*\)"
+)
 
 def split_inspectors(raw):
     if is_blank(raw):
@@ -907,16 +1072,43 @@ def split_inspectors(raw):
     if isinstance(raw, (datetime, date)):
         return []
     text = str(raw)
+    text = INSPECTOR_TEXT_OVERRIDES.get(re.sub(r'\s+', ' ', text.strip()), text)
+    # former surname note, e.g. "Jennifer Wallace (was Downs)" -> "Jennifer Wallace"
+    text = re.sub(r'\(\s*was\s+[^)]*\)', ' ', text, flags=re.IGNORECASE)
+    # "Cullum Parker validating. HG Insp needed Zoe Raygen" -> "Cullum Parker validating / Zoe Raygen"
+    text = re.sub(r'\s*\.?\s*\bHG\s+Insp\.?\s+needed\b\s*', ' / ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s{2,}', ' ', text).strip()
     text = re.sub(r'\bw/c\b', 'w\x00c', text, flags=re.IGNORECASE)
     parts = INSPECTOR_SPLIT_RE.split(text)
     cleaned = []
     for p in parts:
         p = p.replace('\x00', '/').strip()
         p = INSPECTOR_LEADING_AND_RE.sub('', p).strip()
-        if not p or set(p) <= {"?", " "}:
-            continue
-        cleaned.append(p)
-    return cleaned
+
+        # another inspector in brackets, e.g. "Jonathan Edwards (Zoe Raygen validating)":
+        # take them out of the bracket and list them straight after the main name
+        bracket_names = []
+        def _pull_bracket_name(m):
+            name = m.group(1).strip()
+            if m.group(2):
+                name = f"{name} (v)"
+            bracket_names.append(name)
+            return " "
+        p = INSPECTOR_BRACKET_NAME_RE.sub(_pull_bracket_name, p)
+        p = re.sub(r'\s{2,}', ' ', p).strip(' ,-')
+
+        if p and not set(p) <= {"?", " "}:
+            is_validating = bool(INSPECTOR_VALIDATING_RE.search(p))
+            if is_validating:
+                p = INSPECTOR_VALIDATING_RE.sub('', p).strip()
+                p = re.sub(r'\s{2,}', ' ', p).strip(' ,-')
+                p = f"{p} (v)"
+            cleaned.append((p, is_validating))
+        # validating inspectors (bracketed or not) are moved to the front below
+        cleaned.extend((name, name.endswith("(v)")) for name in bracket_names)
+    if any(is_v for _, is_v in cleaned):
+        cleaned = [c for c in cleaned if c[1]] + [c for c in cleaned if not c[1]]
+    return [name for name, _ in cleaned]
 
 def transform_inspector_split(value, extra):
     parts = split_inspectors(value)
@@ -926,6 +1118,49 @@ def transform_inspector_split(value, extra):
     if extra == "3" and len(parts) > 3:
         return "; ".join(parts[2:])
     return parts[idx]
+
+def _extract_cell_text_excluding_struck(cell):
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+    value = cell.value
+    if value is None:
+        return None
+    if isinstance(value, CellRichText):
+        parts = []
+        for item in value:
+            if isinstance(item, TextBlock):
+                if item.font is not None and item.font.strike:
+                    continue
+                parts.append(item.text)
+            else:
+                parts.append(str(item))
+        return "".join(parts)
+    if cell.font is not None and cell.font.strike:
+        return ""
+    return value
+
+def read_inspector_column_excluding_struck(sheet_name, column_name, header_row=1):
+    try:
+        wb_rt = openpyxl.load_workbook(SOURCE_FILE, rich_text=True, data_only=True)
+    except TypeError:
+        print(f"WARNING: installed openpyxl version doesn't support rich_text=True - "
+              f"struck-through inspector names will NOT be filtered out for '{sheet_name}'. "
+              f"Upgrade openpyxl (pip install --upgrade openpyxl) to enable this.")
+        return {}
+    ws_rt = wb_rt[sheet_name]
+    col_idx = None
+    for c in range(1, ws_rt.max_column + 1):
+        h = ws_rt.cell(row=header_row, column=c).value
+        if h is not None and str(h).strip() == str(column_name).strip():
+            col_idx = c
+            break
+    if col_idx is None:
+        return {}
+    result = {}
+    for r in range(header_row + 1, ws_rt.max_row + 1):
+        cell = ws_rt.cell(row=r, column=col_idx)
+        result[r] = _extract_cell_text_excluding_struck(cell)
+    return result
+
 
 
 BAND_TOKEN_RE = re.compile(r'^B(?:AND)?\s*(\d+)$', re.IGNORECASE)
@@ -1135,6 +1370,12 @@ def transform_site_visit_type(value, extra):
     match = SITE_VISIT_TYPE_RE.search(str(value))
     return match.group(1).upper() if match else None
 
+# Source text has no year ("ARSV 5 September 10.00") and the parser reads "10.00" as
+# the year 2010, so the date is set explicitly per case.
+SITE_VISIT_DATE_OVERRIDES = {
+    "S62A/2024/0048": datetime(2026, 9, 5, 10, 0),
+}
+
 SITE_VISIT_TYPE_PREFIX_RE = re.compile(r"^(ARSV|USV)\s*", re.IGNORECASE)
 SITE_VISIT_DMY_RE = re.compile(r'\b(\d{1,2})\s+([A-Za-z]{3,10})\.?\s*(\d{4})\b')
 SITE_VISIT_DATE_TOKEN_RE = re.compile(
@@ -1223,11 +1464,16 @@ def transform_cil_amount(value, extra):
     text = str(value).strip()
     if text.upper() in ("NA", "N/A"):
         return None
-    match = re.search(r'[\d,]+(?:\.\d+)?', text.replace('£', ''))
-    if not match:
-        return None
+    match = GBP_AMOUNT_RE.search(text)
+    if match:
+        number_text = match.group(1)
+    else:
+        fallback = re.search(r'[\d,]+(?:\.\d+)?', text)
+        if not fallback:
+            return None
+        number_text = fallback.group(0)
     try:
-        return float(match.group(0).replace(",", ""))
+        return float(number_text.replace(",", ""))
     except ValueError:
         return None
 
@@ -1238,6 +1484,7 @@ TRANSFORM_FUNCTIONS = {
     "date_earliest": transform_date_earliest,
     "date_later_ignore_due": transform_date_later_ignore_due,
     "application_valid_date": transform_application_valid_date,
+    "reconsult_dates": transform_reconsult_dates,
     "before_bracket": transform_before_bracket,
     "address_part": transform_address_part,
     "grant_refuse": transform_grant_refuse,
@@ -1282,14 +1529,17 @@ print(df_test.head())
 
 AUDIT_HIGHLIGHT_FILL = PatternFill(start_color="FFFFFF00", end_color="FFFFFF00", fill_type="solid")
 
-def build_output_rows(df, mapping, constants, sheet_label):
+def build_output_rows(df, mapping, constants, sheet_label, inspector_struck_override=None):
     output_rows      = []
     audit_entries    = []
     audit_highlights = []
     for row_index, (_, source_row) in enumerate(df.iterrows()):
+        excel_row_num = source_row.name + 2
         row_result = dict(constants)
         for template_column, source_column, transform_name, extra in mapping:
             source_value = source_row.get(source_column)
+            if transform_name == "inspector_split" and inspector_struck_override:
+                source_value = inspector_struck_override.get(excel_row_num, source_value)
             transform_fn = TRANSFORM_FUNCTIONS[transform_name]
             result = transform_fn(source_value, extra)
             if result is not None:
@@ -1305,7 +1555,7 @@ def build_output_rows(df, mapping, constants, sheet_label):
                                          "notification_of_intent", "agent_parse", "applicant_parse",
                                          "inspector_split", "date_strict", "withdrawn_date",
                                          "application_valid_date", "date_earliest",
-                                         "date_later_ignore_due", "cil_amount")\
+                                         "date_later_ignore_due", "cil_amount", "reconsult_dates")\
                     and not is_blank(source_value):
 
                 audit_entries.append((row_result.get("Case reference"), sheet_label,
@@ -1340,6 +1590,22 @@ def build_output_rows(df, mapping, constants, sheet_label):
             if row_result.get(ref_field):
                 row_result[ref_field] = normalize_ref_year(row_result[ref_field])
 
+        _sv_override = SITE_VISIT_DATE_OVERRIDES.get(str(row_result.get("Case reference") or "").strip())
+        if _sv_override is not None:
+            row_result["Site visit date"] = _sv_override
+
+        # Pre-application status, looked up from the Status and Decision checks file
+        if sheet_label == PREAPP_SHEET_LABEL:
+            status_key = _ref_key(row_result.get("Case reference"))
+            preapp_status = PREAPP_STATUS.get(status_key)
+            if preapp_status:
+                row_result["Pre-application status"] = preapp_status
+                PREAPP_STATUS_MATCHED.add(status_key)
+            else:
+                audit_entries.append((row_result.get("Case reference"), sheet_label,
+                                       "Pre-application status",
+                                       "no match in Status and Decision checks file"))
+
         if "EIA screening" in row_result or "EIA screening outcome" in row_result:
             eia = resolve_eia_screening_and_outcome(
                 row_result.get("EIA screening"),
@@ -1351,12 +1617,22 @@ def build_output_rows(df, mapping, constants, sheet_label):
                 existing_notes = row_result.get("Notes")
                 row_result["Notes"] = f"{existing_notes}; {eia['note']}" if existing_notes else eia["note"]
 
+        inspector1 = row_result.get("Inspector 1")
         inspector1_date = row_result.get("Date Inspector (1) allocated")
+        inspector1_is_validating = bool(inspector1 and str(inspector1).rstrip().endswith("(v)"))
+
         if inspector1_date:
-            if row_result.get("Inspector 2") and not row_result.get("Date Inspector (2) allocated"):
-                row_result["Date Inspector (2) allocated"] = inspector1_date
-            if row_result.get("Inspector 3") and not row_result.get("Date Inspector (3) allocated"):
-                row_result["Date Inspector (3) allocated"] = inspector1_date
+            if inspector1_is_validating and row_result.get("Inspector 2"):
+                row_result.pop("Date Inspector (1) allocated", None)
+                if not row_result.get("Date Inspector (2) allocated"):
+                    row_result["Date Inspector (2) allocated"] = inspector1_date
+                if row_result.get("Inspector 3") and not row_result.get("Date Inspector (3) allocated"):
+                    row_result["Date Inspector (3) allocated"] = inspector1_date
+            else:
+                if row_result.get("Inspector 2") and not row_result.get("Date Inspector (2) allocated"):
+                    row_result["Date Inspector (2) allocated"] = inspector1_date
+                if row_result.get("Inspector 3") and not row_result.get("Date Inspector (3) allocated"):
+                    row_result["Date Inspector (3) allocated"] = inspector1_date
 
         if row_result.get("Pre-application fee due"):
             row_result["Pre-application fee required"] = "Yes"
@@ -1367,8 +1643,18 @@ def build_output_rows(df, mapping, constants, sheet_label):
         output_rows.append(row_result)
     return output_rows, audit_entries, audit_highlights
 
+def _find_inspector_source_column(mapping):
+    for template_column, source_column, transform_name, extra in mapping:
+        if transform_name == "inspector_split":
+            return source_column
+    return None
+
 mapping_test, constants_test, issues_test = build_mapping_for_sheet(_test_sheet, df_test.columns.tolist())
-one_row_result, one_row_audit, one_row_highlights = build_output_rows(df_test.head(1), mapping_test, constants_test, _test_sheet)
+_inspector_col_test = _find_inspector_source_column(mapping_test)
+_inspector_struck_test = read_inspector_column_excluding_struck(_test_sheet, _inspector_col_test) if _inspector_col_test else {}
+one_row_result, one_row_audit, one_row_highlights = build_output_rows(
+    df_test.head(1), mapping_test, constants_test, _test_sheet,
+    inspector_struck_override=_inspector_struck_test)
 
 print(f"Block 5 test done - {_test_sheet}: {len(mapping_test)} mapped columns, {len(issues_test)} config issues")
 print("Single row result:")
@@ -1394,7 +1680,12 @@ for sheet_name in SHEET_NAMES:
         if col not in used_columns:
             unmapped_report.append({"Sheet": sheet_name, "Column": col})
 
-    rows, audit, highlights = build_output_rows(df, mapping, constants, sheet_name)
+    inspector_col = _find_inspector_source_column(mapping)
+    inspector_struck_override = read_inspector_column_excluding_struck(sheet_name, inspector_col) if inspector_col else {}
+
+    rows, audit, highlights = build_output_rows(
+        df, mapping, constants, sheet_name,
+        inspector_struck_override=inspector_struck_override)
     row_offset = len(all_rows)
     all_audit_highlights.extend((row_offset + local_index, col) for local_index, col in highlights)
     all_rows.extend(rows)
@@ -1402,6 +1693,16 @@ for sheet_name in SHEET_NAMES:
     print(f"  {sheet_name}: {len(mapping)} mapped columns, {len(config_issues)} config issues, {len(df)} rows")
 
 print(f"Block 5b done - {len(all_rows)} rows built, {len(all_audit)} audit flags, {len(all_config_issues)} config issues")
+
+# Status rows that never matched a pre-app case (e.g. Horizon-only cases)
+_unused_status = set(PREAPP_STATUS) - PREAPP_STATUS_MATCHED
+if _unused_status:
+    print(f"WARNING: {len(_unused_status)} status row(s) had no matching pre-app case on the spreadsheet: "
+          f"{sorted(_unused_status)}")
+    for _ref in sorted(_unused_status):
+        all_audit.append((_ref, PREAPP_SHEET_LABEL, "Pre-application status",
+                           "status file row has no matching case on the spreadsheet"))
+print(f"Pre-app status: {len(PREAPP_STATUS_MATCHED)}/{len(PREAPP_STATUS)} status rows matched to a case")
 
 
 DESTINATION_FIELD_RENAMES = {
