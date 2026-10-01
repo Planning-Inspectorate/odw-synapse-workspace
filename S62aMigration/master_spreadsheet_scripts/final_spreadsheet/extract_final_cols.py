@@ -1,15 +1,31 @@
+import os
 from copy import copy
 from pathlib import Path
 import re
 
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 from openpyxl.styles.colors import COLOR_INDEX
 from openpyxl.utils import get_column_letter
 
 
-BASE_DIR = Path(
-	"/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration"
-)
+SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
+
+def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
+	d = start_dir
+	for _ in range(max_up + 1):
+		if (d / marker).is_dir():
+			return d
+		parent = d.parent
+		if parent == d:
+			break
+		d = parent
+	raise FileNotFoundError(
+		f"Could not find a '{marker}' folder above {start_dir} "
+		f"(searched {max_up + 1} levels up) - check the script's location."
+	)
+
+BASE_DIR = find_data_root(SCRIPT_DIR)
 COMPARISON_FILE = (
 	BASE_DIR
 	/ "csv_and_xlsx_files/S62A_Horizon_vs_Spreadsheet_comparison_coloured_sheet.xlsx"
@@ -27,6 +43,12 @@ COMPARISON_FIRST_DATA_ROW = 4
 TEMPLATE_HEADER_ROW = 2
 TEMPLATE_FIRST_DATA_ROW = 3
 KEY_COLUMN = "Case reference"
+
+
+EMPTY_FIELD_FILL = PatternFill(fill_type="solid", start_color="D9D9D9", end_color="D9D9D9")
+
+
+MERGED_FIELD_FILL = PatternFill(fill_type="solid", start_color="FFF2CC", end_color="FFF2CC")
 
 
 def _is_blank(value):
@@ -115,17 +137,17 @@ def _select_sources(comparison_sheet):
 		source = match.group(2).casefold()
 		groups.setdefault(field, {})[source] = column
 
+
+	PREFERRED_UNRESOLVED_ORDER = ("spreadsheet", "horizon")
+
 	selections = []
 	for field, sources in groups.items():
 		kinds = {
 			source: _colour_kind(comparison_sheet.cell(COMPARISON_COLOUR_ROW, column))
 			for source, column in sources.items()
 		}
-		available = [source for source, kind in kinds.items() if kind != "grey"]
-		if not available:
-			continue
+		green_sources = [source for source in sources if kinds[source] == "green"]
 
-		green_sources = [source for source in available if kinds[source] == "green"]
 		if green_sources:
 			primary_source = green_sources[0]
 			fallback_source = (
@@ -136,14 +158,19 @@ def _select_sources(comparison_sheet):
 				"header": field,
 				"primary": sources[primary_source],
 				"fallback": fallback,
+				"unresolved": False,
 			})
 		else:
-			for source in available:
-				selections.append({
-					"header": f"{field} ({source})",
-					"primary": sources[source],
-					"fallback": None,
-				})
+			ordered = [s for s in PREFERRED_UNRESOLVED_ORDER if s in sources]
+			ordered += [s for s in sources if s not in ordered]
+			primary_source = ordered[0]
+			fallback_source = ordered[1] if len(ordered) > 1 else None
+			selections.append({
+				"header": field,
+				"primary": sources[primary_source],
+				"fallback": sources.get(fallback_source) if fallback_source else None,
+				"unresolved": True,
+			})
 	return selections
 
 
@@ -233,7 +260,6 @@ def extract_final_columns():
 			del comparison_styles_workbook[FINAL_SHEET_NAME]
 		final_sheet = comparison_styles_workbook.create_sheet(FINAL_SHEET_NAME)
 
-		# Keep the legacy template header style for the case-reference column.
 		_copy_template_header(
 			template_sheet,
 			final_sheet,
@@ -255,7 +281,6 @@ def extract_final_columns():
 			get_column_letter(template_headers[KEY_COLUMN])
 		].width
 
-		# Build one output column per selected field/source.
 		output_columns = {}
 		for output_column, selection in enumerate(selections, start=2):
 			output_columns[selection["header"]] = output_column
@@ -274,6 +299,8 @@ def extract_final_columns():
 				comparison_styles_sheet.cell(COMPARISON_COLOUR_ROW, selection["primary"]),
 				final_sheet.cell(TEMPLATE_HEADER_ROW, output_column),
 			)
+			if selection.get("unresolved"):
+				final_sheet.cell(TEMPLATE_HEADER_ROW, output_column).fill = copy(MERGED_FIELD_FILL)
 			final_sheet.column_dimensions[get_column_letter(output_column)].width = (
 				comparison_styles_sheet.column_dimensions[
 					get_column_letter(selection["primary"])
@@ -295,11 +322,31 @@ def extract_final_columns():
 		for case_reference, source_rows in case_rows.items():
 			final_sheet.cell(output_row, 1).value = case_reference
 			for output_column, selection in enumerate(selections, start=2):
-				value = _first_value(comparison_sheet, source_rows, selection["primary"])
-				if _is_blank(value):
-					value = _first_value(comparison_sheet, source_rows, selection["fallback"])
+				primary_value = _first_value(comparison_sheet, source_rows, selection["primary"])
+				fallback_value = _first_value(comparison_sheet, source_rows, selection["fallback"])
+				value = primary_value if not _is_blank(primary_value) else fallback_value
 				final_sheet.cell(output_row, output_column).value = value
+
+				if (
+					selection.get("unresolved")
+					and not _is_blank(primary_value)
+					and not _is_blank(fallback_value)
+					and str(primary_value).strip() != str(fallback_value).strip()
+				):
+					final_sheet.cell(output_row, output_column).fill = copy(MERGED_FIELD_FILL)
 			output_row += 1
+
+
+		for output_column in range(2, len(selections) + 2):
+			has_data = any(
+				not _is_blank(final_sheet.cell(row, output_column).value)
+				for row in range(TEMPLATE_FIRST_DATA_ROW, output_row)
+			)
+			if not has_data:
+				final_sheet.cell(1, output_column).fill = copy(EMPTY_FIELD_FILL)
+				final_sheet.cell(TEMPLATE_HEADER_ROW, output_column).fill = copy(EMPTY_FIELD_FILL)
+				for row in range(TEMPLATE_FIRST_DATA_ROW, output_row):
+					final_sheet.cell(row, output_column).fill = copy(EMPTY_FIELD_FILL)
 
 		final_sheet.freeze_panes = f"A{TEMPLATE_FIRST_DATA_ROW}"
 		final_sheet.auto_filter.ref = (

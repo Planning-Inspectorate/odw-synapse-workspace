@@ -24,7 +24,23 @@ from datetime import datetime, date
 import openpyxl
 import pandas as pd
 
-BASE_DIR = "/Users/nisalihalwathura/PINS/ODW-Service/odw-synapse-workspace/S62aMigration"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
+    d = start_dir
+    for _ in range(max_up + 1):
+        if os.path.isdir(os.path.join(d, marker)):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    raise FileNotFoundError(
+        f"Could not find a '{marker}' folder above {start_dir} "
+        f"(searched {max_up + 1} levels up) - check the script's location."
+    )
+
+BASE_DIR = find_data_root(SCRIPT_DIR)
 
 HORIZON_EXTRACTS_DIR = os.path.join(BASE_DIR, "csv_and_xlsx_files/Horizon_extracts")
 MAPPING_CSV          = os.path.join(BASE_DIR, "outputs/horizon_field_mapping.csv")
@@ -343,6 +359,52 @@ for filename in csv_files:
 
     print(f"  {filename}: {len(mapping)} mapped columns, {len(unmapped_cols)} unmapped, {len(df)} rows")
 
+def apply_hearing_venue_override():
+    """Reads the hearings extract directly and writes 'Hearing venue'
+    straight into case_rows, bypassing horizon_field_mapping.csv entirely
+    for this one field. This guarantees it's populated regardless of the
+    mapping CSV's Source field/token setup (which is where this field kept
+    breaking - a mismatched file token)."""
+    candidates = [
+        f for f in os.listdir(HORIZON_EXTRACTS_DIR)
+        if f.lower().endswith(".csv") and "hearing" in f.lower()
+    ]
+    if not candidates:
+        print("WARNING: no hearings extract file found - 'Hearing venue' left as-is")
+        return
+    if len(candidates) > 1:
+        print(f"WARNING: multiple hearings extract files found, using the first: {candidates}")
+    filename = candidates[0]
+    filepath = os.path.join(HORIZON_EXTRACTS_DIR, filename)
+
+    df = pd.read_csv(filepath, dtype=str).dropna(how="all")
+    if "CaseReference" not in df.columns and "CaseUniqueId" in df.columns:
+        df["CaseReference"] = df["CaseUniqueId"].fillna("").str.strip().map(CASE_UNIQUE_ID_TO_REFERENCE)
+    if "HearingVenueAddress" not in df.columns:
+        print(f"WARNING: 'HearingVenueAddress' column not found in {filename} - "
+              f"'Hearing venue' left as-is. Columns present: {df.columns.tolist()}")
+        return
+
+    applied = 0
+    for _, row in df.iterrows():
+        case_ref = str(row.get("CaseReference", "")).strip()
+        if not case_ref or case_ref not in S62A_CASES:
+            continue
+        venue = row.get("HearingVenueAddress")
+        if is_blank(venue):
+            continue
+        venue = str(venue).strip().replace("\n", ", ")
+        records = case_rows.setdefault(
+            case_ref, [{"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}]
+        )
+        target = records[0]
+        if not target["values"].get("Hearing venue"):
+            target["values"]["Hearing venue"] = venue
+            applied += 1
+    print(f"Hearing venue override: {applied} case(s) set directly from {filename}")
+
+apply_hearing_venue_override()
+
 all_rows = []
 all_conflicts = []
 for records in case_rows.values():
@@ -363,6 +425,22 @@ for records in case_rows.values():
         all_rows.append(row)
         all_conflicts.append(record["conflicts"])
 print(f"\nBlock 4 done - {len(all_rows)} unique cases, {len(all_audit)} audit flags, {len(unmapped_report)} unmapped column entries")
+
+
+# DIAGNOSTIC: flag any mapped field that produced zero values across every
+# case. This is the symptom a broken/renamed Source field column produces
+# (e.g. Hearing venue silently dropping when its extract column was renamed)
+# - the mapping rule loads fine, but never actually matches any data.
+_mapped_fields = {rule["template_column"] for rule in _mapping_rules}
+_fields_with_values = {
+    col for row in all_rows for col, val in row.items() if not is_blank(val)
+}
+_empty_mapped_fields = sorted(_mapped_fields - _fields_with_values)
+if _empty_mapped_fields:
+    print(f"WARNING: {len(_empty_mapped_fields)} mapped field(s) produced zero values across "
+          f"every case - check their Source field / Conditions in horizon_field_mapping.csv:")
+    for _f in _empty_mapped_fields:
+        print(f"  {_f!r}")
 
 
 # SPOT CHECK - show the first case
