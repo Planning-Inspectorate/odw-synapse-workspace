@@ -1,0 +1,106 @@
+{
+	"name": "nb_s62a_storage_connectivity_test",
+	"properties": {
+		"folder": {
+			"name": "S62A"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "4c5b4001-921e-4d85-9bf0-cb8c58229a05"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"import socket\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"ACCOUNT = \"pinssts62adevukseftlkl\"\n",
+					"ROOT = f\"abfss://s62a@{ACCOUNT}.dfs.core.windows.net/PIPELINE\""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"print(socket.gethostbyname(f\"{ACCOUNT}.dfs.core.windows.net\"))"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"key = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"S62A-Storage-Dev\").strip()\n",
+					"spark.conf.set(f\"fs.azure.account.key.{ACCOUNT}.dfs.core.windows.net\", key)"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"for f in mssparkutils.fs.ls(ROOT):\n",
+					"    print(f.name)"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.fs.put(f\"{ROOT}/TEST/connectivity_test.txt\", \"hello from synapse\", True)\n",
+					"print(mssparkutils.fs.head(f\"{ROOT}/TEST/connectivity_test.txt\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"mssparkutils.fs.rm(f\"{ROOT}/TEST\", True)\n",
+					"print(\"cleaned up\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
