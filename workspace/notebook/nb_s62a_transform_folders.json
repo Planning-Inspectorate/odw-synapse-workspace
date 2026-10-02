@@ -1,0 +1,285 @@
+{
+	"name": "nb_s62a_transform_folders",
+	"properties": {
+		"folder": {
+			"name": "S62A"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b8101453-d503-432d-bb70-362262e5c9dc"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# S62A - Transform document metadata into Folder + Document tables\n",
+					"Reads the document extract CSV(s) from the S62A storage container and builds the folder tree per case.\n",
+					"Case GUIDs use the same rule as nb_s62a_transform, so s62aCaseId joins straight onto S62aCase.id."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"# Parameters\n",
+					"ROOT        = \"abfss://s62a@pinssts62adevukseftlkl.dfs.core.windows.net/PIPELINE\"\n",
+					"INPUT_DIR   = f\"{ROOT}/INPUT/DOCUMENTS\"            # document extract CSV(s)\n",
+					"OUTPUT_DIR  = f\"{ROOT}/OUTPUT/DOCUMENTS\"\n",
+					"STORAGE_KEY = None                                  # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-Dev\")\n",
+					"REF_DIGITS  = 7                                     # MPA refs: S62A/YYYY/XXXXXXX\n",
+					"\n",
+					"print(\"Input :\", INPUT_DIR)\n",
+					"print(\"Output:\", OUTPUT_DIR)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import os, uuid\n",
+					"from datetime import datetime\n",
+					"from pyspark.sql import functions as F, types as T\n",
+					"from pyspark.sql.window import Window\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"if STORAGE_KEY:\n",
+					"    spark.conf.set(\"fs.azure.account.key.pinssts62adevukseftlkl.dfs.core.windows.net\",\n",
+					"                   mssparkutils.credentials.getSecretWithLS(*STORAGE_KEY).strip())\n",
+					"\n",
+					"RUN_TS = datetime.utcnow().strftime(\"%Y%m%dT%H%M%SZ\")\n",
+					"\n",
+					"# Same GUID rule as the case notebooks -> uuid5(namespace, \"S62aCase|<reference>\"), uppercase\n",
+					"GUID_NS = uuid.uuid5(uuid.NAMESPACE_URL, \"pins-s62a-migration\")\n",
+					"\n",
+					"@F.udf(T.StringType())\n",
+					"def make_guid(*parts):\n",
+					"    if any(p is None for p in parts):\n",
+					"        return None\n",
+					"    return str(uuid.uuid5(GUID_NS, \"|\".join(str(p) for p in parts))).upper()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"docs_raw = (\n",
+					"    spark.read\n",
+					"        .format(\"csv\")\n",
+					"        .option(\"header\", \"true\")\n",
+					"        .option(\"multiLine\", \"true\")\n",
+					"        .option(\"escape\", \"\\\"\")\n",
+					"        .option(\"quote\", \"\\\"\")\n",
+					"        .option(\"recursiveFileLookup\", \"true\")\n",
+					"        .option(\"pathGlobFilter\", \"*.csv\")\n",
+					"        .load(INPUT_DIR)\n",
+					"        .withColumn(\"_source_file\", F.input_file_name())\n",
+					")\n",
+					"\n",
+					"print(\"Columns:\", docs_raw.columns)\n",
+					"print(\"Row count:\", docs_raw.count())\n",
+					"display(docs_raw.orderBy(\"_source_file\").limit(50))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def clean_ts(col):\n",
+					"    return (F.when(F.col(col).isNull() | F.lower(F.trim(F.col(col))).isin(\"undefined\", \"null\", \"\"),\n",
+					"                   F.lit(None).cast(\"timestamp\"))\n",
+					"             .otherwise(F.to_timestamp(F.trim(F.col(col)), \"dd/MM/yyyy HH:mm:ss\")))\n",
+					"\n",
+					"docs_clean = (\n",
+					"    docs_raw\n",
+					"    .withColumn(\"dateCreated\", clean_ts(\"dateCreated\"))\n",
+					"    .withColumn(\"lastModified\", clean_ts(\"lastModified\"))\n",
+					"    .withColumn(\"uploadedDate\", F.col(\"dateCreated\"))\n",
+					")\n",
+					"docs_clean.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Case ref from the folder path (S62A_2024_0033) -> MPA reference (S62A/2024/0000033) -> S62aCase GUID\n",
+					"docs_x = (\n",
+					"    docs_clean\n",
+					"    .withColumn(\"pathYear\", F.regexp_extract(\"path\", r\"(?i)S62A_(\\d{4})_\\d+\", 1))\n",
+					"    .withColumn(\"pathNum\",  F.regexp_extract(\"path\", r\"(?i)S62A_\\d{4}_(\\d+)\", 1))\n",
+					"    .withColumn(\"caseReference\",\n",
+					"        F.when(F.col(\"pathYear\") == \"\", None)\n",
+					"         .otherwise(F.concat(F.lit(\"S62A/\"), F.col(\"pathYear\"), F.lit(\"/\"),\n",
+					"                             F.lpad(F.col(\"pathNum\").cast(\"int\").cast(\"string\"), REF_DIGITS, \"0\"))))\n",
+					"    .withColumn(\"s62aCaseId\", make_guid(F.lit(\"S62aCase\"), F.col(\"caseReference\")))\n",
+					"    .withColumn(\"relPath\", F.regexp_extract(\"path\", r\"(?i)S62A_\\d{4}_\\d+[^/]*/(.*)$\", 1))\n",
+					"    .withColumn(\"relPath\", F.when(F.length(\"relPath\") == 0, None).otherwise(F.col(\"relPath\")))\n",
+					"    .drop(\"pathYear\", \"pathNum\")\n",
+					")\n",
+					"\n",
+					"print(\"Docs rows:\", docs_x.count())\n",
+					"print(\"Missing case reference:\", docs_x.filter(F.col(\"caseReference\").isNull()).count())\n",
+					"display(docs_x.select(\"documentId\", \"path\", \"caseReference\", \"s62aCaseId\", \"relPath\").limit(50))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"docs_with_segments = (\n",
+					"    docs_x\n",
+					"    .withColumn(\"pathSegments\", F.when(F.col(\"relPath\").isNotNull(), F.split(\"relPath\", \"/\")))\n",
+					"    .withColumn(\"ancestorPaths\",\n",
+					"        F.when(F.col(\"relPath\").isNull(), F.array().cast(\"array<string>\"))\n",
+					"         .otherwise(F.transform(F.sequence(F.lit(1), F.size(\"pathSegments\")),\n",
+					"                                lambda i: F.array_join(F.slice(F.col(\"pathSegments\"), F.lit(1), i), \"/\"))))\n",
+					")\n",
+					"display(docs_with_segments.select(\"documentId\", \"relPath\", \"ancestorPaths\").limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Folder tree per case. Ids are deterministic (case ref + folder path) so reruns give the same GUIDs.\n",
+					"exploded_folders = (\n",
+					"    docs_with_segments\n",
+					"    .filter(F.col(\"s62aCaseId\").isNotNull())\n",
+					"    .select(\"caseReference\", \"s62aCaseId\", F.explode(\"ancestorPaths\").alias(\"folderPath\"))\n",
+					"    .dropDuplicates([\"caseReference\", \"folderPath\"])\n",
+					")\n",
+					"\n",
+					"folders_shaped = (\n",
+					"    exploded_folders\n",
+					"    .withColumn(\"depth\", F.size(F.split(\"folderPath\", \"/\")))\n",
+					"    .withColumn(\"displayName\", F.element_at(F.split(\"folderPath\", \"/\"), -1))\n",
+					"    .withColumn(\"parentPath\",\n",
+					"        F.when(F.col(\"depth\") == 1, F.lit(None).cast(\"string\"))\n",
+					"         .otherwise(F.expr(\"array_join(slice(split(folderPath, '/'), 1, depth - 1), '/')\")))\n",
+					"    .withColumn(\"id\", make_guid(F.lit(\"Folder\"), F.col(\"caseReference\"), F.col(\"folderPath\")))\n",
+					")\n",
+					"\n",
+					"sibling_window = Window.partitionBy(\"caseReference\", \"parentPath\").orderBy(\"displayName\")\n",
+					"folders_shaped = folders_shaped.withColumn(\"displayOrder\", F.row_number().over(sibling_window) * 100)\n",
+					"\n",
+					"folders_final = (\n",
+					"    folders_shaped.alias(\"f\")\n",
+					"    .join(folders_shaped.alias(\"p\"),\n",
+					"          (F.col(\"f.caseReference\") == F.col(\"p.caseReference\")) & (F.col(\"f.parentPath\") == F.col(\"p.folderPath\")),\n",
+					"          \"left\")\n",
+					"    .select(\n",
+					"        F.col(\"f.id\").alias(\"id\"),\n",
+					"        F.col(\"f.displayName\").alias(\"displayName\"),\n",
+					"        F.col(\"f.displayOrder\").alias(\"displayOrder\"),\n",
+					"        F.col(\"p.id\").alias(\"parentFolderId\"),\n",
+					"        F.col(\"f.s62aCaseId\").alias(\"s62aCaseId\"),\n",
+					"        F.lit(True).alias(\"isCustom\"),\n",
+					"        F.lit(None).cast(\"timestamp\").alias(\"deletedAt\"),\n",
+					"        F.col(\"f.caseReference\").alias(\"caseReference\"),\n",
+					"        F.col(\"f.folderPath\").alias(\"legacyFolderPath\"),\n",
+					"    )\n",
+					")\n",
+					"\n",
+					"print(\"Folder rows to load:\", folders_final.count())\n",
+					"display(folders_final.orderBy(\"caseReference\", \"legacyFolderPath\"))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"docs_with_folder = (\n",
+					"    docs_with_segments.alias(\"d\")\n",
+					"    .join(folders_final.select(F.col(\"caseReference\").alias(\"f_ref\"), F.col(\"legacyFolderPath\").alias(\"f_path\"),\n",
+					"                               F.col(\"id\").alias(\"folderId\")),\n",
+					"          (F.col(\"d.caseReference\") == F.col(\"f_ref\")) & (F.col(\"d.relPath\") == F.col(\"f_path\")), \"left\")\n",
+					"    .drop(\"f_ref\", \"f_path\")\n",
+					")\n",
+					"\n",
+					"print(\"Docs with relPath but no folderId (should be 0):\",\n",
+					"      docs_with_folder.filter(F.col(\"relPath\").isNotNull() & F.col(\"folderId\").isNull()).count())\n",
+					"print(\"Docs at case root (no folder - Document.folderId is required, so these need a root folder):\",\n",
+					"      docs_with_folder.filter(F.col(\"relPath\").isNull()).count())\n",
+					"display(docs_with_folder.select(\"documentId\", \"caseReference\", \"relPath\", \"folderId\").limit(50))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"ext = F.lower(F.regexp_extract(F.col(\"filename\").cast(\"string\"), r\"\\.([A-Za-z0-9]+)$\", 1))\n",
+					"docs_with_mime = (\n",
+					"    docs_with_folder\n",
+					"    .withColumn(\"fileExtensionClean\", ext)\n",
+					"    .withColumn(\"mime\",\n",
+					"        F.when(ext == \"pdf\", \"application/pdf\")\n",
+					"         .when(ext == \"doc\", \"application/msword\")\n",
+					"         .when(ext == \"docx\", \"application/vnd.openxmlformats-officedocument.wordprocessingml.document\")\n",
+					"         .when(ext == \"xls\", \"application/vnd.ms-excel\")\n",
+					"         .when(ext == \"xlsx\", \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")\n",
+					"         .when(ext == \"csv\", \"text/csv\")\n",
+					"         .when(ext == \"txt\", \"text/plain\")\n",
+					"         .when(ext == \"msg\", \"application/vnd.ms-outlook\")\n",
+					"         .otherwise(F.col(\"mime\")))\n",
+					")\n",
+					"display(docs_with_mime.select(\"filename\", \"fileExtensionClean\", \"mime\").limit(20))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write Folder.csv and Document.csv with fixed names (comma, double-quote escaping - same format as SCHEMA/latest)\n",
+					"tmp = \"/tmp/s62a_documents\"\n",
+					"os.makedirs(tmp, exist_ok=True)\n",
+					"\n",
+					"outputs = {\n",
+					"    \"Folder.csv\": folders_final,\n",
+					"    \"Document.csv\": docs_with_mime.drop(\"pathSegments\", \"ancestorPaths\"),\n",
+					"}\n",
+					"for name, frame in outputs.items():\n",
+					"    frame.toPandas().to_csv(f\"{tmp}/{name}\", index=False, encoding=\"utf-8\")\n",
+					"\n",
+					"for folder in (RUN_TS, \"latest\"):\n",
+					"    dest = f\"{OUTPUT_DIR}/{folder}\"\n",
+					"    if folder == \"latest\":\n",
+					"        try:\n",
+					"            mssparkutils.fs.rm(dest, True)\n",
+					"        except Exception:\n",
+					"            pass\n",
+					"    for name in outputs:\n",
+					"        mssparkutils.fs.cp(f\"file:{tmp}/{name}\", f\"{dest}/{name}\")\n",
+					"    print(\"Written to\", dest)"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
