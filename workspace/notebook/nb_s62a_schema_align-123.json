@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "941fa0a7-702f-4962-9f80-22780ce4bd2e"
+				"spark.autotune.trackingId": "775a8ae9-82e3-4db6-bc50-851392b2cfab"
 			}
 		},
 		"metadata": {
@@ -67,10 +67,10 @@
 				},
 				"source": [
 					"# Parameters\n",
-					"LOCAL_DIR = None              # local folder with the staging CSVs + ENUM xlsx, for testing outside Synapse\n",
+					"LOCAL_DIR       = None   # local folder with the staging CSVs + ENUM xlsx, for testing outside Synapse\n",
+					"STORAGE_ACCOUNT = None   # optional override; leave None to auto-detect from workspace\n",
+					"STORAGE_KEY     = None   # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-<Env>\")\n",
 					"\n",
-					"ROOT        = \"abfss://s62a@pinssts62adevukseftlkl.dfs.core.windows.net/PIPELINE\"\n",
-					"STORAGE_KEY = None   # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-Dev\")\n",
 					"STAGING_DIR   = \"OUTPUT/TRANSFORM/latest\"\n",
 					"ENUM_FILE     = \"INPUT/MASTER/S62A_Horizon_ENUM.xlsx\"\n",
 					"REFERENCE_DIR = \"INPUT/REFERENCE\"\n",
@@ -92,6 +92,32 @@
 					"}"
 				],
 				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"\n",
+					"ACCOUNTS = {\n",
+					"    \"dev\":  \"pinssts62adevukseftlkl\",\n",
+					"    \"test\": \"pinssts62atestuksnkavj4\",\n",
+					"    \"prod\": \"pinssts62aproduksrz8i4g\",\n",
+					"}\n",
+					"\n",
+					"if LOCAL_DIR:\n",
+					"    ENV, ROOT = \"local\", LOCAL_DIR\n",
+					"else:\n",
+					"    from notebookutils import mssparkutils\n",
+					"    ws = mssparkutils.env.getWorkspaceName().lower()\n",
+					"    m  = re.search(r\"(?:^|[-_])(dev|test|prod)(?:[-_]|$)\", ws)\n",
+					"    if not m:\n",
+					"        raise ValueError(f\"Can't detect env from workspace name '{ws}'\")\n",
+					"    ENV  = m.group(1)\n",
+					"    ROOT = f\"abfss://s62a@{STORAGE_ACCOUNT or ACCOUNTS[ENV]}.dfs.core.windows.net/PIPELINE\"\n",
+					"\n",
+					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
