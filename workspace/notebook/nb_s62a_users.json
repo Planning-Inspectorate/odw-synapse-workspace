@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9f49e79e-932e-4940-a030-7acd83973712"
+				"spark.autotune.trackingId": "6836f880-a061-4caf-85f0-6b24b4f776e9"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,7 @@
 					"\n",
 					"MIGRATION_USER_UPN = None   # UPN of the account used as author of migrated notes"
 				],
-				"execution_count": 1
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -119,7 +119,7 @@
 					"ROOT = f\"abfss://s62a@{STORAGE_ACCOUNT or ACCOUNTS[ENV]}.dfs.core.windows.net/PIPELINE\"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -173,19 +173,27 @@
 					"ENTRA_BY_ID = entra.set_index(\"id\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# Collect names from staging outputs\n",
 					"SPLIT = r\"\\s*(?:/|,|&|\\band\\b|\\||\\n)\\s*\"\n",
-					"found = {}   # name -> set of \"file:column\"\n",
+					"found   = {}   # name -> set of \"file:column\"\n",
+					"skipped = []\n",
 					"\n",
 					"for f in mssparkutils.fs.ls(f\"{ROOT}/{STAGING_DIR}\"):\n",
 					"    if not f.name.lower().endswith(\".csv\"):\n",
 					"        continue\n",
-					"    df = spark.read.option(\"header\", True).option(\"multiLine\", True).csv(f.path).toPandas()\n",
+					"    if not f.isDir and f.size == 0:\n",
+					"        skipped.append((f.name, \"empty file\"))\n",
+					"        continue\n",
+					"    try:\n",
+					"        df = spark.read.option(\"header\", True).option(\"multiLine\", True).csv(f.path).toPandas()\n",
+					"    except Exception as e:\n",
+					"        skipped.append((f.name, type(e).__name__))\n",
+					"        continue\n",
 					"    for col in [c for c in USER_COLUMNS if c in df.columns]:\n",
 					"        print(f\"Scanning {f.name} -> {col}\")\n",
 					"        for val in df[col].dropna():\n",
@@ -193,9 +201,11 @@
 					"                if name.strip():\n",
 					"                    found.setdefault(name.strip(), set()).add(f\"{f.name}:{col}\")\n",
 					"\n",
+					"for name, why in skipped:\n",
+					"    print(f\"Skipped {name}: {why}\")\n",
 					"print(f\"Distinct names found: {len(found)}\")"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
