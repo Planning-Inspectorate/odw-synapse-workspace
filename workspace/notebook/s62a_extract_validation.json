@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "6c97b6d6-7fa5-4a9e-81f6-af703b10be75"
+				"spark.autotune.trackingId": "d00cb75b-597a-446a-ad6f-41209119fbe8"
 			}
 		},
 		"metadata": {
@@ -74,7 +74,7 @@
 					"HEADER_ROWS     = 3        # 0 = group, 1 = field name, 2 = source provenance\n",
 					"MIN_VALID_DATE  = \"2015-01-01\""
 				],
-				"execution_count": null
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -85,9 +85,6 @@
 				},
 				"source": [
 					"import re\n",
-					"\n",
-					"KV_LINKED_SERVICE = \"ls_kv\"                      # Key Vault linked service, same name in every env\n",
-					"KV_SECRET_NAME    = \"s62a-storage-account-name\"  # same secret name in every env's Key Vault\n",
 					"\n",
 					"FALLBACK_ACCOUNTS = {\n",
 					"    \"dev\":  \"pinssts62adevukseftlkl\",\n",
@@ -114,11 +111,6 @@
 					"    # 1. Explicit override from pipeline parameter\n",
 					"    if STORAGE_ACCOUNT:\n",
 					"        return STORAGE_ACCOUNT, \"parameter\"\n",
-					"    # 2. Key Vault (preferred, survives storage rebuilds)\n",
-					"    try:\n",
-					"        return mssparkutils.credentials.getSecretWithLS(KV_LINKED_SERVICE, KV_SECRET_NAME), \"key vault\"\n",
-					"    except Exception as e:\n",
-					"        print(f\"Key Vault lookup failed ({type(e).__name__}), trying fallback\")\n",
 					"    # 3. Hardcoded fallback\n",
 					"    acct = FALLBACK_ACCOUNTS.get(env)\n",
 					"    if not acct:\n",
@@ -141,7 +133,7 @@
 					"print(f\"INPUT_URI={INPUT_URI}\")\n",
 					"print(f\"OUTPUT_URI={OUTPUT_URI}\")"
 				],
-				"execution_count": 1
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -154,7 +146,7 @@
 					"RUN_TS  = datetime.utcnow().strftime(\"%Y%m%dT%H%M%SZ\")\n",
 					"TMP_XLS = \"/tmp/s62a_master.xlsx\""
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -190,7 +182,7 @@
 					"df = df.reset_index(drop=True)\n",
 					"print(f\"Raw rows: {len(df)}, columns: {len(fields)}\")"
 				],
-				"execution_count": 3
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -220,7 +212,7 @@
 					"    log(\"blank_row\", \"INFO\", row=r)\n",
 					"df = df[~blank_rows].reset_index(drop=True)"
 				],
-				"execution_count": 4
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -260,7 +252,7 @@
 					"    for ref in sorted(f_refs - t_refs):\n",
 					"        log(\"template_reconciliation\", \"WARN\", ref, detail=\"In Final selected, missing from Template\")"
 				],
-				"execution_count": 5
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -300,7 +292,7 @@
 					"YESNO_COLS   = [c for c in YESNO_COLS if c in df.columns]\n",
 					"ENUM_COLS    = [c for c in ENUM_COLS if c in df.columns]"
 				],
-				"execution_count": 6
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -336,7 +328,7 @@
 					"        log(\"mixed_types\", \"WARN\", column=c, detail=str(types))\n",
 					"profile_df = pd.DataFrame(profile)"
 				],
-				"execution_count": 7
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -363,7 +355,7 @@
 					"        if isinstance(v, str) and not re.match(r\"^\\d{2}/\\d{2}/\\d{4}$\", v.strip()) and not pd.isna(d):\n",
 					"            log(\"date_nonstandard_format\", \"INFO\", ref, row, c, v)"
 				],
-				"execution_count": 8
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -434,7 +426,7 @@
 					"        if not PC_RE.match(str(v).strip()):\n",
 					"            log(\"postcode_invalid\", \"WARN\", df.at[i, CR], df.at[i, \"_excel_row\"], c, v)"
 				],
-				"execution_count": 9
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -483,7 +475,7 @@
 					"            log(\"business_rule_skipped\", \"INFO\", detail=f\"{name}: missing column {e}\")\n",
 					"            break"
 				],
-				"execution_count": 10
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -504,7 +496,7 @@
 					"        if g.nunique() > 1:\n",
 					"            log(\"enum_case_variant\", \"WARN\", column=c, value=\" | \".join(g.unique()), detail=\"Same value, different casing/spacing\")"
 				],
-				"execution_count": 11
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -522,7 +514,7 @@
 					"            .rename(columns={\"Application Status\": \"key\"}).assign(dimension=\"application_status\"),\n",
 					"])[[\"dimension\", \"key\", \"cases\"]]"
 				],
-				"execution_count": 12
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -556,7 +548,7 @@
 					"print(summary_df.to_string(index=False))\n",
 					"print(\"\\n\", check_counts.to_string(index=False))"
 				],
-				"execution_count": 13
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -574,7 +566,7 @@
 					"except NameError:\n",
 					"    pass"
 				],
-				"execution_count": 14
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -599,7 +591,7 @@
 					"    else:\n",
 					"        print(f\"Written to {report}\")"
 				],
-				"execution_count": 15
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -608,7 +600,7 @@
 					"# if summary[\"status\"] == \"FAIL\":\n",
 					"#     raise Exception(f\"Extraction validation failed: {summary['issues_error']} errors\")"
 				],
-				"execution_count": 16
+				"execution_count": 17
 			}
 		]
 	}
