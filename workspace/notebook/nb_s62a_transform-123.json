@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0b2302cf-fbbc-4fd0-b603-c5479f472746"
+				"spark.autotune.trackingId": "fbc61b1c-b31e-45f4-b20e-6d1a29cf447c"
 			}
 		},
 		"metadata": {
@@ -72,8 +72,8 @@
 					"KEEP_DATELESS_TEXT_AS_NOTE = False   # date fields holding text with no date: False = drop the text\n",
 					"NULL_COUNTS_TO_ZERO        = True    # blank counts/areas in parking, housing, floorspace, waste rows become 0\n",
 					"\n",
-					"ROOT        = \"abfss://s62a@pinssts62adevukseftlkl.dfs.core.windows.net/PIPELINE\"\n",
-					"STORAGE_KEY = None   # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-Dev\")\n",
+					"STORAGE_ACCOUNT = None   # optional override; leave None to auto-detect from workspace\n",
+					"STORAGE_KEY     = None   # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-<Env>\")\n",
 					"MASTER_FILE  = \"INPUT/MASTER/MASTER LEGACY cases S62A - final.xlsx\"\n",
 					"MAPPING_FILE = \"INPUT/MASTER/Spreadsheet to MPA schema mapping.xlsx\"\n",
 					"OUTPUT_DIR   = \"OUTPUT/TRANSFORM\"\n",
@@ -92,6 +92,32 @@
 					"REF_PATTERN = r\"^S62A/(\\d{4})/(\\d{4}|\\d{7})(RD)?$\""
 				],
 				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"\n",
+					"ACCOUNTS = {\n",
+					"    \"dev\":  \"pinssts62adevukseftlkl\",\n",
+					"    \"test\": \"pinssts62atestuksnkavj4\",\n",
+					"    \"prod\": \"pinssts62aproduksrz8i4g\",\n",
+					"}\n",
+					"\n",
+					"if LOCAL_DIR:\n",
+					"    ENV, ROOT = \"local\", LOCAL_DIR\n",
+					"else:\n",
+					"    from notebookutils import mssparkutils\n",
+					"    ws  = mssparkutils.env.getWorkspaceName().lower()\n",
+					"    m   = re.search(r\"(?:^|[-_])(dev|test|prod)(?:[-_]|$)\", ws)\n",
+					"    if not m:\n",
+					"        raise ValueError(f\"Can't detect env from workspace name '{ws}'\")\n",
+					"    ENV  = m.group(1)\n",
+					"    ROOT = f\"abfss://s62a@{STORAGE_ACCOUNT or ACCOUNTS[ENV]}.dfs.core.windows.net/PIPELINE\"\n",
+					"\n",
+					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
