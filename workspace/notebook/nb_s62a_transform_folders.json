@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "cb33c303-c1ef-4e15-a43d-0b277acdd0c7"
+				"spark.autotune.trackingId": "baa563e2-1d65-452e-99f5-dfad8a13b10a"
 			}
 		},
 		"metadata": {
@@ -67,12 +67,37 @@
 				},
 				"source": [
 					"# Parameters\n",
-					"ROOT        = \"abfss://s62a@pinssts62adevukseftlkl.dfs.core.windows.net/PIPELINE\"\n",
-					"INPUT_DIR   = f\"{ROOT}/INPUT/DOCUMENTS\"            # document extract CSV(s)\n",
-					"OUTPUT_DIR  = f\"{ROOT}/OUTPUT/DOCUMENTS\"\n",
-					"STORAGE_KEY = None                                  # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-Dev\")\n",
-					"REF_DIGITS  = 7                                     # MPA refs: S62A/YYYY/XXXXXXX\n",
+					"STORAGE_ACCOUNT = None                 # optional override; leave None to auto-detect from workspace\n",
+					"INPUT_SUBDIR    = \"INPUT/DOCUMENTS\"    # document extract CSV(s)\n",
+					"OUTPUT_SUBDIR   = \"OUTPUT/DOCUMENTS\"\n",
+					"STORAGE_KEY     = None                 # None = Synapse identity. Fallback: (\"ls_kv\", \"S62A-Storage-<Env>\")\n",
+					"REF_DIGITS      = 7                    # MPA refs: S62A/YYYY/XXXXXXX"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
 					"\n",
+					"ACCOUNTS = {\n",
+					"    \"dev\":  \"pinssts62adevukseftlkl\",\n",
+					"    \"test\": \"pinssts62atestuksnkavj4\",\n",
+					"    \"prod\": \"pinssts62aproduksrz8i4g\",\n",
+					"}\n",
+					"\n",
+					"ws = mssparkutils.env.getWorkspaceName().lower()\n",
+					"m  = re.search(r\"(?:^|[-_])(dev|test|prod)(?:[-_]|$)\", ws)\n",
+					"if not m:\n",
+					"    raise ValueError(f\"Can't detect env from workspace name '{ws}'\")\n",
+					"ENV = m.group(1)\n",
+					"\n",
+					"ROOT       = f\"abfss://s62a@{STORAGE_ACCOUNT or ACCOUNTS[ENV]}.dfs.core.windows.net/PIPELINE\"\n",
+					"INPUT_DIR  = f\"{ROOT}/{INPUT_SUBDIR}\"\n",
+					"OUTPUT_DIR = f\"{ROOT}/{OUTPUT_SUBDIR}\"\n",
+					"\n",
+					"print(\"Env   :\", ENV)\n",
 					"print(\"Input :\", INPUT_DIR)\n",
 					"print(\"Output:\", OUTPUT_DIR)"
 				],
