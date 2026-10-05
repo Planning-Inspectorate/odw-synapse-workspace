@@ -1,0 +1,310 @@
+{
+	"name": "s62a_subset_of_cases",
+	"properties": {
+		"folder": {
+			"name": "S62A"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "3ba03287-18be-49e0-bd70-7359aa51460e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# S62A - Cut the load files down to a few cases\n",
+					"Keeps only the chosen cases (and everything linked to them) in SCHEMA/latest, DOCUMENTS/latest and USERS,\n",
+					"so the LOAD pipelines load just those cases. A full copy of each folder is saved first, so you can restore it."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"# Parameters\n",
+					"CASE_REFS = [\"S62A/2022/5000001\", \"S62A/2024/0032\"]   # MPA (7-digit) or original Horizon refs both work\n",
+					"\n",
+					"STORAGE_ACCOUNT = None      # optional override; leave None to auto-detect from the workspace\n",
+					"FOLDERS = {\n",
+					"    \"SCHEMA\":    \"OUTPUT/SCHEMA/latest\",\n",
+					"    \"DOCUMENTS\": \"OUTPUT/DOCUMENTS/latest\",\n",
+					"    \"USERS\":     \"OUTPUT/USERS\",\n",
+					"}\n",
+					"BACKUP_ROOT = \"OUTPUT/SUBSET_BACKUP\"   # full copies go here before anything is cut\n",
+					"DRY_RUN     = False                    # True = show what would be kept, change nothing\n",
+					"LOCAL_DIRS  = None                     # testing only: {\"SCHEMA\": \"/path\", \"DOCUMENTS\": \"/path\", \"USERS\": \"/path\"}"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Setup\n",
+					"import os, re, io\n",
+					"from datetime import datetime, timezone\n",
+					"import pandas as pd\n",
+					"\n",
+					"RUN_TS = datetime.now(timezone.utc).strftime(\"%Y%m%dT%H%M%SZ\")\n",
+					"\n",
+					"if not LOCAL_DIRS:\n",
+					"    from notebookutils import mssparkutils\n",
+					"    ACCOUNTS = {\"dev\": \"pinssts62adevukseftlkl\", \"test\": \"pinssts62atestuksnkavj4\", \"prod\": \"pinssts62aproduksrz8i4g\"}\n",
+					"    ws = mssparkutils.env.getWorkspaceName().lower()\n",
+					"    m = re.search(r\"(?:^|[-_])(dev|test|prod)(?:[-_]|$)\", ws)\n",
+					"    if not m:\n",
+					"        raise ValueError(f\"Can't detect env from workspace name '{ws}'\")\n",
+					"    ROOT = f\"abfss://s62a@{STORAGE_ACCOUNT or ACCOUNTS[m.group(1)]}.dfs.core.windows.net/PIPELINE\"\n",
+					"    print(\"Env:\", m.group(1), \"| Root:\", ROOT)\n",
+					"\n",
+					"def path(key):\n",
+					"    return LOCAL_DIRS[key] if LOCAL_DIRS else f\"{ROOT}/{FOLDERS[key]}\"\n",
+					"\n",
+					"def list_csvs(key):\n",
+					"    if LOCAL_DIRS:\n",
+					"        return sorted(f for f in os.listdir(path(key)) if f.lower().endswith(\".csv\"))\n",
+					"    return sorted(f.name for f in mssparkutils.fs.ls(path(key)) if f.name.lower().endswith(\".csv\"))\n",
+					"\n",
+					"def read(key, name):\n",
+					"    if LOCAL_DIRS:\n",
+					"        text = open(os.path.join(path(key), name), encoding=\"utf-8\").read()\n",
+					"    else:\n",
+					"        local = f\"/tmp/subset_{key}_{name}\"\n",
+					"        mssparkutils.fs.cp(f\"{path(key)}/{name}\", f\"file:{local}\")\n",
+					"        text = open(local, encoding=\"utf-8\").read()\n",
+					"    if not text.strip():\n",
+					"        return pd.DataFrame()\n",
+					"    # keep every value exactly as written (no NaN / float conversion), so untouched columns round-trip\n",
+					"    return pd.read_csv(io.StringIO(text), dtype=str, keep_default_na=False)\n",
+					"\n",
+					"def write(key, name, df):\n",
+					"    text = df.to_csv(index=False, encoding=\"utf-8\")\n",
+					"    if LOCAL_DIRS:\n",
+					"        open(os.path.join(path(key), name), \"w\", encoding=\"utf-8\").write(text)\n",
+					"    else:\n",
+					"        local = f\"/tmp/subset_out_{key}_{name}\"\n",
+					"        open(local, \"w\", encoding=\"utf-8\").write(text)\n",
+					"        mssparkutils.fs.cp(f\"file:{local}\", f\"{path(key)}/{name}\")\n",
+					"\n",
+					"def backup(key):\n",
+					"    dest = f\"{BACKUP_ROOT}/{RUN_TS}/{key}\"\n",
+					"    if LOCAL_DIRS:\n",
+					"        import shutil\n",
+					"        shutil.copytree(path(key), os.path.join(path(key), \"..\", f\"_backup_{RUN_TS}_{key}\"))\n",
+					"        return\n",
+					"    mssparkutils.fs.cp(path(key), f\"{ROOT}/{dest}\", True)\n",
+					"    print(f\"Backed up {FOLDERS[key]} -> {dest}\")"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Load everything\n",
+					"data = {key: {name: read(key, name) for name in list_csvs(key)} for key in FOLDERS}\n",
+					"for key, files in data.items():\n",
+					"    print(key, {n: len(df) for n, df in files.items()})\n",
+					"\n",
+					"S, D = data[\"SCHEMA\"], data[\"DOCUMENTS\"]\n",
+					"user_file = next((n for n in data[\"USERS\"] if n.lower() == \"user.csv\"), None)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Resolve the cases (accepts S62A/2024/0032 or S62A/2024/0000032 or the historical ref)\n",
+					"def to_mpa(ref):\n",
+					"    m = re.match(r\"^S62A/(\\d{4})/(\\d+)(RD)?$\", ref.strip(), re.I)\n",
+					"    return f\"S62A/{m.group(1)}/{int(m.group(2)):07d}{m.group(3) or ''}\" if m else ref.strip()\n",
+					"\n",
+					"cases = S[\"S62aCase.csv\"]\n",
+					"wanted = {r.strip() for r in CASE_REFS} | {to_mpa(r) for r in CASE_REFS}\n",
+					"keep_cases = cases[cases[\"reference\"].isin(wanted) | cases[\"historicalReference\"].isin(wanted)]\n",
+					"missing = [r for r in CASE_REFS if not ({r.strip(), to_mpa(r)} & set(keep_cases[\"reference\"]) | {r.strip()} & set(keep_cases[\"historicalReference\"]))]\n",
+					"if missing:\n",
+					"    raise ValueError(f\"Not found in S62aCase.csv: {missing}\")\n",
+					"CASE_IDS = set(keep_cases[\"id\"])\n",
+					"print(f\"Keeping {len(CASE_IDS)} case(s):\", keep_cases[[\"reference\", \"historicalReference\", \"id\"]].to_dict(\"records\"))"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Follow every link from those cases\n",
+					"def by(df, col, ids):\n",
+					"    return df[df[col].isin(ids)] if len(df) and col in df.columns else df.iloc[0:0]\n",
+					"\n",
+					"out = {\"SCHEMA\": {}, \"DOCUMENTS\": {}, \"USERS\": {}}\n",
+					"O = out[\"SCHEMA\"]\n",
+					"O[\"S62aCase.csv\"] = keep_cases\n",
+					"for name in [\"S62aDates.csv\", \"S62aFees.csv\", \"S62aEvent.csv\", \"S62aResidential.csv\", \"S62aNonResidential.csv\",\n",
+					"             \"S62aCaseInspector.csv\", \"S62aVehicleParking.csv\", \"S62aCaseWasteType.csv\"]:\n",
+					"    if name in S:\n",
+					"        O[name] = by(S[name], \"s62aCaseId\", CASE_IDS)\n",
+					"for name in [\"S62aToApplicant.csv\", \"ApplicationNote.csv\"]:\n",
+					"    if name in S:\n",
+					"        O[name] = by(S[name], \"s62aId\", CASE_IDS)\n",
+					"if \"S62aResidentialHousing.csv\" in S:\n",
+					"    O[\"S62aResidentialHousing.csv\"] = by(S[\"S62aResidentialHousing.csv\"], \"s62aResidentialId\", set(O[\"S62aResidential.csv\"][\"id\"]))\n",
+					"if \"S62aNonResidentialFloorspace.csv\" in S:\n",
+					"    O[\"S62aNonResidentialFloorspace.csv\"] = by(S[\"S62aNonResidentialFloorspace.csv\"], \"s62aNonResidentialId\", set(O[\"S62aNonResidential.csv\"][\"id\"]))\n",
+					"if \"S62aNonResidentialFloorspaceArea.csv\" in S:\n",
+					"    O[\"S62aNonResidentialFloorspaceArea.csv\"] = by(S[\"S62aNonResidentialFloorspaceArea.csv\"], \"s62aFloorspaceEntryId\",\n",
+					"                                                   set(O[\"S62aNonResidentialFloorspace.csv\"][\"id\"]))\n",
+					"\n",
+					"ta = O[\"S62aToApplicant.csv\"]\n",
+					"contact_ids = set(ta[\"contactId\"]) | set(keep_cases[\"lpaContactId\"]) | set(keep_cases[\"secondaryLpaContactId\"])\n",
+					"O[\"Contact.csv\"] = by(S[\"Contact.csv\"], \"id\", contact_ids - {\"\"})\n",
+					"O[\"Organisation.csv\"] = by(S[\"Organisation.csv\"], \"id\", set(ta[\"organisationId\"]) - {\"\"})\n",
+					"address_ids = set(keep_cases[\"siteAddressId\"]) | set(O[\"Contact.csv\"][\"addressId\"]) | set(O[\"Organisation.csv\"][\"addressId\"])\n",
+					"O[\"Address.csv\"] = by(S[\"Address.csv\"], \"id\", address_ids - {\"\"})\n",
+					"\n",
+					"# helper files: keep only rows for these cases\n",
+					"for name in [\"_exceptions.csv\", \"_rejected.csv\"]:\n",
+					"    if name in S and len(S[name]):\n",
+					"        df = S[name]\n",
+					"        mask = pd.Series(False, index=df.index)\n",
+					"        if \"caseId\" in df.columns:\n",
+					"            mask |= df[\"caseId\"].isin(CASE_IDS)\n",
+					"        if \"caseReference\" in df.columns:\n",
+					"            mask |= df[\"caseReference\"].isin(set(keep_cases[\"reference\"]))\n",
+					"        O[name] = df[mask]\n",
+					"if \"_load_order.csv\" in S:\n",
+					"    lo = S[\"_load_order.csv\"].copy()\n",
+					"    lo[\"rows\"] = lo[\"table\"].map(lambda t: str(len(O.get(f\"{t}.csv\", pd.DataFrame()))))\n",
+					"    O[\"_load_order.csv\"] = lo\n",
+					"\n",
+					"# documents\n",
+					"OD = out[\"DOCUMENTS\"]\n",
+					"if \"Folder.csv\" in D:\n",
+					"    OD[\"Folder.csv\"] = by(D[\"Folder.csv\"], \"s62aCaseId\", CASE_IDS)\n",
+					"if \"Document.csv\" in D:\n",
+					"    OD[\"Document.csv\"] = by(D[\"Document.csv\"], \"s62aCaseId\", CASE_IDS)\n",
+					"if \"_folder_lineage.csv\" in D:\n",
+					"    OD[\"_folder_lineage.csv\"] = by(D[\"_folder_lineage.csv\"], \"s62aCaseId\", CASE_IDS)\n",
+					"for name in [\"_document_exceptions.csv\", \"_document_rejected.csv\"]:\n",
+					"    if name in D and len(D[name]) and \"caseReference\" in D[name].columns:\n",
+					"        OD[name] = D[name][D[name][\"caseReference\"].isin(set(keep_cases[\"reference\"]))]\n",
+					"\n",
+					"# users: only the people these cases point at (+ the note author)\n",
+					"if user_file:\n",
+					"    user_ids = set()\n",
+					"    for col in [\"assessorInspectorId\", \"caseOfficerId\", \"planningOfficerId\", \"readerId\"]:\n",
+					"        user_ids |= set(keep_cases.get(col, pd.Series(dtype=str)))\n",
+					"    user_ids |= set(O[\"S62aCaseInspector.csv\"].get(\"userId\", pd.Series(dtype=str)))\n",
+					"    user_ids |= set(O[\"ApplicationNote.csv\"].get(\"userId\", pd.Series(dtype=str)))\n",
+					"    out[\"USERS\"][user_file] = by(data[\"USERS\"][user_file], \"id\", user_ids - {\"\"})"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Integrity check on the cut-down set (every FK must point at a kept row)\n",
+					"ALL = {**{k[:-4]: v for k, v in O.items()}, **{k[:-4]: v for k, v in OD.items()}}\n",
+					"if user_file:\n",
+					"    ALL[\"User\"] = out[\"USERS\"][user_file]\n",
+					"FKS = [(\"S62aDates\", \"s62aCaseId\", \"S62aCase\"), (\"S62aFees\", \"s62aCaseId\", \"S62aCase\"), (\"S62aEvent\", \"s62aCaseId\", \"S62aCase\"),\n",
+					"       (\"S62aResidential\", \"s62aCaseId\", \"S62aCase\"), (\"S62aNonResidential\", \"s62aCaseId\", \"S62aCase\"),\n",
+					"       (\"S62aToApplicant\", \"s62aId\", \"S62aCase\"), (\"S62aToApplicant\", \"contactId\", \"Contact\"),\n",
+					"       (\"S62aToApplicant\", \"organisationId\", \"Organisation\"), (\"ApplicationNote\", \"s62aId\", \"S62aCase\"),\n",
+					"       (\"S62aCaseInspector\", \"s62aCaseId\", \"S62aCase\"), (\"S62aVehicleParking\", \"s62aCaseId\", \"S62aCase\"),\n",
+					"       (\"S62aResidentialHousing\", \"s62aResidentialId\", \"S62aResidential\"),\n",
+					"       (\"S62aNonResidentialFloorspace\", \"s62aNonResidentialId\", \"S62aNonResidential\"),\n",
+					"       (\"S62aNonResidentialFloorspaceArea\", \"s62aFloorspaceEntryId\", \"S62aNonResidentialFloorspace\"),\n",
+					"       (\"S62aCase\", \"siteAddressId\", \"Address\"), (\"S62aCase\", \"lpaContactId\", \"Contact\"),\n",
+					"       (\"Contact\", \"addressId\", \"Address\"), (\"Organisation\", \"addressId\", \"Address\"),\n",
+					"       (\"Folder\", \"s62aCaseId\", \"S62aCase\"), (\"Folder\", \"parentFolderId\", \"Folder\"),\n",
+					"       (\"Document\", \"s62aCaseId\", \"S62aCase\"), (\"Document\", \"folderId\", \"Folder\")]\n",
+					"if user_file:\n",
+					"    FKS += [(\"S62aCase\", c, \"User\") for c in [\"assessorInspectorId\", \"caseOfficerId\", \"planningOfficerId\", \"readerId\"]]\n",
+					"    FKS += [(\"S62aCaseInspector\", \"userId\", \"User\"), (\"ApplicationNote\", \"userId\", \"User\")]\n",
+					"problems = []\n",
+					"for child, col, parent in FKS:\n",
+					"    if child in ALL and parent in ALL and col in ALL[child].columns and len(ALL[child]):\n",
+					"        vals = ALL[child][col]\n",
+					"        vals = vals[vals != \"\"]\n",
+					"        orphans = int((~vals.isin(set(ALL[parent][\"id\"]))).sum())\n",
+					"        if orphans:\n",
+					"            problems.append(f\"{child}.{col} -> {parent}: {orphans}\")\n",
+					"print(\"Integrity:\", \"OK\" if not problems else problems)\n",
+					"\n",
+					"summary = pd.DataFrame(\n",
+					"    [{\"folder\": key, \"file\": name, \"before\": len(data[key][name]), \"after\": len(df)}\n",
+					"     for key, files in out.items() for name, df in files.items()]\n",
+					").sort_values([\"folder\", \"file\"])\n",
+					"print(summary.to_string(index=False))\n",
+					"assert not problems, \"Fix the orphans above before writing\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Write: back up each folder, then replace its files with the cut-down versions\n",
+					"if DRY_RUN:\n",
+					"    print(\"DRY_RUN = True, nothing written\")\n",
+					"else:\n",
+					"    for key, files in out.items():\n",
+					"        if not files:\n",
+					"            continue\n",
+					"        backup(key)\n",
+					"        for name, df in files.items():\n",
+					"            write(key, name, df)\n",
+					"        print(f\"Wrote {len(files)} file(s) to {FOLDERS[key]}\")\n",
+					"    if not LOCAL_DIRS:\n",
+					"        print(f\"\\nTo restore the full data, copy {BACKUP_ROOT}/{RUN_TS}/<FOLDER> back over the latest folders \"\n",
+					"              f\"(or just rerun the notebooks).\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
