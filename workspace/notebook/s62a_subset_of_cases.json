@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "10fa2aa5-e534-455f-b223-c21397204816"
+				"spark.autotune.trackingId": "b0aca517-e074-4e4e-9ca1-3606b27bd36b"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"DRY_RUN     = False                    # True = show what would be kept, change nothing\n",
 					"LOCAL_DIRS  = None                     # testing only: {\"SCHEMA\": \"/path\", \"DOCUMENTS\": \"/path\", \"USERS\": \"/path\"}"
 				],
-				"execution_count": 1
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -139,7 +139,7 @@
 					"    mssparkutils.fs.cp(path(key), f\"{ROOT}/{dest}\", True)\n",
 					"    print(f\"Backed up {FOLDERS[key]} -> {dest}\")"
 				],
-				"execution_count": 2
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -152,7 +152,7 @@
 					"S, D = data[\"SCHEMA\"], data[\"DOCUMENTS\"]\n",
 					"user_file = next((n for n in data[\"USERS\"] if n.lower() == \"user.csv\"), None)"
 				],
-				"execution_count": 3
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -171,7 +171,7 @@
 					"CASE_IDS = set(keep_cases[\"id\"])\n",
 					"print(f\"Keeping {len(CASE_IDS)} case(s):\", keep_cases[[\"reference\", \"historicalReference\", \"id\"]].to_dict(\"records\"))"
 				],
-				"execution_count": 4
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -241,7 +241,7 @@
 					"    user_ids |= set(O[\"ApplicationNote.csv\"].get(\"userId\", pd.Series(dtype=str)))\n",
 					"    out[\"USERS\"][user_file] = by(data[\"USERS\"][user_file], \"id\", user_ids - {\"\"})"
 				],
-				"execution_count": 5
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -282,7 +282,7 @@
 					"print(summary.to_string(index=False))\n",
 					"assert not problems, \"Fix the orphans above before writing\""
 				],
-				"execution_count": 6
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -302,7 +302,36 @@
 					"        print(f\"\\nTo restore the full data, copy {BACKUP_ROOT}/{RUN_TS}/<FOLDER> back over the latest folders \"\n",
 					"              f\"(or just rerun the notebooks).\")"
 				],
-				"execution_count": 7
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"SERVER   = \"pins-sql-crown-primary-dev.database.windows.net\"\n",
+					"DATABASE = \"pins-sqldb-crown-dev\"\n",
+					"USER     = \"crown_app_7b7986H8\"\n",
+					"PASSWORD = mssparkutils.credentials.getSecretWithLS(\"ls_kv\", \"crown-sql-password\")\n",
+					"\n",
+					"JDBC_URL = (f\"jdbc:sqlserver://{SERVER}:1433;database={DATABASE};\"\n",
+					"            \"encrypt=true;trustServerCertificate=false;loginTimeout=30;\")\n",
+					"\n",
+					"def query(sql):\n",
+					"    return (spark.read.format(\"jdbc\")\n",
+					"            .option(\"url\", JDBC_URL)\n",
+					"            .option(\"query\", sql)\n",
+					"            .option(\"user\", USER)\n",
+					"            .option(\"password\", PASSWORD)\n",
+					"            .option(\"driver\", \"com.microsoft.sqlserver.jdbc.SQLServerDriver\")\n",
+					"            .load())\n",
+					"\n",
+					"display(query(\"SELECT id, name, pinsCode, onsCode FROM dbo.Lpa WHERE name LIKE '%System Test%'\"))"
+				],
+				"execution_count": 23
 			}
 		]
 	}
