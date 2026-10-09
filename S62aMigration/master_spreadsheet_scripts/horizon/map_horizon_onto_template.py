@@ -309,8 +309,7 @@ for filename in csv_files:
     rows, audit = build_output_rows(df, mapping)
     all_audit.extend(audit)
 
-    # Merge into case_rows by CaseReference; extended_data fields are combined
-    # unique values, while conflicting ordinary fields create separate rows.
+    # Merge matching values by CaseReference; extended-data differences create separate rows.
     for row_result in rows:
         case_ref = row_result.get("Case reference")
         if not case_ref:
@@ -318,14 +317,14 @@ for filename in csv_files:
         aggregate_columns = {
             rule["template_column"]
             for rule in mapping
-            if rule["append"] or rule["aggregate_by_case"]
+            if rule["append"] and not rule["aggregate_by_case"]
         }
         non_append = {
             col: val for col, val in row_result.items()
             if col not in aggregate_columns and col != "Case reference"
         }
         if case_ref not in case_rows:
-            case_rows[case_ref] = [{"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}]
+            case_rows[case_ref] = [{"values": {"Case reference": case_ref}, "arrays": {}}]
 
         # Reuse a row when all non-array values agree, otherwise retain the
         # source combination in a new row and highlight the differing cells.
@@ -338,13 +337,9 @@ for filename in csv_files:
                 compatible = record
                 break
         if compatible is None:
-            compatible = {"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}
+            compatible = {"values": {"Case reference": case_ref}, "arrays": {}}
             for col, val in non_append.items():
-                for record in case_rows[case_ref]:
-                    if col in record["values"] and record["values"][col] != val:
-                        record["conflicts"].add(col)
                 compatible["values"][col] = val
-                compatible["conflicts"].add(col)
             case_rows[case_ref].append(compatible)
         else:
             for col, val in non_append.items():
@@ -406,7 +401,6 @@ def apply_hearing_venue_override():
 apply_hearing_venue_override()
 
 all_rows = []
-all_conflicts = []
 for records in case_rows.values():
     for record in records:
         row = dict(record["values"])
@@ -423,7 +417,29 @@ for records in case_rows.values():
         if not is_blank(row.get("Fee refund amount")):
             row["Fee refund"] = "Yes"
         all_rows.append(row)
-        all_conflicts.append(record["conflicts"])
+
+rows_by_case = {}
+for row_index, row in enumerate(all_rows):
+    rows_by_case.setdefault(row.get("Case reference"), []).append(row_index)
+
+all_conflicts = [set() for _ in all_rows]
+for row_indices in rows_by_case.values():
+    values_by_column = {}
+    for row_index in row_indices:
+        for column, value in all_rows[row_index].items():
+            if column != "Case reference" and not is_blank(value):
+                values_by_column.setdefault(column, set()).add(value)
+
+    conflicting_columns = {
+        column for column, values in values_by_column.items()
+        if len(values) > 1
+    }
+    for row_index in row_indices:
+        all_conflicts[row_index] = {
+            column for column in conflicting_columns
+            if not is_blank(all_rows[row_index].get(column))
+        }
+
 print(f"\nBlock 4 done - {len(all_rows)} unique cases, {len(all_audit)} audit flags, {len(unmapped_report)} unmapped column entries")
 
 
