@@ -1,0 +1,189 @@
+{
+	"name": "s62a_migration_audit",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b4a4dd7e-63cf-4bf9-a81a-f11eaa6fa04a"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {},
+				"source": [
+					"# S62A - Migration audit log\n",
+					"\n",
+					"Runs after the `LOAD` stage and records, per case, whether it was migrated. Each run writes a new file to the audit folder of the S62A ADLS container; existing audit files are never changed.\n",
+					"\n",
+					"Which cases count as migrated:\n",
+					"- `LOADED_CASES` given (list of case IDs read back from the database after `LOAD`): only cases found there are `MIGRATED`, any other case is `NOT_FOUND_IN_DATABASE` and the notebook fails after writing the log.\n",
+					"- `LOADED_CASES` not given: every case in `S62aCase.csv` (the file `LOAD` copies) is `MIGRATED`, relying on the pipeline only starting this notebook when `LOAD` succeeded."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"# Parameters\n",
+					"STORAGE_ACCOUNT = None   # defaults to the S62A account for the detected environment\n",
+					"STORAGE_KEY     = None   # optional (linked service, secret name); default is the workspace managed identity\n",
+					"\n",
+					"SCHEMA_DIR = \"OUTPUT/SCHEMA/latest\"   # the folder LOAD copies from\n",
+					"AUDIT_DIR  = \"OUTPUT/AUDIT/MIGRATION\"\n",
+					"\n",
+					"LOADED_CASES    = None   # optional JSON list of case IDs (or {\"id\": ...}) read from S62aCase in the database after LOAD\n",
+					"MIGRATED_AT     = None   # optional UTC timestamp of the load, defaults to now\n",
+					"PIPELINE_RUN_ID = None   # optional, pass @pipeline().RunId"
+				],
+				"outputs": [],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"import re\n",
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"ACCOUNTS = {\n",
+					"    \"dev\":  \"pinssts62adevukseftlkl\",\n",
+					"    \"test\": \"pinssts62atestuksnkavj4\",\n",
+					"    \"prod\": \"pinssts62aproduksrz8i4g\",\n",
+					"}\n",
+					"\n",
+					"ws = mssparkutils.env.getWorkspaceName().lower()\n",
+					"m  = re.search(r\"(?:^|[-_])(dev|test|prod)(?:[-_]|$)\", ws)\n",
+					"if not m:\n",
+					"    raise ValueError(f\"Can't detect env from workspace name '{ws}'\")\n",
+					"ENV     = m.group(1)\n",
+					"ACCOUNT = STORAGE_ACCOUNT or ACCOUNTS[ENV]\n",
+					"ROOT    = f\"abfss://s62a@{ACCOUNT}.dfs.core.windows.net/PIPELINE\"\n",
+					"\n",
+					"if STORAGE_KEY:\n",
+					"    spark.conf.set(f\"fs.azure.account.key.{ACCOUNT}.dfs.core.windows.net\",\n",
+					"                   mssparkutils.credentials.getSecretWithLS(*STORAGE_KEY).strip())\n",
+					"\n",
+					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
+				],
+				"outputs": [],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"# Cases LOAD copied to the database\n",
+					"import json\n",
+					"\n",
+					"cases = (spark.read.option(\"header\", True).csv(f\"{ROOT}/{SCHEMA_DIR}/S62aCase.csv\")\n",
+					"         .select(\"id\", \"reference\", \"historicalReference\").where(\"id IS NOT NULL\")\n",
+					"         .dropDuplicates([\"id\"]).toPandas())\n",
+					"if cases.empty:\n",
+					"    raise ValueError(f\"No cases in {SCHEMA_DIR}/S62aCase.csv, nothing to audit\")\n",
+					"\n",
+					"if LOADED_CASES:\n",
+					"    loaded = {str(c[\"id\"] if isinstance(c, dict) else c).upper() for c in json.loads(LOADED_CASES)}\n",
+					"    if not loaded:\n",
+					"        raise ValueError(\"LOADED_CASES is empty: the database lookup after LOAD returned no cases\")\n",
+					"else:\n",
+					"    loaded = None\n",
+					"print(f\"Cases in this run: {len(cases)} | database lookup: {'yes, ' + str(len(loaded)) + ' ids' if loaded is not None else 'no'}\")"
+				],
+				"outputs": [],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"# Build the audit rows\n",
+					"import pandas as pd\n",
+					"\n",
+					"at = pd.Timestamp(MIGRATED_AT) if MIGRATED_AT else pd.Timestamp.now(tz=\"UTC\")\n",
+					"at = at.tz_localize(\"UTC\") if at.tzinfo is None else at.tz_convert(\"UTC\")\n",
+					"RUN_TS = at.strftime(\"%Y%m%dT%H%M%SZ\")\n",
+					"\n",
+					"ok = cases[\"id\"].str.upper().isin(loaded) if loaded is not None else pd.Series(True, index=cases.index)\n",
+					"audit = pd.DataFrame({\n",
+					"    \"caseId\":              cases[\"id\"],\n",
+					"    \"caseReference\":       cases[\"reference\"],\n",
+					"    \"historicalReference\": cases[\"historicalReference\"],\n",
+					"    \"migrationStatus\":     ok.map({True: \"MIGRATED\", False: \"NOT_FOUND_IN_DATABASE\"}),\n",
+					"    \"migratedAt\":          [at.strftime(\"%Y-%m-%dT%H:%M:%SZ\") if o else None for o in ok],\n",
+					"    \"message\":             [f\"Case migrated successfully from Horizon and spreadsheet data on {at.strftime('%d/%m/%Y')}\" if o\n",
+					"                            else \"Case not found in the database after load, not migrated\" for o in ok],\n",
+					"    \"verifiedAgainst\":     \"database\" if loaded is not None else \"load_stage\",\n",
+					"    \"environment\":         ENV,\n",
+					"    \"pipelineRunId\":       PIPELINE_RUN_ID,\n",
+					"})\n",
+					"missing = audit[audit.migrationStatus != \"MIGRATED\"]\n",
+					"print(audit.migrationStatus.value_counts().to_string())\n",
+					"print(audit.head(5).to_string(index=False))"
+				],
+				"outputs": [],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {},
+				"source": [
+					"# One new file per run, so repeated or parallel runs never overwrite each other\n",
+					"dest = f\"{ROOT}/{AUDIT_DIR}/migration_audit_{RUN_TS}.csv\"\n",
+					"mssparkutils.fs.put(dest, audit.to_csv(index=False), True)\n",
+					"print(f\"Wrote {len(audit)} rows to {dest}\")\n",
+					"\n",
+					"if len(missing):\n",
+					"    raise Exception(f\"{len(missing)} case(s) were not found in the database after LOAD: \"\n",
+					"                    + \", \".join(missing.caseReference.fillna(missing.caseId).head(20)))"
+				],
+				"outputs": [],
+				"execution_count": null
+			}
+		]
+	}
+}
