@@ -33,9 +33,7 @@ COMPARISON_FILE = (
 MASTER_TEMPLATE_FILE = (
 	BASE_DIR / "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
 )
-# Migrated spreadsheet output: fallback source for spreadsheet site fields the
-# comparison sheet doesn't carry (compare_sources.py only writes spreadsheet
-# columns for Site address 1 and Site post code).
+
 SPREADSHEET_FILE = BASE_DIR / "outputs/S62A_All_Sheets_migrated.xlsx"
 OUTPUT_FILE = BASE_DIR / "outputs/MASTER LEGACY cases S62A - final.xlsx"
 
@@ -46,24 +44,20 @@ TEMPLATE_HEADER_ROW = 2
 TEMPLATE_FIRST_DATA_ROW = 3
 KEY_COLUMN = "Case reference"
 
-# FIX 1: header / colour / first data row are detected, not hard-coded.
-# The comparison file has been both "group, header, data..." and "group, notes, header, data...".
+
 COMPARISON_HEADER_ROW = None
 COMPARISON_COLOUR_ROW = None
 COMPARISON_FIRST_DATA_ROW = None
 
-# FIX 3: site address fields are taken as one block.
-# Where 'Site address 1 (horizon)' is blank, the whole site block comes from the spreadsheet
-# (regardless of whether those spreadsheet columns are greyed out or light green).
-# Otherwise each site field goes through normal selection.
+
 SITE_BLOCK = ["Site address 1", "Site address 2", "Site town or city", "Site county", "Site post code"]
 SITE_TRIGGER = "Site address 1"
 
 
 _REPORTED = set()
-THEME_RGB = []          # filled from the workbook theme, so theme colours (e.g. light blue accent) can be classified
-OVERRIDE_LOG = []       # (case, field, source, value) for every blue override applied
-SITE_SWAP_LOG = []      # cases where the whole site block came from the spreadsheet
+THEME_RGB = []          
+OVERRIDE_LOG = []       
+SITE_SWAP_LOG = []      
 
 EMPTY_FIELD_FILL = PatternFill(fill_type="solid", start_color="D9D9D9", end_color="D9D9D9")
 MERGED_FIELD_FILL = PatternFill(fill_type="solid", start_color="FFF2CC", end_color="FFF2CC")
