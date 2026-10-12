@@ -33,7 +33,12 @@ COMPARISON_FILE = (
 MASTER_TEMPLATE_FILE = (
 	BASE_DIR / "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
 )
+# Migrated spreadsheet output: fallback source for spreadsheet site fields the
+# comparison sheet doesn't carry (compare_sources.py only writes spreadsheet
+# columns for Site address 1 and Site post code).
+SPREADSHEET_FILE = BASE_DIR / "outputs/S62A_All_Sheets_migrated.xlsx"
 OUTPUT_FILE = BASE_DIR / "outputs/MASTER LEGACY cases S62A - final.xlsx"
+
 
 SHEET_NAME = "Template"
 FINAL_SHEET_NAME = "Final selected"
@@ -47,14 +52,18 @@ COMPARISON_HEADER_ROW = None
 COMPARISON_COLOUR_ROW = None
 COMPARISON_FIRST_DATA_ROW = None
 
-# FIX 3: site address fields are taken as one block, per the notes row:
-# "Where 'Site address 1 (horizon)' is blank, complete with the spreadsheet site fields".
+# FIX 3: site address fields are taken as one block.
+# Where 'Site address 1 (horizon)' is blank, the whole site block comes from the spreadsheet
+# (regardless of whether those spreadsheet columns are greyed out or light green).
+# Otherwise each site field goes through normal selection.
 SITE_BLOCK = ["Site address 1", "Site address 2", "Site town or city", "Site county", "Site post code"]
+SITE_TRIGGER = "Site address 1"
 
 
 _REPORTED = set()
 THEME_RGB = []          # filled from the workbook theme, so theme colours (e.g. light blue accent) can be classified
 OVERRIDE_LOG = []       # (case, field, source, value) for every blue override applied
+SITE_SWAP_LOG = []      # cases where the whole site block came from the spreadsheet
 
 EMPTY_FIELD_FILL = PatternFill(fill_type="solid", start_color="D9D9D9", end_color="D9D9D9")
 MERGED_FIELD_FILL = PatternFill(fill_type="solid", start_color="FFF2CC", end_color="FFF2CC")
@@ -335,13 +344,58 @@ def _merge_repeated_row_one(sheet):
 		start_column = end_column + 1
 
 
-def _site_block_values(sheet, source_rows, groups):
-	"""All site fields from Horizon if Horizon has any site address, otherwise all from the spreadsheet.
-	Keeps an address from one source instead of mixing line 1 from one with a postcode from the other."""
-	horizon = {f: _first_value(sheet, source_rows, groups.get(f, {}).get("horizon")) for f in SITE_BLOCK}
-	spreadsheet = {f: _first_value(sheet, source_rows, groups.get(f, {}).get("spreadsheet")) for f in SITE_BLOCK}
-	use = horizon if any(not _is_blank(v) for v in horizon.values()) else spreadsheet
-	return use
+def _load_spreadsheet_site_values():
+	"""Site fields per case straight from the migrated spreadsheet output, for spreadsheet
+	site columns the comparison sheet doesn't carry (Site address 2, town, county)."""
+	if not SPREADSHEET_FILE.is_file():
+		print(f"  spreadsheet output not found, site fallback limited to comparison sheet: {SPREADSHEET_FILE}")
+		return {}
+	wb = load_workbook(SPREADSHEET_FILE, data_only=True)
+	try:
+		ws = wb[SHEET_NAME]
+		headers = {
+			str(ws.cell(TEMPLATE_HEADER_ROW, c).value).strip(): c
+			for c in range(1, ws.max_column + 1)
+			if not _is_blank(ws.cell(TEMPLATE_HEADER_ROW, c).value)
+		}
+		if KEY_COLUMN not in headers:
+			print(f"  {KEY_COLUMN!r} not found in {SPREADSHEET_FILE.name}, site fallback limited to comparison sheet")
+			return {}
+		missing = [f for f in SITE_BLOCK if f not in headers]
+		if missing:
+			print(f"  site fields missing from {SPREADSHEET_FILE.name}: {missing}")
+		key_column = headers[KEY_COLUMN]
+		site_values = {}
+		for row in range(TEMPLATE_FIRST_DATA_ROW, ws.max_row + 1):
+			case_reference = ws.cell(row, key_column).value
+			if _is_blank(case_reference):
+				continue
+			existing = site_values.setdefault(str(case_reference).strip(), {})
+			for field in SITE_BLOCK:
+				if field not in headers:
+					continue
+				value = ws.cell(row, headers[field]).value
+				if _is_blank(existing.get(field)) and not _is_blank(value):
+					existing[field] = value
+		return site_values
+	finally:
+		wb.close()
+
+
+def _site_block_values(sheet, source_rows, groups, case_reference, spreadsheet_site):
+	"""If Site address 1 (horizon) is blank, return the whole site block from the spreadsheet
+	(comparison sheet first, then the migrated spreadsheet output). Blanks are kept so the
+	two sources are never mixed. Otherwise return None so site fields go through normal selection."""
+	horizon_line_1 = _first_value(sheet, source_rows, groups.get(SITE_TRIGGER, {}).get("horizon"))
+	if not _is_blank(horizon_line_1):
+		return None
+	values = {}
+	for field in SITE_BLOCK:
+		value = _first_value(sheet, source_rows, groups.get(field, {}).get("spreadsheet"))
+		if _is_blank(value):
+			value = spreadsheet_site.get(case_reference, {}).get(field)
+		values[field] = value
+	return values
 
 
 def extract_final_columns():
@@ -358,6 +412,7 @@ def extract_final_columns():
 		template_headers = _headers(template_sheet, TEMPLATE_HEADER_ROW)
 		selections, groups = _select_sources(comparison_styles_sheet)
 		case_rows = _case_rows(comparison_sheet)
+		spreadsheet_site = _load_spreadsheet_site_values()
 
 		if FINAL_SHEET_NAME in comparison_styles_workbook.sheetnames:
 			del comparison_styles_workbook[FINAL_SHEET_NAME]
@@ -395,7 +450,11 @@ def extract_final_columns():
 		output_row = TEMPLATE_FIRST_DATA_ROW
 		for case_reference, source_rows in case_rows.items():
 			final_sheet.cell(output_row, 1).value = case_reference
-			site_values = _site_block_values(comparison_sheet, source_rows, groups)
+			site_values = _site_block_values(
+				comparison_sheet, source_rows, groups, case_reference, spreadsheet_site
+			)
+			if site_values is not None:
+				SITE_SWAP_LOG.append(case_reference)
 			for output_column, selection in enumerate(selections, start=2):
 				target = final_sheet.cell(output_row, output_column)
 				# Blue override (dark or light blue cell): that value is used and keeps its blue fill
@@ -412,7 +471,8 @@ def extract_final_columns():
 					source = next((s for s, c in groups.get(selection["header"], {}).items() if c == column), "?")
 					OVERRIDE_LOG.append((case_reference, selection["header"], source, value))
 					continue
-				if selection["header"] in SITE_BLOCK:
+				# Horizon Site address 1 blank: whole site block from the spreadsheet
+				if selection["header"] in SITE_BLOCK and site_values is not None:
 					target.value = site_values[selection["header"]]
 					continue
 				primary_value = _first_value(comparison_sheet, source_rows, selection["primary"])
@@ -450,6 +510,7 @@ def extract_final_columns():
 		comparison_styles_workbook.save(OUTPUT_FILE)
 		print(f"Wrote {output_row - TEMPLATE_FIRST_DATA_ROW} cases to {OUTPUT_FILE}")
 		print(f"Retained {len(selections)} final columns; comparison Template preserved")
+		print(f"Site block taken from spreadsheet (Horizon Site address 1 blank): {len(SITE_SWAP_LOG)} cases")
 		by_field = {}
 		for _, field, source, _ in OVERRIDE_LOG:
 			by_field[(field, source)] = by_field.get((field, source), 0) + 1
