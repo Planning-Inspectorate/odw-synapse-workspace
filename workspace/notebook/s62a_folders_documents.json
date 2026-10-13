@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "15c9e92d-9643-490b-bd47-b91a4782c055"
+				"spark.autotune.trackingId": "f71ac925-a0b9-4cc7-bef4-08ee90f3de63"
 			}
 		},
 		"metadata": {
@@ -227,9 +227,13 @@
 					"exploded_folders = (\n",
 					"    docs_with_segments\n",
 					"    .filter(F.col(\"s62aCaseId\").isNotNull())\n",
+					"    .join(cases, F.col(\"s62aCaseId\") == F.col(\"caseGuid\"), \"left_semi\")   # only cases in S62aCase\n",
 					"    .select(\"caseReference\", \"s62aCaseId\", F.explode(\"ancestorPaths\").alias(\"folderPath\"))\n",
 					"    .dropDuplicates([\"caseReference\", \"folderPath\"])\n",
 					")\n",
+					"print(\"Folders skipped, case not loaded:\",\n",
+					"      docs_with_segments.join(cases, F.col(\"s62aCaseId\") == F.col(\"caseGuid\"), \"left_anti\")\n",
+					"                        .select(\"caseReference\").distinct().count(), \"cases\")\n",
 					"\n",
 					"folders_shaped = (\n",
 					"    exploded_folders\n",
