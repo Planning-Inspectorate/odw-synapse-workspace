@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f71ac925-a0b9-4cc7-bef4-08ee90f3de63"
+				"spark.autotune.trackingId": "52f43adc-3eba-480b-a95f-b4b722b23c04"
 			}
 		},
 		"metadata": {
@@ -76,9 +76,10 @@
 					"\n",
 					"KEEP_ALL_VERSIONS   = True\n",
 					"KEEP_PDF_RENDITIONS = True\n",
-					"BLOB_CONTAINER      = \"s62a-documents\""
+					"BLOB_CONTAINER      = \"s62a-documents\"\n",
+					"ONLY_CASES_IN_SCHEMA = True"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +107,7 @@
 					"print(\"Input :\", INPUT_DIR)\n",
 					"print(\"Output:\", OUTPUT_DIR)"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -131,10 +132,13 @@
 					"        return None\n",
 					"    return str(uuid.uuid5(GUID_NS, \"|\".join(str(p) for p in parts))).upper()"
 				],
-				"execution_count": null
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"docs_raw = (\n",
 					"    spark.read\n",
@@ -153,7 +157,7 @@
 					"print(\"Row count:\", docs_raw.count())\n",
 					"display(docs_raw.orderBy(\"_source_file\").limit(50))"
 				],
-				"execution_count": null
+				"execution_count": 16
 			},
 			{
 				"cell_type": "code",
@@ -171,10 +175,13 @@
 					")\n",
 					"docs_clean.printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"docs_x = (\n",
 					"    docs_clean\n",
@@ -202,12 +209,23 @@
 					"print(\"Cases in extract:\", docs_x.select(\"caseReference\").distinct().count(),\n",
 					"      \"| not found in S62aCase:\", unmatched.count())\n",
 					"display(unmatched)\n",
+					"\n",
+					"if ONLY_CASES_IN_SCHEMA:\n",
+					"    before_docs  = docs_x.count()\n",
+					"    before_cases = docs_x.select(\"caseReference\").distinct().count()\n",
+					"    docs_x = docs_x.join(cases, F.col(\"s62aCaseId\") == F.col(\"caseGuid\"), \"left_semi\")\n",
+					"    print(f\"Filtered to cases in S62aCase.csv: {docs_x.select('caseReference').distinct().count()} of {before_cases} cases, \"\n",
+					"          f\"{docs_x.count()} of {before_docs} documents kept\")\n",
+					"\n",
 					"display(docs_x.select(\"documentId\", \"path\", \"caseReference\", \"s62aCaseId\", \"relPath\").limit(50))"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"docs_with_segments = (\n",
 					"    docs_x\n",
@@ -223,6 +241,9 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"exploded_folders = (\n",
 					"    docs_with_segments\n",
@@ -274,6 +295,9 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"docs_with_folder = (\n",
 					"    docs_with_segments.alias(\"d\")\n",
