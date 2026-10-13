@@ -338,6 +338,7 @@ def _merge_repeated_row_one(sheet):
 		start_column = end_column + 1
 
 
+<<<<<<< HEAD
 def _load_spreadsheet_site_values():
 	"""Site fields per case straight from the migrated spreadsheet output, for spreadsheet
 	site columns the comparison sheet doesn't carry (Site address 2, town, county)."""
@@ -390,6 +391,26 @@ def _site_block_values(sheet, source_rows, groups, case_reference, spreadsheet_s
 			value = spreadsheet_site.get(case_reference, {}).get(field)
 		values[field] = value
 	return values
+=======
+def _varies(sheet, rows, columns):
+	"""True if the case's rows hold different non-blank values in any of these columns (a repeating group, e.g. parking / housing)."""
+	for column in columns:
+		if column is None:
+			continue
+		values = {str(sheet.cell(row, column).value).strip() for row in rows if not _is_blank(sheet.cell(row, column).value)}
+		if len(values) > 1:
+			return True
+	return False
+
+
+def _site_block_values(sheet, source_rows, groups):
+	"""All site fields from Horizon if Horizon has any site address, otherwise all from the spreadsheet.
+	Keeps an address from one source instead of mixing line 1 from one with a postcode from the other."""
+	horizon = {f: _first_value(sheet, source_rows, groups.get(f, {}).get("horizon")) for f in SITE_BLOCK}
+	spreadsheet = {f: _first_value(sheet, source_rows, groups.get(f, {}).get("spreadsheet")) for f in SITE_BLOCK}
+	use = horizon if any(not _is_blank(v) for v in horizon.values()) else spreadsheet
+	return use
+>>>>>>> 4254752982f54cdd8f218db1887e4ebc58edf054
 
 
 def extract_final_columns():
@@ -442,18 +463,28 @@ def extract_final_columns():
 		_merge_repeated_row_one(final_sheet)
 
 		output_row = TEMPLATE_FIRST_DATA_ROW
-		for case_reference, source_rows in case_rows.items():
+		# One output row per comparison row, so repeating groups (parking, housing, ...) are not lost.
+		# Fields identical across a case's rows are shared by all of them; fields that differ stay on their own row.
+		row_jobs = [(case, rows, [row]) for case, rows in case_rows.items() for row in rows]
+		for case_reference, case_source_rows, own_rows in row_jobs:
 			final_sheet.cell(output_row, 1).value = case_reference
+<<<<<<< HEAD
 			site_values = _site_block_values(
 				comparison_sheet, source_rows, groups, case_reference, spreadsheet_site
 			)
 			if site_values is not None:
 				SITE_SWAP_LOG.append(case_reference)
+=======
+			site_values = _site_block_values(comparison_sheet, case_source_rows, groups)
+>>>>>>> 4254752982f54cdd8f218db1887e4ebc58edf054
 			for output_column, selection in enumerate(selections, start=2):
 				target = final_sheet.cell(output_row, output_column)
-				# Blue override (dark or light blue cell): that value is used and keeps its blue fill
 				other = [c for c in groups.get(selection["header"], {}).values()
 				         if c not in (selection["primary"], selection["fallback"])]
+				source_rows = own_rows if _varies(
+					comparison_sheet, case_source_rows, [selection["primary"], selection["fallback"], *other]
+				) else case_source_rows
+				# Blue override (dark or light blue cell): that value is used and keeps its blue fill
 				override = _blue_override(
 					comparison_sheet, comparison_styles_sheet, source_rows,
 					[selection["primary"], selection["fallback"], *other],
@@ -502,7 +533,7 @@ def extract_final_columns():
 		)
 		OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 		comparison_styles_workbook.save(OUTPUT_FILE)
-		print(f"Wrote {output_row - TEMPLATE_FIRST_DATA_ROW} cases to {OUTPUT_FILE}")
+		print(f"Wrote {output_row - TEMPLATE_FIRST_DATA_ROW} rows ({len(case_rows)} cases) to {OUTPUT_FILE}")
 		print(f"Retained {len(selections)} final columns; comparison Template preserved")
 		print(f"Site block taken from spreadsheet (Horizon Site address 1 blank): {len(SITE_SWAP_LOG)} cases")
 		by_field = {}
