@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "81591b86-1dd6-4d65-ac7e-57dc09c82ab3"
+				"spark.autotune.trackingId": "cf7038e3-b37c-4132-a3f8-5b4207fd5bbe"
 			}
 		},
 		"metadata": {
@@ -89,7 +89,7 @@
 					"HEADER_ROWS = 3\n",
 					"REF_PATTERN = r\"^S62A/(\\d{4})/(\\d{4}|\\d{7})(RD)?$\""
 				],
-				"execution_count": 81
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": 82
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +130,7 @@
 					"TMP    = \"/tmp/s62a_transform\"\n",
 					"os.makedirs(TMP, exist_ok=True)"
 				],
-				"execution_count": 83
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +173,7 @@
 					"\n",
 					"print(f\"Root: {ROOT} | cases: {len(src)} | columns: {len(fields)} | mapping rows: {len(mapping)}\")"
 				],
-				"execution_count": 84
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -257,7 +257,7 @@
 					"def get(row, col):\n",
 					"    return row[col] if col in row.index else None"
 				],
-				"execution_count": 85
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -323,7 +323,7 @@
 					"for g in generated_refs:\n",
 					"    print(f\"  {g['generatedReference']}  <-  {g['originalValue'][:60]}  ({g['yearFrom']} {g['yearDate']})\")"
 				],
-				"execution_count": 86
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -356,7 +356,41 @@
 					"cases = pd.DataFrame(merged).reset_index(drop=True)\n",
 					"print(f\"Source rows in scope: {sum(len(g) for g in rows_by_ref.values())} -> cases: {len(cases)}\")"
 				],
-				"execution_count": 87
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# 1a2. Pre-application cases get /PRE on the end of the reference (agreed with Sophie: phase decides).\n",
+					"# Runs after numbering and merging, so it never changes which numbers are used.\n",
+					"# GUIDs are built from the reference WITHOUT /PRE (base_ref, used in 7b), so ids don't change\n",
+					"# and the documents notebook still matches.\n",
+					"def base_ref(ref):\n",
+					"    return re.sub(rf\"{re.escape(PRE_SUFFIX)}$\", \"\", str(ref))\n",
+					"\n",
+					"def is_pre_app(row):\n",
+					"    phase = str(get(row, \"Application phase\") or \"\").strip().lower()\n",
+					"    return phase == \"pre-application\" or (phase in (\"\", \"nan\", \"none\") and row._ref_class == \"PRE_APP\")\n",
+					"\n",
+					"renamed = {}\n",
+					"for i, row in cases.iterrows():\n",
+					"    ref = row[\"Case reference\"]\n",
+					"    if is_pre_app(row) and not ref.endswith(PRE_SUFFIX):\n",
+					"        renamed[ref] = ref + PRE_SUFFIX\n",
+					"        cases.at[i, \"Case reference\"] = renamed[ref]\n",
+					"\n",
+					"# keep everything already keyed on the old reference in step\n",
+					"rows_by_ref = {renamed.get(k, k): g for k, g in rows_by_ref.items()}\n",
+					"for n in extra_notes:\n",
+					"    n[\"caseReference\"] = renamed.get(n[\"caseReference\"], n[\"caseReference\"])\n",
+					"for g in generated_refs:\n",
+					"    g[\"generatedReference\"] = renamed.get(g[\"generatedReference\"], g[\"generatedReference\"])\n",
+					"for e in exceptions:\n",
+					"    e[\"caseReference\"] = renamed.get(e[\"caseReference\"], e[\"caseReference\"])\n",
+					"\n",
+					"print(f\"Pre-application references suffixed with {PRE_SUFFIX}: {len(renamed)}\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -418,7 +452,7 @@
 					"    for t in FLAT_TABLES:\n",
 					"        tables[t].append(recs[t])"
 				],
-				"execution_count": 88
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -432,7 +466,7 @@
 					"            text = clean(to_date(v) if isinstance(v, (datetime, pd.Timestamp)) else v)\n",
 					"            note_rows.append({\"caseReference\": row[\"Case reference\"], \"noteType\": c, \"noteText\": f\"{c}: {text}\"})"
 				],
-				"execution_count": 89
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -452,7 +486,7 @@
 					"        totals_rows.append(rec)\n",
 					"tables[\"S62aCaseTotals\"] = totals_rows"
 				],
-				"execution_count": 90
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -535,7 +569,7 @@
 					"if unmatched_lpas:\n",
 					"    raise ValueError(\"No matching LPA GUID found in INPUT/MASTER/LPAs.xlsx for: \" + \"; \".join(unmatched_lpas[:20]))"
 				],
-				"execution_count": 91
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -574,7 +608,7 @@
 					"tables[\"Contact\"] = contact_rows\n",
 					"tables[\"Address\"] = address_rows"
 				],
-				"execution_count": 92
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -591,7 +625,7 @@
 					"                                                   \"S62aCaseInspector\", f\"Date Inspector ({i}) allocated\")})\n",
 					"tables[\"S62aCaseInspector\"] = insp_rows"
 				],
-				"execution_count": 93
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -619,7 +653,7 @@
 					"        event_rows.append(rec)\n",
 					"tables[\"S62aEvent\"] = event_rows"
 				],
-				"execution_count": 94
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -764,7 +798,7 @@
 					"    \"WasteType\": \"wasteType\", \"VoidCapacityCubicMetres\": \"voidCapacity\",\n",
 					"    \"LiquidWasteMaxAnnualThroughput\": \"maxAnnualThroughput\", \"WasteMaxThroughputType\": \"maxThroughputType\"})"
 				],
-				"execution_count": 95
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -772,7 +806,7 @@
 					"# 7. Notes table (note columns + text pulled out of date fields)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 96
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -780,7 +814,7 @@
 					"# 7a. Notes table (final, includes notes added above)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 97
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -807,7 +841,7 @@
 					"\n",
 					"print(f\"Values cleansed: {len(cleansed)}\")"
 				],
-				"execution_count": 98
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -856,7 +890,7 @@
 					"undefined = {t for t, rows in tables.items() if rows} - set(BUSINESS_KEYS) - {\"S62aCase\"}\n",
 					"assert not undefined, f\"No business key defined for: {sorted(undefined)}. Add one to BUSINESS_KEYS\"\n",
 					"\n",
-					"case_ids = {ref: make_guid(\"S62aCase\", ref) for ref in cases[\"Case reference\"]}\n",
+					"case_ids = {ref: make_guid(\"S62aCasecase_ids = {ref: make_guid(\"S62aCase\", base_ref(ref)) for ref in cases[\"Case reference\"]}\", ref) for ref in cases[\"Case reference\"]}\n",
 					"relationships, lineage = [], []\n",
 					"for t, rows in tables.items():\n",
 					"    if not rows:\n",
@@ -876,7 +910,7 @@
 					"                    f\"Business key not unique, occurrence {seen[k]} appended to key, check source\")\n",
 					"                k = (*k, f\"dup{seen[k]}\")\n",
 					"            keys.append(k)\n",
-					"        frame.insert(0, \"id\", [make_guid(t, *k) for k in keys])\n",
+					"        frame.insert(0, \"id\", [make_guid(t, base_ref(k[0]), *k[1:]) for k in keys])\n",
 					"        frame.insert(1, \"caseId\", frame[\"caseReference\"].map(case_ids))\n",
 					"        one_to_one = frame[\"caseReference\"].is_unique and t in (\"S62aDates\", \"S62aFees\", \"S62aCaseTotals\")\n",
 					"        relationships.append({\"table\": t, \"primaryKey\": \"id\", \"foreignKey\": \"caseId\", \"references\": \"S62aCase.id\",\n",
@@ -893,7 +927,7 @@
 					"print(relationships_df.to_string(index=False))\n",
 					"print(f\"\\nGUIDs generated: {len(lineage_df)}\")"
 				],
-				"execution_count": 99
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -907,7 +941,7 @@
 					"print(f\"\\nExceptions: {len(exceptions_df)}\")\n",
 					"print(exceptions_df.groupby([\"severity\", \"issue\"]).size().to_string())"
 				],
-				"execution_count": 100
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -941,7 +975,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": 101
+				"execution_count": null
 			}
 		]
 	}
