@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "e5628d05-2952-40c1-8add-11e6c80c9d73"
+				"spark.autotune.trackingId": "60059b9f-a580-4d60-b8d6-fcb81d06a393"
 			}
 		},
 		"metadata": {
@@ -88,7 +88,7 @@
 					"HEADER_ROWS = 3\n",
 					"REF_PATTERN = r\"^S62A/(\\d{4})/(\\d{4}|\\d{7})(RD)?$\""
 				],
-				"execution_count": 61
+				"execution_count": 81
 			},
 			{
 				"cell_type": "code",
@@ -114,7 +114,7 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": 62
+				"execution_count": 82
 			},
 			{
 				"cell_type": "code",
@@ -129,7 +129,7 @@
 					"TMP    = \"/tmp/s62a_transform\"\n",
 					"os.makedirs(TMP, exist_ok=True)"
 				],
-				"execution_count": 63
+				"execution_count": 83
 			},
 			{
 				"cell_type": "code",
@@ -172,7 +172,7 @@
 					"\n",
 					"print(f\"Root: {ROOT} | cases: {len(src)} | columns: {len(fields)} | mapping rows: {len(mapping)}\")"
 				],
-				"execution_count": 64
+				"execution_count": 84
 			},
 			{
 				"cell_type": "code",
@@ -187,13 +187,30 @@
 					"def blank(v):\n",
 					"    return v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() in (\"\", \"nan\", \"NaT\", \"None\")\n",
 					"\n",
+					"CHAR_MAP = str.maketrans({\n",
+					"    \"\\u00a0\": \" \", \"\\u2007\": \" \", \"\\u202f\": \" \",                     # non-breaking spaces\n",
+					"    \"\\u2018\": \"'\", \"\\u2019\": \"'\", \"\\u201b\": \"'\",                     # smart single quotes\n",
+					"    \"\\u201c\": '\"', \"\\u201d\": '\"',                                    # smart double quotes\n",
+					"    \"\\u2013\": \"-\", \"\\u2014\": \"-\",                                    # en/em dash\n",
+					"    \"\\u2022\": \"-\", \"\\u00b7\": \"-\",                                    # bullets\n",
+					"    \"\\u2026\": \"...\",                                                 # ellipsis\n",
+					"    \"\\u200b\": None, \"\\u200c\": None, \"\\u200d\": None, \"\\ufeff\": None,  # zero-width / BOM\n",
+					"})\n",
+					"cleansed = {}   # before -> after, for _cleansing.csv\n",
+					"\n",
 					"def clean(v):\n",
 					"    if blank(v):\n",
 					"        return None\n",
 					"    if isinstance(v, str):\n",
-					"        v = v.strip()\n",
+					"        before = v\n",
+					"        v = v.replace(\"_x000D_\", \"\\n\").translate(CHAR_MAP)\n",
+					"        v = re.sub(r\"[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]\", \"\", v)      # control chars\n",
 					"        if FLATTEN_NEWLINES:\n",
 					"            v = re.sub(r\"\\s*[\\r\\n]+\\s*\", \" | \", v)\n",
+					"        v = re.sub(r\"[ \\t]{2,}\", \" \", v).strip()\n",
+					"        if v != before.strip() and before not in cleansed:\n",
+					"            cleansed[before] = v\n",
+					"        return v or None\n",
 					"    return v\n",
 					"\n",
 					"DATE_IN_TEXT = re.compile(r\"\\b(\\d{1,2}/\\d{1,2}/\\d{2,4})\\b\")\n",
@@ -239,7 +256,7 @@
 					"def get(row, col):\n",
 					"    return row[col] if col in row.index else None"
 				],
-				"execution_count": 65
+				"execution_count": 85
 			},
 			{
 				"cell_type": "code",
@@ -305,7 +322,7 @@
 					"for g in generated_refs:\n",
 					"    print(f\"  {g['generatedReference']}  <-  {g['originalValue'][:60]}  ({g['yearFrom']} {g['yearDate']})\")"
 				],
-				"execution_count": 66
+				"execution_count": 86
 			},
 			{
 				"cell_type": "code",
@@ -338,7 +355,7 @@
 					"cases = pd.DataFrame(merged).reset_index(drop=True)\n",
 					"print(f\"Source rows in scope: {sum(len(g) for g in rows_by_ref.values())} -> cases: {len(cases)}\")"
 				],
-				"execution_count": 67
+				"execution_count": 87
 			},
 			{
 				"cell_type": "code",
@@ -400,7 +417,7 @@
 					"    for t in FLAT_TABLES:\n",
 					"        tables[t].append(recs[t])"
 				],
-				"execution_count": 68
+				"execution_count": 88
 			},
 			{
 				"cell_type": "code",
@@ -414,7 +431,7 @@
 					"            text = clean(to_date(v) if isinstance(v, (datetime, pd.Timestamp)) else v)\n",
 					"            note_rows.append({\"caseReference\": row[\"Case reference\"], \"noteType\": c, \"noteText\": f\"{c}: {text}\"})"
 				],
-				"execution_count": 69
+				"execution_count": 89
 			},
 			{
 				"cell_type": "code",
@@ -434,7 +451,7 @@
 					"        totals_rows.append(rec)\n",
 					"tables[\"S62aCaseTotals\"] = totals_rows"
 				],
-				"execution_count": 70
+				"execution_count": 90
 			},
 			{
 				"cell_type": "code",
@@ -517,7 +534,7 @@
 					"if unmatched_lpas:\n",
 					"    raise ValueError(\"No matching LPA GUID found in INPUT/MASTER/LPAs.xlsx for: \" + \"; \".join(unmatched_lpas[:20]))"
 				],
-				"execution_count": 71
+				"execution_count": 91
 			},
 			{
 				"cell_type": "code",
@@ -556,7 +573,7 @@
 					"tables[\"Contact\"] = contact_rows\n",
 					"tables[\"Address\"] = address_rows"
 				],
-				"execution_count": 72
+				"execution_count": 92
 			},
 			{
 				"cell_type": "code",
@@ -573,7 +590,7 @@
 					"                                                   \"S62aCaseInspector\", f\"Date Inspector ({i}) allocated\")})\n",
 					"tables[\"S62aCaseInspector\"] = insp_rows"
 				],
-				"execution_count": 73
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -601,7 +618,7 @@
 					"        event_rows.append(rec)\n",
 					"tables[\"S62aEvent\"] = event_rows"
 				],
-				"execution_count": 74
+				"execution_count": 94
 			},
 			{
 				"cell_type": "code",
@@ -746,7 +763,7 @@
 					"    \"WasteType\": \"wasteType\", \"VoidCapacityCubicMetres\": \"voidCapacity\",\n",
 					"    \"LiquidWasteMaxAnnualThroughput\": \"maxAnnualThroughput\", \"WasteMaxThroughputType\": \"maxThroughputType\"})"
 				],
-				"execution_count": 75
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -754,7 +771,7 @@
 					"# 7. Notes table (note columns + text pulled out of date fields)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 76
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -762,14 +779,40 @@
 					"# 7a. Notes table (final, includes notes added above)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 77
+				"execution_count": 97
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# 7a2. Text checks: leftover special characters and values over SQL max length\n",
+					"# Get real limits from Crown: SELECT TABLE_NAME, COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH\n",
+					"#   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo' AND CHARACTER_MAXIMUM_LENGTH > 0\n",
+					"MAX_LEN = {\n",
+					"    \"Address\":  {\"line1\": 255, \"line2\": 255, \"townCity\": 255, \"county\": 255, \"postcode\": 20},  # replace with real values\n",
+					"    \"Contact\":  {\"firstName\": 1000, \"lastName\": 1000, \"email\": 1000, \"telephoneNumber\": 1000, \"orgName\": 1000},\n",
+					"}\n",
+					"BAD_CHARS = re.compile(r\"[\\u00a0\\u2018\\u2019\\u201c\\u201d\\u2022\\u200b\\ufeff]|Â|â€\")\n",
+					"\n",
+					"for t, rows in tables.items():\n",
+					"    limits = MAX_LEN.get(t, {})\n",
+					"    for r in rows:\n",
+					"        for f, v in r.items():\n",
+					"            if not isinstance(v, str):\n",
+					"                continue\n",
+					"            if BAD_CHARS.search(v):\n",
+					"                log(r.get(\"caseReference\"), t, f, v, \"Special characters remain after cleansing\")\n",
+					"            if f in limits and len(v) > limits[f]:\n",
+					"                log(r.get(\"caseReference\"), t, f, v, f\"Length {len(v)} exceeds max {limits[f]}, check source/split\")\n",
+					"\n",
+					"print(f\"Values cleansed: {len(cleansed)}\")"
+				],
+				"execution_count": 98
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"# 7b. GUID keys: deterministic uuid5 from a business key per table, never row position.\n",
-					"# Same input -> same GUID every run, so reruns upsert instead of duplicating.\n",
-					"# NEVER change GUID_NAMESPACE or the table labels: every GUID in the database would change.\n",
+					"\n",
 					"GUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, \"pins-s62a-migration\")\n",
 					"\n",
 					"def make_guid(*parts):\n",
@@ -849,7 +892,7 @@
 					"print(relationships_df.to_string(index=False))\n",
 					"print(f\"\\nGUIDs generated: {len(lineage_df)}\")"
 				],
-				"execution_count": 78
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -863,7 +906,7 @@
 					"print(f\"\\nExceptions: {len(exceptions_df)}\")\n",
 					"print(exceptions_df.groupby([\"severity\", \"issue\"]).size().to_string())"
 				],
-				"execution_count": 79
+				"execution_count": 100
 			},
 			{
 				"cell_type": "code",
@@ -879,6 +922,7 @@
 					"gen_df.insert(0, \"caseId\", gen_df[\"generatedReference\"].map(case_ids))\n",
 					"files[\"_generated_references.csv\"] = gen_df\n",
 					"files[\"_summary.csv\"] = summary\n",
+					"files[\"_cleansing.csv\"] = pd.DataFrame([{\"before\": b, \"after\": a} for b, a in cleansed.items()])\n",
 					"for name, frame in files.items():\n",
 					"    frame.to_csv(os.path.join(out_dir, name), index=False, encoding=\"utf-8\", quoting=csv.QUOTE_MINIMAL)\n",
 					"\n",
@@ -896,7 +940,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": 80
+				"execution_count": 101
 			}
 		]
 	}
