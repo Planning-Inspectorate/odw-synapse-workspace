@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "da8c4a09-ae0c-46d6-a556-7428aa84fcb3"
+				"spark.autotune.trackingId": "9a1e8454-5ea0-46e5-8742-161f5d5e1795"
 			}
 		},
 		"metadata": {
@@ -89,7 +89,7 @@
 					"HEADER_ROWS = 3\n",
 					"REF_PATTERN = r\"^S62A/(\\d{4})/(\\d{4}|\\d{7})(RD)?$\""
 				],
-				"execution_count": 9
+				"execution_count": 31
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +115,7 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": 10
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -130,7 +130,7 @@
 					"TMP    = \"/tmp/s62a_transform\"\n",
 					"os.makedirs(TMP, exist_ok=True)"
 				],
-				"execution_count": 11
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +173,7 @@
 					"\n",
 					"print(f\"Root: {ROOT} | cases: {len(src)} | columns: {len(fields)} | mapping rows: {len(mapping)}\")"
 				],
-				"execution_count": 12
+				"execution_count": 34
 			},
 			{
 				"cell_type": "code",
@@ -257,7 +257,7 @@
 					"def get(row, col):\n",
 					"    return row[col] if col in row.index else None"
 				],
-				"execution_count": 13
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -323,7 +323,7 @@
 					"for g in generated_refs:\n",
 					"    print(f\"  {g['generatedReference']}  <-  {g['originalValue'][:60]}  ({g['yearFrom']} {g['yearDate']})\")"
 				],
-				"execution_count": 14
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -356,7 +356,7 @@
 					"cases = pd.DataFrame(merged).reset_index(drop=True)\n",
 					"print(f\"Source rows in scope: {sum(len(g) for g in rows_by_ref.values())} -> cases: {len(cases)}\")"
 				],
-				"execution_count": 15
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -390,7 +390,7 @@
 					"\n",
 					"print(f\"Pre-application references suffixed with {PRE_SUFFIX}: {len(renamed)}\")"
 				],
-				"execution_count": 16
+				"execution_count": 38
 			},
 			{
 				"cell_type": "code",
@@ -444,16 +444,35 @@
 					"    recs[\"S62aCase\"][\"S62aStatus\"] = (pre_s or app_s) if is_pre else app_s\n",
 					"\n",
 					"    # combined received date -> pre-app or application field (dedicated pre-app column wins)\n",
-					"    rd = to_date(get(row, \"Pre-app/Application received date\"), ref, \"S62aDates\", \"Pre-app/Application received date\")\n",
-					"    target = \"preApplicationReceivedDate\" if is_pre else \"applicationReceivedDate\"\n",
-					"    if rd and not recs[\"S62aDates\"].get(target):\n",
-					"        recs[\"S62aDates\"][target] = rd\n",
+					"    # Received dates: legacy fills both columns (dedicated wins), live only fills the combined column.\n",
+					"    pre_rd  = to_date(get(row, \"Pre-app received date\"), ref, \"S62aDates\", \"Pre-app received date\")\n",
+					"    comb_rd = to_date(get(row, \"Pre-app/Application received date\"), ref, \"S62aDates\", \"Pre-app/Application received date\")\n",
+					"\n",
+					"    if is_pre:\n",
+					"        if pre_rd and comb_rd and pre_rd != comb_rd:\n",
+					"            log(ref, \"S62aDates\", \"preApplicationReceivedDate\", f\"{pre_rd} | {comb_rd}\",\n",
+					"                \"Both pre-app received date columns filled and differ, 'Pre-app received date' kept\")\n",
+					"        recs[\"S62aDates\"][\"preApplicationReceivedDate\"] = pre_rd or comb_rd\n",
+					"    else:\n",
+					"        recs[\"S62aDates\"][\"preApplicationReceivedDate\"] = pre_rd\n",
+					"        if comb_rd and not recs[\"S62aDates\"].get(\"applicationReceivedDate\"):\n",
+					"            recs[\"S62aDates\"][\"applicationReceivedDate\"] = comb_rd\n",
 					"\n",
 					"\n",
 					"    for t in FLAT_TABLES:\n",
 					"        tables[t].append(recs[t])"
 				],
-				"execution_count": 17
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"d = pd.DataFrame(tables[\"S62aDates\"])\n",
+					"pre = d[\"caseReference\"].str.endswith(PRE_SUFFIX)\n",
+					"print(f\"Pre-app cases: {pre.sum()} | with preApplicationReceivedDate: {d.loc[pre, 'preApplicationReceivedDate'].notna().sum()}\")\n",
+					"print([c for c in d.columns if \"eceived\" in c.lower()])"
+				],
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -468,7 +487,7 @@
 					"            label = \"\" if c.strip().lower() == \"notes\" else f\"{c}: \"\n",
 					"            note_rows.append({\"caseReference\": row[\"Case reference\"], \"noteType\": c, \"noteText\": f\"{label}{text}\"})"
 				],
-				"execution_count": 18
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -488,7 +507,7 @@
 					"        totals_rows.append(rec)\n",
 					"tables[\"S62aCaseTotals\"] = totals_rows"
 				],
-				"execution_count": 19
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -571,7 +590,7 @@
 					"if unmatched_lpas:\n",
 					"    raise ValueError(\"No matching LPA GUID found in INPUT/MASTER/LPAs.xlsx for: \" + \"; \".join(unmatched_lpas[:20]))"
 				],
-				"execution_count": 20
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -610,7 +629,7 @@
 					"tables[\"Contact\"] = contact_rows\n",
 					"tables[\"Address\"] = address_rows"
 				],
-				"execution_count": 21
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -627,7 +646,7 @@
 					"                                                   \"S62aCaseInspector\", f\"Date Inspector ({i}) allocated\")})\n",
 					"tables[\"S62aCaseInspector\"] = insp_rows"
 				],
-				"execution_count": 22
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -655,7 +674,7 @@
 					"        event_rows.append(rec)\n",
 					"tables[\"S62aEvent\"] = event_rows"
 				],
-				"execution_count": 23
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -800,7 +819,7 @@
 					"    \"WasteType\": \"wasteType\", \"VoidCapacityCubicMetres\": \"voidCapacity\",\n",
 					"    \"LiquidWasteMaxAnnualThroughput\": \"maxAnnualThroughput\", \"WasteMaxThroughputType\": \"maxThroughputType\"})"
 				],
-				"execution_count": 24
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -808,7 +827,7 @@
 					"# 7. Notes table (note columns + text pulled out of date fields)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 25
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -816,7 +835,7 @@
 					"# 7a. Notes table (final, includes notes added above)\n",
 					"tables[\"S62aCaseNote\"] = note_rows + [n for n in extra_notes if n[\"caseReference\"]]"
 				],
-				"execution_count": 26
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -843,7 +862,7 @@
 					"\n",
 					"print(f\"Values cleansed: {len(cleansed)}\")"
 				],
-				"execution_count": 27
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -929,7 +948,7 @@
 					"print(relationships_df.to_string(index=False))\n",
 					"print(f\"\\nGUIDs generated: {len(lineage_df)}\")"
 				],
-				"execution_count": 28
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -943,7 +962,7 @@
 					"print(f\"\\nExceptions: {len(exceptions_df)}\")\n",
 					"print(exceptions_df.groupby([\"severity\", \"issue\"]).size().to_string())"
 				],
-				"execution_count": 29
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -977,7 +996,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": 30
+				"execution_count": 53
 			}
 		]
 	}
