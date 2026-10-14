@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "86fc1160-08ee-4304-b076-52c59ba929f3"
+				"spark.autotune.trackingId": "7a326c52-fb4e-48b1-8b76-7e5781484100"
 			}
 		},
 		"metadata": {
@@ -494,12 +494,15 @@
 					"    eia_outcome = r[\"eiaScreeningOutcome\"]\n",
 					"    eia_outcome_bool = None\n",
 					"    if not blank(eia_outcome):\n",
-					"        t = eia_outcome.lower()\n",
-					"        eia_outcome_bool = False if (\"neg\" in t or \"not required\" in t or \"no screening\" in t) else None\n",
+					"        t = eia_outcome.strip().lower()\n",
+					"        if t in (\"no\", \"n\", \"false\") or \"neg\" in t or \"not required\" in t or \"no screening\" in t:\n",
+					"            eia_outcome_bool = False\n",
+					"        elif t in (\"yes\", \"y\", \"true\") or \"pos\" in t or (\"required\" in t and \"not\" not in t):\n",
+					"            eia_outcome_bool = True\n",
 					"        log(ref, T, \"eiaScreeningOutcome\", eia_outcome,\n",
-					"            \"Negative screening -> false (text kept in notes)\" if eia_outcome_bool is False\n",
+					"            f\"Set to {str(eia_outcome_bool).lower()} (text kept in notes)\" if eia_outcome_bool is not None\n",
 					"            else \"Free text, can't be set to true/false, left null (text kept in notes)\",\n",
-					"            \"INFO\" if eia_outcome_bool is False else \"ACTION\")\n",
+					"            \"INFO\" if eia_outcome_bool is not None else \"ACTION\")\n",
 					"    out[\"S62aCase\"].append({\n",
 					"        \"id\": r[\"id\"], \"reference\": ref, \"historicalReference\": r[\"historicalReference\"],\n",
 					"        \"createdDate\": r[\"createdDate\"], \"updatedDate\": None,\n",
