@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b86319e1-8dba-4be7-b26e-b0ae14ef57d6"
+				"spark.autotune.trackingId": "82440a65-3310-423a-8685-ffde16513dc3"
 			}
 		},
 		"metadata": {
@@ -869,6 +869,38 @@
 			{
 				"cell_type": "code",
 				"source": [
+					"# 12a. ApplicationHistory: one CASE_MIGRATED row per migrated case\n",
+					"import json\n",
+					"\n",
+					"HISTORY_ACTION = \"CASE_MIGRATED\"\n",
+					"\n",
+					"ah = pd.DataFrame([{\n",
+					"    \"id\":                 make_guid(\"ApplicationHistory\", base_ref(c[\"reference\"]), HISTORY_ACTION),\n",
+					"    \"crownDevelopmentId\": None,\n",
+					"    \"s62aId\":             c[\"id\"],\n",
+					"    \"action\":             HISTORY_ACTION,\n",
+					"    \"metadata\":           json.dumps({\"reference\": c[\"reference\"]}, separators=(\",\", \":\")),\n",
+					"    \"userId\":             MIGRATION_USER_ID or UNKNOWN_USER_ID,\n",
+					"    \"createdAt\":          RUN_DATE,\n",
+					"} for c in frames[\"S62aCase\"].to_dict(\"records\")],\n",
+					"    columns=[\"id\", \"crownDevelopmentId\", \"s62aId\", \"action\", \"metadata\", \"userId\", \"createdAt\"])\n",
+					"\n",
+					"assert ah[\"id\"].is_unique, \"ApplicationHistory: duplicate ids\"\n",
+					"assert ah[\"s62aId\"].isin(set(frames[\"S62aCase\"][\"id\"])).all(), \"ApplicationHistory: orphan s62aId\"\n",
+					"\n",
+					"frames[\"ApplicationHistory\"] = ah\n",
+					"if \"ApplicationHistory\" not in LOAD_ORDER:\n",
+					"    LOAD_ORDER.append(\"ApplicationHistory\")\n",
+					"load_order = pd.DataFrame([{\"order\": i + 1, \"table\": t, \"rows\": len(frames[t])} for i, t in enumerate(LOAD_ORDER)])\n",
+					"\n",
+					"print(f\"ApplicationHistory rows: {len(ah)}\")\n",
+					"print(ah[[\"s62aId\", \"action\", \"metadata\", \"createdAt\"]].head(3).to_string(index=False))"
+				],
+				"execution_count": 66
+			},
+			{
+				"cell_type": "code",
+				"source": [
 					"out_dir = os.path.join(TMP if not LOCAL_DIR else \".\", f\"s62a_schema_{RUN_TS}\")\n",
 					"os.makedirs(out_dir, exist_ok=True)\n",
 					"files = {f\"{t}.csv\": frames[t] for t in LOAD_ORDER}\n",
@@ -892,7 +924,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": 65
+				"execution_count": 67
 			}
 		]
 	}
