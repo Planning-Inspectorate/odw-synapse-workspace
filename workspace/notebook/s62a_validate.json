@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b4a4dd7e-63cf-4bf9-a81a-f11eaa6fa04a"
+				"spark.autotune.trackingId": "95dd978e-a0f5-4a64-8ddf-ef63641a4e8a"
 			}
 		},
 		"metadata": {
@@ -50,7 +50,6 @@
 		"cells": [
 			{
 				"cell_type": "markdown",
-				"metadata": {},
 				"source": [
 					"# S62A - Validate transform output (staging CSVs)\n",
 					"\n",
@@ -79,12 +78,10 @@
 					"FAIL_ON_ERROR  = True\n",
 					"MIN_VALID_DATE = \"2015-01-01\""
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"import re\n",
 					"\n",
@@ -107,12 +104,10 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"import os, csv, uuid\n",
 					"from datetime import datetime\n",
@@ -146,12 +141,10 @@
 					"    spark.conf.set(f\"fs.azure.account.key.{account}.dfs.core.windows.net\",\n",
 					"                   mssparkutils.credentials.getSecretWithLS(*STORAGE_KEY).strip())"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# Load staging tables\n",
 					"# Tables the transform always produces one row per case for\n",
@@ -198,12 +191,10 @@
 					"if \"S62aCase\" not in stg or stg[\"S62aCase\"].empty:\n",
 					"    flag(\"ERROR\", \"no_cases\", None, \"S62aCase\", None, \">0 rows\", 0, \"No cases in staging, nothing to process downstream\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# 1. Structure: file vs transform summary, headers, required and expected columns\n",
 					"if summary_df is not None and not summary_df.empty:\n",
@@ -265,12 +256,10 @@
 					"        flag(\"WARN\", \"row_empty\", df.at[i, \"caseReference\"] if \"caseReference\" in df.columns else None, t, None, \"some data\", None, f\"Row {i + 2} has only keys\")\n",
 					"print(f\"Structure issues so far: {len(issues)}\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# 2. Data types, formats and allowed values\n",
 					"GUID_COLUMNS = [\"id\", \"caseId\", \"lpaId\"]\n",
@@ -300,7 +289,7 @@
 					"    \"S62aCaseLpa\": [(\"lpaRole\", \"ERROR\"), (\"lpaId\", \"ERROR\")],\n",
 					"    \"S62aCaseInspector\": [(\"user\", \"WARN\")], \"S62aCaseNote\": [(\"noteType\", \"ERROR\"), (\"noteText\", \"ERROR\")],\n",
 					"}\n",
-					"CASE_REF_RE = re.compile(r\"^S62A/\\d{4}/\\d{7}(RD)?$\")\n",
+					"CASE_REF_RE = re.compile(r\"^S62A/(\\d{4})/(\\d{4}|\\d{7})(RD|/PRE)?$\")\n",
 					"EMAIL_RE    = re.compile(r\"^[^@\\s;,]+@[^@\\s;,]+\\.[a-z]{2,}$\", re.I)\n",
 					"floor = pd.Timestamp(MIN_VALID_DATE)\n",
 					"\n",
@@ -360,12 +349,10 @@
 					"            flag_cells(df, df[c].isna(), t, c, sev, \"required_field_empty\", \"value\", \"Downstream stages need this value\")\n",
 					"print(f\"Issues after type checks: {len(issues)}\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# 3. Malformed records: placeholder text, stray characters, broken multi-value cells\n",
 					"PLACEHOLDERS = {\"nan\", \"nat\", \"none\", \"null\", \"#n/a\", \"#ref!\", \"#value!\", \"#div/0!\", \"#name?\", \"#num!\"}\n",
@@ -393,12 +380,10 @@
 					"        flag(\"WARN\", \"transform_action\", None, g[\"table\"].iloc[0], g[\"column\"].iloc[0], None, len(g), f\"{issue} ({g['caseReference'].nunique()} cases)\")\n",
 					"print(f\"Issues after malformed-record checks: {len(issues)}\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# 4. Keys and relationships between staging tables\n",
 					"cases = stg.get(\"S62aCase\", pd.DataFrame())\n",
@@ -441,12 +426,10 @@
 					"\n",
 					"print(f\"Issues after key checks: {len(issues)}\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# Summary\n",
 					"issues_df = pd.DataFrame(issues, columns=[\"severity\", \"check\", \"caseReference\", \"table\", \"column\", \"expected\", \"actual\", \"detail\"])\n",
@@ -460,12 +443,10 @@
 					"print(f\"Staging validation {STATUS}: {n_err} errors, {n_warn} warnings | cases with errors: {bad_cases}/{n_cases}\")\n",
 					"print(summary.to_string(index=False) if len(summary) else \"No issues found\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			},
 			{
 				"cell_type": "code",
-				"metadata": {},
 				"source": [
 					"# Write outputs\n",
 					"files = {\"_validation_issues.csv\": issues_df, \"_validation_summary.csv\": summary}\n",
@@ -493,7 +474,6 @@
 					"    raise Exception(f\"s62a staging validation failed: {n_err} errors across {bad_cases} cases, \"\n",
 					"                    f\"see {OUTPUT_DIR}/latest/_validation_issues.csv\")"
 				],
-				"outputs": [],
 				"execution_count": null
 			}
 		]
