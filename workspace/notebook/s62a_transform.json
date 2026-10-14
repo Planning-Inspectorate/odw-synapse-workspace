@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "52666972-b210-4ca4-9881-423b04c1929b"
+				"spark.autotune.trackingId": "17dd68cc-28ee-46b1-8697-d621ffc651c0"
 			}
 		},
 		"metadata": {
@@ -454,11 +454,12 @@
 					"        if pre_rd and comb_rd and pre_rd != comb_rd:\n",
 					"            log(ref, \"S62aDates\", \"preApplicationReceivedDate\", f\"{pre_rd} | {comb_rd}\",\n",
 					"                \"Both pre-app received date columns filled and differ, 'Pre-app received date' kept\")\n",
-					"        recs[\"S62aDates\"][\"preApplicationReceivedDate\"] = pre_rd or comb_rd\n",
+					"        received = pre_rd or comb_rd\n",
+					"        recs[\"S62aDates\"][\"preApplicationReceivedDate\"] = received\n",
+					"        recs[\"S62aDates\"][\"applicationReceivedDate\"] = received      # Dates tab shows this as \"Pre-application received date\"\n",
 					"    else:\n",
 					"        recs[\"S62aDates\"][\"preApplicationReceivedDate\"] = None\n",
-					"        if comb_rd and not recs[\"S62aDates\"].get(\"applicationReceivedDate\"):\n",
-					"            recs[\"S62aDates\"][\"applicationReceivedDate\"] = comb_rd\n",
+					"        recs[\"S62aDates\"][\"applicationReceivedDate\"] = comb_rd or recs[\"S62aDates\"].get(\"applicationReceivedDate\")\n",
 					"\n",
 					"\n",
 					"    # Pre-app advice issued date: pre-app cases only\n",
@@ -474,7 +475,8 @@
 				"cell_type": "code",
 				"source": [
 					"d = pd.DataFrame(tables[\"S62aDates\"])\n",
-					"print(d.loc[d[\"preApplicationAdviceIssuedDate\"].notna(), [\"caseReference\", \"preApplicationAdviceIssuedDate\"]])"
+					"d[\"phase\"] = d[\"caseReference\"].str.endswith(PRE_SUFFIX).map({True: \"pre-app\", False: \"application\"})\n",
+					"print(d.groupby(\"phase\")[[\"applicationReceivedDate\", \"preApplicationReceivedDate\"]].count())"
 				],
 				"execution_count": null
 			},
