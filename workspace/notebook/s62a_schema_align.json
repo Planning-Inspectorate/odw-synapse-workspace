@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "5268c7d3-d934-4f05-8da4-3dbbd4d2e931"
+				"spark.autotune.trackingId": "74e5c80a-459d-4320-ac58-02587938be71"
 			}
 		},
 		"metadata": {
@@ -131,7 +131,7 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"TMP    = \"/tmp/s62a_schema\"\n",
 					"os.makedirs(TMP, exist_ok=True)"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -173,7 +173,7 @@
 					"\n",
 					"STAGING_TABLES = [\"S62aCase\", \"S62aDates\", \"S62aFees\", \"S62aCaseLpa\", \"Contact\", \"Address\", \"S62aCaseInspector\",\n",
 					"                  \"S62aEvent\", \"S62aVehicleParking\", \"S62aNonResidentialFloorspace\", \"S62aResidentialHousing\",\n",
-					"                  \"S62aCaseWasteType\", \"S62aCaseNote\", \"S62aCaseTotals\"]\n",
+					"                  \"S62aCaseWasteType\", \"S62aCaseNote\"]\n",
 					"stg = {}\n",
 					"for t in STAGING_TABLES:\n",
 					"    path = fetch(f\"{LOC['staging']}/{t}.csv\")\n",
@@ -188,7 +188,7 @@
 					"user_ref  = pd.read_csv(user_path, dtype=str) if user_path else None\n",
 					"print(f\"Users reference: {'loaded' if user_ref is not None else 'MISSING'}\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +278,7 @@
 					"for t, names in PROVISIONAL.items():\n",
 					"    REF[t] = [(slug(n), n) for n in names]"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -406,7 +406,7 @@
 					"\n",
 					"out = {}"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -419,38 +419,27 @@
 					"has_agent = set()\n",
 					"# The organisation name sits only on the first contact row of a case/role, so link later contacts via this lookup\n",
 					"org_by_case_role = {}\n",
-					"org_ids_added = set()\n",
 					"for r in stg[\"Contact\"].itertuples():\n",
 					"    if not blank(r.orgName) and (r.caseReference, r.contactRole) not in org_by_case_role:\n",
 					"        org_by_case_role[(r.caseReference, r.contactRole)] = make_guid(\"Organisation\", base_ref(r.caseReference), r.contactRole, r.orgName)\n",
 					"for r in stg[\"Contact\"].itertuples():\n",
 					"    role_id = resolve(\"S62aToApplicantRole\", r.contactRole, r.caseReference, \"S62aToApplicant\", \"roleId\")\n",
 					"    address = addr_id.get((r.caseReference, r.contactRole))\n",
-					"    has_contact = any(not blank(x) for x in (r.firstName, r.lastName, r.email, r.telephoneNumber))\n",
 					"    if role_id == \"agent\":\n",
 					"        has_agent.add(r.caseReference)\n",
-					"    org_id = None\n",
 					"    if not blank(r.orgName):\n",
 					"        org_id = make_guid(\"Organisation\", base_ref(r.caseReference), r.contactRole, r.orgName)\n",
-					"    elif role_id == \"agent\" and has_contact:\n",
-					"        # agents without an organisation get a generated 'unknown' one, as agents are only reached via an organisation\n",
-					"        org_id = org_by_case_role.get((r.caseReference, r.contactRole))\n",
-					"        if not org_id:\n",
-					"            org_id = make_guid(\"Organisation\", base_ref(r.caseReference), r.contactRole, \"unknown\")\n",
-					"            org_by_case_role[(r.caseReference, r.contactRole)] = org_id\n",
-					"    if org_id and org_id not in org_ids_added:\n",
-					"        out[\"Organisation\"].append({\"id\": org_id, \"name\": r.orgName if not blank(r.orgName) else \"unknown\", \"addressId\": address})\n",
+					"        out[\"Organisation\"].append({\"id\": org_id, \"name\": r.orgName, \"addressId\": address})\n",
 					"        out[\"S62aToApplicant\"].append({\"id\": make_guid(\"S62aToApplicant\", org_id), \"s62aId\": r.caseId,\n",
 					"                                       \"organisationId\": org_id, \"contactId\": None, \"roleId\": role_id})\n",
-					"        org_ids_added.add(org_id)\n",
-					"    if has_contact:\n",
+					"    if any(not blank(x) for x in (r.firstName, r.lastName, r.email, r.telephoneNumber)):\n",
 					"        out[\"Contact\"].append({\"id\": r.id, \"firstName\": r.firstName, \"lastName\": r.lastName,\n",
 					"                               \"telephoneNumber\": r.telephoneNumber, \"email\": r.email, \"contactPreferenceId\": None,\n",
 					"                               \"orgName\": r.orgName, \"jobTitleOrRole\": None,\n",
 					"                               \"addressId\": address if blank(r.orgName) else None})\n",
 					"        linked_org = org_by_case_role.get((r.caseReference, r.contactRole))\n",
-					"        # agent contacts are reached only via organisation -> OrganisationToContact table\n",
-					"        if role_id != \"agent\":\n",
+					"        # agent contacts with an organisation are reached only via organisation -> OrganisationToContact table\n",
+					"        if not (role_id == \"agent\" and linked_org):\n",
 					"            out[\"S62aToApplicant\"].append({\"id\": make_guid(\"S62aToApplicant\", r.id), \"s62aId\": r.caseId,\n",
 					"                                           \"organisationId\": None, \"contactId\": r.id, \"roleId\": role_id})\n",
 					"        if linked_org:\n",
@@ -475,7 +464,7 @@
 					"                               \"orgName\": name if is_org else r.lpa, \"jobTitleOrRole\": None, \"addressId\": None})\n",
 					"    lpa_links[(r.caseReference, r.lpaRole)] = (lpa_id, contact_id)"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -581,7 +570,7 @@
 					"                                                 \"noteText\": f\"EIA screening outcome: {eia_outcome}\"}])])\n",
 					"case_id = {c[\"reference\"]: c[\"id\"] for c in out[\"S62aCase\"]}"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -615,7 +604,7 @@
 					"        e[\"siteVisitTypeId\"] = resolve(\"S62aSiteVisitType\", r[\"siteVisitType\"], r[\"caseReference\"], \"S62aEvent\", \"siteVisitTypeId\")\n",
 					"out[\"S62aEvent\"] = list(events.values())"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -647,23 +636,19 @@
 					"            continue\n",
 					"        combo[key] = rec\n",
 					"        out[\"S62aResidentialHousing\"].append(rec)\n",
+					"\n",
 					"out[\"S62aNonResidential\"], out[\"S62aNonResidentialFloorspace\"], out[\"S62aNonResidentialFloorspaceArea\"] = [], [], []\n",
 					"USE_CLASS_CODES = {\"b2\": \"b2-general-industrial\", \"b8\": \"b8-storage-and-distribution\", \"c1\": \"c1-hotels\",\n",
 					"                   \"c2\": \"c2-residential-institutions\", \"c2a\": \"c2a-secure-residential-institutions\"}\n",
-					"AREA_FIELDS = (\"existingGross\", \"grossLost\", \"grossProposed\", \"netAdditionalGross\")\n",
 					"for ref, g in stg[\"S62aNonResidentialFloorspace\"].groupby(\"caseReference\"):\n",
 					"    nr_id = make_guid(\"S62aNonResidential\", base_ref(ref))\n",
 					"    out[\"S62aNonResidential\"].append({\"id\": nr_id, \"s62aCaseId\": g.caseId.iloc[0], \"hasNonResidentialFloorspaceChange\": True})\n",
 					"    for r in g.to_dict(\"records\"):\n",
 					"        uc, other_text = r[\"useClass\"], None\n",
-					"        areas = {f: to_num(r[f], ref, \"S62aNonResidentialFloorspaceArea\", f, integer=True) for f in AREA_FIELDS}\n",
-					"        has_figures = any(v for v in areas.values())\n",
 					"        code = re.match(r\"^([A-Z]\\d+A?)\\b\", str(uc or \"\"))\n",
 					"        if blank(uc):\n",
-					"            if not has_figures:\n",
-					"                continue                      # empty group slot: no use class, no figures -> nothing to migrate\n",
-					"            uc_id = \"other\"\n",
-					"            log(ref, \"S62aNonResidentialFloorspace\", \"useClassId\", None, \"No use class but has floorspace figures, set to 'other'\", \"INFO\")\n",
+					"            uc_id = None\n",
+					"            log(ref, \"S62aNonResidentialFloorspace\", \"useClassId\", None, \"No use class, left null\")\n",
 					"        elif code and code.group(1).lower() in USE_CLASS_CODES:\n",
 					"            uc_id = USE_CLASS_CODES[code.group(1).lower()]\n",
 					"        else:\n",
@@ -676,29 +661,11 @@
 					"                                                    \"useClassSubtypeId\": None, \"otherTypeOfUse\": other_text,\n",
 					"                                                    \"hasRoomsChange\": None, \"roomsLost\": None, \"roomsProposed\": None,\n",
 					"                                                    \"netAdditionalRooms\": None})\n",
-					"        if has_figures:\n",
+					"        areas = {f: to_num(r[f], ref, \"S62aNonResidentialFloorspaceArea\", f, integer=True)\n",
+					"                 for f in (\"existingGross\", \"grossLost\", \"grossProposed\", \"netAdditionalGross\")}\n",
+					"        if any(v for v in areas.values()):\n",
 					"            out[\"S62aNonResidentialFloorspaceArea\"].append({\"id\": make_guid(\"Area\", r[\"id\"]), \"s62aFloorspaceEntryId\": r[\"id\"],\n",
 					"                                                            \"floorspaceSetId\": \"standard\", **areas})\n",
-					"\n",
-					"# Floorspace figures only given as case totals (no per-group figures): put the totals on the case's first floorspace entry\n",
-					"totals = stg.get(\"S62aCaseTotals\", pd.DataFrame())\n",
-					"kept = {e[\"id\"] for e in out[\"S62aNonResidentialFloorspace\"]}\n",
-					"has_area = {a[\"s62aFloorspaceEntryId\"] for a in out[\"S62aNonResidentialFloorspaceArea\"]}\n",
-					"TOTAL_FIELDS = {\"existingGross\": \"nonResExistingFloorspaceSqM\", \"grossLost\": \"nonResFloorspaceLostSqM\",\n",
-					"                \"grossProposed\": \"nonResFloorspaceProposedSqM\", \"netAdditionalGross\": \"nonResNetFloorspaceSqM\"}\n",
-					"if len(totals):\n",
-					"    for ref, g in stg[\"S62aNonResidentialFloorspace\"].groupby(\"caseReference\"):\n",
-					"        ids = [i for i in g.assign(s=g[\"sequence\"].astype(int)).sort_values(\"s\")[\"id\"] if i in kept]\n",
-					"        t = totals[totals[\"caseReference\"] == ref]\n",
-					"        if not ids or t.empty or any(i in has_area for i in g[\"id\"]):\n",
-					"            continue\n",
-					"        t = t.iloc[0]\n",
-					"        areas = {f: to_num(t.get(c), ref, \"S62aNonResidentialFloorspaceArea\", f, integer=True) for f, c in TOTAL_FIELDS.items()}\n",
-					"        if any(v is not None for v in areas.values()):\n",
-					"            out[\"S62aNonResidentialFloorspaceArea\"].append({\"id\": make_guid(\"Area\", ids[0]), \"s62aFloorspaceEntryId\": ids[0],\n",
-					"                                                            \"floorspaceSetId\": \"standard\", **areas})\n",
-					"            log(ref, \"S62aNonResidentialFloorspaceArea\", \"floorspace\", areas,\n",
-					"                f\"No per-group figures, case totals put on first of {len(ids)} floorspace entries\", \"INFO\")\n",
 					"\n",
 					"out[\"S62aVehicleParking\"] = []\n",
 					"for r in stg[\"S62aVehicleParking\"].to_dict(\"records\"):\n",
@@ -729,7 +696,7 @@
 					"                           \"crownDevelopmentId\": None, \"s62aId\": r.caseId or case_id.get(r.caseReference)}\n",
 					"                          for r in notes.itertuples()]"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -878,7 +845,7 @@
 					"print(f\"\\nRejected rows: {len(rejected)}\")\n",
 					"print(exceptions_df[exceptions_df.severity == \"ACTION\"].groupby([\"table\", \"column\", \"issue\"]).size().to_string())"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -920,7 +887,7 @@
 					"assert not problems, \"Integrity check failed: \" + \"; \".join(problems)\n",
 					"print(\"\\nIntegrity check passed\")"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -952,7 +919,7 @@
 					"print(f\"ApplicationHistory rows: {len(ah)}\")\n",
 					"print(ah[[\"s62aId\", \"action\", \"metadata\", \"createdAt\"]].head(3).to_string(index=False))"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -980,7 +947,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": null
+				"execution_count": 14
 			}
 		]
 	}
