@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "63aecb52-b0c9-4c5c-b531-abe033df8f29"
+				"spark.autotune.trackingId": "67b795cb-1f06-4d6c-8239-b4a8aef832a7"
 			}
 		},
 		"metadata": {
@@ -81,6 +81,7 @@
 					"\n",
 					"UNKNOWN_USER_ID = \"00000000-0000-0000-0000-000000000000\"   # unknown user row in dbo.[User] (idpUserId = \"unknown user\")\n",
 					"COMMENT_MAX     = 500     # ApplicationNote.comment NVarChar(500)\n",
+					"NOTE_TITLE      = \"Migrated from live spreadsheet data;\"   # first line of every new note\n",
 					"OUT_COLUMNS     = [\"id\", \"comment\", \"createdAt\", \"userId\", \"crownDevelopmentId\", \"s62aId\"]\n",
 					"\n",
 					"# Note label -> possible master column names (matched ignoring case, spaces, punctuation)\n",
@@ -290,12 +291,12 @@
 					"        if not case_id:\n",
 					"            skipped.append({\"masterRef\": row[ref_col], \"sheet\": row[\"__sheet\"], \"reason\": \"Not in S62aCase.csv (no s62aId)\"})\n",
 					"            continue\n",
-					"        comment = \"\\n\".join(lines)\n",
+					"        comment = \"\\n\".join([NOTE_TITLE] + lines)\n",
 					"        if len(comment) > COMMENT_MAX:\n",
 					"            skipped.append({\"masterRef\": row[ref_col], \"sheet\": row[\"__sheet\"], \"reason\": f\"Comment truncated from {len(comment)} chars\"})\n",
 					"            comment = comment[:COMMENT_MAX]\n",
 					"        new_rows.append({\n",
-					"            \"id\":                 str(uuid.uuid4()).upper(),\n",
+					"            \"id\":                 str(uuid.uuid5(uuid.NAMESPACE_URL, f\"s62a-additional-note/{case_id}\")).upper(),  # same id every run\n",
 					"            \"comment\":            comment,\n",
 					"            \"createdAt\":          RUN_TS,\n",
 					"            \"userId\":             USER_ID,\n",
@@ -328,7 +329,7 @@
 					"except Exception as e:\n",
 					"    print(\"WARNING: write failed ->\", str(e)[:300])"
 				],
-				"execution_count": 2
+				"execution_count": null
 			}
 		]
 	}
