@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "85a44d12-f6b0-40b3-8c24-8cb6644f0b8c"
+				"spark.autotune.trackingId": "e1a9153b-a32a-4e1b-a512-d3c886f8222b"
 			}
 		},
 		"metadata": {
@@ -57,15 +57,7 @@
 					"collapsed": false
 				},
 				"source": [
-					"# %% [markdown]\n",
-					"# # nb_s62a_additional_notes\n",
-					"# ONE new ApplicationNote per pre-application case, containing (where filled):\n",
-					"#   Application acknowledged, Further info requested, Date agreed for additional info, Category, Reader\n",
-					"# Output columns = Crown ApplicationNote schema:\n",
-					"#   id (GUID) | comment (<=500) | createdAt | userId (unknown user, from existing notes) | crownDevelopmentId (null) | s62aId (S62aCase.id)\n",
-					"# Only the NEW notes are written. Existing notes are only read to copy the unknown userId + date format.\n",
 					"\n",
-					"# %% Parameters\n",
 					"from notebookutils import mssparkutils\n",
 					"\n",
 					"_ws = mssparkutils.env.getWorkspaceName().lower()\n",
@@ -79,7 +71,7 @@
 					"CASES_IN      = f\"{TRANSFORM_DIR}/S62aCase.csv\"         # case reference -> S62aCase.id\n",
 					"OUT_PATH      = f\"{ROOT}/PIPELINE/OUTPUT/ADDITIONAL_NOTES/ApplicationNote_additional.csv\"\n",
 					"\n",
-					"UNKNOWN_USER_ID = \"unknown user\"   # same as schema align ApplicationNote.userId (plain string, shows as \"unknown user\")\n",
+					"UNKNOWN_USER_ID = \"00000000-0000-0000-0000-000000000000\"   # unknown user row in dbo.[User] (idpUserId = \"unknown user\")\n",
 					"COMMENT_MAX     = 500     # ApplicationNote.comment NVarChar(500)\n",
 					"OUT_COLUMNS     = [\"id\", \"comment\", \"createdAt\", \"userId\", \"crownDevelopmentId\", \"s62aId\"]\n",
 					"\n",
@@ -230,7 +222,10 @@
 					"if c_ref and c_id:\n",
 					"    for _, r in cases.iterrows():\n",
 					"        k = ref_key(r[c_ref])\n",
-					"        if k:\n",
+					"        if not k:\n",
+					"            continue\n",
+					"        # if a pre-app (.../PRE) and an application share a number, keep the pre-app case\n",
+					"        if k not in case_lookup or str(r[c_ref]).upper().endswith(\"/PRE\"):\n",
 					"            case_lookup[k] = (r[c_ref], r[c_id])\n",
 					"print(\"Cases:\", len(case_lookup), \"| ref col:\", c_ref, \"| id col:\", c_id,\n",
 					"      \"| sample refs:\", list(cases[c_ref].head(3)) if c_ref else [])\n",
@@ -322,7 +317,7 @@
 					"except Exception as e:\n",
 					"    print(\"WARNING: write failed ->\", str(e)[:300])"
 				],
-				"execution_count": 6
+				"execution_count": 1
 			}
 		]
 	}
