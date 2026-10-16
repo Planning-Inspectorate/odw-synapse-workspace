@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "41b62704-e58c-40f9-ad49-a2007154bca7"
+				"spark.autotune.trackingId": "63aecb52-b0c9-4c5c-b531-abe033df8f29"
 			}
 		},
 		"metadata": {
@@ -57,7 +57,15 @@
 					"collapsed": false
 				},
 				"source": [
+					"# %% [markdown]\n",
+					"# # nb_s62a_additional_notes\n",
+					"# ONE new ApplicationNote per pre-application case, containing (where filled):\n",
+					"#   Application acknowledged, Further info requested, Date agreed for additional info, Category, Reader\n",
+					"# Output columns = Crown ApplicationNote schema:\n",
+					"#   id (GUID) | comment (<=500) | createdAt | userId (unknown user, from existing notes) | crownDevelopmentId (null) | s62aId (S62aCase.id)\n",
+					"# Only the NEW notes are written. Existing notes are only read to copy the unknown userId + date format.\n",
 					"\n",
+					"# %% Parameters\n",
 					"from notebookutils import mssparkutils\n",
 					"\n",
 					"_ws = mssparkutils.env.getWorkspaceName().lower()\n",
@@ -249,6 +257,10 @@
 					"frames = [df for p in master_files for df in read_master_sheets(p)\n",
 					"          if len(df) and df[\"__sheet\"].iloc[0].lower().endswith(\"final selected\")]   # same sheet the transform uses\n",
 					"\n",
+					"# createdAt = current UTC date/time of this run (same for every new note)\n",
+					"RUN_TS = datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S.%f\")[:-3]\n",
+					"print(\"createdAt for all new notes:\", RUN_TS)\n",
+					"\n",
 					"# %% Build one note per pre-app case\n",
 					"new_rows, seen, report, skipped = [], set(), [], []\n",
 					"for df in frames:\n",
@@ -282,11 +294,10 @@
 					"        if len(comment) > COMMENT_MAX:\n",
 					"            skipped.append({\"masterRef\": row[ref_col], \"sheet\": row[\"__sheet\"], \"reason\": f\"Comment truncated from {len(comment)} chars\"})\n",
 					"            comment = comment[:COMMENT_MAX]\n",
-					"        created = max(dates) if dates else pd.Timestamp.today().normalize()\n",
 					"        new_rows.append({\n",
 					"            \"id\":                 str(uuid.uuid4()).upper(),\n",
 					"            \"comment\":            comment,\n",
-					"            \"createdAt\":          format_like(created, DATE_SAMPLE),\n",
+					"            \"createdAt\":          RUN_TS,\n",
 					"            \"userId\":             USER_ID,\n",
 					"            \"crownDevelopmentId\": None,\n",
 					"            \"s62aId\":             case_id,\n",
@@ -317,7 +328,7 @@
 					"except Exception as e:\n",
 					"    print(\"WARNING: write failed ->\", str(e)[:300])"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			}
 		]
 	}
