@@ -1731,6 +1731,8 @@ for r in range(TEMPLATE_FIRST_DATA_ROW, _template_max_row + 1):
                 print(f"  clearing pre-existing value at row {r}, col {c} "
                       f"(header: {ws.cell(row=TEMPLATE_HEADER_ROW, column=c).value!r}): {cell.value!r}")
         cell.value = None
+        # Example emails in the template are hyperlinks that survive clearing the value
+        cell.hyperlink = None
 print(f"Cleared {_dummy_cells_found} pre-existing value(s) from Template rows "
       f"{TEMPLATE_FIRST_DATA_ROW}-{_template_max_row} before writing migrated data")
 

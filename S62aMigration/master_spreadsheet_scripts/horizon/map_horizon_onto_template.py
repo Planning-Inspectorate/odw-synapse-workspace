@@ -484,6 +484,8 @@ normal_data_styles = [
 for row in ws.iter_rows(min_row=TEMPLATE_FIRST_DATA_ROW):
     for cell in row:
         cell.value = None
+        # Example emails in the template are hyperlinks that survive clearing the value
+        cell.hyperlink = None
 
 # Build column-name -> Excel column number from the header row
 column_lookup = {}
