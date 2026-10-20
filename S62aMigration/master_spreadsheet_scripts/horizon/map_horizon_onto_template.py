@@ -354,10 +354,12 @@ for filename in csv_files:
 
     print(f"  {filename}: {len(mapping)} mapped columns, {len(unmapped_cols)} unmapped, {len(df)} rows")
 
+HEARING_NOTES_COLUMN = "Hearing Notes"   # not on the template or mapping sheet, added as an extra column
+
 def apply_hearing_venue_override():
-    """Reads the hearings extract directly and writes 'Hearing venue'
-    straight into case_rows, bypassing horizon_field_mapping.csv entirely
-    for this one field. This guarantees it's populated regardless of the
+    """Reads the hearings extract directly and writes 'Hearing venue' and
+    'Hearing Notes' (the extract's Notes column) straight into case_rows,
+    bypassing horizon_field_mapping.csv entirely for these fields. This guarantees it's populated regardless of the
     mapping CSV's Source field/token setup (which is where this field kept
     breaking - a mismatched file token)."""
     candidates = [
@@ -381,22 +383,27 @@ def apply_hearing_venue_override():
         return
 
     applied = 0
+    notes_applied = 0
     for _, row in df.iterrows():
         case_ref = str(row.get("CaseReference", "")).strip()
         if not case_ref or case_ref not in S62A_CASES:
             continue
         venue = row.get("HearingVenueAddress")
-        if is_blank(venue):
+        notes = row.get("Notes") if "Notes" in df.columns else None
+        if is_blank(venue) and is_blank(notes):
             continue
-        venue = str(venue).strip().replace("\n", ", ")
         records = case_rows.setdefault(
             case_ref, [{"values": {"Case reference": case_ref}, "conflicts": set(), "arrays": {}}]
         )
         target = records[0]
-        if not target["values"].get("Hearing venue"):
-            target["values"]["Hearing venue"] = venue
+        if not is_blank(venue) and not target["values"].get("Hearing venue"):
+            target["values"]["Hearing venue"] = str(venue).strip().replace("\n", ", ")
             applied += 1
+        if not is_blank(notes) and not target["values"].get(HEARING_NOTES_COLUMN):
+            target["values"][HEARING_NOTES_COLUMN] = str(notes).strip()
+            notes_applied += 1
     print(f"Hearing venue override: {applied} case(s) set directly from {filename}")
+    print(f"{HEARING_NOTES_COLUMN}: {notes_applied} case(s) set from {filename}")
 
 apply_hearing_venue_override()
 
@@ -493,6 +500,15 @@ for col_num in range(1, ws.max_column + 1):
     header_value = ws.cell(row=TEMPLATE_HEADER_ROW, column=col_num).value
     if header_value:
         column_lookup[str(header_value).strip()] = col_num
+
+# Extra column that has no home on the template: append it after the last header
+if HEARING_NOTES_COLUMN not in column_lookup:
+    notes_col_num = ws.max_column + 1
+    header_cell = ws.cell(row=TEMPLATE_HEADER_ROW, column=notes_col_num)
+    header_cell.value = HEARING_NOTES_COLUMN
+    header_cell._style = copy(ws.cell(TEMPLATE_HEADER_ROW, notes_col_num - 1)._style)
+    column_lookup[HEARING_NOTES_COLUMN] = notes_col_num
+    normal_data_styles.append(copy(normal_data_styles[-1]))
 
 excel_row = TEMPLATE_FIRST_DATA_ROW
 for row_result, conflicts in zip(all_rows, all_conflicts):

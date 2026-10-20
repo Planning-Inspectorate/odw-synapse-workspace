@@ -505,6 +505,18 @@ def combine_sources(
                 output_sources.append((header, summary_index, source_index, False))
                 comparison_pairs.append((horizon_column, spreadsheet_column, summary_index))
 
+            # Horizon-only columns (e.g. Hearing Notes) have no spreadsheet equivalent, so
+            # they are carried through without a comparison and never flagged as differences
+            horizon_only_headers = [
+                header for header in horizon_headers
+                if header not in master_headers and header not in spreadsheet_headers
+            ]
+            for offset, header in enumerate(horizon_only_headers):
+                output_headers.append(f"{header} (horizon)")
+                output_sources.append(
+                    (header, len(master_headers) + offset, horizon_indexes[header], True)
+                )
+
             output_columns_by_source_index = {}
             for output_column, (_, index, _, _) in enumerate(output_sources, start=1):
                 output_columns_by_source_index.setdefault(index, []).append(output_column)
