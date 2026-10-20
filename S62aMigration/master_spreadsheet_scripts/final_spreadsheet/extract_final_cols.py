@@ -28,7 +28,7 @@ def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
 BASE_DIR = find_data_root(SCRIPT_DIR)
 COMPARISON_FILE = (
 	BASE_DIR
-	/ "csv_and_xlsx_files/S62A_Horizon_vs_Spreadsheet_comparison_coloured_sheet.xlsx"
+	/ "outputs/S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
 )
 MASTER_TEMPLATE_FILE = (
 	BASE_DIR / "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
@@ -287,6 +287,19 @@ def _first_value(sheet, rows, column):
 	return None
 
 
+def _varies(sheet, rows, columns):
+	"""True if the given columns hold more than one distinct non-blank value across the case's rows."""
+	if len(rows) < 2:
+		return False
+	values = {
+		str(sheet.cell(row, column).value).strip()
+		for column in columns if column is not None
+		for row in rows
+		if not _is_blank(sheet.cell(row, column).value)
+	}
+	return len(values) > 1
+
+
 def _copy_template_header(source_sheet, target_sheet, source_column, target_column):
 	source = source_sheet.cell(TEMPLATE_HEADER_ROW, source_column)
 	target = target_sheet.cell(TEMPLATE_HEADER_ROW, target_column)
@@ -444,11 +457,15 @@ def extract_final_columns():
 		output_row = TEMPLATE_FIRST_DATA_ROW
 		# One output row per comparison row, so repeating groups (parking, housing, ...) are not lost.
 		# Fields identical across a case's rows are shared by all of them; fields that differ stay on their own row.
-		row_jobs = [(case, rows, [row]) for case, rows in case_rows.items() for row in rows]
-		for case_reference, case_source_rows, own_rows in row_jobs:
+		# Fields that don't vary are written once, on the case's first row; later rows leave them blank.
+		row_jobs = [
+			(case, rows, [row], position == 0)
+			for case, rows in case_rows.items() for position, row in enumerate(rows)
+		]
+		for case_reference, case_source_rows, own_rows, is_first_row in row_jobs:
 			final_sheet.cell(output_row, 1).value = case_reference
 			site_values = _site_block_values(
-				comparison_sheet, source_rows, groups, case_reference, spreadsheet_site
+				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
 			)
 			if site_values is not None:
 				SITE_SWAP_LOG.append(case_reference)
@@ -456,9 +473,11 @@ def extract_final_columns():
 				target = final_sheet.cell(output_row, output_column)
 				other = [c for c in groups.get(selection["header"], {}).values()
 				         if c not in (selection["primary"], selection["fallback"])]
-				source_rows = own_rows if _varies(
+				field_varies = _varies(
 					comparison_sheet, case_source_rows, [selection["primary"], selection["fallback"], *other]
-				) else case_source_rows
+				)
+				# Repeat rows mirror their own comparison row (blank except extended-data values)
+				source_rows = own_rows if (field_varies or not is_first_row) else case_source_rows
 				# Blue override (dark or light blue cell): that value is used and keeps its blue fill
 				override = _blue_override(
 					comparison_sheet, comparison_styles_sheet, source_rows,

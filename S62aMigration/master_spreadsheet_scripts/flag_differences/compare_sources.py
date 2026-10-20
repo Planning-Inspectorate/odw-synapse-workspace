@@ -311,6 +311,7 @@ def _read_cases(worksheet, columns):
     cases = {}
     order = []
     source_rows = {}
+    all_rows = {}
     key_column = next(column for header, column in columns if header == KEY_COL)
 
     for row in range(HEADER_ROW + 1, worksheet.max_row + 1):
@@ -320,6 +321,7 @@ def _read_cases(worksheet, columns):
         if case_reference is None:
             continue
 
+        all_rows.setdefault(case_reference, []).append(row)
         if case_reference not in cases:
             cases[case_reference] = {
                 index: worksheet.cell(row, column).value
@@ -335,7 +337,7 @@ def _read_cases(worksheet, columns):
             if existing in (None, "") and incoming not in (None, ""):
                 cases[case_reference][index] = incoming
 
-    return cases, order, source_rows
+    return cases, order, source_rows, all_rows
 
 
 def _copy_cell_format(source_cell, target_cell):
@@ -453,10 +455,10 @@ def combine_sources(
             header for header in spreadsheet_headers if header not in master_headers
         ]
 
-        horizon_cases, horizon_order, horizon_rows = _read_cases(
+        horizon_cases, horizon_order, horizon_rows, horizon_all_rows = _read_cases(
             horizon_source, horizon_columns
         )
-        spreadsheet_cases, spreadsheet_order, spreadsheet_rows = _read_cases(
+        spreadsheet_cases, spreadsheet_order, spreadsheet_rows, _ = _read_cases(
             spreadsheet_source, spreadsheet_columns
         )
 
@@ -577,11 +579,42 @@ def combine_sources(
             )
             contradiction_counts = {}
 
-            for output_row, case_reference in enumerate(
-                case_references, start=HEADER_ROW + 1
+            # Extended-data fields repeat per Horizon row (parking, housing, ...), so a case
+            # with several Horizon rows gets one output row per Horizon row. Repeat rows only
+            # carry the extended Horizon values; shared fields stay on the case's first row.
+            row_jobs = [
+                (case_reference, position)
+                for case_reference in case_references
+                for position in range(max(1, len(horizon_all_rows.get(case_reference, []))))
+            ]
+            extended_horizon_columns = {
+                output_column
+                for output_column, (name, _, source_index, is_horizon) in enumerate(
+                    output_sources, start=1
+                )
+                if is_horizon and source_index is not None and name in extended_data_fields
+                and name not in ALWAYS_COMPARE_FIELDS
+            }
+
+            for output_row, (case_reference, position) in enumerate(
+                row_jobs, start=HEADER_ROW + 1
             ):
                 spreadsheet_row = spreadsheet_rows.get(case_reference)
                 horizon_row = horizon_rows.get(case_reference)
+                if position > 0:
+                    repeat_row = horizon_all_rows[case_reference][position]
+                    output_sheet.cell(output_row, 1).value = case_reference
+                    for output_column in extended_horizon_columns:
+                        source_index = output_sources[output_column - 1][2]
+                        source_column = horizon_columns[source_index][1]
+                        output_sheet.cell(output_row, output_column).value = horizon_source.cell(
+                            repeat_row, source_column
+                        ).value
+                        _copy_cell_format(
+                            horizon_source.cell(repeat_row, source_column),
+                            output_sheet.cell(output_row, output_column),
+                        )
+                    continue
                 output_sheet.cell(output_row, 1).value = case_reference
 
                 if spreadsheet_row is not None:
@@ -604,6 +637,12 @@ def combine_sources(
                         cases.get(case_reference, {}).get(source_index)
                         if source_index is not None else None
                     )
+                    if output_column in extended_horizon_columns and horizon_row is not None:
+                        first_value = horizon_source.cell(
+                            horizon_row, horizon_columns[source_index][1]
+                        ).value
+                        if not _is_blank(first_value):
+                            output_sheet.cell(output_row, output_column).value = first_value
                     if source_row is not None and source_index is not None:
                         _copy_cell_format(
                             source_worksheet.cell(source_row, source_columns[source_index][1]),
@@ -647,7 +686,7 @@ def combine_sources(
             output_sheet.freeze_panes = f"A{HEADER_ROW + 1}"
             output_sheet.auto_filter.ref = (
                 f"A{HEADER_ROW}:{get_column_letter(len(output_headers))}"
-                f"{HEADER_ROW + len(case_references)}"
+                f"{HEADER_ROW + len(row_jobs)}"
             )
             _write_contradiction_summary(
                 output_workbook,
