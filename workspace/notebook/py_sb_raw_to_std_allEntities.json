@@ -1,0 +1,978 @@
+{
+	"name": "py_sb_raw_to_std_allEntities",
+	"properties": {
+		"folder": {
+			"name": "service-bus"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "1a554897-708b-40fe-b40b-c0d021d3ac3b"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"PipelineName = \"pln_service_bus\"\n",
+					"PipelineRunID = \"\"\n",
+					"PipelineTriggerID = \"\"\n",
+					"PipelineTriggerName = \"\"\n",
+					"PipelineTriggerType = \"\"\n",
+					"PipelineTriggeredbyPipelineName = \"\"\n",
+					"PipelineTriggeredbyPipelineRunID = \"\"\n",
+					"\n",
+					"# Empty: process all enabled orchestration entities.\n",
+					"# Selected: '[\"appeal-document\", \"appeal-event\"]'\n",
+					"entities_json = \"\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights\n",
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json\n",
+					"from datetime import datetime, timedelta\n",
+					"\n",
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import SparkSession, DataFrame\n",
+					"from pyspark.sql.types import StructType\n",
+					"import pyspark.sql.functions as F\n",
+					"\n",
+					"from odw.core.anonymisation.engine import AnonymisationEngine\n",
+					"from odw.core.anonymisation.config import (\n",
+					"    load_config,\n",
+					"    AnonymisationConfig\n",
+					")\n",
+					"from odw.core.util.util import Util"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def format_and_log_error(\n",
+					"    step_name: str,\n",
+					"    e: Exception\n",
+					") -> str:\n",
+					"    try:\n",
+					"        message = (\n",
+					"            f\"[{step_name}] {type(e).__name__}: {e}\"\n",
+					"        )[:800]\n",
+					"    except Exception:\n",
+					"        message = (\n",
+					"            f\"[{step_name}] {type(e).__name__}: \"\n",
+					"            \"Unable to format exception\"\n",
+					"        )[:800]\n",
+					"\n",
+					"    try:\n",
+					"        logError(message)\n",
+					"    except Exception as logging_error:\n",
+					"        print(f\"Error logging failed: {logging_error}\")\n",
+					"        print(message)\n",
+					"\n",
+					"    return message"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Spark and shared setup with error handling"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"step_name = \"Initialise notebook\"\n",
+					"\n",
+					"try:\n",
+					"    start_exec_time = datetime.now()\n",
+					"\n",
+					"    step_name = \"Create Spark session\"\n",
+					"    spark = SparkSession.builder.getOrCreate()\n",
+					"\n",
+					"    step_name = \"Get storage account\"\n",
+					"    storage_account = mssparkutils.notebook.run(\n",
+					"        \"/utils/py_utils_get_storage_account\"\n",
+					"    )\n",
+					"\n",
+					"    if (\n",
+					"        not isinstance(storage_account, str)\n",
+					"        or not storage_account.strip()\n",
+					"    ):\n",
+					"        raise ValueError(\n",
+					"            \"Storage account utility returned an empty \"\n",
+					"            \"or invalid value\"\n",
+					"        )\n",
+					"\n",
+					"    step_name = \"Get notebook name\"\n",
+					"    notebook_name = (\n",
+					"        mssparkutils.runtime.context[\"currentNotebookName\"]\n",
+					"    )\n",
+					"\n",
+					"    # Preserve the original phased rollout.\n",
+					"    ENABLE_FILE_FILTER_ENTITIES = {\"appeal-document\"}\n",
+					"\n",
+					"    step_name = \"Check telemetry utility\"\n",
+					"\n",
+					"    if not callable(globals().get(\"log_telemetry_record\")):\n",
+					"        raise RuntimeError(\n",
+					"            \"Define log_telemetry_record() in the logging utility. \"\n",
+					"            \"It must write telemetry without exiting the notebook \"\n",
+					"            \"and accept the same arguments as the original \"\n",
+					"            \"log_telemetry_and_exit() call.\"\n",
+					"        )\n",
+					"\n",
+					"except Exception as e:\n",
+					"    format_and_log_error(\n",
+					"        f\"Notebook setup - {step_name}\",\n",
+					"        e\n",
+					"    )\n",
+					"    raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Load orchestration and select entities\n",
+					"### Pipeline selection accepts a JSON array of entity names. Their paths and table settings still come from orchestration."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def load_entities(entities_json: str) -> list:\n",
+					"    orchestration_path = (\n",
+					"        f\"abfss://odw-config@{storage_account}\"\n",
+					"        \"orchestration/orchestration_service_bus.json\"\n",
+					"    )\n",
+					"\n",
+					"    config_row = (\n",
+					"        spark.read\n",
+					"        .text(orchestration_path, wholetext=True)\n",
+					"        .first()\n",
+					"    )\n",
+					"\n",
+					"    if config_row is None:\n",
+					"        raise ValueError(\"Orchestration configuration is empty\")\n",
+					"\n",
+					"    orchestration = json.loads(config_row[\"value\"])\n",
+					"\n",
+					"    if not isinstance(orchestration, dict):\n",
+					"        raise ValueError(\n",
+					"            \"Orchestration configuration must be an object\"\n",
+					"        )\n",
+					"\n",
+					"    config_entities = orchestration.get(\"entities\")\n",
+					"\n",
+					"    if not isinstance(config_entities, list):\n",
+					"        raise ValueError(\n",
+					"            \"Orchestration 'entities' must be a list\"\n",
+					"        )\n",
+					"\n",
+					"    enabled_entities = []\n",
+					"\n",
+					"    for entity in config_entities:\n",
+					"        if not isinstance(entity, dict):\n",
+					"            raise ValueError(\n",
+					"                \"Every orchestration entity must be an object\"\n",
+					"            )\n",
+					"\n",
+					"        if (\n",
+					"            entity.get(\"processing_enabled\") is True\n",
+					"            and entity.get(\"run_raw_to_std\") is True\n",
+					"        ):\n",
+					"            name = entity.get(\"entity_name\")\n",
+					"\n",
+					"            if not isinstance(name, str) or not name.strip():\n",
+					"                raise ValueError(\n",
+					"                    \"Enabled entity has missing entity_name\"\n",
+					"                )\n",
+					"\n",
+					"            enabled_entities.append(entity)\n",
+					"\n",
+					"    lookup = {\n",
+					"        entity[\"entity_name\"]: entity\n",
+					"        for entity in enabled_entities\n",
+					"    }\n",
+					"\n",
+					"    if len(lookup) != len(enabled_entities):\n",
+					"        raise ValueError(\n",
+					"            \"Duplicate enabled entity names in orchestration\"\n",
+					"        )\n",
+					"\n",
+					"    if not entities_json or not entities_json.strip():\n",
+					"        return enabled_entities\n",
+					"\n",
+					"    selected_names = json.loads(entities_json)\n",
+					"\n",
+					"    if not isinstance(selected_names, list) or not all(\n",
+					"        isinstance(name, str) and name.strip()\n",
+					"        for name in selected_names\n",
+					"    ):\n",
+					"        raise ValueError(\n",
+					"            \"entities_json must be a JSON array of entity names\"\n",
+					"        )\n",
+					"\n",
+					"    if len(set(selected_names)) != len(selected_names):\n",
+					"        raise ValueError(\n",
+					"            \"entities_json contains duplicate entity names\"\n",
+					"        )\n",
+					"\n",
+					"    missing = [\n",
+					"        name for name in selected_names\n",
+					"        if name not in lookup\n",
+					"    ]\n",
+					"\n",
+					"    if missing:\n",
+					"        raise ValueError(\n",
+					"            f\"Entities missing or disabled in orchestration: {missing}\"\n",
+					"        )\n",
+					"\n",
+					"    return [lookup[name] for name in selected_names]\n",
+					"\n",
+					"\n",
+					"try:\n",
+					"    entities = load_entities(entities_json)\n",
+					"    print(f\"Found {len(entities)} entities to process\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    format_and_log_error(\"Load orchestration entities\", e)\n",
+					"    raise"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Get entity watermark\n",
+					"A missing watermark row returns None. A failure reading the watermark table propagates to the entity error handler instead of replaying all RAW records."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def get_watermark(entity_name: str):\n",
+					"    row = (\n",
+					"        spark.table(\"odw_meta_db.service_bus_watermarks\")\n",
+					"        .filter(\n",
+					"            (F.col(\"entity\") == F.lit(entity_name))\n",
+					"            & (F.col(\"source\") == F.lit(\"service-bus\"))\n",
+					"        )\n",
+					"        .agg(\n",
+					"            F.max(\"last_ingest_time\").alias(\"watermark\")\n",
+					"        )\n",
+					"        .first()\n",
+					"    )\n",
+					"\n",
+					"    value = row[\"watermark\"]\n",
+					"\n",
+					"    return str(value) if value is not None else None"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Create entity schema"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def create_spark_schema(entity_name: str):\n",
+					"    output = mssparkutils.notebook.run(\n",
+					"        \"/py_create_spark_schema\",\n",
+					"        30,\n",
+					"        {\n",
+					"            \"db_name\": \"odw_standardised_db\",\n",
+					"            \"entity_name\": entity_name\n",
+					"        }\n",
+					"    )\n",
+					"\n",
+					"    payload = json.loads(output) if output else {}\n",
+					"    schema_value = payload.get(\"schema\")\n",
+					"\n",
+					"    if not schema_value:\n",
+					"        return None\n",
+					"\n",
+					"    if isinstance(schema_value, str):\n",
+					"        schema_value = json.loads(schema_value)\n",
+					"\n",
+					"    return StructType.fromJson(schema_value)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Read RAW messages\n",
+					"Read failures propagate to the entity error handler. They are not converted into successful zero-row results."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def read_raw_messages(\n",
+					"    source_path: str,\n",
+					"    last_ingest_time,\n",
+					"    entity_name: str,\n",
+					"    spark_schema\n",
+					") -> DataFrame:\n",
+					"    reader = (\n",
+					"        spark.read\n",
+					"        .option(\"multiline\", \"true\")\n",
+					"        .option(\"recursiveFileLookup\", \"true\")\n",
+					"    )\n",
+					"\n",
+					"    file_filter_enabled = (\n",
+					"        ENABLE_FILE_FILTER_ENTITIES is None\n",
+					"        or entity_name in ENABLE_FILE_FILTER_ENTITIES\n",
+					"    )\n",
+					"\n",
+					"    if last_ingest_time and file_filter_enabled:\n",
+					"        try:\n",
+					"            watermark_dt = datetime.fromisoformat(\n",
+					"                str(last_ingest_time).replace(\"Z\", \"+00:00\")\n",
+					"            )\n",
+					"\n",
+					"            modified_after = (\n",
+					"                watermark_dt - timedelta(days=1)\n",
+					"            ).strftime(\"%Y-%m-%dT%H:%M:%S\")\n",
+					"\n",
+					"            reader = reader.option(\n",
+					"                \"modifiedAfter\",\n",
+					"                modified_after\n",
+					"            )\n",
+					"\n",
+					"        except ValueError as parse_error:\n",
+					"            print(\n",
+					"                f\"Skipping file-level filter for {entity_name}: \"\n",
+					"                f\"{parse_error}\"\n",
+					"            )\n",
+					"\n",
+					"    if spark_schema is not None:\n",
+					"        reader = reader.schema(spark_schema)\n",
+					"\n",
+					"    return reader.json(source_path)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Watermark filtering and metadata"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def prepare_messages(\n",
+					"    df: DataFrame,\n",
+					"    last_ingest_time,\n",
+					"    watermark_column: str\n",
+					") -> DataFrame:\n",
+					"    if watermark_column not in df.columns:\n",
+					"        raise ValueError(\n",
+					"            f\"Missing watermark column: {watermark_column}\"\n",
+					"        )\n",
+					"\n",
+					"    if last_ingest_time:\n",
+					"        df = df.filter(\n",
+					"            F.col(watermark_column).cast(\"timestamp\")\n",
+					"            > F.lit(last_ingest_time).cast(\"timestamp\")\n",
+					"        )\n",
+					"\n",
+					"    return df.withColumns({\n",
+					"        \"expected_from\": F.current_timestamp(),\n",
+					"        \"expected_to\": F.expr(\n",
+					"            \"current_timestamp() + INTERVAL 1 DAY\"\n",
+					"        ),\n",
+					"        \"ingested_datetime\": (\n",
+					"            F.col(watermark_column).cast(\"timestamp\")\n",
+					"        ),\n",
+					"        \"input_file\": F.input_file_name()\n",
+					"    })"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Deduplication\n",
+					"This preserves your original deduplication keys, including input_file."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def dedupe_dataframe(df: DataFrame) -> DataFrame:\n",
+					"    excluded_columns = {\n",
+					"        \"expected_to\",\n",
+					"        \"expected_from\",\n",
+					"        \"ingested_datetime\"\n",
+					"    }\n",
+					"\n",
+					"    dedupe_columns = [\n",
+					"        column\n",
+					"        for column in df.columns\n",
+					"        if column not in excluded_columns\n",
+					"    ]\n",
+					"\n",
+					"    return (\n",
+					"        df.dropDuplicates(dedupe_columns)\n",
+					"        if dedupe_columns\n",
+					"        else df\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Anonymisation\n",
+					"This retains your original fallback to default anonymisation configuration if the policy cannot be loaded."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def apply_anonymisation_sb(\n",
+					"    df: DataFrame,\n",
+					"    entity_name: str\n",
+					") -> DataFrame:\n",
+					"    if not Util.is_non_production_environment():\n",
+					"        return df\n",
+					"\n",
+					"    anon_config = AnonymisationConfig()\n",
+					"\n",
+					"    try:\n",
+					"        policy_path = (\n",
+					"            f\"abfss://odw-config@{storage_account}\"\n",
+					"            \"anonymisation/policy.yaml\"\n",
+					"        )\n",
+					"\n",
+					"        policy_row = (\n",
+					"            spark.read\n",
+					"            .text(policy_path, wholetext=True)\n",
+					"            .first()\n",
+					"        )\n",
+					"\n",
+					"        if policy_row is None:\n",
+					"            raise ValueError(\"Anonymisation policy is empty\")\n",
+					"\n",
+					"        anon_config = load_config(\n",
+					"            text=policy_row[\"value\"]\n",
+					"        )\n",
+					"\n",
+					"    except Exception as config_error:\n",
+					"        print(\n",
+					"            f\"Using default anonymisation config for \"\n",
+					"            f\"{entity_name}: {config_error}\"\n",
+					"        )\n",
+					"\n",
+					"    engine = AnonymisationEngine(\n",
+					"        config=AnonymisationConfig(\n",
+					"            classification_allowlist=(\n",
+					"                anon_config.classification_allowlist\n",
+					"            ),\n",
+					"            seed_column=anon_config.get_seed_column(\n",
+					"                entity_name\n",
+					"            )\n",
+					"        )\n",
+					"    )\n",
+					"\n",
+					"    return engine.apply_from_purview(\n",
+					"        df,\n",
+					"        entity_name=entity_name,\n",
+					"        source_folder=\"ServiceBus\"\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Append to existing Delta table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def append_df_to_table(\n",
+					"    df: DataFrame,\n",
+					"    target_table: str\n",
+					"):\n",
+					"    location_rows = (\n",
+					"        spark.sql(f\"DESCRIBE EXTENDED {target_table}\")\n",
+					"        .filter(F.col(\"col_name\") == \"Location\")\n",
+					"        .select(\"data_type\")\n",
+					"        .collect()\n",
+					"    )\n",
+					"\n",
+					"    if not location_rows:\n",
+					"        raise ValueError(\n",
+					"            f\"Table location not found: {target_table}\"\n",
+					"        )\n",
+					"\n",
+					"    table_path = location_rows[0][\"data_type\"]\n",
+					"\n",
+					"    (\n",
+					"        df.write\n",
+					"        .format(\"delta\")\n",
+					"        .mode(\"append\")\n",
+					"        .option(\"mergeSchema\", \"true\")\n",
+					"        .option(\"path\", table_path)\n",
+					"        .saveAsTable(target_table)\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Write one telemetry record per entity\n",
+					"This uses your original telemetry argument order. The displayed pipeline label includes the entity name; the actual pipeline run ID stays unchanged."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def log_entity_telemetry(\n",
+					"    result: dict,\n",
+					"    entity_start_time: datetime,\n",
+					"    entity_end_time: datetime\n",
+					"):\n",
+					"    failed = bool(result[\"error_message\"])\n",
+					"\n",
+					"    status_message = (\n",
+					"        f\"Entity={result['entity_name']}; \"\n",
+					"        f\"target_table={result['target_table']}; \"\n",
+					"        f\"insert_count={result['insert_count']}; \"\n",
+					"        f\"hasNewData={result['hasNewData']}\"\n",
+					"    )\n",
+					"\n",
+					"    log_telemetry_record(\n",
+					"        \"Failed\" if failed else \"Success\",\n",
+					"        entity_start_time,\n",
+					"        entity_end_time,\n",
+					"        result[\"error_message\"] or \"\",\n",
+					"        result[\"target_table\"],\n",
+					"        result[\"insert_count\"],\n",
+					"        result[\"update_count\"],\n",
+					"        result[\"delete_count\"],\n",
+					"        f\"{PipelineName.strip()} - {result['entity_name']}\",\n",
+					"        PipelineRunID,\n",
+					"        PipelineTriggerID,\n",
+					"        PipelineTriggerName,\n",
+					"        PipelineTriggerType,\n",
+					"        PipelineTriggeredbyPipelineName,\n",
+					"        PipelineTriggeredbyPipelineRunID,\n",
+					"        f\"{notebook_name} Notebook\",\n",
+					"        (entity_end_time - entity_start_time).total_seconds(),\n",
+					"        status_message,\n",
+					"        \"500\" if failed else \"200\"\n",
+					"    )"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Process one entity"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def process_entity(entity: dict) -> dict:\n",
+					"    entity_name = entity[\"entity_name\"]\n",
+					"\n",
+					"    raw_entity_path = entity.get(\"raw_entity_path\") or \"\"\n",
+					"    standardised_table = entity.get(\"standardised_table\") or \"\"\n",
+					"    watermark_column = (\n",
+					"        entity.get(\"watermark_column\")\n",
+					"        or \"message_enqueued_time_utc\"\n",
+					"    )\n",
+					"\n",
+					"    entity_start_time = datetime.now()\n",
+					"\n",
+					"    insert_count = 0\n",
+					"    error_message = \"\"\n",
+					"    telemetry_error_message = None\n",
+					"    max_message_enqueued_time_utc = None\n",
+					"    has_new_data = False\n",
+					"\n",
+					"    cached_df = None\n",
+					"    step_name = \"Initialise entity\"\n",
+					"\n",
+					"    source_path = (\n",
+					"        f\"abfss://odw-raw@{storage_account}{raw_entity_path}\"\n",
+					"        if raw_entity_path\n",
+					"        else (\n",
+					"            f\"abfss://odw-raw@{storage_account}\"\n",
+					"            f\"ServiceBus/{entity_name}/\"\n",
+					"        )\n",
+					"    )\n",
+					"\n",
+					"    target_table = (\n",
+					"        f\"odw_standardised_db.{standardised_table}\"\n",
+					"        if standardised_table\n",
+					"        else (\n",
+					"            \"odw_standardised_db.\"\n",
+					"            f\"sb_{entity_name.replace('-', '_')}\"\n",
+					"        )\n",
+					"    )\n",
+					"\n",
+					"    try:\n",
+					"        print(f\"Processing {entity_name}\")\n",
+					"\n",
+					"        step_name = \"Create Spark schema\"\n",
+					"        spark_schema = create_spark_schema(entity_name)\n",
+					"\n",
+					"        step_name = \"Read watermark\"\n",
+					"        last_ingest_time = get_watermark(entity_name)\n",
+					"\n",
+					"        step_name = \"Read RAW messages\"\n",
+					"        df = read_raw_messages(\n",
+					"            source_path=source_path,\n",
+					"            last_ingest_time=last_ingest_time,\n",
+					"            entity_name=entity_name,\n",
+					"            spark_schema=spark_schema\n",
+					"        )\n",
+					"\n",
+					"        step_name = \"Check RAW records\"\n",
+					"\n",
+					"        if df.head(1):\n",
+					"            step_name = \"Filter and prepare messages\"\n",
+					"            df = prepare_messages(\n",
+					"                df=df,\n",
+					"                last_ingest_time=last_ingest_time,\n",
+					"                watermark_column=watermark_column\n",
+					"            )\n",
+					"\n",
+					"            if df.head(1):\n",
+					"                step_name = \"Calculate maximum watermark\"\n",
+					"                candidate_max = (\n",
+					"                    df.agg(\n",
+					"                        F.max(\n",
+					"                            F.col(watermark_column).cast(\"timestamp\")\n",
+					"                        ).alias(\"max_ts\")\n",
+					"                    )\n",
+					"                    .first()[\"max_ts\"]\n",
+					"                )\n",
+					"\n",
+					"                step_name = \"Deduplicate\"\n",
+					"                df = dedupe_dataframe(df)\n",
+					"\n",
+					"                step_name = \"Apply anonymisation\"\n",
+					"                df = apply_anonymisation_sb(\n",
+					"                    df=df,\n",
+					"                    entity_name=entity_name\n",
+					"                )\n",
+					"\n",
+					"                if df is None:\n",
+					"                    raise ValueError(\n",
+					"                        \"Anonymisation returned None\"\n",
+					"                    )\n",
+					"\n",
+					"                step_name = \"Count rows to append\"\n",
+					"                cached_df = df.cache()\n",
+					"                rows_to_append = cached_df.count()\n",
+					"\n",
+					"                if rows_to_append > 0:\n",
+					"                    step_name = \"Append Delta data\"\n",
+					"                    append_df_to_table(\n",
+					"                        df=cached_df,\n",
+					"                        target_table=target_table\n",
+					"                    )\n",
+					"\n",
+					"                    insert_count = rows_to_append\n",
+					"                    has_new_data = True\n",
+					"                    max_message_enqueued_time_utc = (\n",
+					"                        str(candidate_max)\n",
+					"                        if candidate_max is not None\n",
+					"                        else None\n",
+					"                    )\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = format_and_log_error(\n",
+					"            f\"{entity_name} - {step_name}\",\n",
+					"            e\n",
+					"        )\n",
+					"\n",
+					"    finally:\n",
+					"        if cached_df is not None:\n",
+					"            try:\n",
+					"                cached_df.unpersist()\n",
+					"            except Exception as cleanup_error:\n",
+					"                print(\n",
+					"                    f\"Cache cleanup failed for {entity_name}: \"\n",
+					"                    f\"{cleanup_error}\"\n",
+					"                )\n",
+					"\n",
+					"    entity_end_time = datetime.now()\n",
+					"\n",
+					"    result = {\n",
+					"        \"entity_name\": entity_name,\n",
+					"        \"target_table\": target_table,\n",
+					"        \"hasNewData\": has_new_data,\n",
+					"        \"insert_count\": insert_count,\n",
+					"        \"update_count\": 0,\n",
+					"        \"delete_count\": 0,\n",
+					"        \"max_message_enqueued_time_utc\": (\n",
+					"            max_message_enqueued_time_utc\n",
+					"        ),\n",
+					"        \"total_exec_time\": int(\n",
+					"            (entity_end_time - entity_start_time).total_seconds()\n",
+					"        ),\n",
+					"        \"error_message\": error_message or None\n",
+					"    }\n",
+					"\n",
+					"    try:\n",
+					"        log_entity_telemetry(\n",
+					"            result=result,\n",
+					"            entity_start_time=entity_start_time,\n",
+					"            entity_end_time=entity_end_time\n",
+					"        )\n",
+					"\n",
+					"    except Exception as telemetry_error:\n",
+					"        telemetry_error_message = format_and_log_error(\n",
+					"            f\"{entity_name} - Telemetry\",\n",
+					"            telemetry_error\n",
+					"        )\n",
+					"\n",
+					"    result[\"telemetry_error_message\"] = telemetry_error_message\n",
+					"\n",
+					"    print(\n",
+					"        f\"Finished {entity_name}; \"\n",
+					"        f\"insert_count={insert_count}; \"\n",
+					"        f\"status={'Failed' if error_message else 'Success'}\"\n",
+					"    )\n",
+					"\n",
+					"    return result"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Process entities sequentially"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"results = []\n",
+					"\n",
+					"for entity in entities:\n",
+					"    result = process_entity(entity)\n",
+					"    results.append(result)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Summary and single notebook exit\n",
+					"There is no combined summary telemetry call here, so the notebook attempts only one telemetry write per entity."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"end_exec_time = datetime.now()\n",
+					"\n",
+					"failed_entities = [\n",
+					"    result for result in results\n",
+					"    if result[\"error_message\"]\n",
+					"]\n",
+					"\n",
+					"telemetry_failed_entities = [\n",
+					"    result for result in results\n",
+					"    if result[\"telemetry_error_message\"]\n",
+					"]\n",
+					"\n",
+					"summary = {\n",
+					"    \"total_entities\": len(results),\n",
+					"    \"successful_entities\": (\n",
+					"        len(results) - len(failed_entities)\n",
+					"    ),\n",
+					"    \"failed_entities\": len(failed_entities),\n",
+					"    \"telemetry_failed_entities\": len(telemetry_failed_entities),\n",
+					"    \"total_insert_count\": sum(\n",
+					"        result[\"insert_count\"]\n",
+					"        for result in results\n",
+					"    ),\n",
+					"    \"total_exec_time\": int(\n",
+					"        (end_exec_time - start_exec_time).total_seconds()\n",
+					"    )\n",
+					"}\n",
+					"\n",
+					"exit_payload = {\n",
+					"    \"hasNewData\": any(\n",
+					"        result[\"hasNewData\"]\n",
+					"        for result in results\n",
+					"    ),\n",
+					"    \"overall_status\": (\n",
+					"        \"Failed\" if failed_entities else \"Success\"\n",
+					"    ),\n",
+					"    \"telemetry_status\": (\n",
+					"        \"Failed\" if telemetry_failed_entities else \"Success\"\n",
+					"    ),\n",
+					"    \"entity_results\": results,\n",
+					"    \"summary\": summary\n",
+					"}\n",
+					"\n",
+					"print(json.dumps(summary, indent=2))\n",
+					"\n",
+					"mssparkutils.notebook.exit(\n",
+					"    json.dumps(exit_payload)\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
