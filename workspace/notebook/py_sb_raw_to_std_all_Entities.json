@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8c4b8e20-8fbd-4643-8306-15203a9e79e7"
+				"spark.autotune.trackingId": "2bb98283-9589-4bd6-82a7-8874a4a50726"
 			}
 		},
 		"metadata": {
@@ -73,14 +73,14 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -100,7 +100,7 @@
 					")\n",
 					"from odw.core.util.util import Util"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -127,7 +127,7 @@
 					"\n",
 					"    return message"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "markdown",
@@ -181,7 +181,7 @@
 					"    )\n",
 					"    raise"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -299,7 +299,7 @@
 					"    format_and_log_error(\"Load orchestration entities\", e)\n",
 					"    raise"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -335,7 +335,7 @@
 					"\n",
 					"    return str(value) if value is not None else None"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -374,7 +374,7 @@
 					"\n",
 					"    return StructType.fromJson(schema_value)"
 				],
-				"execution_count": null
+				"execution_count": 9
 			},
 			{
 				"cell_type": "markdown",
@@ -436,7 +436,7 @@
 					"\n",
 					"    return reader.json(source_path)"
 				],
-				"execution_count": null
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -481,7 +481,7 @@
 					"        \"input_file\": F.input_file_name()\n",
 					"    })"
 				],
-				"execution_count": null
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -519,7 +519,7 @@
 					"        else df\n",
 					"    )"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -589,7 +589,7 @@
 					"        source_folder=\"ServiceBus\"\n",
 					"    )"
 				],
-				"execution_count": 21
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -634,7 +634,7 @@
 					"        .saveAsTable(target_table)\n",
 					"    )"
 				],
-				"execution_count": 22
+				"execution_count": 14
 			},
 			{
 				"cell_type": "markdown",
@@ -658,31 +658,45 @@
 					"    entity_start_time: datetime,\n",
 					"    entity_end_time: datetime\n",
 					"):\n",
-					"    writer = globals().get(\"log_telemetry_record\")\n",
+					"    duration_seconds = (\n",
+					"        entity_end_time - entity_start_time\n",
+					"    ).total_seconds()\n",
 					"\n",
-					"    if not callable(writer):\n",
-					"        raise RuntimeError(\n",
-					"            \"log_telemetry_record() is not defined. \"\n",
-					"            \"Entity processing continues, but this entity's \"\n",
-					"            \"count telemetry could not be written.\"\n",
-					"        )\n",
+					"    activity_type = (\n",
+					"        f\"{mssparkutils.runtime.context['currentNotebookName']} Notebook\"\n",
+					"    )\n",
 					"\n",
 					"    failed = bool(result[\"error_message\"])\n",
 					"\n",
-					"    status_message = (\n",
-					"        f\"Entity={result['entity_name']}; \"\n",
-					"        f\"target_table={result['target_table']}; \"\n",
-					"        f\"insert_count={result['insert_count']}; \"\n",
-					"        f\"hasNewData={result['hasNewData']}\"\n",
+					"    stage = \"Failed\" if failed else \"Success\"\n",
+					"    status_code = \"500\" if failed else \"200\"\n",
+					"\n",
+					"    telemetry_insert_count = int(\n",
+					"        result[\"insert_count\"] or 0\n",
 					"    )\n",
 					"\n",
-					"    writer(\n",
-					"        \"Failed\" if failed else \"Success\",\n",
+					"    if failed:\n",
+					"        status_message = (\n",
+					"            f\"Failed to load data into \"\n",
+					"            f\"{result['target_table']} table; \"\n",
+					"            f\"entity={result['entity_name']}; \"\n",
+					"            f\"error={result['error_message']}\"\n",
+					"        )\n",
+					"    else:\n",
+					"        status_message = (\n",
+					"            f\"Successfully processed \"\n",
+					"            f\"{result['target_table']} table; \"\n",
+					"            f\"entity={result['entity_name']}; \"\n",
+					"            f\"insert_count={telemetry_insert_count}\"\n",
+					"        )\n",
+					"\n",
+					"    log_telemetry_and_exit(\n",
+					"        stage,\n",
 					"        entity_start_time,\n",
 					"        entity_end_time,\n",
 					"        result[\"error_message\"] or \"\",\n",
 					"        result[\"target_table\"],\n",
-					"        result[\"insert_count\"],\n",
+					"        telemetry_insert_count,\n",
 					"        result[\"update_count\"],\n",
 					"        result[\"delete_count\"],\n",
 					"        f\"{PipelineName.strip()} - {result['entity_name']}\",\n",
@@ -692,35 +706,13 @@
 					"        PipelineTriggerType,\n",
 					"        PipelineTriggeredbyPipelineName,\n",
 					"        PipelineTriggeredbyPipelineRunID,\n",
-					"        f\"{notebook_name} Notebook\",\n",
-					"        (entity_end_time - entity_start_time).total_seconds(),\n",
+					"        activity_type,\n",
+					"        duration_seconds,\n",
 					"        status_message,\n",
-					"        \"500\" if failed else \"200\"\n",
-					"    )\n",
-					"\n",
-					"\n",
-					"def capture_entity_telemetry(\n",
-					"    result: dict,\n",
-					"    entity_start_time: datetime,\n",
-					"    entity_end_time: datetime\n",
-					"):\n",
-					"    try:\n",
-					"        log_entity_telemetry(\n",
-					"            result=result,\n",
-					"            entity_start_time=entity_start_time,\n",
-					"            entity_end_time=entity_end_time\n",
-					"        )\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        result[\"telemetry_error_message\"] = (\n",
-					"            format_and_log_error(\n",
-					"                f\"{result['entity_name']} - Telemetry\",\n",
-					"                e\n",
-					"            )\n",
-					"        )\n",
-					""
+					"        status_code\n",
+					"    )"
 				],
-				"execution_count": 23
+				"execution_count": 15
 			},
 			{
 				"cell_type": "markdown",
@@ -742,6 +734,7 @@
 					"    entity_start_time = datetime.now()\n",
 					"\n",
 					"    entity_name = entity[\"entity_name\"]\n",
+					"\n",
 					"    raw_entity_path = entity.get(\"raw_entity_path\") or \"\"\n",
 					"    standardised_table = entity.get(\"standardised_table\") or \"\"\n",
 					"    watermark_column = (\n",
@@ -750,6 +743,9 @@
 					"    )\n",
 					"\n",
 					"    insert_count = 0\n",
+					"    update_count = 0\n",
+					"    delete_count = 0\n",
+					"\n",
 					"    error_message = \"\"\n",
 					"    max_message_enqueued_time_utc = None\n",
 					"    has_new_data = False\n",
@@ -776,7 +772,7 @@
 					"    )\n",
 					"\n",
 					"    try:\n",
-					"        print(f\"Processing {entity_name}\")\n",
+					"        print(f\"Processing entity={entity_name}\")\n",
 					"\n",
 					"        step_name = \"Create Spark schema\"\n",
 					"        spark_schema = create_spark_schema(entity_name)\n",
@@ -793,11 +789,18 @@
 					"        )\n",
 					"\n",
 					"        if df is None:\n",
-					"            raise ValueError(\"RAW reader returned None\")\n",
+					"            raise ValueError(\n",
+					"                f\"RAW reader returned None for {entity_name}\"\n",
+					"            )\n",
 					"\n",
 					"        step_name = \"Check RAW records\"\n",
 					"\n",
-					"        if df.head(1):\n",
+					"        if not df.head(1):\n",
+					"            print(\n",
+					"                f\"No RAW records for entity={entity_name}\"\n",
+					"            )\n",
+					"\n",
+					"        else:\n",
 					"            step_name = \"Filter and prepare messages\"\n",
 					"            df = prepare_messages(\n",
 					"                df=df,\n",
@@ -805,8 +808,17 @@
 					"                watermark_column=watermark_column\n",
 					"            )\n",
 					"\n",
-					"            if df.head(1):\n",
+					"            step_name = \"Check records after watermark filter\"\n",
+					"\n",
+					"            if not df.head(1):\n",
+					"                print(\n",
+					"                    f\"No new records after watermark filter \"\n",
+					"                    f\"for entity={entity_name}\"\n",
+					"                )\n",
+					"\n",
+					"            else:\n",
 					"                step_name = \"Calculate maximum watermark\"\n",
+					"\n",
 					"                candidate_max = (\n",
 					"                    df.agg(\n",
 					"                        F.max(\n",
@@ -827,7 +839,8 @@
 					"\n",
 					"                if df is None:\n",
 					"                    raise ValueError(\n",
-					"                        \"Anonymisation returned None\"\n",
+					"                        f\"Anonymisation returned None \"\n",
+					"                        f\"for entity={entity_name}\"\n",
 					"                    )\n",
 					"\n",
 					"                step_name = \"Count rows to append\"\n",
@@ -836,27 +849,35 @@
 					"\n",
 					"                if rows_to_append > 0:\n",
 					"                    step_name = \"Append Delta data\"\n",
+					"\n",
 					"                    append_df_to_table(\n",
 					"                        df=cached_df,\n",
 					"                        target_table=target_table\n",
 					"                    )\n",
 					"\n",
-					"                    # Record confirmed inserts only after append returns.\n",
+					"                    # Set successful counts only after append returns.\n",
 					"                    insert_count = rows_to_append\n",
 					"                    has_new_data = True\n",
+					"\n",
 					"                    max_message_enqueued_time_utc = (\n",
 					"                        str(candidate_max)\n",
 					"                        if candidate_max is not None\n",
 					"                        else None\n",
 					"                    )\n",
 					"\n",
+					"                else:\n",
+					"                    print(\n",
+					"                        f\"No rows remain after processing \"\n",
+					"                        f\"for entity={entity_name}\"\n",
+					"                    )\n",
+					"\n",
 					"    except Exception as e:\n",
 					"        error_message = format_and_log_error(\n",
-					"            f\"{entity_name} - {step_name}\",\n",
-					"            e\n",
+					"            step_name=f\"{entity_name} - {step_name}\",\n",
+					"            e=e\n",
 					"        )\n",
 					"\n",
-					"        # Do not raise: return this entity's failure and continue.\n",
+					"        # Do not raise: capture the failure and continue.\n",
 					"\n",
 					"    finally:\n",
 					"        if cached_df is not None:\n",
@@ -875,8 +896,8 @@
 					"        \"target_table\": target_table,\n",
 					"        \"hasNewData\": has_new_data,\n",
 					"        \"insert_count\": insert_count,\n",
-					"        \"update_count\": 0,\n",
-					"        \"delete_count\": 0,\n",
+					"        \"update_count\": update_count,\n",
+					"        \"delete_count\": delete_count,\n",
 					"        \"max_message_enqueued_time_utc\": (\n",
 					"            max_message_enqueued_time_utc\n",
 					"        ),\n",
@@ -887,16 +908,35 @@
 					"        \"telemetry_error_message\": None\n",
 					"    }\n",
 					"\n",
-					"    # Attempt telemetry for success, zero rows, and failure.\n",
-					"    capture_entity_telemetry(\n",
-					"        result=result,\n",
-					"        entity_start_time=entity_start_time,\n",
-					"        entity_end_time=entity_end_time\n",
+					"    # Attempt telemetry for successful, failed, and zero-row entities.\n",
+					"    try:\n",
+					"        log_entity_telemetry(\n",
+					"            result=result,\n",
+					"            entity_start_time=entity_start_time,\n",
+					"            entity_end_time=entity_end_time\n",
+					"        )\n",
+					"\n",
+					"    except Exception as telemetry_error:\n",
+					"        result[\"telemetry_error_message\"] = (\n",
+					"            format_and_log_error(\n",
+					"                step_name=f\"{entity_name} - Telemetry\",\n",
+					"                e=telemetry_error\n",
+					"            )\n",
+					"        )\n",
+					"\n",
+					"        # Do not raise: telemetry failure must not stop the next entity.\n",
+					"\n",
+					"    print(\n",
+					"        f\"Finished entity={entity_name}; \"\n",
+					"        f\"status={'Failed' if error_message else 'Success'}; \"\n",
+					"        f\"insert_count={insert_count}; \"\n",
+					"        f\"telemetry_status=\"\n",
+					"        f\"{'Failed' if result['telemetry_error_message'] else 'Success'}\"\n",
 					"    )\n",
 					"\n",
 					"    return result"
 				],
-				"execution_count": 24
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -971,7 +1011,7 @@
 					"        f\"{'Failed' if result['telemetry_error_message'] else 'Success'}\"\n",
 					"    )"
 				],
-				"execution_count": 25
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -1039,7 +1079,7 @@
 					"    json.dumps(exit_payload)\n",
 					")"
 				],
-				"execution_count": 26
+				"execution_count": null
 			}
 		]
 	}
