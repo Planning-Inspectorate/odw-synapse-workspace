@@ -1,5 +1,6 @@
 import os
 from copy import copy
+from datetime import datetime, time
 from pathlib import Path
 import re
 
@@ -300,6 +301,19 @@ def _varies(sheet, rows, columns):
 	return len(values) > 1
 
 
+def _hearing_datetime(value):
+	"""Hearing dates (real dates or dd/mm/yyyy text) become a datetime at 10:00; anything else is left as is."""
+	if isinstance(value, datetime):
+		return datetime.combine(value.date(), time(10, 0))
+	if isinstance(value, str):
+		for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+			try:
+				return datetime.combine(datetime.strptime(value.strip(), fmt).date(), time(10, 0))
+			except ValueError:
+				continue
+	return value
+
+
 def _copy_template_header(source_sheet, target_sheet, source_column, target_column):
 	source = source_sheet.cell(TEMPLATE_HEADER_ROW, source_column)
 	target = target_sheet.cell(TEMPLATE_HEADER_ROW, target_column)
@@ -477,7 +491,9 @@ def extract_final_columns():
 					comparison_sheet, case_source_rows, [selection["primary"], selection["fallback"], *other]
 				)
 				# Repeat rows mirror their own comparison row (blank except extended-data values)
-				source_rows = own_rows if (field_varies or not is_first_row) else case_source_rows
+				horizon_only = set(groups.get(selection["header"], {})) == {"horizon"}
+				# Horizon-only (extended) fields mirror each comparison row; others share one value per case
+				source_rows = own_rows if (field_varies or not is_first_row or horizon_only) else case_source_rows
 				# Blue override (dark or light blue cell): that value is used and keeps its blue fill
 				override = _blue_override(
 					comparison_sheet, comparison_styles_sheet, source_rows,
@@ -497,6 +513,8 @@ def extract_final_columns():
 				primary_value = _first_value(comparison_sheet, source_rows, selection["primary"])
 				fallback_value = _first_value(comparison_sheet, source_rows, selection["fallback"])
 				value = primary_value if not _is_blank(primary_value) else fallback_value
+				if re.sub(r"\s+", " ", selection["header"]).strip().lower() == "hearing date":
+					value = _hearing_datetime(value)
 				final_sheet.cell(output_row, output_column).value = value
 
 				if (

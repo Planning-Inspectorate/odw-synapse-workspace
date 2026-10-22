@@ -638,11 +638,10 @@ def combine_sources(
                         if source_index is not None else None
                     )
                     if output_column in extended_horizon_columns and horizon_row is not None:
-                        first_value = horizon_source.cell(
+                        # own value only: the merged case value would pull in other groups' values
+                        output_sheet.cell(output_row, output_column).value = horizon_source.cell(
                             horizon_row, horizon_columns[source_index][1]
                         ).value
-                        if not _is_blank(first_value):
-                            output_sheet.cell(output_row, output_column).value = first_value
                     if source_row is not None and source_index is not None:
                         _copy_cell_format(
                             source_worksheet.cell(source_row, source_columns[source_index][1]),
