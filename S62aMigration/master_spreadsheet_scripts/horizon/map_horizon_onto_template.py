@@ -407,6 +407,55 @@ def apply_hearing_venue_override():
 
 apply_hearing_venue_override()
 
+RESIDENTIAL_UNITS_COLUMN = "Residential Units Comment"   # extra column, not on the template
+RESIDENTIAL_TOTAL_COLUMNS = ["TotalExistingResidentialUnits", "TotalProposedResidentialUnits"]
+HOUSING_DETAIL_COLUMNS = [
+    "ExistingHousingOccupancyType", "ExistingHousingUnitType",
+    "ExistingHousing1BedCount", "ExistingHousing2BedCount", "ExistingHousing3BedCount",
+    "ExistingHousing4PlusBedCount", "ExistingHousingUnknownBedCount", "ExistingHousingTotalUnits",
+    "ProposedHousingUnitType", "ProposedHousingOccupancyType",
+    "ProposedHousing1BedCount", "ProposedHousing2BedCount", "ProposedHousing3BedCount",
+    "ProposedHousing4PlusBedCount", "ProposedHousingUnknownBedCount", "ProposedHousingTotalUnits",
+]
+
+def apply_residential_totals_comment():
+    """Where an extended-data row has TotalExistingResidentialUnits and/or
+    TotalProposedResidentialUnits populated but every housing detail column
+    blank (ProposedHousingGroupID is ignored: Horizon sets it to a bare
+    group number even when no housing detail exists), write the populated totals into the 'Residential Units Comment' column, e.g.
+    'TotalExistingResidentialUnits: 50 and TotalProposedResidentialUnits: 25'."""
+    candidates = [
+        f for f in os.listdir(HORIZON_EXTRACTS_DIR)
+        if f.lower().endswith(".csv") and "extended_data" in f.lower()
+    ]
+    if not candidates:
+        print("WARNING: no extended data extract found - residential totals comment skipped")
+        return
+    filepath = os.path.join(HORIZON_EXTRACTS_DIR, candidates[0])
+    df = pd.read_csv(filepath, dtype=str).dropna(how="all")
+    if "CaseReference" not in df.columns and "CaseUniqueId" in df.columns:
+        df["CaseReference"] = df["CaseUniqueId"].fillna("").str.strip().map(CASE_UNIQUE_ID_TO_REFERENCE)
+    detail_cols = [c for c in HOUSING_DETAIL_COLUMNS if c in df.columns]
+    applied = 0
+    for _, row in df.iterrows():
+        case_ref = str(row.get("CaseReference", "")).strip()
+        if not case_ref or case_ref not in S62A_CASES or case_ref not in case_rows:
+            continue
+        parts = [
+            f"{col}: {str(row[col]).strip()}"
+            for col in RESIDENTIAL_TOTAL_COLUMNS
+            if col in df.columns and not is_blank(row[col])
+        ]
+        if not parts or any(not is_blank(row[c]) for c in detail_cols):
+            continue
+        target = case_rows[case_ref][0]["values"]
+        if not target.get(RESIDENTIAL_UNITS_COLUMN):
+            target[RESIDENTIAL_UNITS_COLUMN] = " and ".join(parts)
+            applied += 1
+    print(f"Residential totals comment: {applied} case(s) set from {candidates[0]}")
+
+apply_residential_totals_comment()
+
 all_rows = []
 for records in case_rows.values():
     for record in records:
@@ -502,13 +551,14 @@ for col_num in range(1, ws.max_column + 1):
         column_lookup[str(header_value).strip()] = col_num
 
 # Extra column that has no home on the template: append it after the last header
-if HEARING_NOTES_COLUMN not in column_lookup:
-    notes_col_num = ws.max_column + 1
-    header_cell = ws.cell(row=TEMPLATE_HEADER_ROW, column=notes_col_num)
-    header_cell.value = HEARING_NOTES_COLUMN
-    header_cell._style = copy(ws.cell(TEMPLATE_HEADER_ROW, notes_col_num - 1)._style)
-    column_lookup[HEARING_NOTES_COLUMN] = notes_col_num
-    normal_data_styles.append(copy(normal_data_styles[-1]))
+for extra_column in (HEARING_NOTES_COLUMN, RESIDENTIAL_UNITS_COLUMN):
+    if extra_column not in column_lookup:
+        extra_col_num = ws.max_column + 1
+        header_cell = ws.cell(row=TEMPLATE_HEADER_ROW, column=extra_col_num)
+        header_cell.value = extra_column
+        header_cell._style = copy(ws.cell(TEMPLATE_HEADER_ROW, extra_col_num - 1)._style)
+        column_lookup[extra_column] = extra_col_num
+        normal_data_styles.append(copy(normal_data_styles[-1]))
 
 excel_row = TEMPLATE_FIRST_DATA_ROW
 for row_result, conflicts in zip(all_rows, all_conflicts):
