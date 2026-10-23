@@ -29,7 +29,7 @@ def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
 BASE_DIR = find_data_root(SCRIPT_DIR)
 COMPARISON_FILE = (
 	BASE_DIR
-	/ "outputs/S62A_Horizon_vs_Spreadsheet_comparison.xlsx"
+	/ "csv_and_xlsx_files/S62A_Horizon_vs_Spreadsheet_comparison_coloured_sheet.xlsx"
 )
 MASTER_TEMPLATE_FILE = (
 	BASE_DIR / "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
