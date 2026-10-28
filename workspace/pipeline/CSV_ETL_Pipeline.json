@@ -1,0 +1,172 @@
+{
+  "name": "CSV_ETL_Pipeline",
+  "properties": {
+    "activities": [
+      {
+        "name": "Load_CSV_Manifest",
+        "type": "Lookup",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "userProperties": [],
+        "typeProperties": {
+          "source": {
+            "type": "JsonSource",
+            "storeSettings": {
+              "type": "AzureBlobFSReadSettings",
+              "recursive": true,
+              "enablePartitionDiscovery": false
+            },
+            "formatSettings": {
+              "type": "JsonReadSettings"
+            }
+          },
+          "dataset": {
+            "referenceName": "ds_csv_manifest",
+            "type": "DatasetReference"
+          },
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "Schema_Validation",
+        "type": "SynapseNotebook",
+        "dependsOn": [
+          {
+            "activity": "Load_CSV_Manifest",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "userProperties": [],
+        "typeProperties": {
+          "notebook": {
+            "referenceName": "CSV_Schema_Validator",
+            "type": "NotebookReference"
+          },
+          "parameters": {
+            "manifest_data": {
+              "value": "@activity('Load_CSV_Manifest').output.value",
+              "type": "Expression"
+            }
+          },
+          "snapshot": true
+        }
+      },
+      {
+        "name": "Extract_and_Load_CSVs",
+        "type": "ForEach",
+        "dependsOn": [
+          {
+            "activity": "Schema_Validation",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "userProperties": [],
+        "typeProperties": {
+          "items": {
+            "value": "@activity('Load_CSV_Manifest').output.value",
+            "type": "Expression"
+          },
+          "activities": [
+            {
+              "name": "Copy_CSV_to_Database",
+              "type": "Copy",
+              "dependsOn": [],
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureOutput": false,
+                "secureInput": false
+              },
+              "userProperties": [],
+              "typeProperties": {
+                "source": {
+                  "type": "DelimitedTextSource",
+                  "storeSettings": {
+                    "type": "AzureBlobFSReadSettings",
+                    "recursive": true,
+                    "enablePartitionDiscovery": false
+                  },
+                  "formatSettings": {
+                    "type": "DelimitedTextReadSettings",
+                    "skipLineCount": 0
+                  }
+                },
+                "sink": {
+                  "type": "SqlServerSink",
+                  "preCopyScript": {
+                    "value": "@concat('DELETE FROM ', item().target_table)",
+                    "type": "Expression"
+                  },
+                  "writeBehavior": "insert",
+                  "sqlWriterUseTableLock": false,
+                  "tableOption": "autoCreate"
+                },
+                "enableStaging": false,
+                "translator": {
+                  "type": "TabularTranslator",
+                  "typeConversion": true,
+                  "typeConversionSettings": {
+                    "allowDataTruncation": true,
+                    "treatBooleanAsNumber": false
+                  }
+                }
+              },
+              "inputs": [
+                {
+                  "referenceName": "ds_csv_source_dynamic",
+                  "type": "DatasetReference",
+                  "parameters": {
+                    "csv_file": {
+                      "value": "@item().csv_path",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "referenceName": "ds_sql_destination",
+                  "type": "DatasetReference",
+                  "parameters": {
+                    "table_name": {
+                      "value": "@item().target_table",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "parameters": {
+      "data_lake_path": {
+        "type": "string",
+        "defaultValue": "/csv-migration-data"
+      }
+    },
+    "folder": {
+      "name": "CSV Migration"
+    },
+    "annotations": []
+  }
+}

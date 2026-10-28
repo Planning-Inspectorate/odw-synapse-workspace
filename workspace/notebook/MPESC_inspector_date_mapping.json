@@ -1,0 +1,310 @@
+{
+	"name": "MPESC_inspector_date_mapping",
+	"properties": {
+		"folder": {
+			"name": "Horizon-Migration"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "inspector-date-mapping-001"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": [
+					"# Inspector Date Mapping\n",
+					"\n",
+					"This notebook fills missing `inspectorAllocatedDate` values in Inspector.csv by mapping to Case.csv using the `caseId` to get the `createdDate`.\n",
+					"\n",
+					"**Process:**\n",
+					"1. Load Inspector.csv and Case.csv files\n",
+					"2. Identify Inspector records with empty/null `inspectorAllocatedDate`\n",
+					"3. Map `caseId` from Inspector to `id` in Case to get `createdDate`\n",
+					"4. Update Inspector records with the mapped `createdDate`\n",
+					"5. Write updated Inspector.csv back to storage"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"print(\"Starting Inspector Date Mapping process...\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 1. Setup paths based on workspace ──────────────────────────────────────────\n",
+					"\n",
+					"workspace = mssparkutils.env.getWorkspaceName()\n",
+					"\n",
+					"if workspace == 'pins-synw-odw-prod-uks':\n",
+					"    storage_account_name = 'pinsstmpescproduksqz8bvk'\n",
+					"elif workspace == 'pins-synw-odw-dev-uks':\n",
+					"    storage_account_name = 'pinsstmpescdevuksw49hqz'\n",
+					"else:\n",
+					"    raise ValueError(f'Unknown workspace: {workspace}')\n",
+					"\n",
+					"csv_base_path = f'abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/EXTRACT'\n",
+					"temp_path = f'abfss://mpesc@{storage_account_name}.dfs.core.windows.net/MPESC-SPREADSHEET/TEMP'\n",
+					"\n",
+					"print(f'Workspace       : {workspace}')\n",
+					"print(f'Storage account : {storage_account_name}')\n",
+					"print(f'Base path       : {csv_base_path}')\n",
+					"print(f'Temp path       : {temp_path}')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 2. Load source files ──────────────────────────────────────────────────────\n",
+					"\n",
+					"inspector_path = f'{csv_base_path}/Inspector.csv'\n",
+					"case_path = f'{csv_base_path}/Case.csv'\n",
+					"\n",
+					"print(f'Reading Inspector : {inspector_path}')\n",
+					"print(f'Reading Case      : {case_path}')\n",
+					"\n",
+					"# Load the CSV files\n",
+					"inspector_df = spark.read.option('header', 'true').csv(inspector_path)\n",
+					"case_df = spark.read.option('header', 'true').csv(case_path)\n",
+					"\n",
+					"print(f'\\nInspector rows : {inspector_df.count():,}')\n",
+					"print(f'Case rows      : {case_df.count():,}')\n",
+					"\n",
+					"# Show the schemas\n",
+					"print(\"\\nInspector Schema:\")\n",
+					"inspector_df.printSchema()\n",
+					"print(\"\\nCase Schema:\")\n",
+					"case_df.printSchema()"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 3. Analyze missing inspectorAllocatedDate values ─────────────────────────\n",
+					"\n",
+					"# Check for missing inspectorAllocatedDate values\n",
+					"total_inspectors = inspector_df.count()\n",
+					"missing_dates = inspector_df.filter(\n",
+					"    (F.col('inspectorAllocatedDate').isNull()) | \n",
+					"    (F.col('inspectorAllocatedDate') == '') |\n",
+					"    (F.trim(F.col('inspectorAllocatedDate')) == '')\n",
+					").count()\n",
+					"\n",
+					"print(f'Total Inspector records    : {total_inspectors:,}')\n",
+					"print(f'Missing allocated dates    : {missing_dates:,}')\n",
+					"print(f'Percentage missing         : {(missing_dates/total_inspectors*100):.1f}%')\n",
+					"\n",
+					"if missing_dates == 0:\n",
+					"    print('\\n✅ No missing dates found - no processing needed!')\n",
+					"else:\n",
+					"    print(f'\\n📝 Need to map {missing_dates:,} missing dates from Case.csv')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 4. Create case lookup table ──────────────────────────────────────────────\n",
+					"\n",
+					"# Create a lookup table from Case.csv with caseId -> createdDate mapping\n",
+					"case_lookup = (\n",
+					"    case_df\n",
+					"    .select('id', 'createdDate')\n",
+					"    .withColumnRenamed('id', 'caseId')  # Rename to match Inspector.caseId\n",
+					"    .withColumnRenamed('createdDate', 'case_createdDate')  # Avoid column name conflicts\n",
+					")\n",
+					"\n",
+					"print(f'Case lookup records: {case_lookup.count():,}')\n",
+					"print('\\nSample case lookup data:')\n",
+					"case_lookup.show(5, truncate=False)\n",
+					"\n",
+					"# Check for cases with missing createdDate\n",
+					"missing_created_dates = case_lookup.filter(\n",
+					"    (F.col('case_createdDate').isNull()) | \n",
+					"    (F.col('case_createdDate') == '') |\n",
+					"    (F.trim(F.col('case_createdDate')) == '')\n",
+					").count()\n",
+					"\n",
+					"print(f'\\nCases with missing createdDate: {missing_created_dates:,}')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 5. Map missing dates ─────────────────────────────────────────────────────\n",
+					"\n",
+					"# Join Inspector with Case lookup to get createdDate for missing inspectorAllocatedDate\n",
+					"inspector_with_mapping = (\n",
+					"    inspector_df\n",
+					"    .join(case_lookup, 'caseId', 'left')  # Left join to preserve all Inspector records\n",
+					")\n",
+					"\n",
+					"# Update inspectorAllocatedDate with case_createdDate where it's missing\n",
+					"inspector_updated = inspector_with_mapping.withColumn(\n",
+					"    'inspectorAllocatedDate',\n",
+					"    F.when(\n",
+					"        (F.col('inspectorAllocatedDate').isNull()) | \n",
+					"        (F.col('inspectorAllocatedDate') == '') |\n",
+					"        (F.trim(F.col('inspectorAllocatedDate')) == ''),\n",
+					"        F.col('case_createdDate')  # Use case createdDate if inspector date is missing\n",
+					"    ).otherwise(F.col('inspectorAllocatedDate'))  # Keep original if not missing\n",
+					")\n",
+					"\n",
+					"# Drop the temporary case_createdDate column and keep only original Inspector columns\n",
+					"final_inspector_df = inspector_updated.select(\n",
+					"    'id', 'inspectorId', 'inspectorAllocatedDate', 'caseId'\n",
+					")\n",
+					"\n",
+					"print('Mapping completed!')\n",
+					"print(f'Final Inspector records: {final_inspector_df.count():,}')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 6. Validate the mapping results ─────────────────────────────────────────\n",
+					"\n",
+					"# Check how many dates were successfully mapped\n",
+					"still_missing = final_inspector_df.filter(\n",
+					"    (F.col('inspectorAllocatedDate').isNull()) | \n",
+					"    (F.col('inspectorAllocatedDate') == '') |\n",
+					"    (F.trim(F.col('inspectorAllocatedDate')) == '')\n",
+					").count()\n",
+					"\n",
+					"mapped_count = missing_dates - still_missing\n",
+					"\n",
+					"print('📊 Mapping Results:')\n",
+					"print(f'Originally missing dates   : {missing_dates:,}')\n",
+					"print(f'Successfully mapped        : {mapped_count:,}')\n",
+					"print(f'Still missing             : {still_missing:,}')\n",
+					"\n",
+					"if still_missing > 0:\n",
+					"    print(f'\\n⚠️  {still_missing:,} records could not be mapped (likely no matching case found)')\n",
+					"    print('\\nSample unmapped records:')\n",
+					"    final_inspector_df.filter(\n",
+					"        (F.col('inspectorAllocatedDate').isNull()) | \n",
+					"        (F.col('inspectorAllocatedDate') == '')\n",
+					"    ).show(5, truncate=False)\n",
+					"\n",
+					"# Show some examples of successful mappings\n",
+					"if mapped_count > 0:\n",
+					"    print('\\n✅ Sample successfully mapped records:')\n",
+					"    final_inspector_df.filter(F.col('inspectorAllocatedDate').isNotNull()).show(5, truncate=False)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ── 7. Write updated Inspector.csv back to storage ──────────────────────────\n",
+					"\n",
+					"if mapped_count > 0:\n",
+					"    print('💾 Writing updated Inspector.csv...')\n",
+					"    \n",
+					"    # Write to temporary location first\n",
+					"    temp_output_path = f'{temp_path}/Inspector_updated'\n",
+					"    \n",
+					"    final_inspector_df.coalesce(1) \\\n",
+					"        .write.mode('overwrite') \\\n",
+					"        .option('header', 'true') \\\n",
+					"        .csv(temp_output_path)\n",
+					"    \n",
+					"    # Move the updated file back to original location\n",
+					"    original_inspector_path = f'{csv_base_path}/Inspector.csv'\n",
+					"    \n",
+					"    # Remove original file\n",
+					"    try:\n",
+					"        mssparkutils.fs.rm(original_inspector_path, True)\n",
+					"        print('✅ Removed original Inspector.csv')\n",
+					"    except Exception as e:\n",
+					"        print(f'⚠️  Could not remove original file: {e}')\n",
+					"    \n",
+					"    # Find the part file and copy it back\n",
+					"    temp_files = mssparkutils.fs.ls(temp_output_path)\n",
+					"    part_file = [f.path for f in temp_files if 'part-' in f.name][0]\n",
+					"    \n",
+					"    mssparkutils.fs.cp(part_file, original_inspector_path)\n",
+					"    print('✅ Updated Inspector.csv written successfully')\n",
+					"    \n",
+					"    # Clean up temp directory\n",
+					"    mssparkutils.fs.rm(temp_output_path, True)\n",
+					"    print('✅ Temporary files cleaned up')\n",
+					"    \n",
+					"    print(f'\\n🎉 Process completed! {mapped_count:,} inspector dates updated.')\n",
+					"    print(f'📁 Updated file: {original_inspector_path}')\n",
+					"    \n",
+					"else:\n",
+					"    print('\\n✅ No updates needed - all inspector dates were already present.')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"source": [
+					"## Summary\n",
+					"\n",
+					"This notebook successfully:\n",
+					"- ✅ Identified Inspector records with missing `inspectorAllocatedDate`\n",
+					"- ✅ Mapped `caseId` from Inspector.csv to `id` in Case.csv\n",
+					"- ✅ Retrieved `createdDate` from matching cases\n",
+					"- ✅ Updated Inspector records with the mapped dates\n",
+					"- ✅ Wrote the updated Inspector.csv back to storage\n",
+					"\n",
+					"The process preserves data integrity by only updating empty/null dates and maintains the original file structure."
+				]
+			}
+		]
+	}
+}
