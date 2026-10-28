@@ -1,0 +1,21 @@
+{
+	"name": "create_checkmark_schema_and_view",
+	"properties": {
+		"description": "Creates the Checkmark schema and a pass-through view over the physical checkmark_case_data table. Run manually against odw_curated_db (Built-in / serverless SQL pool) - not part of the daily pipeline. Granting access to the Checkmark managed identity is tracked separately.",
+		"folder": {
+			"name": "Checkmark"
+		},
+		"content": {
+			"query": "/*\nTHEODW: Create the Checkmark schema and a pass-through view over the\nphysical curated table odw_curated_db.checkmark_case_data.\n\nodw_curated_db.checkmark_case_data is created/refreshed daily by the\n'checkmark_case_data' notebook in pln_curated.\n\nThis script only needs to be run once per environment. Granting the\nCheckmark managed identity access to this schema is handled separately.\n*/\n\n-- 1. Dedicated schema for Checkmark data\nIF NOT EXISTS ( SELECT  *\n                FROM    sys.schemas\n                WHERE   name = 'Checkmark' )\n    EXEC('CREATE SCHEMA [Checkmark]');\nGO\n\n\n-- 2. Thin pass-through view exposing the physical table under the Checkmark schema.\n--    No Spark-only functions are used here, since all transformation logic\n--    (union, dedup, JSON aggregation, costsAppliedFor derivation) already\n--    happened when the physical table was written by Spark.\nCREATE OR ALTER VIEW Checkmark.vw_checkmark_case_data\nAS\nSELECT\n    caseReference,\n    caseType,\n    caseProcedure,\n    caseOfficerId,\n    allocationLevel,\n    caseSpecialisms,\n    linkedCaseStatus,\n    isGreenBelt,\n    costsAppliedFor,\n    targetDate,\n    inspectorId,\n    inspectorFirstName,\n    inspectorLastName,\n    caseOfficerFirstName,\n    caseOfficerLastName,\n    event\nFROM [odw_curated_db].[dbo].[checkmark_case_data];\nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "odw_curated_db",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
