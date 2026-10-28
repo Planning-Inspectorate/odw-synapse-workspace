@@ -53,6 +53,10 @@ COMPARISON_FIRST_DATA_ROW = None
 
 SITE_BLOCK = ["Site address 1", "Site address 2", "Site town or city", "Site county", "Site post code"]
 SITE_TRIGGER = "Site address 1"
+FEE_REFUND = "Fee refund"
+FEE_REFUND_PAID_DATE = "Fee refund paid date"
+FEE_REFUND_AMOUNT = "Fee refund amount"
+APPLICATION_FEE_AMOUNT = "Application fee amount"
 
 
 _REPORTED = set()
@@ -404,19 +408,19 @@ def _load_spreadsheet_site_values():
 
 
 def _site_block_values(sheet, source_rows, groups, case_reference, spreadsheet_site):
-	"""If Site address 1 (horizon) is blank, return the whole site block from the spreadsheet
-	(comparison sheet first, then the migrated spreadsheet output). Blanks are kept so the
-	two sources are never mixed. Otherwise return None so site fields go through normal selection."""
 	horizon_line_1 = _first_value(sheet, source_rows, groups.get(SITE_TRIGGER, {}).get("horizon"))
 	if not _is_blank(horizon_line_1):
-		return None
+		return "horizon", {
+			field: _first_value(sheet, source_rows, groups.get(field, {}).get("horizon"))
+			for field in SITE_BLOCK
+		}
 	values = {}
 	for field in SITE_BLOCK:
 		value = _first_value(sheet, source_rows, groups.get(field, {}).get("spreadsheet"))
 		if _is_blank(value):
 			value = spreadsheet_site.get(case_reference, {}).get(field)
 		values[field] = value
-	return values
+	return "spreadsheet", values
 
 
 def extract_final_columns():
@@ -478,10 +482,10 @@ def extract_final_columns():
 		]
 		for case_reference, case_source_rows, own_rows, is_first_row in row_jobs:
 			final_sheet.cell(output_row, 1).value = case_reference
-			site_values = _site_block_values(
+			site_source, site_values = _site_block_values(
 				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
 			)
-			if site_values is not None:
+			if site_source == "spreadsheet":
 				SITE_SWAP_LOG.append(case_reference)
 			for output_column, selection in enumerate(selections, start=2):
 				target = final_sheet.cell(output_row, output_column)
@@ -524,6 +528,26 @@ def extract_final_columns():
 					and str(primary_value).strip() != str(fallback_value).strip()
 				):
 					final_sheet.cell(output_row, output_column).fill = copy(MERGED_FIELD_FILL)
+			refund_column = output_columns.get(FEE_REFUND)
+			paid_date_column = output_columns.get(FEE_REFUND_PAID_DATE)
+			if refund_column:
+				refund_cell = final_sheet.cell(output_row, refund_column)
+				refund_value = refund_cell.value
+				paid_date = final_sheet.cell(output_row, paid_date_column).value if paid_date_column else None
+				if (
+					not _is_blank(paid_date)
+					or refund_value is True
+					or str(refund_value).strip().casefold() in ("yes", "true", "y")
+				):
+					refund_cell.value = True
+			refund_amount_column = output_columns.get(FEE_REFUND_AMOUNT)
+			fee_amount_column = output_columns.get(APPLICATION_FEE_AMOUNT)
+			if paid_date_column and refund_amount_column and fee_amount_column:
+				paid_date = final_sheet.cell(output_row, paid_date_column).value
+				refund_amount_cell = final_sheet.cell(output_row, refund_amount_column)
+				fee_amount = final_sheet.cell(output_row, fee_amount_column).value
+				if not _is_blank(paid_date) and _is_blank(refund_amount_cell.value) and not _is_blank(fee_amount):
+					refund_amount_cell.value = fee_amount
 			output_row += 1
 
 		for output_column in range(2, len(selections) + 2):
