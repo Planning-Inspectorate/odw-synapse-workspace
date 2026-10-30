@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4a9e5f1e-141c-4b75-876e-b13be6c37b27"
+				"spark.autotune.trackingId": "d1bc31b5-61d0-48ca-bf46-627cc582f6ad"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 1
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +137,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 2
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,18 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": 2
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +190,7 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": 3
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -239,7 +250,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": 5
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -315,7 +326,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 6
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -352,7 +363,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 7
+				"execution_count": 27
 			},
 			{
 				"cell_type": "markdown",
@@ -366,6 +377,39 @@
 				"source": [
 					"##### Retrieve Maximum IngestionDate with Fallback Handling"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    print(\"Starting query...\")\n",
+					"    \n",
+					"    try:\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"        SELECT\n",
+					"            id AS application_id,\n",
+					"            reference,\n",
+					"            siteAddress,\n",
+					"            organisations,\n",
+					"            siteEasting,\n",
+					"            siteNorthing,\n",
+					"            updatedDate,\n",
+					"            ODTSourceSystem,\n",
+					"            SourceSystemID,\n",
+					"            IngestionDate\n",
+					"        FROM {service_bus_table}\n",
+					"        WHERE siteAddress IS NOT NULL\n",
+					"           OR organisations IS NOT NULL\n",
+					"        \"\"\")\n",
+					"\n",
+					"        print(f\"Records found: {service_bus_data.count()}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error loading source data: {str(e)[:800]}\"\n",
+					"        print(error_message)\n",
+					""
+				],
+				"execution_count": 28
 			},
 			{
 				"cell_type": "code",
@@ -396,7 +440,17 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 29
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(service_bus_data)"
+				],
+				"execution_count": 30
 			},
 			{
 				"cell_type": "markdown",
@@ -416,17 +470,72 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"        service_bus_data = spark.sql(f\"\"\"\n",
+					"            SELECT\n",
+					"                id AS application_id,\n",
+					"                reference,\n",
+					"                siteAddress,\n",
+					"                organisations,\n",
+					"                siteEasting,\n",
+					"                siteNorthing,\n",
+					"                updatedDate,\n",
+					"                ODTSourceSystem,\n",
+					"                SourceSystemID,\n",
+					"                IngestionDate\n",
+					"            FROM {service_bus_table}\n",
+					"            WHERE siteAddress IS NOT NULL\n",
+					"               OR organisations IS NOT NULL\n",
+					"        \"\"\")\n",
 					"\n",
-					"exploded_df = service_bus_data.select(\n",
-					"            F.col(\"application_id\"),\n",
+					"        print(\"Source data loaded successfully.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error loading source data: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)\n",
+					"\n",
+					"\n",
+					"if not error_message:\n",
+					"    try:\n",
+					"        metadata_columns = [\n",
+					"            \"application_id\",\n",
+					"            \"reference\",\n",
+					"            \"updatedDate\",\n",
+					"            \"ODTSourceSystem\",\n",
+					"            \"SourceSystemID\",\n",
+					"            \"IngestionDate\"\n",
+					"        ]\n",
+					"\n",
+					"        site_addresses = service_bus_data.select(\n",
+					"            *metadata_columns,\n",
 					"            F.explode(\"siteAddress\").alias(\"address\"),\n",
-					"            F.col(\"ODTSourceSystem\"),\n",
-					"            F.col(\"SourceSystemID\"),\n",
-					"            F.col(\"IngestionDate\")\n",
+					"            F.col(\"siteEasting\").cast(\"string\").alias(\"easting\"),\n",
+					"            F.col(\"siteNorthing\").cast(\"string\").alias(\"northing\")\n",
 					"        )\n",
 					"\n",
-					"   new_data = exploded_df.select(\n",
+					"        organisations_df = service_bus_data.select(\n",
+					"            *metadata_columns,\n",
+					"            F.explode(\"organisations\").alias(\"organisation\")\n",
+					"        )\n",
+					"\n",
+					"        organisation_addresses = organisations_df.select(\n",
+					"            *metadata_columns,\n",
+					"            F.explode(\"organisation.organisationAddress\").alias(\"address\"),\n",
+					"            F.lit(None).cast(\"string\").alias(\"easting\"),\n",
+					"            F.lit(None).cast(\"string\").alias(\"northing\")\n",
+					"        )\n",
+					"\n",
+					"        exploded_df = (\n",
+					"            site_addresses\n",
+					"            .unionByName(organisation_addresses)\n",
+					"            .filter(F.col(\"address\").isNotNull())\n",
+					"        )\n",
+					"\n",
+					"        new_data = exploded_df.select(\n",
 					"            F.col(\"application_id\"),\n",
+					"            F.col(\"reference\"),\n",
+					"            F.col(\"updatedDate\"),\n",
+					"            F.lit(None).cast(\"string\").alias(\"description\"),\n",
 					"\n",
 					"            F.col(\"address.line1\").alias(\"line1\"),\n",
 					"            F.col(\"address.line2\").alias(\"line2\"),\n",
@@ -435,28 +544,59 @@
 					"            F.col(\"address.postcode\").alias(\"postcode\"),\n",
 					"\n",
 					"            F.lit(None).cast(\"string\").alias(\"country\"),\n",
-					"            F.lit(None).cast(\"string\").alias(\"easting\"),\n",
-					"            F.lit(None).cast(\"string\").alias(\"northing\"),\n",
+					"            F.col(\"easting\"),\n",
+					"            F.col(\"northing\"),\n",
 					"            F.lit(None).cast(\"decimal(18,8)\").alias(\"latitudeWGS84\"),\n",
 					"            F.lit(None).cast(\"decimal(18,8)\").alias(\"longitudeWGS84\"),\n",
 					"            F.lit(None).cast(\"int\").alias(\"UPRN\"),\n",
 					"\n",
-					"            F.col(\"application_id\").cast(\"string\").alias(\"sourceSuid\"),\n",
+					"            F.col(\"address.addressId\").cast(\"string\").alias(\"sourceSuid\"),\n",
 					"\n",
 					"            F.col(\"ODTSourceSystem\"),\n",
 					"            F.col(\"SourceSystemID\"),\n",
 					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
 					"\n",
+					"        new_data = new_data.withColumn(\n",
+					"            \"address_dim_key\",\n",
+					"            F.upper(\n",
+					"                F.sha2(\n",
+					"                    F.concat(\n",
+					"                        F.coalesce(\n",
+					"                            F.upper(F.trim(F.col(\"ODTSourceSystem\"))),\n",
+					"                            F.lit(\"\")\n",
+					"                        ),\n",
+					"                        F.lit(\"|\"),\n",
+					"                        F.coalesce(\n",
+					"                            F.upper(F.trim(F.col(\"sourceSuid\"))),\n",
+					"                            F.lit(\"\")\n",
+					"                        )\n",
+					"                    ),\n",
+					"                    256\n",
+					"                )\n",
+					"            )\n",
+					"        )\n",
 					"\n",
-					"        print(\"Explode and extract completed successfully.\")\n",
+					"        print(\"Address extraction and key generation completed successfully.\")\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error during explode/extract: {str(e)[:800]}\"\n",
+					"        error_message = (\n",
+					"            f\"Error during address extraction/key generation: {str(e)[:800]}\"\n",
+					"        )\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(new_data)"
+				],
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
