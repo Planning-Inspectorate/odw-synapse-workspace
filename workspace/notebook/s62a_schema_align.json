@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "48912943-097d-4fdf-9dfa-b653ccbf4125"
+				"spark.autotune.trackingId": "84129fa2-675d-4896-b268-4cb147fc4d9f"
 			}
 		},
 		"metadata": {
@@ -105,7 +105,7 @@
 					"    },\n",
 					"}"
 				],
-				"execution_count": 31
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
@@ -131,7 +131,7 @@
 					"\n",
 					"print(f\"ENV={ENV} | ROOT={ROOT}\")"
 				],
-				"execution_count": null
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"TMP    = \"/tmp/s62a_schema\"\n",
 					"os.makedirs(TMP, exist_ok=True)"
 				],
-				"execution_count": null
+				"execution_count": 42
 			},
 			{
 				"cell_type": "code",
@@ -188,7 +188,7 @@
 					"user_ref  = pd.read_csv(user_path, dtype=str) if user_path else None\n",
 					"print(f\"Users reference: {'loaded' if user_ref is not None else 'MISSING'}\")"
 				],
-				"execution_count": null
+				"execution_count": 43
 			},
 			{
 				"cell_type": "code",
@@ -278,7 +278,7 @@
 					"for t, names in PROVISIONAL.items():\n",
 					"    REF[t] = [(slug(n), n) for n in names]"
 				],
-				"execution_count": null
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
@@ -406,7 +406,7 @@
 					"\n",
 					"out = {}"
 				],
-				"execution_count": null
+				"execution_count": 45
 			},
 			{
 				"cell_type": "code",
@@ -475,7 +475,7 @@
 					"                               \"orgName\": name if is_org else r.lpa, \"jobTitleOrRole\": None, \"addressId\": None})\n",
 					"    lpa_links[(r.caseReference, r.lpaRole)] = (lpa_id, contact_id)"
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "code",
@@ -581,7 +581,24 @@
 					"                                                 \"noteText\": f\"EIA screening outcome: {eia_outcome}\"}])])\n",
 					"case_id = {c[\"reference\"]: c[\"id\"] for c in out[\"S62aCase\"]}"
 				],
-				"execution_count": null
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"HEARING_TIME = \"10:00:00\"\n",
+					"\n",
+					"def hearing_datetime(v, case_ref):\n",
+					"    \"\"\"Every hearing is at 10am: keep the date, force the time to 10:00:00.\"\"\"\n",
+					"    if blank(v):\n",
+					"        return None\n",
+					"    d = pd.to_datetime(str(v), errors=\"coerce\", dayfirst=True)\n",
+					"    if pd.isna(d):\n",
+					"        log(case_ref, \"S62aEvent\", \"hearingDate\", v, \"Not a valid date, couldn't set 10am time, left as is\")\n",
+					"        return v\n",
+					"    return f\"{d:%Y-%m-%d} {HEARING_TIME}\""
+				],
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
@@ -610,12 +627,15 @@
 					"for r in stg[\"S62aEvent\"].to_dict(\"records\"):\n",
 					"    e = events.setdefault(r[\"caseReference\"], {\"id\": make_guid(\"S62aEvent\", base_ref(r[\"caseReference\"])), \"s62aCaseId\": r[\"caseId\"]})\n",
 					"    for src, dst in EVENT_FIELDS.get(r[\"eventType\"], {}).items():\n",
-					"        e[dst] = to_num(r[src], r[\"caseReference\"], \"S62aEvent\", dst) if \"Duration\" in dst else r[src]\n",
+					"        val = to_num(r[src], r[\"caseReference\"], \"S62aEvent\", dst) if \"Duration\" in dst else r[src]\n",
+					"        if dst == \"hearingDate\":\n",
+					"            val = hearing_datetime(val, r[\"caseReference\"])\n",
+					"        e[dst] = val\n",
 					"    if r[\"eventType\"] == \"SiteVisit\":\n",
 					"        e[\"siteVisitTypeId\"] = resolve(\"S62aSiteVisitType\", r[\"siteVisitType\"], r[\"caseReference\"], \"S62aEvent\", \"siteVisitTypeId\")\n",
 					"out[\"S62aEvent\"] = list(events.values())"
 				],
-				"execution_count": null
+				"execution_count": 49
 			},
 			{
 				"cell_type": "code",
@@ -729,7 +749,7 @@
 					"                           \"crownDevelopmentId\": None, \"s62aId\": r.caseId or case_id.get(r.caseReference)}\n",
 					"                          for r in notes.itertuples()]"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -878,7 +898,7 @@
 					"print(f\"\\nRejected rows: {len(rejected)}\")\n",
 					"print(exceptions_df[exceptions_df.severity == \"ACTION\"].groupby([\"table\", \"column\", \"issue\"]).size().to_string())"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "code",
@@ -920,7 +940,7 @@
 					"assert not problems, \"Integrity check failed: \" + \"; \".join(problems)\n",
 					"print(\"\\nIntegrity check passed\")"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -952,7 +972,7 @@
 					"print(f\"ApplicationHistory rows: {len(ah)}\")\n",
 					"print(ah[[\"s62aId\", \"action\", \"metadata\", \"createdAt\"]].head(3).to_string(index=False))"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "code",
@@ -980,7 +1000,7 @@
 					"            mssparkutils.fs.cp(f\"file:{os.path.join(out_dir, name)}\", f\"{dest}/{name}\")\n",
 					"        print(f\"Written to {dest}\")"
 				],
-				"execution_count": null
+				"execution_count": 54
 			}
 		]
 	}
