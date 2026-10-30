@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d1bc31b5-61d0-48ca-bf46-627cc582f6ad"
+				"spark.autotune.trackingId": "071d3d45-0b8b-4e58-918f-a69d6e26f8a2"
 			}
 		},
 		"metadata": {
@@ -276,6 +276,7 @@
 					"            print(f\"Table {spark_table_final} does not exist. Creating table...\")\n",
 					"\n",
 					"            schema = StructType([\n",
+					"                StructField(\"address_dim_id\", LongType(), True),\n",
 					"                StructField(\"addressId\", StringType(), True),\n",
 					"                StructField(\"addressDimKey\", LongType(), True),\n",
 					"                StructField(\"addressType\", StringType(), True),\n",
@@ -382,43 +383,9 @@
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
-					"    print(\"Starting query...\")\n",
-					"    \n",
-					"    try:\n",
-					"        service_bus_data = spark.sql(f\"\"\"\n",
-					"        SELECT\n",
-					"            id AS application_id,\n",
-					"            reference,\n",
-					"            siteAddress,\n",
-					"            organisations,\n",
-					"            siteEasting,\n",
-					"            siteNorthing,\n",
-					"            updatedDate,\n",
-					"            ODTSourceSystem,\n",
-					"            SourceSystemID,\n",
-					"            IngestionDate\n",
-					"        FROM {service_bus_table}\n",
-					"        WHERE siteAddress IS NOT NULL\n",
-					"           OR organisations IS NOT NULL\n",
-					"        \"\"\")\n",
-					"\n",
-					"        print(f\"Records found: {service_bus_data.count()}\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error loading source data: {str(e)[:800]}\"\n",
-					"        print(error_message)\n",
-					""
-				],
-				"execution_count": 28
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"if not error_message:\n",
 					"    try:\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
 					"            SELECT\n",
-					"                id AS application_id,\n",
 					"                reference,\n",
 					"                siteAddress,\n",
 					"                organisations,\n",
@@ -472,7 +439,7 @@
 					"    try:\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
 					"            SELECT\n",
-					"                id AS application_id,\n",
+					"                address_dim_id,\n",
 					"                reference,\n",
 					"                siteAddress,\n",
 					"                organisations,\n",
@@ -498,6 +465,7 @@
 					"if not error_message:\n",
 					"    try:\n",
 					"        metadata_columns = [\n",
+					"            \"address_dim_id\",\n",
 					"            \"application_id\",\n",
 					"            \"reference\",\n",
 					"            \"updatedDate\",\n",
@@ -532,6 +500,7 @@
 					"        )\n",
 					"\n",
 					"        new_data = exploded_df.select(\n",
+					"             F.col(\"address_dim_id\")\n",
 					"            F.col(\"application_id\"),\n",
 					"            F.col(\"reference\"),\n",
 					"            F.col(\"updatedDate\"),\n",
@@ -596,7 +565,7 @@
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": 33
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
