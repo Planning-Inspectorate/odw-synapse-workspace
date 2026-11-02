@@ -482,10 +482,18 @@ def extract_final_columns():
 		]
 		for case_reference, case_source_rows, own_rows, is_first_row in row_jobs:
 			final_sheet.cell(output_row, 1).value = case_reference
+<<<<<<< Updated upstream
 			site_source, site_values = _site_block_values(
 				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
 			)
 			if site_source == "spreadsheet":
+=======
+			# Only a case's first row takes the site block; repeat rows must not carry it
+			site_values = _site_block_values(
+				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
+			) if is_first_row else None
+			if site_values is not None:
+>>>>>>> Stashed changes
 				SITE_SWAP_LOG.append(case_reference)
 			for output_column, selection in enumerate(selections, start=2):
 				target = final_sheet.cell(output_row, output_column)
@@ -509,6 +517,9 @@ def extract_final_columns():
 					target.fill = copy(fill)
 					source = next((s for s, c in groups.get(selection["header"], {}).items() if c == column), "?")
 					OVERRIDE_LOG.append((case_reference, selection["header"], source, value))
+					continue
+				# Repeat rows only hold extended-data values (or values that genuinely differ from the first row)
+				if not is_first_row and not horizon_only and not field_varies:
 					continue
 				# Horizon Site address 1 blank: whole site block from the spreadsheet
 				if selection["header"] in SITE_BLOCK and site_values is not None:
