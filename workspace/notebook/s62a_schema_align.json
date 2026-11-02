@@ -589,17 +589,17 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"HEARING_TIME = \"10:00:00\"\n",
-					"\n",
 					"def hearing_datetime(v, case_ref):\n",
-					"    \"\"\"Every hearing is at 10am: keep the date, force the time to 10:00:00.\"\"\"\n",
+					"    \"\"\"Every hearing is at 10am UK time: keep the date and store that time in UTC.\"\"\"\n",
 					"    if blank(v):\n",
 					"        return None\n",
 					"    d = pd.to_datetime(str(v), errors=\"coerce\", dayfirst=True)\n",
 					"    if pd.isna(d):\n",
 					"        log(case_ref, \"S62aEvent\", \"hearingDate\", v, \"Not a valid date, couldn't set 10am time, left as is\")\n",
 					"        return v\n",
-					"    return f\"{d:%Y-%m-%d} {HEARING_TIME}\""
+					"    # The UI shows UK local time but the db holds UTC, so 10am UK is 09:00 in summer (BST) and 10:00 in winter (GMT)\n",
+					"    uk_time = d.normalize().replace(hour=10).tz_localize(\"Europe/London\", ambiguous=True, nonexistent=\"shift_forward\")\n",
+					"    return uk_time.tz_convert(\"UTC\").strftime(\"%Y-%m-%d %H:%M:%S\")"
 				],
 				"execution_count": 48
 			},
