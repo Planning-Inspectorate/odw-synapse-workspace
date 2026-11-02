@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "11701c4f-daf1-4e79-9747-95e04dfe6ffe"
+				"spark.autotune.trackingId": "c6be4a33-a941-4b5b-b434-3e445cd4dd93"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 1
+				"execution_count": 35
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +137,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": null
+				"execution_count": 37
 			},
 			{
 				"cell_type": "code",
@@ -162,18 +162,21 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 44
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
 					"collapsed": false
 				},
 				"source": [
-					"# -- %%sql\n",
-					"# -- DROP TABLE IF EXISTS odw_harmonised_db.applications_crowndev_application"
+					"   %%sql\n",
+					"DROP TABLE IF EXISTS odw_harmonised_db.address_dim"
 				],
-				"execution_count": null
+				"execution_count": 39
 			},
 			{
 				"cell_type": "markdown",
@@ -201,7 +204,7 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": null
+				"execution_count": 40
 			},
 			{
 				"cell_type": "markdown",
@@ -261,7 +264,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 42
 			},
 			{
 				"cell_type": "markdown",
@@ -281,14 +284,24 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"\n",
 					"        if not spark.catalog.tableExists(spark_table_final):\n",
 					"\n",
-					"            print(f\"Table {spark_table_final} does not exist. Creating table...\")\n",
+					"            print(\n",
+					"                f\"Table {spark_table_final} does not exist. \"\n",
+					"                \"Creating table...\"\n",
+					"            )\n",
 					"\n",
 					"            schema = StructType([\n",
-					"                StructField(\"address_dim_id\", IntegerType(), True),\n",
-					"                StructField(\"address_dim_key\", IntegerType(), True),\n",
+					"                # Increasing surrogate ID\n",
+					"                StructField(\n",
+					"                    \"address_dim_id\", IntegerType(), True\n",
+					"                ),\n",
+					"\n",
+					"                # SHA-256 business key\n",
+					"                StructField(\n",
+					"                    \"address_dim_key\", StringType(), True\n",
+					"                ),\n",
+					"\n",
 					"                StructField(\"updatedDate\", TimestampType(), True),\n",
 					"                StructField(\"description\", StringType(), True),\n",
 					"                StructField(\"reference\", StringType(), True),\n",
@@ -300,14 +313,20 @@
 					"                StructField(\"country\", StringType(), True),\n",
 					"                StructField(\"easting\", StringType(), True),\n",
 					"                StructField(\"northing\", StringType(), True),\n",
-					"                StructField(\"latitudeWGS84\", DecimalType(18, 8), True),\n",
-					"                StructField(\"longitudeWGS84\", DecimalType(18, 8), True),\n",
+					"\n",
+					"                StructField(\n",
+					"                    \"latitudeWGS84\", DecimalType(18, 8), True\n",
+					"                ),\n",
+					"                StructField(\n",
+					"                    \"longitudeWGS84\", DecimalType(18, 8), True\n",
+					"                ),\n",
+					"\n",
 					"                StructField(\"UPRN\", IntegerType(), True),\n",
 					"                StructField(\"sourceSuid\", StringType(), True),\n",
 					"                StructField(\"ODTSourceSystem\", StringType(), True),\n",
 					"                StructField(\"SourceSystemID\", StringType(), True),\n",
 					"\n",
-					"                # Audit Columns\n",
+					"                # Audit columns\n",
 					"                StructField(\"IngestionDate\", TimestampType(), True),\n",
 					"                StructField(\"ValidTo\", TimestampType(), True),\n",
 					"                StructField(\"RowID\", StringType(), True),\n",
@@ -316,10 +335,12 @@
 					"\n",
 					"            empty_df = spark.createDataFrame([], schema)\n",
 					"\n",
-					"            empty_df.write \\\n",
-					"                .format(\"delta\") \\\n",
-					"                .mode(\"overwrite\") \\\n",
+					"            (\n",
+					"                empty_df.write\n",
+					"                .format(\"delta\")\n",
+					"                .mode(\"errorifexists\")\n",
 					"                .save(delta_table_path)\n",
+					"            )\n",
 					"\n",
 					"            spark.sql(f\"\"\"\n",
 					"                CREATE TABLE {spark_table_final}\n",
@@ -330,15 +351,21 @@
 					"            print(f\"{spark_table_final} created successfully.\")\n",
 					"\n",
 					"        else:\n",
+					"            print(\n",
+					"                f\"{spark_table_final} already exists. \"\n",
+					"                \"No schema changes have been applied.\"\n",
+					"            )\n",
 					"\n",
-					"            print(f\"{spark_table_final} already exists. Skipping table creation.\")\n",
+					"            spark.table(spark_table_final).printSchema()\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error creating table: {str(e)[:800]}\"\n",
+					"        error_message = (\n",
+					"            f\"Error creating table: {str(e)[:800]}\"\n",
+					"        )\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 45
 			},
 			{
 				"cell_type": "markdown",
@@ -375,7 +402,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 46
 			},
 			{
 				"cell_type": "markdown",
@@ -388,6 +415,19 @@
 				},
 				"source": [
 					"##### Retrieve Maximum IngestionDate with Fallback Handling"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Explode Invoices Array and Extract Invoice Fields"
 				]
 			},
 			{
@@ -418,7 +458,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 47
 			},
 			{
 				"cell_type": "code",
@@ -428,56 +468,15 @@
 				"source": [
 					"display(service_bus_data)"
 				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Explode Invoices Array and Extract Invoice Fields"
-				]
+				"execution_count": 48
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
-					"        service_bus_data = spark.sql(f\"\"\"\n",
-					"            SELECT\n",
-					"                address_dim_id,\n",
-					"                reference,\n",
-					"                siteAddress,\n",
-					"                organisations,\n",
-					"                siteEasting,\n",
-					"                siteNorthing,\n",
-					"                updatedDate,\n",
-					"                ODTSourceSystem,\n",
-					"                SourceSystemID,\n",
-					"                IngestionDate\n",
-					"            FROM {service_bus_table}\n",
-					"            WHERE siteAddress IS NOT NULL\n",
-					"               OR organisations IS NOT NULL\n",
-					"        \"\"\")\n",
-					"\n",
-					"        print(\"Source data loaded successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error loading source data: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)\n",
-					"\n",
-					"\n",
-					"if not error_message:\n",
-					"    try:\n",
 					"\n",
 					"        metadata_columns = [\n",
-					"            \"address_dim_id\",\n",
 					"            \"reference\",\n",
 					"            \"updatedDate\",\n",
 					"            \"ODTSourceSystem\",\n",
@@ -485,7 +484,7 @@
 					"            \"IngestionDate\"\n",
 					"        ]\n",
 					"\n",
-					"        # Site addresses\n",
+					"        # Site Addresses\n",
 					"        site_addresses = service_bus_data.select(\n",
 					"            *metadata_columns,\n",
 					"            F.explode(\"siteAddress\").alias(\"address\"),\n",
@@ -493,7 +492,7 @@
 					"            F.col(\"siteNorthing\").cast(\"string\").alias(\"northing\")\n",
 					"        )\n",
 					"\n",
-					"        # Organisation addresses\n",
+					"        # Organisation Addresses\n",
 					"        organisations_df = service_bus_data.select(\n",
 					"            *metadata_columns,\n",
 					"            F.explode(\"organisations\").alias(\"organisation\")\n",
@@ -506,16 +505,16 @@
 					"            F.lit(None).cast(\"string\").alias(\"northing\")\n",
 					"        )\n",
 					"\n",
-					"        # Combine Site + Organisation addresses\n",
+					"        # Combine Site + Organisation Addresses\n",
 					"        exploded_df = (\n",
 					"            site_addresses\n",
 					"            .unionByName(organisation_addresses)\n",
 					"            .filter(F.col(\"address\").isNotNull())\n",
 					"        )\n",
 					"\n",
-					"        # Map to Harmonised address_dim\n",
+					"        # Harmonised address_dim mapping\n",
 					"        new_data = exploded_df.select(\n",
-					"            F.col(\"address_dim_id\"),\n",
+					"            F.lit(None).cast(\"int\").alias(\"address_dim_id\"),\n",
 					"\n",
 					"            F.col(\"updatedDate\"),\n",
 					"\n",
@@ -549,8 +548,7 @@
 					"            F.col(\"IngestionDate\")\n",
 					"        )\n",
 					"\n",
-					"        # Deterministic hash key:\n",
-					"        # SHA256(UPPER(TRIM(ODTSourceSystem)) + '|' + UPPER(TRIM(sourceSuid)))\n",
+					"        # Generate address_dim_key\n",
 					"        new_data = new_data.withColumn(\n",
 					"            \"address_dim_key\",\n",
 					"            F.upper(\n",
@@ -571,7 +569,7 @@
 					"            )\n",
 					"        )\n",
 					"\n",
-					"        # Reorder to match Harmonised address_dim table\n",
+					"        # Final column order as per Harmonised Data Dictionary\n",
 					"        new_data = new_data.select(\n",
 					"            \"address_dim_id\",\n",
 					"            \"address_dim_key\",\n",
@@ -596,6 +594,7 @@
 					"        )\n",
 					"\n",
 					"        print(\"Address extraction and address_dim_key generation completed successfully.\")\n",
+					"        print(f\"Record count: {new_data.count()}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = (\n",
@@ -604,7 +603,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 50
 			},
 			{
 				"cell_type": "code",
@@ -614,7 +613,7 @@
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": null
+				"execution_count": 51
 			},
 			{
 				"cell_type": "markdown",
@@ -677,9 +676,9 @@
 					"        new_data = new_data.withColumn(\n",
 					"            incremental_key,\n",
 					"            (\n",
-					"                F.row_number().over(window_spec)\n",
+					"                F.row_number().over(window_spec).cast(\"long\")\n",
 					"                + F.lit(max_id_row)\n",
-					"            ).cast(\"long\")\n",
+					"            ).cast(\"int\")\n",
 					"        )\n",
 					"\n",
 					"        cols = new_data.columns\n",
@@ -696,7 +695,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 52
 			},
 			{
 				"cell_type": "code",
@@ -714,7 +713,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 53
 			},
 			{
 				"cell_type": "markdown",
@@ -754,7 +753,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 54
 			},
 			{
 				"cell_type": "markdown",
