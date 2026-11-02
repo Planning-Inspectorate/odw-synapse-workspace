@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f19ca61a-9325-4b2e-8b6d-b2f9639add30"
+				"spark.autotune.trackingId": "50b47d46-188c-4ea6-a192-38b851573122"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 74
+				"execution_count": 94
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +137,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 75
+				"execution_count": 95
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": 76
+				"execution_count": 96
 			},
 			{
 				"cell_type": "code",
@@ -162,7 +162,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 77
+				"execution_count": 97
 			},
 			{
 				"cell_type": "code",
@@ -176,7 +176,7 @@
 					"   %%sql\n",
 					"DROP TABLE IF EXISTS odw_harmonised_db.address_dim"
 				],
-				"execution_count": 78
+				"execution_count": 98
 			},
 			{
 				"cell_type": "markdown",
@@ -204,7 +204,7 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": 79
+				"execution_count": 99
 			},
 			{
 				"cell_type": "markdown",
@@ -264,7 +264,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": 80
+				"execution_count": 100
 			},
 			{
 				"cell_type": "markdown",
@@ -312,7 +312,7 @@
 					"                )\n",
 					"\n",
 					"                schema = StructType([\n",
-					"                    StructField(\"address_dim_id\", LongType(), True),\n",
+					"                    StructField(\"address_dim_id\", IntegerType(), True),\n",
 					"                    StructField(\"address_dim_key\", StringType(), True),\n",
 					"                    StructField(\"updatedDate\", TimestampType(), True),\n",
 					"                    StructField(\"description\", StringType(), True),\n",
@@ -368,7 +368,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 81
+				"execution_count": 101
 			},
 			{
 				"cell_type": "markdown",
@@ -405,7 +405,26 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 82
+				"execution_count": 102
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"target_schema = {\n",
+					"    f.name: str(f.dataType)\n",
+					"    for f in spark.table(spark_table_final).schema.fields\n",
+					"}\n",
+					"\n",
+					"for field in new_data.schema.fields:\n",
+					"    if field.name in target_schema:\n",
+					"        if str(field.dataType) != target_schema[field.name]:\n",
+					"            print(\n",
+					"                f\"{field.name}: \"\n",
+					"                f\"source={field.dataType}, \"\n",
+					"                f\"target={target_schema[field.name]}\"\n",
+					"            )"
+				],
+				"execution_count": 115
 			},
 			{
 				"cell_type": "markdown",
@@ -445,7 +464,7 @@
 					"                organisations,\n",
 					"                siteEasting,\n",
 					"                siteNorthing,\n",
-					"                updatedDate,\n",
+					"                updatCAST(updatedDate AS TIMESTAMP) AS updatedDate,\n",
 					"                ODTSourceSystem,\n",
 					"                SourceSystemID,\n",
 					"                IngestionDate\n",
@@ -461,7 +480,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 83
+				"execution_count": 103
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +490,7 @@
 				"source": [
 					"display(service_bus_data)"
 				],
-				"execution_count": 84
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -606,7 +625,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 85
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -616,7 +635,7 @@
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": 86
+				"execution_count": 106
 			},
 			{
 				"cell_type": "markdown",
@@ -698,7 +717,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": 87
+				"execution_count": 107
 			},
 			{
 				"cell_type": "code",
@@ -716,7 +735,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": 88
+				"execution_count": 108
 			},
 			{
 				"cell_type": "markdown",
@@ -756,7 +775,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 89
+				"execution_count": 109
 			},
 			{
 				"cell_type": "markdown",
@@ -840,7 +859,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 90
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -867,14 +886,14 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 91
+				"execution_count": 111
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"print(spark.catalog.tableExists(spark_table_final))"
 				],
-				"execution_count": 93
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
@@ -911,7 +930,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 92
+				"execution_count": 113
 			}
 		]
 	}
