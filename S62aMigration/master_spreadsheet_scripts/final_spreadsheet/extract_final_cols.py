@@ -29,7 +29,7 @@ def find_data_root(start_dir, marker="csv_and_xlsx_files", max_up=4):
 BASE_DIR = find_data_root(SCRIPT_DIR)
 COMPARISON_FILE = (
 	BASE_DIR
-	/ "csv_and_xlsx_files/S62A_Horizon_vs_Spreadsheet_comparison_coloured_sheet.xlsx"
+	/ "csv_and_xlsx_files/S62A_Horizon_vs_Spreadsheet_comparison_with_manual_changes.xlsx"
 )
 MASTER_TEMPLATE_FILE = (
 	BASE_DIR / "csv_and_xlsx_files/MASTER LEGACY cases S62A .xlsx"
@@ -169,7 +169,7 @@ def _is_blue(cell):
 	if components is None:
 		return False
 	red, green, blue = components
-	return blue > red + 30 and blue >= green and (max(components) - min(components)) > 25
+	return blue > red + 15 and blue >= green and (max(components) - min(components)) > 15
 
 
 def _colour_kind(cell):
@@ -482,19 +482,15 @@ def extract_final_columns():
 		]
 		for case_reference, case_source_rows, own_rows, is_first_row in row_jobs:
 			final_sheet.cell(output_row, 1).value = case_reference
-<<<<<<< Updated upstream
-			site_source, site_values = _site_block_values(
-				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
-			)
-			if site_source == "spreadsheet":
-=======
 			# Only a case's first row takes the site block; repeat rows must not carry it
-			site_values = _site_block_values(
-				comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
-			) if is_first_row else None
+			site_source, site_values = (
+				_site_block_values(
+					comparison_sheet, case_source_rows, groups, case_reference, spreadsheet_site
+				) if is_first_row else (None, None)
+			)
 			if site_values is not None:
->>>>>>> Stashed changes
-				SITE_SWAP_LOG.append(case_reference)
+				if site_source == "spreadsheet":
+					SITE_SWAP_LOG.append(case_reference)
 			for output_column, selection in enumerate(selections, start=2):
 				target = final_sheet.cell(output_row, output_column)
 				other = [c for c in groups.get(selection["header"], {}).values()
