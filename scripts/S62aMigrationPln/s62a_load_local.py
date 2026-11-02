@@ -113,6 +113,17 @@ def load_table(conn, table, path, dry_run):
     for i in range(0, len(rows), BATCH):
         cur.executemany(f"INSERT INTO #stage ({col_list}) VALUES ({ph})",
                         [tuple(r[j] for j in idx) for r in rows[i:i + BATCH]])
+    if table == "OrganisationToContact":
+        # a contact removed from an applicant/agent organisation in the source would otherwise stay linked (MERGE never deletes)
+        cur.execute("DELETE t FROM [dbo].[OrganisationToContact] t WHERE t.[organisationId] IN "
+                    "(SELECT [organisationId] FROM [dbo].[S62aToApplicant] WHERE [organisationId] IS NOT NULL) "
+                    "AND NOT EXISTS (SELECT 1 FROM #stage s WHERE s.[id] = t.[id])")
+        print(f"  removed {cur.rowcount} stale OrganisationToContact link(s) no longer in the source")
+    if table == "S62aToApplicant" and "s62aId" in cols:
+        # MERGE doesn't delete, so a person removed from the source would still be linked from an earlier load
+        cur.execute("DELETE t FROM [dbo].[S62aToApplicant] t WHERE t.[s62aId] IN (SELECT [s62aId] FROM #stage) "
+                    "AND NOT EXISTS (SELECT 1 FROM #stage s WHERE s.[id] = t.[id])")
+        print(f"  removed {cur.rowcount} stale S62aToApplicant link(s) no longer in the source")
     non_id = [c for c in cols if c.lower() != "id"]
     update = f"WHEN MATCHED THEN UPDATE SET {', '.join(f't.{q(c)} = s.{q(c)}' for c in non_id)} " if non_id else ""
     cur.execute(
