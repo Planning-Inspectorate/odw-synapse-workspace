@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8bf9bbc4-937b-478c-bce3-e5f3ab9c1bfd"
+				"spark.autotune.trackingId": "00013130-1610-43fa-b559-e305f9a6983e"
 			}
 		},
 		"metadata": {
@@ -110,7 +110,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 245
+				"execution_count": 405
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +137,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 246
+				"execution_count": 406
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +151,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": 247
+				"execution_count": 407
 			},
 			{
 				"cell_type": "code",
@@ -162,21 +162,37 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 248
+				"execution_count": 408
 			},
 			{
 				"cell_type": "code",
 				"metadata": {
-					"microsoft": {
-						"language": "sparksql"
-					},
 					"collapsed": false
 				},
 				"source": [
-					"%%sql\n",
-					"DROP TABLE IF EXISTS odw_harmonised_db.address_dim"
+					"# spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")"
 				],
-				"execution_count": 249
+				"execution_count": 409
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# from notebookutils import mssparkutils\n",
+					"\n",
+					"# mssparkutils.fs.rm(delta_table_path, True)\n",
+					"\n",
+					"# print(\"Delta folder deleted\")"
+				],
+				"execution_count": 410
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# from notebookutils import mssparkutils\n",
+					"\n",
+					"# print(mssparkutils.fs.exists(delta_table_path))"
+				],
+				"execution_count": 411
 			},
 			{
 				"cell_type": "markdown",
@@ -204,7 +220,7 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": 250
+				"execution_count": 412
 			},
 			{
 				"cell_type": "markdown",
@@ -264,7 +280,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": 251
+				"execution_count": 413
 			},
 			{
 				"cell_type": "markdown",
@@ -284,91 +300,73 @@
 				"source": [
 					"if not error_message:\n",
 					"    try:\n",
+					"\n",
 					"        if not spark.catalog.tableExists(spark_table_final):\n",
 					"\n",
-					"            print(\n",
-					"                f\"Table {spark_table_final} does not exist. \"\n",
-					"                \"Checking Delta location...\"\n",
-					"            )\n",
+					"            schema = StructType([\n",
+					"                StructField(\"address_dim_id\", IntegerType(), True),\n",
+					"                StructField(\"address_dim_key\", StringType(), True),\n",
+					"                StructField(\"updatedDate\", TimestampType(), True),\n",
+					"                StructField(\"description\", StringType(), True),\n",
+					"                StructField(\"reference\", StringType(), True),\n",
+					"                StructField(\"line1\", StringType(), True),\n",
+					"                StructField(\"line2\", StringType(), True),\n",
+					"                StructField(\"townCity\", StringType(), True),\n",
+					"                StructField(\"county\", StringType(), True),\n",
+					"                StructField(\"postcode\", StringType(), True),\n",
+					"                StructField(\"country\", StringType(), True),\n",
+					"                StructField(\"easting\", StringType(), True),\n",
+					"                StructField(\"northing\", StringType(), True),\n",
+					"                StructField(\"latitudeWGS84\", DecimalType(18,8), True),\n",
+					"                StructField(\"longitudeWGS84\", DecimalType(18,8), True),\n",
+					"                StructField(\"UPRN\", IntegerType(), True),\n",
+					"                StructField(\"sourceSuid\", StringType(), True),\n",
+					"                StructField(\"ODTSourceSystem\", StringType(), True),\n",
+					"                StructField(\"SourceSystemID\", StringType(), True),\n",
+					"                StructField(\"IngestionDate\", TimestampType(), True),\n",
+					"                StructField(\"ValidTo\", TimestampType(), True),\n",
+					"                StructField(\"RowID\", StringType(), True),\n",
+					"                StructField(\"IsActive\", StringType(), True)\n",
+					"            ])\n",
 					"\n",
-					"            try:\n",
-					"                # If delta files already exist, just register the table\n",
-					"                spark.sql(f\"\"\"\n",
-					"                    CREATE TABLE IF NOT EXISTS {spark_table_final}\n",
-					"                    USING DELTA\n",
-					"                    LOCATION '{delta_table_path}'\n",
-					"                \"\"\")\n",
+					"            empty_df = spark.createDataFrame([], schema)\n",
 					"\n",
-					"                print(\n",
-					"                    f\"Existing Delta location found and \"\n",
-					"                    f\"{spark_table_final} registered successfully.\"\n",
-					"                )\n",
+					"            empty_df.write \\\n",
+					"                .format(\"delta\") \\\n",
+					"                .mode(\"overwrite\") \\\n",
+					"                .save(delta_table_path)\n",
 					"\n",
-					"            except Exception:\n",
+					"            spark.sql(f\"\"\"\n",
+					"                CREATE TABLE {spark_table_final}\n",
+					"                USING DELTA\n",
+					"                LOCATION '{delta_table_path}'\n",
+					"            \"\"\")\n",
 					"\n",
-					"                print(\n",
-					"                    \"No Delta table found at location. \"\n",
-					"                    \"Creating new table...\"\n",
-					"                )\n",
-					"\n",
-					"                schema = StructType([\n",
-					"                    StructField(\"address_dim_id\", IntegerType(), True),\n",
-					"                    StructField(\"address_dim_key\", StringType(), True),\n",
-					"                    StructField(\"updatedDate\", TimestampType(), True),\n",
-					"                    StructField(\"description\", StringType(), True),\n",
-					"                    StructField(\"reference\", StringType(), True),\n",
-					"                    StructField(\"line1\", StringType(), True),\n",
-					"                    StructField(\"line2\", StringType(), True),\n",
-					"                    StructField(\"townCity\", StringType(), True),\n",
-					"                    StructField(\"county\", StringType(), True),\n",
-					"                    StructField(\"postcode\", StringType(), True),\n",
-					"                    StructField(\"country\", StringType(), True),\n",
-					"                    StructField(\"easting\", StringType(), True),\n",
-					"                    StructField(\"northing\", StringType(), True),\n",
-					"                    StructField(\"latitudeWGS84\", DecimalType(18, 8), True),\n",
-					"                    StructField(\"longitudeWGS84\", DecimalType(18, 8), True),\n",
-					"                    StructField(\"UPRN\", IntegerType(), True),\n",
-					"                    StructField(\"sourceSuid\", StringType(), True),\n",
-					"                    StructField(\"ODTSourceSystem\", StringType(), True),\n",
-					"                    StructField(\"SourceSystemID\", StringType(), True),\n",
-					"                    StructField(\"IngestionDate\", TimestampType(), True),\n",
-					"                    StructField(\"ValidTo\", TimestampType(), True),\n",
-					"                    StructField(\"RowID\", StringType(), True),\n",
-					"                    StructField(\"IsActive\", StringType(), True)\n",
-					"                ])\n",
-					"\n",
-					"                empty_df = spark.createDataFrame([], schema)\n",
-					"\n",
-					"                empty_df.write \\\n",
-					"                    .format(\"delta\") \\\n",
-					"                    .mode(\"overwrite\") \\\n",
-					"                    .save(delta_table_path)\n",
-					"\n",
-					"                spark.sql(f\"\"\"\n",
-					"                    CREATE TABLE {spark_table_final}\n",
-					"                    USING DELTA\n",
-					"                    LOCATION '{delta_table_path}'\n",
-					"                \"\"\")\n",
-					"\n",
-					"                print(f\"{spark_table_final} created successfully.\")\n",
+					"            print(f\"{spark_table_final} created successfully.\")\n",
 					"\n",
 					"        else:\n",
 					"\n",
-					"            print(\n",
-					"                f\"{spark_table_final} already exists. \"\n",
-					"                \"No schema changes have been applied.\"\n",
-					"            )\n",
+					"            print(f\"{spark_table_final} already exists.\")\n",
 					"\n",
 					"            spark.table(spark_table_final).printSchema()\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = (\n",
-					"            f\"Error creating table: {str(e)[:800]}\"\n",
-					"        )\n",
+					"\n",
+					"        error_message = f\"Error creating table: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
+					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": 252
+				"execution_count": 414
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.table(spark_table_final).printSchema()\n",
+					"\n",
+					"print(spark.table(spark_table_final).columns)"
+				],
+				"execution_count": 415
 			},
 			{
 				"cell_type": "markdown",
@@ -386,7 +384,6 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"\n",
 					"if not error_message:  \n",
 					"    try:\n",
 					"       \n",
@@ -405,7 +402,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 253
+				"execution_count": 416
 			},
 			{
 				"cell_type": "markdown",
@@ -461,7 +458,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 254
+				"execution_count": 417
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +468,7 @@
 				"source": [
 					"display(service_bus_data)"
 				],
-				"execution_count": 255
+				"execution_count": 418
 			},
 			{
 				"cell_type": "code",
@@ -606,7 +603,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 256
+				"execution_count": 419
 			},
 			{
 				"cell_type": "code",
@@ -616,7 +613,7 @@
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": 258
+				"execution_count": 420
 			},
 			{
 				"cell_type": "markdown",
@@ -698,7 +695,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": 259
+				"execution_count": 421
 			},
 			{
 				"cell_type": "code",
@@ -708,7 +705,7 @@
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": 260
+				"execution_count": 422
 			},
 			{
 				"cell_type": "code",
@@ -726,7 +723,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": 261
+				"execution_count": 423
 			},
 			{
 				"cell_type": "markdown",
@@ -766,7 +763,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 262
+				"execution_count": 424
 			},
 			{
 				"cell_type": "markdown",
@@ -850,7 +847,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 263
+				"execution_count": 425
 			},
 			{
 				"cell_type": "code",
@@ -877,7 +874,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 264
+				"execution_count": 426
 			},
 			{
 				"cell_type": "code",
@@ -914,7 +911,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 265
+				"execution_count": 427
 			}
 		]
 	}
