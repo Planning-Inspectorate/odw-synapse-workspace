@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bc769422-0052-4444-8803-04e26828fbea"
+				"spark.autotune.trackingId": "8ffe36b0-ee58-47da-9855-0e4ecb83abf9"
 			}
 		},
 		"metadata": {
@@ -104,7 +104,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 451
+				"execution_count": 680
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 452
+				"execution_count": 681
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": 453
+				"execution_count": 682
 			},
 			{
 				"cell_type": "code",
@@ -156,37 +156,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 454
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"# spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")"
-				],
-				"execution_count": 455
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# from notebookutils import mssparkutils\n",
-					"\n",
-					"# mssparkutils.fs.rm(delta_table_path, True)\n",
-					"\n",
-					"# print(\"Delta folder deleted\")"
-				],
-				"execution_count": 456
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# from notebookutils import mssparkutils\n",
-					"\n",
-					"# print(mssparkutils.fs.exists(delta_table_path))"
-				],
-				"execution_count": 457
+				"execution_count": 683
 			},
 			{
 				"cell_type": "markdown",
@@ -214,7 +184,14 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": 458
+				"execution_count": 684
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -274,7 +251,16 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": 459
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from notebookutils import mssparkutils\n",
+					"\n",
+					"print(mssparkutils.fs.exists(delta_table_path))"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -351,16 +337,7 @@
 					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": 460
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# spark.table(spark_table_final).printSchema()\n",
-					"\n",
-					"# print(spark.table(spark_table_final).columns)"
-				],
-				"execution_count": 461
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -396,7 +373,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 462
+				"execution_count": 669
 			},
 			{
 				"cell_type": "markdown",
@@ -441,8 +418,8 @@
 					"                SourceSystemID,\n",
 					"                IngestionDate\n",
 					"            FROM {service_bus_table}\n",
-					"            WHERE IsActive='Y' and (siteAddress IS NOT NULL\n",
-					"               OR organisations IS NOT NULL)\n",
+					"            WHERE siteAddress IS NOT NULL\n",
+					"               OR organisations IS NOT NULL\n",
 					"        \"\"\")\n",
 					"\n",
 					"        print(\"Source data loaded successfully.\")\n",
@@ -452,7 +429,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 463
+				"execution_count": 670
 			},
 			{
 				"cell_type": "code",
@@ -462,7 +439,7 @@
 				"source": [
 					"display(service_bus_data)"
 				],
-				"execution_count": 464
+				"execution_count": 671
 			},
 			{
 				"cell_type": "code",
@@ -508,7 +485,7 @@
 					"\n",
 					"        # Harmonised address_dim mapping\n",
 					"        new_data = exploded_df.select(\n",
-					"            F.lit(None).cast(\"long\").alias(\"address_dim_id\"),\n",
+					"            F.lit(None).cast(\"int\").alias(\"address_dim_id\"),\n",
 					"\n",
 					"            F.col(\"updatedDate\"),\n",
 					"\n",
@@ -625,14 +602,17 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 465
+				"execution_count": 672
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"display(new_data)"
 				],
-				"execution_count": 472
+				"execution_count": 673
 			},
 			{
 				"cell_type": "markdown",
@@ -696,7 +676,7 @@
 					"            (\n",
 					"                F.row_number().over(window_spec)\n",
 					"                + F.lit(max_id_row)\n",
-					"            ).cast(\"long\")\n",
+					"            ).cast(\"int\")\n",
 					"        )\n",
 					"\n",
 					"        cols = new_data.columns\n",
@@ -715,7 +695,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": 466
+				"execution_count": 674
 			},
 			{
 				"cell_type": "code",
@@ -733,7 +713,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": 467
+				"execution_count": 675
 			},
 			{
 				"cell_type": "markdown",
@@ -773,7 +753,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 468
+				"execution_count": 676
 			},
 			{
 				"cell_type": "markdown",
@@ -817,14 +797,6 @@
 					"                ).cast(\"long\")\n",
 					"            )\n",
 					"            .withColumn(\n",
-					"                \"updatedDate\",\n",
-					"                F.current_timestamp()\n",
-					"            )\n",
-					"            .withColumn(\n",
-					"                \"description\",\n",
-					"                F.lit(None).cast(\"string\")\n",
-					"            )\n",
-					"            .withColumn(\n",
 					"                \"ValidTo\",\n",
 					"                F.lit(None).cast(\"timestamp\")\n",
 					"            )\n",
@@ -837,14 +809,24 @@
 					"                F.sha2(\n",
 					"                    F.concat_ws(\n",
 					"                        \"|\",\n",
-					"                        F.coalesce(F.col(\"sourceSuid\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"line1\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"line2\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"townCity\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"county\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"postcode\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"easting\"), F.lit(\"\")),\n",
-					"                        F.coalesce(F.col(\"northing\"), F.lit(\"\"))\n",
+					"                        F.coalesce(F.col(\"address_dim_key\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"updatedDate\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"description\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"reference\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"line1\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"line2\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"townCity\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"county\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"postcode\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"country\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"easting\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"northing\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"latitudeWGS84\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"longitudeWGS84\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"UPRN\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"sourceSuid\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"ODTSourceSystem\").cast(\"string\"), F.lit(\"\")),\n",
+					"                        F.coalesce(F.col(\"SourceSystemID\").cast(\"string\"), F.lit(\"\"))\n",
 					"                    ),\n",
 					"                    256\n",
 					"                )\n",
@@ -852,13 +834,14 @@
 					"        )\n",
 					"\n",
 					"        print(\"Metadata columns added successfully.\")\n",
+					"        print(f\"Records processed: {new_data.count()}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error processing address data: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 469
+				"execution_count": 677
 			},
 			{
 				"cell_type": "code",
@@ -871,39 +854,62 @@
 					"            spark_table_final\n",
 					"        )\n",
 					"\n",
-					"        target_df = spark.table(spark_table_final)\n",
+					"        df = spark.table(spark_table_final)\n",
 					"\n",
-					"        records_to_expire = (\n",
-					"            target_df.alias(\"t\")\n",
-					"            .join(\n",
-					"                new_data.alias(\"s\"),\n",
-					"                (\n",
-					"                    (F.col(\"t.address_dim_key\") == F.col(\"s.address_dim_key\"))\n",
-					"                    & (F.col(\"t.IsActive\") == \"Y\")\n",
-					"                    & (F.col(\"t.RowID\") != F.col(\"s.RowID\"))\n",
-					"                ),\n",
-					"                \"inner\"\n",
+					"        # SCD Type 2\n",
+					"        window_spec = Window.partitionBy(\n",
+					"            \"sourceSuid\",\n",
+					"            \"reference\"\n",
+					"        ).orderBy(\n",
+					"            F.col(\"IngestionDate\").desc(),\n",
+					"            F.col(\"address_dim_id\").desc()\n",
+					"        )\n",
+					"\n",
+					"        df = df.withColumn(\n",
+					"            \"rn\",\n",
+					"            F.row_number().over(window_spec)\n",
+					"        )\n",
+					"\n",
+					"        df = (\n",
+					"            df\n",
+					"            .withColumn(\n",
+					"                \"NewIsActive\",\n",
+					"                F.when(\n",
+					"                    F.col(\"rn\") == 1,\n",
+					"                    F.lit(\"Y\")\n",
+					"                ).otherwise(\n",
+					"                    F.lit(\"N\")\n",
+					"                )\n",
 					"            )\n",
-					"            .select(\n",
-					"                F.col(\"t.address_dim_id\")\n",
+					"            .withColumn(\n",
+					"                \"NewValidTo\",\n",
+					"                F.when(\n",
+					"                    F.col(\"rn\") == 1,\n",
+					"                    F.lit(None).cast(\"timestamp\")\n",
+					"                ).otherwise(\n",
+					"                    F.current_timestamp()\n",
+					"                )\n",
 					"            )\n",
-					"            .distinct()\n",
 					"        )\n",
 					"\n",
 					"        delta_table.alias(\"t\") \\\n",
 					"            .merge(\n",
-					"                records_to_expire.alias(\"u\"),\n",
-					"                \"t.address_dim_id = u.address_dim_id\"\n",
+					"                df.alias(\"s\"),\n",
+					"                \"t.address_dim_id = s.address_dim_id\"\n",
 					"            ) \\\n",
 					"            .whenMatchedUpdate(\n",
 					"                set={\n",
-					"                    \"IsActive\": \"'N'\",\n",
-					"                    \"ValidTo\": \"current_timestamp()\"\n",
+					"                    \"IsActive\": \"s.NewIsActive\",\n",
+					"                    \"ValidTo\": \"s.NewValidTo\"\n",
 					"                }\n",
 					"            ) \\\n",
 					"            .execute()\n",
 					"\n",
-					"        update_count = records_to_expire.count()\n",
+					"        update_count = (\n",
+					"            df.filter(\n",
+					"                F.col(\"NewIsActive\") == \"N\"\n",
+					"            ).count()\n",
+					"        )\n",
 					"\n",
 					"        today = date.today()\n",
 					"\n",
@@ -917,12 +923,19 @@
 					"            .count()\n",
 					"        )\n",
 					"\n",
+					"        active_count = (\n",
+					"            spark.table(spark_table_final)\n",
+					"            .filter(F.col(\"IsActive\") == \"Y\")\n",
+					"            .count()\n",
+					"        )\n",
+					"\n",
 					"        end_exec_time = datetime.now()\n",
 					"\n",
 					"        print(\n",
 					"            f\"MERGE completed successfully. \"\n",
 					"            f\"Rows inactivated today: {rowsInactivatedTodayCount}. \"\n",
-					"            f\"Updated rows: {update_count}\"\n",
+					"            f\"Updated rows: {update_count}. \"\n",
+					"            f\"Active rows: {active_count}\"\n",
 					"        )\n",
 					"\n",
 					"    except Exception as e:\n",
@@ -930,7 +943,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 470
+				"execution_count": 678
 			},
 			{
 				"cell_type": "code",
@@ -967,7 +980,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 471
+				"execution_count": 679
 			}
 		]
 	}
