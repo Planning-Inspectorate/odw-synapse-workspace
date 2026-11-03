@@ -96,6 +96,41 @@ def upload(schema_dir, work_dir, env):
     print(f"Uploaded to {account}/{CONTAINER}/{latest} and {USERS_DEST}/User.csv")
 
 
+DROPPED_PATTERNS = ("left null", "not migrated", "set to null", "not a valid", "excluded from migration", "text removed")
+
+
+def report_dropped_data(work_dir, schema_dir):
+    """Print every source value that did not make it into the output (no matching DB id, invalid date, unmapped column...)."""
+    import pandas as pd
+    # transform step logs to work_dir, schema step (where DB ids are looked up) logs to schema_dir
+    paths = [p for p in (work_dir / "_exceptions.csv", schema_dir / "_exceptions.csv") if p.exists()]
+    if len(paths) < 2:
+        print("\n!! an _exceptions.csv is missing, the data check below is incomplete")
+    if not paths:
+        return
+    exc = pd.concat([pd.read_csv(p, dtype=str) for p in paths]).fillna("")
+    mask = exc["issue"].str.lower().apply(lambda s: any(p in s for p in DROPPED_PATTERNS))
+    # "No target in mapping, but column is empty" means nothing was lost
+    mask &= ~exc["issue"].str.contains("nothing lost", case=False)
+    dropped = exc[mask]
+    bar = "=" * 78
+    print(f"\n{bar}")
+    if dropped.empty:
+        print("DATA CHECK: no source values were dropped or nulled.")
+        print(bar)
+        return
+    out = work_dir / "_data_dropped.csv"
+    dropped.to_csv(out, index=False)
+    print(f"DATA CHECK: {len(dropped)} source value(s) did NOT make it into the output")
+    print(bar)
+    summary = (dropped.groupby(["table", "column", "value", "issue"]).size().reset_index(name="cases")
+               .sort_values(["table", "column", "cases"], ascending=[True, True, False]))
+    for r in summary.itertuples():
+        print(f"  {r.table}.{r.column}: '{r.value}' x{r.cases} -> {r.issue}")
+    print(f"\nFull list with case references: {out}")
+    print(bar)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input-dir", type=Path, default=HERE / "INPUT")
@@ -130,6 +165,7 @@ def main():
     run_notebook("s62a_schema_align", work_dir)
     schema_dir = newest(work_dir, "s62a_schema")
     print(f"\nSchema CSVs: {schema_dir}")
+    report_dropped_data(work_dir, schema_dir)
 
     if args.upload:
         upload(schema_dir, work_dir, args.env)
