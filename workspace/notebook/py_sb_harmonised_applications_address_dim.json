@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9d9f345d-ebf6-4243-b938-3708bd528a7d"
+				"spark.autotune.trackingId": "e4377bff-e526-4125-8bd5-10941100d5a4"
 			}
 		},
 		"metadata": {
@@ -62,13 +62,7 @@
 					}
 				},
 				"source": [
-					"#### The purpose of this pyspark notebook is to read service bus data from odw_harmonised_db.sb_applications_representation Delta table and process nested  data to odw_harmonised_db.applications_representation_document Delta table.\n",
-					"\n",
-					"**Description** \n",
-					"The purpose of this pyspark notebook is to read service bus data with nested representation arrays from odw_harmonised_db.sb_applications_representation Delta table and explode/transform them into odw_harmonised_db.applications_representation_document Delta table based on the existing  business logic.\n",
-					"\n",
-					"**Spark Cluster Configuration** -> Apache Spark Version- 3.4, Python Version - 3.10, Delta Lake Version - 2.4\n",
-					""
+					"The purpose of this PySpark notebook is to read application data from the odw_harmonised_db.sb_applications_crowndev_application Delta table and process nested address data from both siteAddress and organisations.organisationAddress structures. The transformed address records are then loaded into the odw_harmonised_db.address_dim Delta table."
 				]
 			},
 			{
@@ -110,7 +104,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 405
+				"execution_count": 451
 			},
 			{
 				"cell_type": "markdown",
@@ -137,7 +131,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": 406
+				"execution_count": 452
 			},
 			{
 				"cell_type": "code",
@@ -151,7 +145,7 @@
 					"PipelineTriggeredbyPipelineName = \"pln_master\"\n",
 					"PipelineTriggeredbyPipelineRunID = \"ec911cf9-f92b-48fc-8662-33d02dc45e49\""
 				],
-				"execution_count": 407
+				"execution_count": 453
 			},
 			{
 				"cell_type": "code",
@@ -162,7 +156,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": 408
+				"execution_count": 454
 			},
 			{
 				"cell_type": "code",
@@ -172,7 +166,7 @@
 				"source": [
 					"# spark.sql(f\"DROP TABLE IF EXISTS {spark_table_final}\")"
 				],
-				"execution_count": 409
+				"execution_count": 455
 			},
 			{
 				"cell_type": "code",
@@ -183,7 +177,7 @@
 					"\n",
 					"# print(\"Delta folder deleted\")"
 				],
-				"execution_count": 410
+				"execution_count": 456
 			},
 			{
 				"cell_type": "code",
@@ -192,7 +186,7 @@
 					"\n",
 					"# print(mssparkutils.fs.exists(delta_table_path))"
 				],
-				"execution_count": 411
+				"execution_count": 457
 			},
 			{
 				"cell_type": "markdown",
@@ -220,7 +214,7 @@
 					"\n",
 					"incremental_key = \"address_dim_id\""
 				],
-				"execution_count": 412
+				"execution_count": 458
 			},
 			{
 				"cell_type": "markdown",
@@ -280,7 +274,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": 413
+				"execution_count": 459
 			},
 			{
 				"cell_type": "markdown",
@@ -357,7 +351,7 @@
 					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": 414
+				"execution_count": 460
 			},
 			{
 				"cell_type": "code",
@@ -366,7 +360,7 @@
 					"\n",
 					"# print(spark.table(spark_table_final).columns)"
 				],
-				"execution_count": 415
+				"execution_count": 461
 			},
 			{
 				"cell_type": "markdown",
@@ -402,7 +396,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 416
+				"execution_count": 462
 			},
 			{
 				"cell_type": "markdown",
@@ -447,8 +441,8 @@
 					"                SourceSystemID,\n",
 					"                IngestionDate\n",
 					"            FROM {service_bus_table}\n",
-					"            WHERE siteAddress IS NOT NULL\n",
-					"               OR organisations IS NOT NULL\n",
+					"            WHERE IsActive='Y' and (siteAddress IS NOT NULL\n",
+					"               OR organisations IS NOT NULL)\n",
 					"        \"\"\")\n",
 					"\n",
 					"        print(\"Source data loaded successfully.\")\n",
@@ -458,7 +452,17 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 417
+				"execution_count": 463
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(service_bus_data)"
+				],
+				"execution_count": 464
 			},
 			{
 				"cell_type": "code",
@@ -593,7 +597,14 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 419
+				"execution_count": 465
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"display(new_data)"
+				],
+				"execution_count": 472
 			},
 			{
 				"cell_type": "markdown",
@@ -675,17 +686,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": 421
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"collapsed": false
-				},
-				"source": [
-					"display(new_data)"
-				],
-				"execution_count": 422
+				"execution_count": 466
 			},
 			{
 				"cell_type": "code",
@@ -703,7 +704,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": 423
+				"execution_count": 467
 			},
 			{
 				"cell_type": "markdown",
@@ -743,7 +744,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 424
+				"execution_count": 468
 			},
 			{
 				"cell_type": "markdown",
@@ -827,7 +828,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": 425
+				"execution_count": 469
 			},
 			{
 				"cell_type": "code",
@@ -854,7 +855,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": 426
+				"execution_count": 470
 			},
 			{
 				"cell_type": "code",
@@ -891,7 +892,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": 427
+				"execution_count": 471
 			}
 		]
 	}
