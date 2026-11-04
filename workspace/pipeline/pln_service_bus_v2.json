@@ -1,0 +1,867 @@
+{
+	"name": "pln_service_bus_v2",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup SB Orchestration",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set_Pipeline_Start_Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "orchestration_service_bus",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Filter Enabled Entities",
+				"description": "Filters orchestration definitions to entities that are enabled and have no dependencies. If entity_name parameter is provided, restricts to that single entity.",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Lookup SB Orchestration",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup SB Orchestration').output.value[0].entities",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().processing_enabled, true), and(equals(item().run_raw_to_std, true), or(empty(pipeline().parameters.entity_name_array), contains(pipeline().parameters.entity_name_array, item().entity_name))))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Create all entity tables",
+				"description": "Creates std/harmonised/curated tables for ALL enabled entities in one Spark session (replaces 3 notebooks per entity inside the ForEach).",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Filter Enabled Entities",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.2:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"parameters": {
+						"entities_json": {
+							"value": {
+								"value": "@string(activity('Filter Enabled Entities').output.value)",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"db_names": {
+							"value": "odw_standardised_db,odw_harmonised_db,odw_curated_db",
+							"type": "string"
+						},
+						"max_parallel": {
+							"value": 6,
+							"type": "int"
+						},
+						"max_retries": {
+							"value": 3,
+							"type": "int"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerID": {
+							"value": {
+								"value": "@pipeline().parameters.PipelineTriggerId",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerName": {
+							"value": {
+								"value": "@pipeline().parameters.PipelineTriggername",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggerType": {
+							"value": {
+								"value": "@pipeline().parameters.PipelineTriggertype",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "string"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "string"
+						}
+					},
+					"snapshot": true,
+					"conf": {
+						"spark.dynamicAllocation.enabled": null,
+						"spark.dynamicAllocation.minExecutors": null,
+						"spark.dynamicAllocation.maxExecutors": null
+					},
+					"numExecutors": null
+				}
+			},
+			{
+				"name": "ForEach - Raw to Std",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Create all entity tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter Enabled Entities').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 6,
+					"activities": [
+						{
+							"name": "Raw to Std",
+							"description": "Ingests raw data into the standardised table",
+							"type": "SynapseNotebook",
+							"dependsOn": [
+								{
+									"activity": "Set_Pipeline_Start_Time_By_Entity",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.1:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebook": {
+									"referenceName": "py_sb_raw_to_std",
+									"type": "NotebookReference"
+								},
+								"parameters": {
+									"entity_name": {
+										"value": {
+											"value": "@item().entity_name",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineName": {
+										"value": {
+											"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerID": {
+										"value": {
+											"value": "@pipeline().parameters.PipelineTriggerId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerName": {
+										"value": {
+											"value": "@pipeline().parameters.PipelineTriggername",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggerType": {
+										"value": {
+											"value": "@pipeline().parameters.PipelineTriggertype\n",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"raw_entity_path": {
+										"value": {
+											"value": "@item().raw_entity_path",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"standardised_table": {
+										"value": {
+											"value": "@item().standardised_table",
+											"type": "Expression"
+										},
+										"type": "string"
+									},
+									"watermark_column": {
+										"value": {
+											"value": "@item().watermark_column",
+											"type": "Expression"
+										},
+										"type": "string"
+									}
+								},
+								"snapshot": true,
+								"conf": {
+									"spark.dynamicAllocation.enabled": null,
+									"spark.dynamicAllocation.minExecutors": null,
+									"spark.dynamicAllocation.maxExecutors": null
+								},
+								"numExecutors": null
+							}
+						},
+						{
+							"name": "If has new data",
+							"description": "Runs Std to Hrm only when Raw to Std found new messages.",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Raw to Std",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false)",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Std to Hrm",
+										"description": "Ingests standardised data into the harmonised table",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "py_sb_std_to_hrm",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": {
+														"value": "@item().entity_name",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineName": {
+													"value": {
+														"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineRunID": {
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerID": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggerId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerName": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggername",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerType": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggertype",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineRunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "If should run custom harmonised",
+							"description": "Runs custom harmonised notebooks when there is new SB data or when the entity has a horizon dependency (Horizon data may have changed even with no new SB messages).",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If has new data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@or(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false), coalesce(item().has_horizon_dependency, false))",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Run Entity Custom Harmonised",
+										"description": "Calls the child pipeline to run each custom harmonised notebook for this entity. Passes an empty array if no custom notebooks are configured â€” the child ForEach no-ops in that case.",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pln_sb_run_entity_custom_harmonised",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"entity_name": {
+													"value": "@item().entity_name",
+													"type": "Expression"
+												},
+												"custom_harmonised_notebooks": {
+													"value": "@item().custom_harmonised_notebooks",
+													"type": "Expression"
+												},
+												"PipelineName": {
+													"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+													"type": "Expression"
+												},
+												"PipelineRunID": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"PipelineTriggerID": {
+													"value": "@pipeline().parameters.PipelineTriggerId",
+													"type": "Expression"
+												},
+												"PipelineTriggerName": {
+													"value": "@pipeline().parameters.PipelineTriggername",
+													"type": "Expression"
+												},
+												"PipelineTriggerType": {
+													"value": "@pipeline().parameters.PipelineTriggertype",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": "@pipeline()?.TriggeredByPipelineName",
+													"type": "Expression"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": "@pipeline()?.TriggeredByPipelineRunId",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "If should update watermark",
+							"description": "Updates the SB watermark only when Raw to Std found new messages.",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "If should run custom harmonised",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{\"hasNewData\":false}'))?['hasNewData'], false)",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Update watermark",
+										"description": "Upserts the max message_enqueued_time_utc into odw_meta_db.service_bus_watermarks for this entity. Runs after custom harmonised completes.",
+										"type": "SynapseNotebook",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.1:00:00",
+											"retry": 2,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"notebook": {
+												"referenceName": "nb_sb_write_manifest_and_watermark",
+												"type": "NotebookReference"
+											},
+											"parameters": {
+												"entity_name": {
+													"value": {
+														"value": "@item().entity_name",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"lastIngestTime": {
+													"value": {
+														"value": "@coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['max_message_enqueued_time_utc'], '')",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"status": {
+													"value": "Succeeded",
+													"type": "string"
+												},
+												"recordsIngested": {
+													"value": {
+														"value": "@string(coalesce(json(coalesce(activity('Raw to Std').output.status.output.result.exitValue, '{}'))?['table_details']?[0]?['insert_count'], 0))",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineName": {
+													"value": {
+														"value": "@pipeline().Pipeline",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineRunID": {
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerID": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggerId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerName": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggername",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineName": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineName",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggeredbyPipelineRunID": {
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineRunId",
+														"type": "Expression"
+													},
+													"type": "string"
+												},
+												"PipelineTriggerType": {
+													"value": {
+														"value": "@pipeline().parameters.PipelineTriggertype",
+														"type": "Expression"
+													},
+													"type": "string"
+												}
+											},
+											"snapshot": true,
+											"conf": {
+												"spark.dynamicAllocation.enabled": null,
+												"spark.dynamicAllocation.minExecutors": null,
+												"spark.dynamicAllocation.maxExecutors": null
+											},
+											"numExecutors": null
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Set_Pipeline_Start_Time_By_Entity",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Set_Pipeline_Start_Time_By_Entity",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Record service bus entity logs",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "If should update watermark",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pln_log_to_appins",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Stage": {
+										"value": "Completed",
+										"type": "Expression"
+									},
+									"PipelineName": {
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name)",
+										"type": "Expression"
+									},
+									"PipelineRunID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"StartTime": {
+										"value": "@variables('Set_Pipeline_Start_Time_By_Entity')",
+										"type": "Expression"
+									},
+									"EndTime": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"StatusMessage": {
+										"value": "@concat(pipeline().Pipeline, ' - ', item().entity_name, ' entity load completed from raw to hrm')",
+										"type": "Expression"
+									},
+									"PipelineTriggerID": {
+										"value": "@pipeline().parameters.PipelineTriggerId",
+										"type": "Expression"
+									},
+									"PipelineTriggerName": {
+										"value": "@pipeline().parameters.PipelineTriggername",
+										"type": "Expression"
+									},
+									"PipelineTriggerType": {
+										"value": "@pipeline().parameters.PipelineTriggertype",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineName": {
+										"value": "@pipeline()?.TriggeredByPipelineName",
+										"type": "Expression"
+									},
+									"PipelineTriggeredbyPipelineRunID": {
+										"value": "@pipeline()?.TriggeredByPipelineRunId",
+										"type": "Expression"
+									},
+									"PipelineExecutionTimeInSec": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_Pipeline_Start_Time_By_Entity'))), 10000000)",
+										"type": "Expression"
+									},
+									"ActivityType": {
+										"value": "Pipeline",
+										"type": "Expression"
+									},
+									"DurationSeconds": {
+										"value": "@div(sub(ticks(utcNow()), ticks(variables('Set_Pipeline_Start_Time_By_Entity'))), 10000000)",
+										"type": "Expression"
+									},
+									"StatusCode": {
+										"value": "200",
+										"type": "Expression"
+									},
+									"AppInsIKey": {
+										"value": "@pipeline().parameters.apps_insights_ikey",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set_Pipeline_Start_Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Service_bus_Pipeline_Start_Time",
+					"value": {
+						"value": "@utcNow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Record service_bus Logs",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "ForEach - Raw to Std",
+						"dependencyConditions": [
+							"Completed",
+							"Skipped"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(\n    or(\n        not(empty(activity('Lookup SB Orchestration')?.Error?.Message)),\n        or(not(empty(activity('Filter Enabled Entities')?.Error?.Message)), not(empty(activity('Create all entity tables')?.Error?.Message)))\n    ),\n    'Failed',\n    'Success'\n)",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('Service_bus_Pipeline_Start_Time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@concat(\n    coalesce(activity('Lookup SB Orchestration')?.Error?.message, ''),\n    coalesce(activity('Filter Enabled Entities')?.Error?.message, ''), coalesce(activity('Create all entity tables')?.Error?.message, '')\n)",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(\nor(\nnot(empty(activity('Lookup SB Orchestration')?.Error?.Message)),\nor(not(empty(activity('Filter Enabled Entities')?.Error?.Message)), not(empty(activity('Create all entity tables')?.Error?.Message)))\n),\n'Failed Service_bus Pipeline' ,\n'Successfully Service_bus Pipeline'\n)\n",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().parameters.PipelineTriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().parameters.PipelineTriggername",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().parameters.PipelineTriggertype",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Service_bus_Pipeline_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"ActivityType": {
+							"value": "Load All Entities via pln Service Bus",
+							"type": "Expression"
+						},
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('Service_bus_Pipeline_Start_Time'))), 10000000)",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(\n    and(empty(activity('Filter Enabled Entities')?.Error?.Message), empty(activity('Create all entity tables')?.Error?.Message)),\n    '200',\n    '500'\n)",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@pipeline().parameters.apps_insights_ikey",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"apps_insights_ikey": {
+				"type": "string"
+			},
+			"Key_Vault_Url": {
+				"type": "string"
+			},
+			"webhook_url": {
+				"type": "string"
+			},
+			"entity_name_array": {
+				"type": "array",
+				"defaultValue": []
+			},
+			"PipelineTriggername": {
+				"type": "string"
+			},
+			"PipelineTriggertype": {
+				"type": "string"
+			},
+			"PipelineTriggerId": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"Service_bus_Pipeline_Start_Time": {
+				"type": "String"
+			},
+			"Set_Pipeline_Start_Time_By_Entity": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "utils/Master"
+		},
+		"annotations": []
+	}
+}
