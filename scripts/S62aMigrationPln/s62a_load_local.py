@@ -124,6 +124,12 @@ def load_table(conn, table, path, dry_run):
         cur.execute("DELETE t FROM [dbo].[S62aToApplicant] t WHERE t.[s62aId] IN (SELECT [s62aId] FROM #stage) "
                     "AND NOT EXISTS (SELECT 1 FROM #stage s WHERE s.[id] = t.[id])")
         print(f"  removed {cur.rowcount} stale S62aToApplicant link(s) no longer in the source")
+    if table == "ApplicationNote" and "s62aId" in cols:
+        # only migrated notes (placeholder user) are removed, notes written by real users are kept
+        cur.execute("DELETE t FROM [dbo].[ApplicationNote] t WHERE t.[s62aId] IN (SELECT [s62aId] FROM #stage) "
+                    "AND t.[userId] = '00000000-0000-0000-0000-000000000000' "
+                    "AND NOT EXISTS (SELECT 1 FROM #stage s WHERE s.[id] = t.[id])")
+        print(f"  removed {cur.rowcount} stale migrated ApplicationNote(s) no longer in the source")
     non_id = [c for c in cols if c.lower() != "id"]
     update = f"WHEN MATCHED THEN UPDATE SET {', '.join(f't.{q(c)} = s.{q(c)}' for c in non_id)} " if non_id else ""
     cur.execute(
