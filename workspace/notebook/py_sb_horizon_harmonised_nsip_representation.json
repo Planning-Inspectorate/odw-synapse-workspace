@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "382d11a7-cbf1-4365-9f23-5566883f5bea"
+				"spark.autotune.trackingId": "2cb8d3b7-e864-4099-9a6a-26715d68b895"
 			}
 		},
 		"metadata": {
@@ -88,6 +88,7 @@
 				"source": [
 					"from pyspark.sql.types import IntegerType, ArrayType, StructType, StructField\r\n",
 					"from pyspark.sql import Row\r\n",
+					"from pyspark import StorageLevel\r\n",
 					"import pyspark.sql.functions as F\r\n",
 					"from datetime import date,datetime\r\n",
 					"from pyspark.sql.window import Window\r\n",
@@ -282,6 +283,13 @@
 			},
 			{
 				"cell_type": "code",
+				"source": [
+					"horizon_table_max_ingested_datetime = spark.sql(f\"\"\"SELECT MAX(ingested_datetime) max_dt FROM {horizon_table}\"\"\").collect()[0][\"max_dt\"]"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
 						"source_hidden": false,
@@ -370,7 +378,7 @@
 					"                                    ON source.Description = \"Casework\"\r\n",
 					"                                    AND source.IsActive = 'Y'\r\n",
 					"                            WHERE\r\n",
-					"                                ingested_datetime = (SELECT MAX(ingested_datetime) FROM {horizon_table})\r\n",
+					"                                ingested_datetime = '{horizon_table_max_ingested_datetime}'\r\n",
 					"                                AND caseReference IS NOT NULL\r\n",
 					"                                AND casenodeid != 0 -- https://pins-ds.atlassian.net/browse/APPLICS-1075\r\n",
 					"                        \"\"\")\r\n",
@@ -406,6 +414,7 @@
 					"\r\n",
 					"        # Sort columns into same order as service bus\r\n",
 					"        horizon_data = horizon_data.select(service_bus_data.columns)\r\n",
+					"        horizon_data = horizon_data.persist(StorageLevel.MEMORY_AND_DISK)\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error while aggregating attachmentIds and aligning Horizon columns to Service Bus schema: {str(e)[:800]}\"\r\n",
@@ -431,6 +440,7 @@
 					"if not error_message:\r\n",
 					"    try:\r\n",
 					"        results = service_bus_data.union(horizon_data)\r\n",
+					"        results.persist(StorageLevel.MEMORY_AND_DISK)\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error while merging Service Bus and Horizon datasets using union: {str(e)[:800]}\"\r\n",
@@ -469,9 +479,9 @@
 				"source": [
 					"if not error_message:\r\n",
 					"    try:\r\n",
-					"        logInfo(f\"Writing {spark_table_final}\")\r\n",
+					"        #logInfo(f\"Writing {spark_table_final}\")\r\n",
 					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\r\n",
-					"        logInfo(f\"Written {spark_table_final}\")\r\n",
+					"        #logInfo(f\"Written {spark_table_final}\")\r\n",
 					"\r\n",
 					"    except Exception as e:\r\n",
 					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\r\n",
