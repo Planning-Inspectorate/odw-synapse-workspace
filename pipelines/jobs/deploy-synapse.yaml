@@ -46,6 +46,27 @@ jobs:
             pythonVersion: 3
             failoverDeployment: false
         
+        - task: PowerShell@2
+          displayName: 'Diagnose Synapse PowerShell module'
+          inputs:
+            targetType: inline
+            pwsh: true
+            script: |
+              $ErrorActionPreference = 'Stop'
+              Write-Host "Agent: $(Agent.Name)"
+              Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+              Write-Host "PSModulePath: $env:PSModulePath"
+
+              Get-Module -ListAvailable Az, Az.Accounts, Az.Synapse |
+                Select-Object Name, Version, Path |
+                Format-Table -AutoSize
+
+              Import-Module Az.Synapse -ErrorAction Stop
+
+              Get-Command Get-AzSynapseSqlPool, Resume-AzSynapseSqlPool, Suspend-AzSynapseSqlPool -Module Az.Synapse -ErrorAction Stop |
+                Select-Object Name, Source, Version |
+                Format-Table -AutoSize
+
         # Check if the dedicated SQL pool is currently paused
         - template: ${{variables['System.DefaultWorkingDirectory']}}/pipelines/steps/synapse-sql-pool-check.yaml
           parameters:
