@@ -46,10 +46,13 @@ def load_extended_data_fields():
             row["Field"].strip().casefold()
             for row in reader
             if row.get("Field", "").strip()
-            and row.get("Source field", "").strip().casefold().startswith("extended_data.")
+            and row.get("Source field", "").strip().casefold().startswith(
+                ("extended_data.", "extended_tables_core.", "extended_tables_residential.",
+                 "extended_tables_parking.", "extended_tables_non-residential.")
+            )
         }
     if not fields:
-        raise ValueError(f"No extended_data fields found in {MAPPING_FILE}")
+        raise ValueError(f"No extended-data fields found in {MAPPING_FILE}")
     return fields
 
 

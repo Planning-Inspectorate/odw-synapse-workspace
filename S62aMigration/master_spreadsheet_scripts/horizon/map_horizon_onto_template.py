@@ -114,7 +114,7 @@ for _, _r in _mapping_df.iterrows():
             "source_columns": _columns,
             "condition": _condition_filter(_r["Conditions"]),
             "append": "append to array" in _r["Conditions"].strip().casefold(),
-            "aggregate_by_case": _token.casefold() == "extended_data",
+            "aggregate_by_case": _token.casefold() == "extended_data" or _token.casefold().startswith("extended_tables_"),
         })
 
 _extended_data_columns = {
@@ -287,6 +287,36 @@ print(f"  S62A case reference list loaded: {len(S62A_CASES)} cases")
 
 csv_files = sorted(f for f in os.listdir(HORIZON_EXTRACTS_DIR) if f.endswith(".csv"))
 
+for token in (
+    "extended_tables_core",
+    "extended_tables_residential",
+    "extended_tables_parking",
+    "extended_tables_non-residential",
+):
+    matching = [filename for filename in csv_files if _filename_matches_token(filename, token)]
+    if len(matching) != 1:
+        raise ValueError(f"Expected exactly one extract for {token}, found {matching}")
+
+for rule in _mapping_rules:
+    if not rule["aggregate_by_case"]:
+        continue
+    matching = [
+        filename for filename in csv_files
+        if _filename_matches_token(filename, rule["file_token"])
+    ]
+    missing_columns = [
+        column for column in rule["source_columns"]
+        if not any(
+            column in pd.read_csv(os.path.join(HORIZON_EXTRACTS_DIR, filename), nrows=0).columns
+            for filename in matching
+        )
+    ]
+    if missing_columns:
+        print(
+            f"WARNING: extended mapping for {rule['template_column']!r} cannot be resolved: "
+            f"{rule['file_token']}.{', '.join(missing_columns)}"
+        )
+
 for filename in csv_files:
     filepath = os.path.join(HORIZON_EXTRACTS_DIR, filename)
     mapping, unmapped_cols = build_mapping_for_file(filepath)
@@ -408,7 +438,10 @@ def apply_hearing_venue_override():
 apply_hearing_venue_override()
 
 RESIDENTIAL_UNITS_COLUMN = "Residential Units Comment"   # extra column, not on the template
-RESIDENTIAL_TOTAL_COLUMNS = ["TotalExistingResidentialUnits", "TotalProposedResidentialUnits"]
+RESIDENTIAL_TOTAL_COLUMNS = {
+    "RESI_ALL_TotalExistingResidentialUnits": "TotalExistingResidentialUnits",
+    "RESI_ALL_TotalProposedResidentialUnits": "TotalProposedResidentialUnits",
+}
 HOUSING_DETAIL_COLUMNS = [
     "ExistingHousingOccupancyType", "ExistingHousingUnitType",
     "ExistingHousing1BedCount", "ExistingHousing2BedCount", "ExistingHousing3BedCount",
@@ -419,40 +452,45 @@ HOUSING_DETAIL_COLUMNS = [
 ]
 
 def apply_residential_totals_comment():
-    """Where an extended-data row has TotalExistingResidentialUnits and/or
-    TotalProposedResidentialUnits populated but every housing detail column
-    blank (ProposedHousingGroupID is ignored: Horizon sets it to a bare
-    group number even when no housing detail exists), write the populated totals into the 'Residential Units Comment' column, e.g.
-    'TotalExistingResidentialUnits: 50 and TotalProposedResidentialUnits: 25'."""
-    candidates = [
-        f for f in os.listdir(HORIZON_EXTRACTS_DIR)
-        if f.lower().endswith(".csv") and "extended_data" in f.lower()
-    ]
-    if not candidates:
-        print("WARNING: no extended data extract found - residential totals comment skipped")
-        return
-    filepath = os.path.join(HORIZON_EXTRACTS_DIR, candidates[0])
-    df = pd.read_csv(filepath, dtype=str).dropna(how="all")
-    if "CaseReference" not in df.columns and "CaseUniqueId" in df.columns:
-        df["CaseReference"] = df["CaseUniqueId"].fillna("").str.strip().map(CASE_UNIQUE_ID_TO_REFERENCE)
-    detail_cols = [c for c in HOUSING_DETAIL_COLUMNS if c in df.columns]
+    """Write core totals for cases without any populated residential detail."""
+    filenames = {
+        token: next(f for f in csv_files if _filename_matches_token(f, token))
+        for token in ("extended_tables_core", "extended_tables_residential")
+    }
+    core = pd.read_csv(os.path.join(HORIZON_EXTRACTS_DIR, filenames["extended_tables_core"]), dtype=str)
+    residential = pd.read_csv(
+        os.path.join(HORIZON_EXTRACTS_DIR, filenames["extended_tables_residential"]), dtype=str
+    )
+    for frame, required in (
+        (core, ["CaseUniqueId", *RESIDENTIAL_TOTAL_COLUMNS]),
+        (residential, ["CaseUniqueId", *HOUSING_DETAIL_COLUMNS]),
+    ):
+        missing = [column for column in required if column not in frame.columns]
+        if missing:
+            raise ValueError(f"Residential totals extract is missing columns: {missing}")
+    cases_with_details = {
+        str(row["CaseUniqueId"]).strip()
+        for _, row in residential.iterrows()
+        if any(not is_blank(row[column]) for column in HOUSING_DETAIL_COLUMNS)
+    }
     applied = 0
-    for _, row in df.iterrows():
-        case_ref = str(row.get("CaseReference", "")).strip()
+    for _, row in core.iterrows():
+        case_id = str(row["CaseUniqueId"]).strip()
+        case_ref = CASE_UNIQUE_ID_TO_REFERENCE.get(case_id)
         if not case_ref or case_ref not in S62A_CASES or case_ref not in case_rows:
             continue
         parts = [
-            f"{col}: {str(row[col]).strip()}"
-            for col in RESIDENTIAL_TOTAL_COLUMNS
-            if col in df.columns and not is_blank(row[col])
+            f"{label}: {str(row[column]).strip()}"
+            for column, label in RESIDENTIAL_TOTAL_COLUMNS.items()
+            if not is_blank(row[column])
         ]
-        if not parts or any(not is_blank(row[c]) for c in detail_cols):
+        if not parts or case_id in cases_with_details:
             continue
         target = case_rows[case_ref][0]["values"]
         if not target.get(RESIDENTIAL_UNITS_COLUMN):
             target[RESIDENTIAL_UNITS_COLUMN] = " and ".join(parts)
             applied += 1
-    print(f"Residential totals comment: {applied} case(s) set from {candidates[0]}")
+    print(f"Residential totals comment: {applied} case(s) set from {filenames['extended_tables_core']}")
 
 apply_residential_totals_comment()
 
