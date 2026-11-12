@@ -1,8 +1,9 @@
 """Map the coloured cells of the manual-changes draft sheet onto the latest comparison sheet.
 
-The colours in the draft already mark the manual changes, so nothing is diffed. Every coloured cell
-that is not a shade of red (white fills are ignored too) is copied, fill colour and value, onto the
-matching latest cell. Cells are matched by (case reference, occurrence, column header), never by
+The colours in the draft already mark the manual changes, so nothing is diffed. Coloured cells are
+copied with their values, except red, white, pale yellow and bright yellow.
+Cells are matched by
+(case reference, occurrence, column header), never by
 cell address, because the latest sheet has a different layout (header row, extra columns, row order).
 Case references can repeat, so the Nth occurrence of a reference in the draft is matched to the Nth
 occurrence in the latest sheet.
@@ -102,6 +103,11 @@ def is_coloured_non_red(cell):
         return False
     if min(rgb) >= 0.99:  # white is not a highlight colour
         return False
+    if any(
+        all(abs(value - expected) < 1 / 510 for value, expected in zip(rgb, excluded))
+        for excluded in ((1, 242 / 255, 204 / 255), (1, 1, 0))
+    ):
+        return False
     return not is_red(rgb)
 
 
@@ -185,7 +191,7 @@ def main():
     source_cols = index_cols(source_ws, DRAFT_HEADER_ROW)
     latest_cols = index_cols(latest_ws, LATEST_HEADER_ROW)
 
-    # The colours already mark the manual changes: copy every coloured (non-red) cell, value included.
+    # Copy only the colours accepted as manual changes.
     log = []
     for key, sr in source_rows.items():
         lr = latest_rows.get(key)
