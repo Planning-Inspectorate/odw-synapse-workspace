@@ -292,6 +292,9 @@ for token in (
     "extended_tables_residential",
     "extended_tables_parking",
     "extended_tables_non-residential",
+    "extended_tables_residential_existing",
+    "extended_tables_residential_proposed"
+
 ):
     matching = [filename for filename in csv_files if _filename_matches_token(filename, token)]
     if len(matching) != 1:

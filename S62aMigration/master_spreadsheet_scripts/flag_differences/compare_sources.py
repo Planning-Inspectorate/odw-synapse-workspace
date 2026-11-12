@@ -44,7 +44,7 @@ ALWAYS_COMPARE_FIELDS = {
     "Site post code",
 }
 
-QUERIES_FILE = "odw-synapse-workspace/S62aMigration/csv_and_xlsx_files/Queries on data for SS + Horizon data merge.xlsx"
+QUERIES_FILE = "S62aMigration/csv_and_xlsx_files/Queries on data for SS + Horizon data merge.xlsx"
 
 # The team confirms a final value for a case + field by shading that cell
 # blue in the queries workbook - sometimes a plain colour fill, sometimes a
@@ -248,7 +248,8 @@ def _get_extended_data_fields(mapping_file=HORIZON_MAPPING_FILE):
             if row.get("Field", "").strip()
             and row.get("Source field", "").strip().casefold().startswith(
                 ("extended_data.", "extended_tables_core.", "extended_tables_residential.",
-                 "extended_tables_parking.", "extended_tables_non-residential.")
+                 "extended_tables_parking.", "extended_tables_non-residential.", "extended_tables_residential_existing.",
+                     "extended_tables_residential_proposed.")
             )
         }
 

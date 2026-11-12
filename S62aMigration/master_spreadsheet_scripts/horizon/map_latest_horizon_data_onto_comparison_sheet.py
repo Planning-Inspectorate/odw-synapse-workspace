@@ -48,7 +48,8 @@ def load_extended_data_fields():
             if row.get("Field", "").strip()
             and row.get("Source field", "").strip().casefold().startswith(
                 ("extended_data.", "extended_tables_core.", "extended_tables_residential.",
-                 "extended_tables_parking.", "extended_tables_non-residential.")
+                 "extended_tables_parking.", "extended_tables_non-residential.", "extended_tables_residential_existing.",
+                     "extended_tables_residential_proposed.")
             )
         }
     if not fields:
