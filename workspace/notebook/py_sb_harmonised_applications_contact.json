@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "37890b41-fe58-4ee6-a041-a292113ab235"
+				"spark.autotune.trackingId": "0e58007b-fb00-4dd0-a6d5-e52d69e8b4c1"
 			}
 		},
 		"metadata": {
@@ -104,7 +104,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": 1
+				"execution_count": 21
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +142,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -170,7 +170,7 @@
 					"\n",
 					"incremental_key = \"contact_id_key\""
 				],
-				"execution_count": null
+				"execution_count": 24
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +230,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 25
 			},
 			{
 				"cell_type": "markdown",
@@ -296,7 +296,7 @@
 					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 26
 			},
 			{
 				"cell_type": "markdown",
@@ -332,7 +332,20 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"        # service_bus_data=  spark.sql(f\"\"\"SELECT *\n",
+					"        #     FROM {service_bus_table}\n",
+					"        # \"\"\")\n",
+					"        # display(service_bus_data)"
+				],
+				"execution_count": 28
 			},
 			{
 				"cell_type": "markdown",
@@ -354,17 +367,19 @@
 					"    try:\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
 					"            SELECT\n",
-					"                contactId,\n",
-					"                contactPreference,\n",
-					"                writtenRepJobTitleorRole,\n",
-					"                writtenRepOrgName,\n",
+					"                contact.contactId AS contactId,\n",
+					"                contact.contactPreference AS contactPreference,\n",
+					"                contact.writtenRepJobTitleOrRole AS writtenRepJobTitleorRole,\n",
+					"                contact.writtenRepOrgName AS writtenRepOrgName,\n",
 					"                message_id,\n",
 					"                CAST(updatedDate AS TIMESTAMP) AS updatedDate,\n",
 					"                ODTSourceSystem,\n",
 					"                SourceSystemID,\n",
 					"                IngestionDate\n",
 					"            FROM {service_bus_table}\n",
-					"            WHERE contactId IS NOT NULL\n",
+					"            LATERAL VIEW OUTER EXPLODE(organisations) org_tbl AS organisation\n",
+					"            LATERAL VIEW OUTER EXPLODE(organisation.contacts) contact_tbl AS contact\n",
+					"            WHERE contact.contactId IS NOT NULL\n",
 					"        \"\"\")\n",
 					"\n",
 					"        print(\"Source data loaded successfully.\")\n",
@@ -374,7 +389,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 29
 			},
 			{
 				"cell_type": "code",
@@ -447,7 +462,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -530,7 +545,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -548,7 +563,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 33
 			},
 			{
 				"cell_type": "markdown",
@@ -588,7 +603,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -665,7 +680,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -766,7 +781,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 36
 			},
 			{
 				"cell_type": "code",
@@ -803,7 +818,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 37
 			}
 		]
 	}
