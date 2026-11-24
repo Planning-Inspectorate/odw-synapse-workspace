@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f41d6695-262f-4104-9bf7-1625d89b2394"
+				"spark.autotune.trackingId": "bde03129-f50d-482a-b948-66ae01715edc"
 			}
 		},
 		"metadata": {
@@ -73,6 +73,7 @@
 					"from pyspark.sql import Row\n",
 					"import pyspark.sql.functions as F\n",
 					"from datetime import date,datetime\n",
+					"import builtins\n",
 					"import time"
 				],
 				"execution_count": null
@@ -94,6 +95,122 @@
 				"cell_type": "code",
 				"source": [
 					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Initialise Application Insight Logging functions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"service_bus_table = \"odw_harmonised_db.sb_appeal_group_c\"\n",
+					"spark_table_final = \"odw_harmonised_db.appeal_group_c\"\n",
+					"# Keys\n",
+					"primary_key = \"caseReference\"\n",
+					"incremental_key = 'AppealsGroupcID'\n",
+					"# Run context\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message=''"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Read Service Bus (already in schema)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"         service_bus_data = spark.sql(f\"\"\"\n",
+					"SELECT DISTINCT\n",
+					"CAST(NULL AS BIGINT) AS AppealsGroupcID,\n",
+					"caseReference AS {primary_key},\n",
+					"caseId,\n",
+					"caseStatus,\n",
+					"caseType,\n",
+					"caseProcedure,\n",
+					"lpaCode,\n",
+					"caseOfficerId,\n",
+					"inspectorId,\n",
+					"padsSapId,\n",
+					"allocationLevel,\n",
+					"allocationBand,\n",
+					"caseSpecialisms,\n",
+					"caseCreatedDate,\n",
+					"caseSubmittedDate,\n",
+					"caseUpdatedDate,\n",
+					"caseValidDate,\n",
+					"caseValidationDate,\n",
+					"caseValidationOutcome,\n",
+					"caseStartedDate,\n",
+					"casePublishedDate,\n",
+					"lpaQuestionnaireCreatedDate,\n",
+					"lpaQuestionnaireSubmittedDate,\n",
+					"lpaQuestionnaireValidationOutcome,\n",
+					"lpaQuestionnaireDueDate,\n",
+					"caseWithdrawnDate,\n",
+					"caseTransferredDate,\n",
+					"caseDecisionOutcomeDate,\n",
+					"caseDecisionOutcome,\n",
+					"caseCompletedDate,\n",
+					"siteAddressLine1,\n",
+					"siteAddressLine2,\n",
+					"siteAddressTown,\n",
+					"siteAddressCounty,\n",
+					"siteAddressPostcode,\n",
+					"caseManagementConferenceDate,\n",
+					"statementDueDate,\n",
+					"proofsOfEvidenceDueDate,\n",
+					"finalCommentsDueDate,\n",
+					"interestedPartyRepsDueDate,\n",
+					"statementOfCommonGroundDueDate,\n",
+					"planningObligationDueDate,\n",
+					"typeOfPlanningApplication,\n",
+					"caseSubType,\n",
+					"enforcementNoticeReference,\n",
+					"applicationReference,\n",
+					"linkedCaseStatus,\n",
+					"leadCaseReference,\n",
+					"environmentalPermitSubtypes\n",
+					"FROM {service_bus_table}\n",
+					"\"\"\")\n",
+					"     \n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
+					"        end_exec_time = datetime.now()\n",
+					"        print(error_message)"
 				],
 				"execution_count": null
 			}
