@@ -1,0 +1,335 @@
+{
+	"name": "nsip_project_measures",
+	"properties": {
+		"folder": {
+			"name": "odw-curated"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "pinssynspodw35",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "835943b6-e5ba-48ef-8c3f-6befcc6dc53c"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/ff442a29-fc06-4a13-8e3e-65fd5da513b3/resourceGroups/pins-rg-data-odw-dev-uks/providers/Microsoft.Synapse/workspaces/pins-synw-odw-dev-uks/bigDataPools/pinssynspodw35",
+				"name": "pinssynspodw35",
+				"type": "Spark",
+				"endpoint": "https://pins-synw-odw-dev-uks.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/pinssynspodw35",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import *\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.window import Window\n",
+					"from datetime import datetime, date\n",
+					"import time\n",
+					"import json\n",
+					"import sys"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"**Initialise Application Insight Logging functions**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_logging_decorator"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"%run utils/py_applicationinsights"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Standard ODW monitoring variables\n",
+					"start_exec_time = datetime.now()\n",
+					"insert_count = 0\n",
+					"update_count = 0\n",
+					"delete_count = 0\n",
+					"error_message = ''\n",
+					"\n",
+					"# Database and Table names\n",
+					"harmonised_db = \"odw_harmonised_db\"\n",
+					"curated_db = \"odw_curated_db\"\n",
+					"\n",
+					"source_table = f\"{harmonised_db}.nsip_project\"\n",
+					"spark_table_final = f\"{curated_db}.nsip_project_measures\"\n",
+					"table_name = \"nsip_project_measures\"\n",
+					"\n",
+					"container_name = \"odw-curated\"\n",
+					"table_folder = \"nsip_project_measures\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"try:\n",
+					"    # Resolve storage account dynamically across Dev / Test / Prod\n",
+					"    storage_account = mssparkutils.notebook.run('/utils/py_utils_get_storage_account')\n",
+					"    storage_account = storage_account.strip().replace(\"/\", \"\")\n",
+					"\n",
+					"    # Construct standard external table storage path\n",
+					"    target_path = f\"abfss://{container_name}@{storage_account}.dfs.core.windows.net/{table_folder}\"\n",
+					"\n",
+					"    print(f\"Source Table:  {source_table}\")\n",
+					"    print(f\"Target Table:  {spark_table_final}\")\n",
+					"    print(f\"External Path: {target_path}\")\n",
+					"\n",
+					"except Exception as e:\n",
+					"    error_message = f\"Error resolving storage path: {str(e)[:800]}\"\n",
+					"    print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Filter for active records only (IsActive = 'Y') and enforce 1:1 primary key grain\n",
+					"        df_harmonised_raw = (\n",
+					"            spark.table(source_table)\n",
+					"            .filter(F.col(\"IsActive\") == \"Y\")\n",
+					"            .filter(F.col(\"caseReference\").isNotNull())\n",
+					"        )\n",
+					"        \n",
+					"        # Deduplicate on caseReference to guarantee unique 1:1 grain\n",
+					"        df_active_projects = df_harmonised_raw.dropDuplicates([\"caseReference\"])\n",
+					"        \n",
+					"        source_count = df_active_projects.count()\n",
+					"        print(f\"Loaded active unique NSIP projects: {source_count}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error reading from {source_table}: {str(e)[:800]}\"\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        # Divisors per AC4\n",
+					"        YEAR_DIVISOR = 365.2425\n",
+					"        MONTH_DIVISOR = 30.436875\n",
+					"\n",
+					"        # Check for Withdrawn status using the actual column 'stage' (case-insensitive)\n",
+					"        is_not_withdrawn = (\n",
+					"            F.col(\"stage\").isNotNull() & \n",
+					"            (F.lower(F.col(\"stage\")) != \"withdrawn\")\n",
+					"        )\n",
+					"\n",
+					"        # --- 1. Pre-App Stage ---\n",
+					"        preapp_valid = (\n",
+					"            is_not_withdrawn \n",
+					"            & F.col(\"inceptionMeetingDate\").isNotNull() \n",
+					"            & F.col(\"dateOfDCOSubmission\").isNotNull()\n",
+					"        )\n",
+					"        preAppCompleted = F.when(preapp_valid, 1).otherwise(0)\n",
+					"        preAppDurationYears = F.when(\n",
+					"            preapp_valid,\n",
+					"            (F.datediff(F.to_date(\"dateOfDCOSubmission\"), F.to_date(\"inceptionMeetingDate\")) / YEAR_DIVISOR).cast(\"decimal(18,4)\")\n",
+					"        ).otherwise(None)\n",
+					"        datePreAppCompleted = F.when(preapp_valid, F.to_date(\"dateOfDCOSubmission\")).otherwise(None)\n",
+					"\n",
+					"        # --- 2. Acceptance Stage ---\n",
+					"        acceptance_valid = (\n",
+					"            is_not_withdrawn \n",
+					"            & F.col(\"dateOfDCOSubmission\").isNotNull() \n",
+					"            & F.col(\"dateOfDCOAcceptance\").isNotNull()\n",
+					"        )\n",
+					"        acceptanceCompleted = F.when(acceptance_valid, 1).otherwise(0)\n",
+					"        acceptanceDurationDays = F.when(\n",
+					"            acceptance_valid,\n",
+					"            F.datediff(F.to_date(\"dateOfDCOAcceptance\"), F.to_date(\"dateOfDCOSubmission\")).cast(\"decimal(18,4)\")\n",
+					"        ).otherwise(None)\n",
+					"        dateAcceptanceCompleted = F.when(acceptance_valid, F.to_date(\"dateOfDCOAcceptance\")).otherwise(None)\n",
+					"\n",
+					"        # --- 3. Pre-Examination Stage ---\n",
+					"        preexam_valid = (\n",
+					"            is_not_withdrawn \n",
+					"            & F.col(\"dateOfDCOAcceptance\").isNotNull() \n",
+					"            & F.col(\"confirmedStartOfExamination\").isNotNull()\n",
+					"        )\n",
+					"        preExaminationCompleted = F.when(preexam_valid, 1).otherwise(0)\n",
+					"        preExaminationDurationMonths = F.when(\n",
+					"            preexam_valid,\n",
+					"            (F.datediff(F.to_date(\"confirmedStartOfExamination\"), F.to_date(\"dateOfDCOAcceptance\")) / MONTH_DIVISOR).cast(\"decimal(18,4)\")\n",
+					"        ).otherwise(None)\n",
+					"        datePreExaminationCompleted = F.when(preexam_valid, F.to_date(\"confirmedStartOfExamination\")).otherwise(None)\n",
+					"\n",
+					"        # --- 4. Examination Stage (dateTimeExaminationEnds cast to DATE per AC3) ---\n",
+					"        exam_valid = (\n",
+					"            is_not_withdrawn \n",
+					"            & F.col(\"confirmedStartOfExamination\").isNotNull() \n",
+					"            & F.col(\"dateTimeExaminationEnds\").isNotNull()\n",
+					"        )\n",
+					"        examinationCompleted = F.when(exam_valid, 1).otherwise(0)\n",
+					"        examinationDurationMonths = F.when(\n",
+					"            exam_valid,\n",
+					"            (F.datediff(F.to_date(\"dateTimeExaminationEnds\"), F.to_date(\"confirmedStartOfExamination\")) / MONTH_DIVISOR).cast(\"decimal(18,4)\")\n",
+					"        ).otherwise(None)\n",
+					"        dateExaminationCompleted = F.when(exam_valid, F.to_date(\"dateTimeExaminationEnds\")).otherwise(None)\n",
+					"\n",
+					"        # --- 5. Recommendation Stage ---\n",
+					"        rec_valid = (\n",
+					"            is_not_withdrawn \n",
+					"            & F.col(\"dateTimeExaminationEnds\").isNotNull() \n",
+					"            & F.col(\"dateOfRecommendations\").isNotNull()\n",
+					"        )\n",
+					"        recommendationCompleted = F.when(rec_valid, 1).otherwise(0)\n",
+					"        recommendationDurationMonths = F.when(\n",
+					"            rec_valid,\n",
+					"            (F.datediff(F.to_date(\"dateOfRecommendations\"), F.to_date(\"dateTimeExaminationEnds\")) / MONTH_DIVISOR).cast(\"decimal(18,4)\")\n",
+					"        ).otherwise(None)\n",
+					"        dateRecommendationCompleted = F.when(rec_valid, F.to_date(\"dateOfRecommendations\")).otherwise(None)\n",
+					"\n",
+					"        # Assemble Curated DataFrame\n",
+					"        df_curated = df_active_projects.select(\n",
+					"            F.col(\"caseReference\"),\n",
+					"            preAppDurationYears.alias(\"preAppDurationYears\"),\n",
+					"            preAppCompleted.alias(\"preAppCompleted\"),\n",
+					"            datePreAppCompleted.alias(\"datePreAppCompleted\"),\n",
+					"            acceptanceDurationDays.alias(\"acceptanceDurationDays\"),\n",
+					"            acceptanceCompleted.alias(\"acceptanceCompleted\"),\n",
+					"            dateAcceptanceCompleted.alias(\"dateAcceptanceCompleted\"),\n",
+					"            preExaminationDurationMonths.alias(\"preExaminationDurationMonths\"),\n",
+					"            preExaminationCompleted.alias(\"preExaminationCompleted\"),\n",
+					"            datePreExaminationCompleted.alias(\"datePreExaminationCompleted\"),\n",
+					"            examinationDurationMonths.alias(\"examinationDurationMonths\"),\n",
+					"            examinationCompleted.alias(\"examinationCompleted\"),\n",
+					"            dateExaminationCompleted.alias(\"dateExaminationCompleted\"),\n",
+					"            recommendationDurationMonths.alias(\"recommendationDurationMonths\"),\n",
+					"            recommendationCompleted.alias(\"recommendationCompleted\"),\n",
+					"            dateRecommendationCompleted.alias(\"dateRecommendationCompleted\"),\n",
+					"            F.current_timestamp().alias(\"odwCuratedIngestionDate\")\n",
+					"        )\n",
+					"\n",
+					"        print(f\"Calculations complete. Row count ready to persist: {df_curated.count()}\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error during stage metric calculation: {str(e)[:800]}\"\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if not error_message:\n",
+					"    try:\n",
+					"        insert_count = df_curated.count()\n",
+					"\n",
+					"        # Write in Parquet format using overwrite mode\n",
+					"        (\n",
+					"            df_curated.write\n",
+					"            .mode(\"overwrite\")\n",
+					"            .format(\"parquet\")\n",
+					"            .saveAsTable(spark_table_final)\n",
+					"        )\n",
+					"\n",
+					"        print(f\"Successfully populated {spark_table_final} (format: parquet) with {insert_count} records.\")\n",
+					"\n",
+					"    except Exception as e:\n",
+					"        error_message = f\"Error writing table {spark_table_final}: {str(e)[:800]}\"\n",
+					"        print(error_message)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"end_exec_time = datetime.now()\n",
+					"duration_seconds = (end_exec_time - start_exec_time).total_seconds()\n",
+					"activity_type = f\"{mssparkutils.runtime.context.get('currentNotebookName', 'py_curated_nsip_project_measures')} Notebook\"\n",
+					"stage = \"Success\" if not error_message else \"Failed\"\n",
+					"status_message = (\n",
+					"    f\"Successfully loaded data into {spark_table_final} table\"\n",
+					"    if not error_message\n",
+					"    else f\"Failed to load data into {spark_table_final} table: {error_message}\"\n",
+					")\n",
+					"status_code = \"200\" if stage == \"Success\" else \"500\"\n",
+					"\n",
+					"# Dispatch standard telemetry\n",
+					"log_telemetry_and_exit(\n",
+					"    stage,\n",
+					"    start_exec_time,\n",
+					"    end_exec_time,\n",
+					"    error_message,\n",
+					"    table_name,\n",
+					"    insert_count,\n",
+					"    update_count,\n",
+					"    delete_count,\n",
+					"    PipelineName,\n",
+					"    PipelineRunID,\n",
+					"    PipelineTriggerID,\n",
+					"    PipelineTriggerName,\n",
+					"    PipelineTriggerType,\n",
+					"    PipelineTriggeredbyPipelineName,\n",
+					"    PipelineTriggeredbyPipelineRunID,\n",
+					"    activity_type,\n",
+					"    duration_seconds,\n",
+					"    status_message,\n",
+					"    status_code\n",
+					")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
