@@ -422,6 +422,12 @@
 						"dependencyConditions": [
 							"Succeeded"
 						]
+					},
+					{
+						"activity": "py_live_dim_date",
+						"dependencyConditions": [
+							"Completed"
+						]
 					}
 				],
 				"policy": {
@@ -1184,6 +1190,212 @@
 							"type": "Expression"
 						},
 						"StatusCode": "200",
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "py_live_dim_date",
+				"type": "SynapseNotebook",
+				"dependsOn": [
+					{
+						"activity": "Set AppIns iKey",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "py_live_dim_date",
+						"type": "NotebookReference"
+					},
+					"snapshot": true,
+					"sparkPool": {
+						"referenceName": "pinssynspodw35",
+						"type": "BigDataPoolReference"
+					}
+				}
+			},
+			{
+				"name": "Record completed live_dim_date load",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "py_live_dim_date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": {
+							"value": "@if(equals(json(activity('py_live_dim_date').output.status.output.result.exitValue).status, 'success'), 'Completion', 'Fail')",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"Inserts": {
+							"value": "@string(json(activity('py_live_dim_date').output.status.output.result.exitValue).record_count)",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@coalesce(json(activity('py_live_dim_date').output.status.output.result.exitValue).error_message, '')",
+							"type": "Expression"
+						},
+						"StatusMessage": {
+							"value": "@if(equals(json(activity('py_live_dim_date').output.status.output.result.exitValue).status, 'success'), 'Harmonised live_dim_date loaded', 'Harmonised live_dim_date load failed')",
+							"type": "Expression"
+						},
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
+							"type": "Expression"
+						},
+						"ActivityType": "py_live_dim_date Notebook",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
+							"type": "Expression"
+						},
+						"StatusCode": {
+							"value": "@if(equals(json(activity('py_live_dim_date').output.status.output.result.exitValue).status, 'success'), '200', '500')",
+							"type": "Expression"
+						},
+						"AppInsIKey": {
+							"value": "@variables('apps_insights_ikey')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Record failed live_dim_date load",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "py_live_dim_date",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pln_log_to_appins",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"Stage": "Fail",
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineRunID": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"StartTime": {
+							"value": "@variables('start_time')",
+							"type": "Expression"
+						},
+						"EndTime": {
+							"value": "@utcNow()",
+							"type": "Expression"
+						},
+						"ErrorMessage": {
+							"value": "@coalesce(activity('py_live_dim_date')?.Error?.message, '')",
+							"type": "Expression"
+						},
+						"StatusMessage": "Harmonised live_dim_date load failed",
+						"PipelineTriggerID": {
+							"value": "@pipeline().TriggerId",
+							"type": "Expression"
+						},
+						"PipelineTriggerName": {
+							"value": "@pipeline().TriggerName",
+							"type": "Expression"
+						},
+						"PipelineTriggerType": {
+							"value": "@pipeline().TriggerType",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineName": {
+							"value": "@pipeline()?.TriggeredByPipelineName",
+							"type": "Expression"
+						},
+						"PipelineTriggeredbyPipelineRunID": {
+							"value": "@pipeline()?.TriggeredByPipelineRunId",
+							"type": "Expression"
+						},
+						"PipelineExecutionTimeInSec": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
+							"type": "Expression"
+						},
+						"ActivityType": "py_live_dim_date Notebook",
+						"DurationSeconds": {
+							"value": "@div(sub(ticks(utcNow()), ticks(variables('start_time'))), 10000000) ",
+							"type": "Expression"
+						},
+						"StatusCode": "500",
 						"AppInsIKey": {
 							"value": "@variables('apps_insights_ikey')",
 							"type": "Expression"

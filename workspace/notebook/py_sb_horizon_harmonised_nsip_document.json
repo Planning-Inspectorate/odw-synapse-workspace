@@ -269,6 +269,8 @@
 					"\n",
 					"                            \"\"\")\n",
 					"\n",
+					"        service_bus_data.createOrReplaceTempView(\"vw_service_bus_data\")\n",
+					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error in source Service Bus SQL query {service_bus_table}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
@@ -384,50 +386,11 @@
 					"        logInfo(f\"Combining data for {spark_table_final}\")\n",
 					"        horizon_data = horizon_data.select(service_bus_data.columns)\n",
 					"        results = service_bus_data.union(horizon_data)\n",
+					"        results.createOrReplaceTempView(\"vw_nsip_document_combined\")\n",
 					"        logInfo(f\"Combined data for {spark_table_final}\")\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error while aligning Horizon schema and merging with Service Bus dataset for {spark_table_final}: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"##### Prepare data for intermediate nsip_document processing"
-				]
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"if not error_message:\n",
-					"    try:\n",
-					"        logInfo(f\"Writing {spark_table_final}\")\n",
-					"        results.write.format(\"delta\").mode(\"Overwrite\").option(\"overwriteSchema\", \"true\").partitionBy(\"IsActive\").saveAsTable(f\"{spark_table_final}\")\n",
-					"        logInfo(f\"Written {spark_table_final}\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error in ingesting delta table {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
@@ -467,25 +430,35 @@
 					"        spark.sql(f\"\"\"\n",
 					"            CREATE OR REPLACE TEMPORARY VIEW vw_nsip_document_calculations_base\n",
 					"                AS\n",
+					"                WITH base AS (\n",
+					"                    SELECT\n",
+					"                        row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
+					"                        ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS NSIPDocumentID\n",
+					"                        ,{primary_key}\n",
+					"                        ,IngestionDate\n",
+					"                        ,ValidTo\n",
+					"                    FROM\n",
+					"                        vw_nsip_document_combined\n",
+					"                )\n",
 					"                SELECT  \n",
-					"                    row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC) AS ReverseOrderProcessed\n",
-					"                    ,row_number() OVER(ORDER BY IngestionDate asc, {primary_key} asc) AS NSIPDocumentID\n",
+					"                    ReverseOrderProcessed\n",
+					"                    ,NSIPDocumentID\n",
 					"                    ,{primary_key}\n",
 					"                    ,IngestionDate\n",
 					"                    ,ValidTo\n",
 					"                    ,'0' AS Migrated\n",
-					"                    ,CASE row_number() OVER(PARTITION BY {primary_key} ORDER BY IngestionDate DESC)\n",
+					"                    ,CASE ReverseOrderProcessed\n",
 					"                        WHEN 1 THEN\n",
 					"                            'Y'\n",
 					"                        ELSE\n",
 					"                            'N'\n",
 					"                    END AS IsActive                \n",
 					"                FROM\n",
-					"                    {spark_table_final}\n",
+					"                    base\n",
 					"        \"\"\")\n",
 					"\n",
 					"    except Exception as e:\n",
-					"        error_message = f\"Error while creating view vw_nsip_document_calculations_base from {spark_table_final}: {str(e)[:800]}\"\n",
+					"        error_message = f\"Error while creating view vw_nsip_document_calculations_base for {spark_table_final}: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
@@ -525,9 +498,8 @@
 					"                                    LEFT OUTER JOIN vw_nsip_document_calculations_base AS NextRow\n",
 					"                                        ON CurrentRow.{primary_key} = NextRow.{primary_key}\n",
 					"                                        AND CurrentRow.ReverseOrderProcessed - 1 = NextRow.ReverseOrderProcessed\n",
-					"                                    LEFT OUTER JOIN (SELECT DISTINCT MD5(CONCAT(documentId, filename, version)) AS {primary_key} FROM {service_bus_table}) AS Raw\n",
+					"                                    LEFT OUTER JOIN (SELECT DISTINCT {primary_key} FROM vw_service_bus_data) AS Raw\n",
 					"                                        ON CurrentRow.{primary_key} = Raw.{primary_key} \n",
-					"                                    ORDER BY CurrentRow.ReverseOrderProcessed\n",
 					"                            \"\"\")\n",
 					"\n",
 					"    except Exception as e:\n",
@@ -683,7 +655,7 @@
 					"                                ) AS RowID\n",
 					"                                ,IsActive\n",
 					"                            FROM \n",
-					"                                {spark_table_final}\n",
+					"                                vw_nsip_document_combined\n",
 					"                        \"\"\")\n",
 					"\n",
 					"    except Exception as e:\n",
@@ -765,6 +737,7 @@
 					"    try:\n",
 					"        columns_to_consider = ['documentId', 'filename', 'version', 'Migrated', 'originalFilename', 'ODTSourceSystem', 'IngestionDate', 'ValidTo', 'IsActive']\n",
 					"        final_df = final_df.drop_duplicates(subset=columns_to_consider)\n",
+					"        final_df = final_df.cache() # avoid recomputing this lineage for both the count and the final write\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error while removing duplicate NSIP document records based on key columns: {str(e)[:800]}\"\n",
@@ -821,6 +794,7 @@
 					"if not error_message:\n",
 					"    try:\n",
 					"        insert_count = final_df.count()\n",
+					"        print(f\"Records to be written to {spark_table_final}: {insert_count}\")\n",
 					"        logInfo(f\"Writing finalised {spark_table_final}\")\n",
 					"        \n",
 					"        # Define the write operation as a function for the retry helper\n",
