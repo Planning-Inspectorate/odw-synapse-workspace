@@ -21,7 +21,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ab33a347-b604-4e8d-aebb-fe5b31a562ef"
+				"spark.autotune.trackingId": "54b081cf-4588-47bf-ab01-301050823278"
 			}
 		},
 		"metadata": {
@@ -104,7 +104,7 @@
 					"import json\n",
 					"import time"
 				],
-				"execution_count": null
+				"execution_count": 92
 			},
 			{
 				"cell_type": "markdown",
@@ -131,7 +131,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 93
 			},
 			{
 				"cell_type": "code",
@@ -142,7 +142,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 94
 			},
 			{
 				"cell_type": "markdown",
@@ -170,7 +170,7 @@
 					"\n",
 					"incremental_key = \"casework_fact_id\""
 				],
-				"execution_count": null
+				"execution_count": 95
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +230,7 @@
 					"    end_exec_time = datetime.now()\n",
 					"    print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 96
 			},
 			{
 				"cell_type": "markdown",
@@ -297,7 +297,7 @@
 					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 97
 			},
 			{
 				"cell_type": "markdown",
@@ -333,7 +333,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 98
 			},
 			{
 				"cell_type": "markdown",
@@ -375,7 +375,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 99
 			},
 			{
 				"cell_type": "code",
@@ -467,7 +467,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 100
 			},
 			{
 				"cell_type": "markdown",
@@ -550,7 +550,7 @@
 					"        print(f\"Error occurred at: {end_exec_time}\")\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 101
 			},
 			{
 				"cell_type": "code",
@@ -568,7 +568,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 102
 			},
 			{
 				"cell_type": "markdown",
@@ -608,7 +608,7 @@
 					"        print(error_message)\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 103
 			},
 			{
 				"cell_type": "markdown",
@@ -686,7 +686,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 104
 			},
 			{
 				"cell_type": "code",
@@ -694,101 +694,112 @@
 					"if not error_message:\n",
 					"    try:\n",
 					"\n",
-					"        delta_table = DeltaTable.forName(\n",
-					"            spark,\n",
-					"            spark_table_final\n",
-					"        )\n",
+					"        source_count = new_data.count()\n",
 					"\n",
-					"        df = spark.table(spark_table_final)\n",
+					"        if source_count > 0:\n",
 					"\n",
-					"        # SCD Type 2\n",
-					"        window_spec = Window.partitionBy(\n",
-					"            \"sourceUid\",\n",
-					"            \"reference\"\n",
-					"        ).orderBy(\n",
-					"            F.col(\"IngestionDate\").desc(),\n",
-					"            F.col(\"casework_fact_id\").desc()\n",
-					"        )\n",
+					"            delta_table = DeltaTable.forName(\n",
+					"                spark,\n",
+					"                spark_table_final\n",
+					"            )\n",
 					"\n",
-					"        df = df.withColumn(\n",
-					"            \"rn\",\n",
-					"            F.row_number().over(window_spec)\n",
-					"        )\n",
+					"            df = spark.table(spark_table_final)\n",
 					"\n",
-					"        df = (\n",
-					"            df\n",
-					"            .withColumn(\n",
-					"                \"NewIsActive\",\n",
-					"                F.when(\n",
-					"                    F.col(\"rn\") == 1,\n",
-					"                    F.lit(\"Y\")\n",
-					"                ).otherwise(\n",
-					"                    F.lit(\"N\")\n",
+					"            window_spec = Window.partitionBy(\n",
+					"                \"sourceUid\",\n",
+					"                \"reference\"\n",
+					"            ).orderBy(\n",
+					"                F.col(\"IngestionDate\").desc(),\n",
+					"                F.col(\"casework_fact_id\").desc()\n",
+					"            )\n",
+					"\n",
+					"            df = df.withColumn(\n",
+					"                \"rn\",\n",
+					"                F.row_number().over(window_spec)\n",
+					"            )\n",
+					"\n",
+					"            df = (\n",
+					"                df\n",
+					"                .withColumn(\n",
+					"                    \"NewIsActive\",\n",
+					"                    F.when(\n",
+					"                        F.col(\"rn\") == 1,\n",
+					"                        F.lit(\"Y\")\n",
+					"                    ).otherwise(\n",
+					"                        F.lit(\"N\")\n",
+					"                    )\n",
+					"                )\n",
+					"                .withColumn(\n",
+					"                    \"NewValidTo\",\n",
+					"                    F.when(\n",
+					"                        F.col(\"rn\") == 1,\n",
+					"                        F.lit(None).cast(\"timestamp\")\n",
+					"                    ).otherwise(\n",
+					"                        F.current_timestamp()\n",
+					"                    )\n",
 					"                )\n",
 					"            )\n",
-					"            .withColumn(\n",
-					"                \"NewValidTo\",\n",
-					"                F.when(\n",
-					"                    F.col(\"rn\") == 1,\n",
-					"                    F.lit(None).cast(\"timestamp\")\n",
-					"                ).otherwise(\n",
-					"                    F.current_timestamp()\n",
+					"\n",
+					"            delta_table.alias(\"t\") \\\n",
+					"                .merge(\n",
+					"                    df.alias(\"s\"),\n",
+					"                    \"t.casework_fact_id = s.casework_fact_id\"\n",
+					"                ) \\\n",
+					"                .whenMatchedUpdate(\n",
+					"                    condition=\"t.IsActive <> s.NewIsActive\",\n",
+					"                    set={\n",
+					"                        \"IsActive\": \"s.NewIsActive\",\n",
+					"                        \"ValidTo\": \"s.NewValidTo\"\n",
+					"                    }\n",
+					"                ) \\\n",
+					"                .execute()\n",
+					"\n",
+					"            update_count = (\n",
+					"                df.filter(\n",
+					"                    F.col(\"NewIsActive\") == \"N\"\n",
+					"                ).count()\n",
+					"            )\n",
+					"\n",
+					"            today = date.today()\n",
+					"\n",
+					"            rowsInactivatedTodayCount = (\n",
+					"                spark.table(spark_table_final)\n",
+					"                .filter(\n",
+					"                    (F.col(\"IsActive\") == \"N\")\n",
+					"                    &\n",
+					"                    (F.to_date(\"ValidTo\") == F.lit(today))\n",
 					"                )\n",
+					"                .count()\n",
 					"            )\n",
-					"        )\n",
 					"\n",
-					"        delta_table.alias(\"t\") \\\n",
-					"            .merge(\n",
-					"                df.alias(\"s\"),\n",
-					"                \"t.casework_fact_id = s.casework_fact_id\"\n",
-					"            ) \\\n",
-					"            .whenMatchedUpdate(\n",
-					"                set={\n",
-					"                    \"IsActive\": \"s.NewIsActive\",\n",
-					"                    \"ValidTo\": \"s.NewValidTo\"\n",
-					"                }\n",
-					"            ) \\\n",
-					"            .execute()\n",
-					"\n",
-					"        update_count = (\n",
-					"            df.filter(\n",
-					"                F.col(\"NewIsActive\") == \"N\"\n",
-					"            ).count()\n",
-					"        )\n",
-					"\n",
-					"        today = date.today()\n",
-					"\n",
-					"        rowsInactivatedTodayCount = (\n",
-					"            spark.table(spark_table_final)\n",
-					"            .filter(\n",
-					"                (F.col(\"IsActive\") == \"N\")\n",
-					"                &\n",
-					"                (F.to_date(\"ValidTo\") == F.lit(today))\n",
+					"            active_count = (\n",
+					"                spark.table(spark_table_final)\n",
+					"                .filter(F.col(\"IsActive\") == \"Y\")\n",
+					"                .count()\n",
 					"            )\n",
-					"            .count()\n",
-					"        )\n",
 					"\n",
-					"        active_count = (\n",
-					"            spark.table(spark_table_final)\n",
-					"            .filter(F.col(\"IsActive\") == \"Y\")\n",
-					"            .count()\n",
-					"        )\n",
+					"            print(\n",
+					"                f\"MERGE completed successfully. \"\n",
+					"                f\"Rows inactivated today: {rowsInactivatedTodayCount}. \"\n",
+					"                f\"Updated rows: {update_count}. \"\n",
+					"                f\"Active rows: {active_count}\"\n",
+					"            )\n",
+					"\n",
+					"        else:\n",
+					"\n",
+					"            print(\n",
+					"                \"No new or updated records found. \"\n",
+					"                \"Skipping SCD Type 2 update.\"\n",
+					"            )\n",
 					"\n",
 					"        end_exec_time = datetime.now()\n",
-					"\n",
-					"        print(\n",
-					"            f\"MERGE completed successfully. \"\n",
-					"            f\"Rows inactivated today: {rowsInactivatedTodayCount}. \"\n",
-					"            f\"Updated rows: {update_count}. \"\n",
-					"            f\"Active rows: {active_count}\"\n",
-					"        )\n",
 					"\n",
 					"    except Exception as e:\n",
 					"        error_message = f\"Error during MERGE operation: {str(e)[:800]}\"\n",
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -825,7 +836,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 106
 			}
 		]
 	}
