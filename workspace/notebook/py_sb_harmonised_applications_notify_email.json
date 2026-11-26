@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b6fa26a7-d50e-4dfc-a09b-249010302023"
+				"spark.autotune.trackingId": "2a334f5e-25bc-4b01-82c6-a329d9840f27"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"from datetime import date,datetime\n",
 					"import time"
 				],
-				"execution_count": null
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +99,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 13
 			},
 			{
 				"cell_type": "markdown",
@@ -119,7 +119,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,21 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\n",
+					"drop table odw_harmonised_db.applications_notify_email"
+				],
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -169,72 +183,84 @@
 					"\n",
 					"        service_bus_data = spark.sql(f\"\"\"\n",
 					"            SELECT DISTINCT\n",
-					"                   notify_email_id\n",
-					"                  ,id\n",
-					"                  ,notifyId\n",
-					"                  ,reference\n",
-					"                  ,CAST(NULL AS STRING) AS casework_fact_key\n",
-					"                  ,createdDate\n",
-					"                  ,createdBy\n",
-					"                  ,completedDate\n",
-					"                  ,email\n",
-					"                  ,contact\n",
-					"                  ,lpaCode\n",
-					"                  ,emailStatus\n",
-					"                  ,templateId\n",
-					"                  ,templateVersion\n",
-					"                  ,body\n",
-					"                  ,subject\n",
-					"                  ,ODTSourceSystem\n",
-					"                  ,SourceSystemID\n",
-					"                  ,IngestionDate\n",
-					"                  ,message_id\n",
-					"                  ,ValidTo\n",
-					"                  ,RowID\n",
-					"                  ,IsActive\n",
-					"            FROM {service_bus_table}\n",
+					"                   sb.notify_email_id,\n",
+					"                   sb.id,\n",
+					"                   sb.notifyId,\n",
+					"                   sb.reference,\n",
+					"                   cf.casework_fact_key,\n",
+					"                   sb.createdDate,\n",
+					"                   sb.createdBy,\n",
+					"                   sb.completedDate,\n",
+					"                   sb.email,\n",
+					"                   sb.contact,\n",
+					"                   sb.lpaCode,\n",
+					"                   sb.emailStatus,\n",
+					"                   sb.templateId,\n",
+					"                   sb.templateVersion,\n",
+					"                   sb.body,\n",
+					"                   sb.subject,\n",
+					"                   sb.ODTSourceSystem,\n",
+					"                   sb.SourceSystemID,\n",
+					"                   sb.IngestionDate,\n",
+					"                   sb.message_id,\n",
+					"                   sb.ValidTo,\n",
+					"                   sb.RowID,\n",
+					"                   sb.IsActive\n",
+					"            FROM {service_bus_table} sb\n",
+					"            LEFT JOIN odw_harmonised_db.casework_fact cf\n",
+					"                ON sb.reference = cf.reference\n",
+					"               AND cf.IsActive = 'Y'\n",
 					"        \"\"\")\n",
 					"\n",
-					"        new_data = service_bus_data.select(\n",
-					"                   \"notify_email_id\"\n",
-					"                  ,\"id\"\n",
-					"                  ,\"notifyId\"\n",
-					"                  ,\"reference\"\n",
-					"                  ,\"casework_fact_key\"\n",
-					"                  ,\"createdDate\"\n",
-					"                  ,\"createdBy\"\n",
-					"                  ,\"completedDate\"\n",
-					"                  ,\"email\"\n",
-					"                  ,\"contact\"\n",
-					"                  ,F.when(F.size(\"contact\") > 0, F.col(\"contact\")[0][\"contactId\"]).alias(\"contactId\")\n",
-					"                  ,F.when(F.size(\"contact\") > 0, F.col(\"contact\")[0][\"contactPreference\"]).alias(\"contactPreference\")\n",
-					"                  ,F.when(F.size(\"contact\") > 0, F.col(\"contact\")[0][\"writtenRepOrgName\"]).alias(\"writtenRepOrgName\")\n",
-					"                  ,F.when(F.size(\"contact\") > 0, F.col(\"contact\")[0][\"writtenRepJobTitleorRole\"]).alias(\"writtenRepJobTitleorRole\")\n",
-					"                  ,\"lpaCode\"\n",
-					"                  ,\"emailStatus\"\n",
-					"                  ,\"templateId\"\n",
-					"                  ,\"templateVersion\"\n",
-					"                  ,\"body\"\n",
-					"                  ,\"subject\"\n",
-					"                  ,\"ODTSourceSystem\"\n",
-					"                  ,\"SourceSystemID\"\n",
-					"                  ,\"IngestionDate\"\n",
-					"                  ,\"message_id\"\n",
-					"                  ,\"ValidTo\"\n",
-					"                  ,\"RowID\"\n",
-					"                  ,\"IsActive\"\n",
+					"        new_data = (\n",
+					"            service_bus_data\n",
+					"            .withColumn(\n",
+					"                \"contact_detail\",\n",
+					"                F.explode_outer(\"contact\")\n",
+					"            )\n",
+					"            .select(\n",
+					"                \"notify_email_id\",\n",
+					"                \"id\",\n",
+					"                \"notifyId\",\n",
+					"                \"reference\",\n",
+					"                \"casework_fact_key\",\n",
+					"                \"createdDate\",\n",
+					"                \"createdBy\",\n",
+					"                \"completedDate\",\n",
+					"                \"email\",\n",
+					"                F.col(\"contact_detail.contactId\").alias(\"contactId\"),\n",
+					"                F.col(\"contact_detail.contactPreference\").alias(\"contactPreference\"),\n",
+					"                F.col(\"contact_detail.writtenRepOrgName\").alias(\"writtenRepOrgName\"),\n",
+					"                F.col(\"contact_detail.writtenRepJobTitleorRole\").alias(\"writtenRepJobTitleorRole\"),\n",
+					"                \"lpaCode\",\n",
+					"                \"emailStatus\",\n",
+					"                \"templateId\",\n",
+					"                \"templateVersion\",\n",
+					"                \"body\",\n",
+					"                \"subject\",\n",
+					"                \"ODTSourceSystem\",\n",
+					"                \"SourceSystemID\",\n",
+					"                \"IngestionDate\",\n",
+					"                \"message_id\",\n",
+					"                \"ValidTo\",\n",
+					"                \"RowID\",\n",
+					"                \"IsActive\"\n",
+					"            )\n",
 					"        )\n",
 					"\n",
-					"        print(\"Contact fields extracted succssfully.\")\n",
+					"        print(\"Contact fields extracted successfully and casework_fact_key populated.\")\n",
 					"\n",
 					"    except Exception as e:\n",
+					"\n",
 					"        error_message = (\n",
 					"            f\"Error extracting contact fields: {str(e)[:800]}\"\n",
 					"        )\n",
+					"\n",
 					"        end_exec_time = datetime.now()\n",
+					"\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "markdown",
@@ -271,7 +297,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 18
 			},
 			{
 				"cell_type": "code",
@@ -301,7 +327,6 @@
 					"                ,createdBy\n",
 					"                ,completedDate\n",
 					"                ,email\n",
-					"                ,contact\n",
 					"                ,contactId\n",
 					"                ,contactPreference\n",
 					"                ,writtenRepOrgName\n",
@@ -326,7 +351,6 @@
 					"                    ,IFNULL(CAST(createdBy AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(completedDate AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(email AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(contact AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(contactId AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(contactPreference AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(writtenRepOrgName AS STRING), '.')\n",
@@ -350,7 +374,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 19
 			},
 			{
 				"cell_type": "code",
@@ -368,7 +392,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 20
 			},
 			{
 				"cell_type": "markdown",
@@ -433,7 +457,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -470,7 +494,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 22
 			}
 		]
 	}
