@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "255db556-4a46-4936-8ce4-41d7e569fbd0"
+				"spark.autotune.trackingId": "dd9e1e35-b75c-4aad-ad13-e502e4f722ee"
 			}
 		},
 		"metadata": {
@@ -79,7 +79,7 @@
 					"from datetime import date,datetime\n",
 					"import time"
 				],
-				"execution_count": null
+				"execution_count": 103
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +99,7 @@
 				"source": [
 					" %run utils/py_logging_decorator"
 				],
-				"execution_count": null
+				"execution_count": 104
 			},
 			{
 				"cell_type": "markdown",
@@ -119,7 +119,7 @@
 				"source": [
 					"%run utils/py_applicationinsights"
 				],
-				"execution_count": null
+				"execution_count": 105
 			},
 			{
 				"cell_type": "code",
@@ -145,7 +145,7 @@
 					"delete_count = 0\n",
 					"error_message=''"
 				],
-				"execution_count": null
+				"execution_count": 106
 			},
 			{
 				"cell_type": "markdown",
@@ -164,100 +164,108 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"from pyspark.sql import functions as F\n",
-					"from datetime import datetime\n",
+					"try:\n",
+					"    service_bus_data = spark.sql(f\"\"\"\n",
+					"    SELECT DISTINCT\n",
+					"           representation_id\n",
+					"          ,id\n",
+					"          ,sb.reference\n",
+					"          ,cf.casework_fact_key\n",
+					"          ,representationStatus\n",
+					"          ,submittedFor\n",
+					"          ,submittedByContact\n",
+					"          ,submittedByAgent\n",
+					"          ,submittedByAgentOrgName\n",
+					"          ,submittedDate\n",
+					"          ,submittedReceivedMethod\n",
+					"          ,submissionMethodReason\n",
+					"          ,comment\n",
+					"          ,commentRedacted\n",
+					"          ,representedType\n",
+					"          ,representedContact\n",
+					"          ,representedCategory\n",
+					"          ,wantsToBeHeard\n",
+					"          ,containsAttachments\n",
+					"          ,sharePointFolderCreated\n",
+					"          ,distressingContentInRepresentation\n",
+					"          ,withdrawalRequestDate\n",
+					"          ,withdrawalReason\n",
+					"          ,dateWithdrawn\n",
+					"          ,representationDocuments\n",
+					"          ,ODTSourceSystem\n",
+					"          ,SourceSystemID\n",
+					"          ,IngestionDate\n",
+					"          ,message_id\n",
+					"          ,ValidTo\n",
+					"          ,RowID\n",
+					"          ,IsActive\n",
+					"    FROM {service_bus_table} sb\n",
+					"    LEFT JOIN (\n",
+					"        SELECT\n",
+					"            casework_fact_key,\n",
+					"            reference\n",
+					"        FROM odw_harmonised_db.casework_fact\n",
+					"        WHERE isActive = 'Y'\n",
+					"    ) cf\n",
+					"        ON sb.reference = cf.reference\n",
+					"\"\"\")\n",
 					"\n",
-					"if not error_message:\n",
-					"    try:\n",
+					"    # Flatten all contact records (explode_outer keeps rows with NULL/empty arrays)\n",
+					"    exploded = (\n",
+					"        service_bus_data\n",
+					"        .withColumn(\"submittedByContactExp\", F.explode_outer(\"submittedByContact\"))\n",
+					"        .withColumn(\"representedContactExp\", F.explode_outer(\"representedContact\"))\n",
+					"    )\n",
 					"\n",
-					"        service_bus_data = spark.sql(f\"\"\"\n",
-					"            SELECT DISTINCT\n",
-					"                   representation_id\n",
-					"                  ,id\n",
-					"                  ,reference\n",
-					"                  ,CAST(NULL AS STRING) AS casework_fact_key\n",
-					"                  ,representationStatus\n",
-					"                  ,submittedFor\n",
-					"                  ,submittedByContact\n",
-					"                  ,submittedByAgent\n",
-					"                  ,submittedByAgentOrgName\n",
-					"                  ,submittedDate\n",
-					"                  ,submittedReceivedMethod\n",
-					"                  ,submissionMethodReason\n",
-					"                  ,comment\n",
-					"                  ,commentRedacted\n",
-					"                  ,representedType\n",
-					"                  ,representedContact\n",
-					"                  ,representedCategory\n",
-					"                  ,wantsToBeHeard\n",
-					"                  ,containsAttachments\n",
-					"                  ,sharePointFolderCreated\n",
-					"                  ,distressingContentInRepresentation\n",
-					"                  ,withdrawalRequestDate\n",
-					"                  ,withdrawalReason\n",
-					"                  ,dateWithdrawn\n",
-					"                  ,representationDocuments\n",
-					"                  ,ODTSourceSystem\n",
-					"                  ,SourceSystemID\n",
-					"                  ,IngestionDate\n",
-					"                  ,message_id\n",
-					"                  ,ValidTo\n",
-					"                  ,RowID\n",
-					"                  ,IsActive\n",
-					"            FROM {service_bus_table}\n",
-					"        \"\"\")\n",
+					"    new_data = exploded.select(\n",
+					"        \"representation_id\",\n",
+					"        \"id\",\n",
+					"        \"reference\",\n",
+					"        \"casework_fact_key\",\n",
+					"        \"representationStatus\",\n",
+					"        \"submittedFor\",\n",
+					"        F.col(\"submittedByContactExp.contactId\").alias(\"submittedByContactId\"),\n",
+					"        F.col(\"submittedByContactExp.contactPreference\").alias(\"submittedByContactPreference\"),\n",
+					"        F.col(\"submittedByContactExp.writtenRepOrgName\").alias(\"submittedByWrittenRepOrgName\"),\n",
+					"        F.col(\"submittedByContactExp.writtenRepJobTitleorRole\").alias(\"submittedByWrittenRepJobTitleorRole\"),\n",
+					"        \"submittedByAgent\",\n",
+					"        \"submittedByAgentOrgName\",\n",
+					"        \"submittedDate\",\n",
+					"        \"submittedReceivedMethod\",\n",
+					"        \"submissionMethodReason\",\n",
+					"        \"comment\",\n",
+					"        \"commentRedacted\",\n",
+					"        \"representedType\",\n",
+					"        F.col(\"representedContactExp.contactId\").alias(\"representedContactId\"),\n",
+					"        F.col(\"representedContactExp.contactPreference\").alias(\"representedContactPreference\"),\n",
+					"        F.col(\"representedContactExp.writtenRepOrgName\").alias(\"representedWrittenRepOrgName\"),\n",
+					"        F.col(\"representedContactExp.writtenRepJobTitleorRole\").alias(\"representedWrittenRepJobTitleorRole\"),\n",
+					"        \"representedCategory\",\n",
+					"        \"wantsToBeHeard\",\n",
+					"        \"containsAttachments\",\n",
+					"        \"sharePointFolderCreated\",\n",
+					"        \"distressingContentInRepresentation\",\n",
+					"        \"withdrawalRequestDate\",\n",
+					"        \"withdrawalReason\",\n",
+					"        \"dateWithdrawn\",\n",
+					"        \"representationDocuments\",\n",
+					"        \"ODTSourceSystem\",\n",
+					"        \"SourceSystemID\",\n",
+					"        \"IngestionDate\",\n",
+					"        \"message_id\",\n",
+					"        \"ValidTo\",\n",
+					"        \"RowID\",\n",
+					"        \"IsActive\"\n",
+					"    )\n",
 					"\n",
-					"        new_data = service_bus_data.select(\n",
-					"               \"representation_id\"\n",
-					"              ,\"id\"\n",
-					"              ,\"reference\"\n",
-					"              ,\"casework_fact_key\"\n",
-					"              ,\"representationStatus\"\n",
-					"              ,\"submittedFor\"\n",
-					"              ,\"submittedByContact\"\n",
-					"              ,F.when(F.size(\"submittedByContact\") > 0,F.col(\"submittedByContact\")[0][\"contactId\"]).alias(\"submittedByContactId\")\n",
-					"              ,F.when(F.size(\"submittedByContact\") > 0,F.col(\"submittedByContact\")[0][\"contactPreference\"]).alias(\"submittedByContactPreference\")\n",
-					"              ,F.when( F.size(\"submittedByContact\") > 0,F.col(\"submittedByContact\")[0][\"writtenRepOrgName\"]).alias(\"submittedbywrittenreporgname\")\n",
-					"              ,F.when(F.size(\"submittedByContact\") > 0,F.col(\"submittedByContact\")[0][\"writtenRepJobTitleorRole\"]).alias(\"submittedbywrittenrepjobtitleorrole\")\n",
-					"              ,\"submittedByAgent\"\n",
-					"              ,\"submittedByAgentOrgName\"\n",
-					"              ,\"submittedDate\"\n",
-					"              ,\"submittedReceivedMethod\"\n",
-					"              ,\"submissionMethodReason\"\n",
-					"              ,\"comment\"\n",
-					"              ,\"commentRedacted\"\n",
-					"              ,\"representedType\"\n",
-					"              ,\"representedContact\"\n",
-					"              ,F.when(F.size(\"representedContact\") > 0, F.col(\"representedContact\")[0][\"contactId\"]).alias(\"representedContactId\")\n",
-					"              ,F.when(F.size(\"representedContact\") > 0, F.col(\"representedContact\")[0][\"contactPreference\"]).alias(\"representedContactPreference\")\n",
-					"              ,F.when(F.size(\"representedContact\") > 0, F.col(\"representedContact\")[0][\"writtenRepOrgName\"]).alias(\"representedwrittenreporgname\")\n",
-					"              ,F.when(F.size(\"representedContact\") > 0, F.col(\"representedContact\")[0][\"writtenRepJobTitleorRole\"]).alias(\"representedwrittenrepjobtitleorrole\")\n",
-					"              ,\"representedCategory\"\n",
-					"              ,\"wantsToBeHeard\"\n",
-					"              ,\"containsAttachments\"\n",
-					"              ,\"sharePointFolderCreated\"\n",
-					"              ,\"distressingContentInRepresentation\"\n",
-					"              ,\"withdrawalRequestDate\"\n",
-					"              ,\"withdrawalReason\"\n",
-					"              ,\"dateWithdrawn\"\n",
-					"              ,\"representationDocuments\"\n",
-					"              ,\"ODTSourceSystem\"\n",
-					"              ,\"SourceSystemID\"\n",
-					"              ,\"IngestionDate\"\n",
-					"              ,\"message_id\"\n",
-					"              ,\"ValidTo\"\n",
-					"              ,\"RowID\"\n",
-					"              ,\"IsActive\"\n",
-					"        )\n",
+					"    print(\"Contact and document fields extracted successfully.\")\n",
 					"\n",
-					"        print(\"Contact and document fields extracted successfully.\")\n",
-					"\n",
-					"    except Exception as e:\n",
-					"        error_message = f\"Error extracting contact/document fields: {str(e)[:800]}\"\n",
-					"        end_exec_time = datetime.now()\n",
-					"        print(error_message)"
+					"except Exception as e:\n",
+					"    error_message = f\"Error extracting contact/document fields: {str(e)[:800]}\"\n",
+					"    end_exec_time = datetime.now()\n",
+					"    print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 108
 			},
 			{
 				"cell_type": "markdown",
@@ -294,7 +302,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 109
 			},
 			{
 				"cell_type": "code",
@@ -321,7 +329,6 @@
 					"                ,casework_fact_key\n",
 					"                ,representationStatus\n",
 					"                ,submittedFor\n",
-					"                ,submittedByContact\n",
 					"                ,submittedByContactId\n",
 					"                ,submittedByContactPreference\n",
 					"                ,submittedbywrittenreporgname\n",
@@ -334,7 +341,6 @@
 					"                ,comment\n",
 					"                ,commentRedacted\n",
 					"                ,representedType\n",
-					"                ,representedContact\n",
 					"                ,representedContactId\n",
 					"                ,representedContactPreference\n",
 					"                ,representedwrittenreporgname\n",
@@ -361,7 +367,6 @@
 					"                    ,IFNULL(CAST(casework_fact_key AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(representationStatus AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(submittedFor AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(submittedByContact AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(submittedByContactId AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(submittedByContactPreference AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(submittedbywrittenreporgname AS STRING), '.')\n",
@@ -374,7 +379,6 @@
 					"                    ,IFNULL(CAST(comment AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(commentRedacted AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(representedType AS STRING), '.')\n",
-					"                    ,IFNULL(CAST(representedContact AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(representedContactId AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(representedContactPreference AS STRING), '.')\n",
 					"                    ,IFNULL(CAST(representedwrittenreporgname AS STRING), '.')\n",
@@ -406,7 +410,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 110
 			},
 			{
 				"cell_type": "code",
@@ -424,7 +428,7 @@
 					"            else:\n",
 					"                raise"
 				],
-				"execution_count": null
+				"execution_count": 111
 			},
 			{
 				"cell_type": "markdown",
@@ -483,7 +487,7 @@
 					"        end_exec_time = datetime.now()\n",
 					"        print(error_message)"
 				],
-				"execution_count": null
+				"execution_count": 112
 			},
 			{
 				"cell_type": "code",
@@ -520,7 +524,7 @@
 					"    status_code\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 113
 			}
 		]
 	}
